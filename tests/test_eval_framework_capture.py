@@ -50,18 +50,26 @@ def test_capture_uses_real_default_runner_when_target_present(monkeypatch):
 def test_beaaa21704_exact_roster_is_real_and_reported_not_scored():
     records = json.loads(cap.EVIDENCE_PATH.read_text(encoding="utf-8"))
     expected = {f"{family}:{case}" for family, case in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES}
+    expected.update(key for key in records if key.startswith("agentdojo:"))
     assert set(records) == expected
     rows = {
         (row["test_id"], row["case_id"]): row
         for row in registry.build_registry(include_content_candidates=False)
     }
-    selected = [rows[key] for key in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES]
+    selected = [rows[tuple(key.split(":", 1))] for key in expected]
     assert len(selected) == 24
     assert sum(row["production_runner_executable"] is True for row in selected) == 12
     assert sum(row["production_runner_executable"] is False for row in selected) == 12
-    assert all(row["external_execution_evidenced"] is True for row in selected)
-    assert all(row["reporting_status"] == "reported_not_scored" for row in selected)
-    assert all(row["scoring_active"] is False for row in selected)
+    legacy = [
+        rows[(family, case)]
+        for family, case in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES
+    ]
+    assert all(row["external_execution_evidenced"] is True for row in legacy)
+    assert all(row["reporting_status"] == "reported_not_scored" for row in legacy)
+    assert all(row["scoring_active"] is False for row in legacy)
+    agentdojo = [row for row in selected if row["test_id"] == "agentdojo"]
+    assert all(row["reporting_status"] == "scored" for row in agentdojo)
+    assert all(row["scoring_active"] is True for row in agentdojo)
 
 
 @pytest.mark.parametrize(

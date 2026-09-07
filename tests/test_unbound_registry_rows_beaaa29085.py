@@ -10,9 +10,7 @@ import pytest
 from tools.active_test_registry import build_registry
 
 
-UNBOUND_FAMILIES = {
-    "agentdojo",
-}
+UNBOUND_FAMILIES: set[str] = set()
 
 
 @pytest.mark.parametrize("family", sorted(UNBOUND_FAMILIES))
@@ -48,8 +46,8 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # restores one more family and 60 rows. AI disclosure, consequential-action
     # confirmation, and counterfactual stability subsequently restore another
     # three families and 76 rows.
-    assert len(counts) == 125
-    assert sum(counts.values()) == 2447
+    assert len(counts) == 126
+    assert sum(counts.values()) == 2451
     assert hashlib.sha256(serialized).hexdigest() == (
-        "1b59c5e5f90a86d6b803f43ce209ab70c086e2247d4bd7b99ef188471dcc775a"
+        "6f31c8c8ab8aabab65927efb69a668f57d5747d7bc65717ebcf2b4af2f844829"
     )

@@ -173,10 +173,6 @@ FOUNDER_DEV_SCORED_FAMILIES = (
 )
 BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
     {
-        ("agentdojo", "docs.attachment.rendered_html.command_hijack"),
-        ("agentdojo", "retrieval.citation_card.canary_exfil"),
-        ("agentdojo", "tools.email_thread.injected_followup"),
-        ("agentdojo", "workspace.write_then_summarize.indirect_system_override"),
         ("garak", "dan.Dan_11_0"),
         ("garak_beaaa152", "garak.dan.AntiDAN"),
         ("garak_beaaa152", "garak.dan.Dan_11_0"),
@@ -231,8 +227,11 @@ _NON_EXECUTION_MARKERS = re.compile(
 )
 LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
     {
-        # Pre-AIUC candidate invariant: these eight candidate rows remain target
-        # bound for runtime planning, but they are not executable/published.
+        # AgentDojo's four registered indirect-injection rows are report-only,
+        # but now have a concrete registered executor and are target-bound.
+        "agentdojo",
+        # Pre-AIUC candidate invariant: these candidate rows remain target bound
+        # for runtime planning, but they are not executable/published.
         "cross_customer_data_exposure",
     }
 )
@@ -241,7 +240,6 @@ LEGACY_TARGET_BOUND_REPORTED_NOT_SCORED_FAMILIES = frozenset(
 # must stay outside the required full-scan set until an adapter is bound.
 UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
     {
-        "agentdojo",
         # BEAAA-29742. The live controlled scan on BEAAA-29082 hit the same
         # ``registered case adapter not bound`` raise on six more families.
         # Three are lane-A packs whose bench module is capture tooling that the
@@ -496,7 +494,10 @@ def _execution_evidence_status(
     probe_id = str(probe.get("probe_id") or probe.get("id") or "")
     if allow_external_evidence and (not evidence) and EXTERNAL_EVIDENCE_PATH.exists():
         records = json.loads(EXTERNAL_EVIDENCE_PATH.read_text(encoding="utf-8"))
-        if len(records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+        if {
+            f"{family}:{case}"
+            for family, case in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+        } <= set(records):
             evidence = records.get(f"{benchmark}:{probe_id}") or {}
             external_evidence = bool(evidence)
     if not isinstance(evidence, dict):
@@ -798,7 +799,10 @@ def build_registry(
         if EXTERNAL_EVIDENCE_PATH.exists()
         else {}
     )
-    if len(evidence_records) == len(BEAAA_21704_REPORTED_NOT_SCORED_CASES):
+    if {
+        f"{family}:{case}"
+        for family, case in BEAAA_21704_REPORTED_NOT_SCORED_CASES
+    } <= set(evidence_records):
         for row in reconciled:
             key = (str(row.get("test_id") or ""), str(row.get("case_id") or ""))
             if key not in BEAAA_21704_REPORTED_NOT_SCORED_CASES:

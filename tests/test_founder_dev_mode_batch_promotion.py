@@ -12,7 +12,7 @@ to scored (underwriting-eligibility, zero score weight):
 
 Invariants:
 * Flag OFF (production default): every family reported-not-scored; the
-  active-executable count remains 480 after the separately approved
+  active-executable count remains 484 after the separately approved
   BEAAA-24273 60-row floor. No production impact.
 * Flag ON: every family scoring_active; the count rises only by the families that
   were previously non-countable (the legacy packs were already counted, so the
@@ -31,12 +31,12 @@ from tools.active_test_registry import (
 )
 from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV, FounderDevModeError, assert_production_attested
 
-BASELINE_ACTIVE_EXECUTABLE = 480
+BASELINE_ACTIVE_EXECUTABLE = 484
 # Non-countable-while-reported families become countable on flag-on; legacy packs
 # were already counted, so they add nothing to the count (only flip to scored).
-# 480 production-default + 88 earlier Founder-Dev-Mode rows + the separately
-# authorized BEAAA-24008 lane-C tranche (44) = 612 on this combined train tree.
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 612
+# 484 production-default + 88 earlier Founder-Dev-Mode rows + the separately
+# authorized BEAAA-24008 lane-C tranche (44) = 616 on this combined train tree.
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 616
 
 
 def _rows_by_family(rows):
@@ -113,7 +113,7 @@ def test_flag_on_fails_closed_at_production_boundary(monkeypatch):
 
 
 def test_legacy_packs_stay_counted_across_flag(monkeypatch):
-    # legacy packs are already in the 480; the flag flips them scored without
+    # legacy packs are already in the 484; the flag flips them scored without
     # changing whether they are counted.
     monkeypatch.delenv(FOUNDER_DEV_MODE_ENV, raising=False)
     off = _rows_by_family(build_registry(include_content_candidates=False))
