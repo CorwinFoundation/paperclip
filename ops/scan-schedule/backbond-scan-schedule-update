@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+checkout=/home/are-deploy/are-scanner
+test -d "$checkout/.git"
+test "$(stat -c %U "$checkout")" = are-deploy
+git -C "$checkout" fetch --quiet origin master
+git -C "$checkout" merge --ff-only --quiet origin/master

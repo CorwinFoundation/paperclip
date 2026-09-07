@@ -1,0 +1,12 @@
+[Unit]
+Description=BackBond weekly model-zoo controlled scan
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=are-deploy
+EnvironmentFile=/etc/backbond/scan-schedule.env
+WorkingDirectory=/home/are-deploy/are-scanner
+ExecStartPre=/usr/bin/sudo /usr/local/libexec/backbond-scan-schedule-update
+ExecStart=/usr/bin/python3 scripts/run_scheduled_full_scan.py --job zoo

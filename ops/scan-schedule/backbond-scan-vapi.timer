@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the BackBond Vapi scan weekly
+
+[Timer]
+OnCalendar=Mon *-*-* 03:00:00 UTC
+Persistent=true
+RandomizedDelaySec=15m
+Unit=backbond-scan-vapi.service
+
+[Install]
+WantedBy=timers.target
