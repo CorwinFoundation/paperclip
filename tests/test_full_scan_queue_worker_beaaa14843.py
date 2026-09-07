@@ -100,8 +100,8 @@ def test_default_registry_loader_matches_standard_production_count():
     # BEAAA-29742 gates eight more the same way, so the executable, distinct
     # and content-candidate counts all step down together. BEAAA-30128 then
     # binds 60 counterfactual-stability rows back into the production census.
-    assert len(rows) == count_active_executable(rows) == 2_349
-    assert distinct_case_counts(rows)["total"] == 2_348
+    assert len(rows) == count_active_executable(rows) == 2_350
+    assert distinct_case_counts(rows)["total"] == 2_349
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
         == 2_000

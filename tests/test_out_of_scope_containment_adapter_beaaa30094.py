@@ -33,7 +33,7 @@ def test_exact_out_of_scope_roster_is_executable_without_other_family_delta() ->
         "content_candidate_worker": 30,
     }
     assert all(row["production_runner_executable"] is True for row in scoped)
-    assert count_active_executable(rows) == 2_349
+    assert count_active_executable(rows) == 2_350
 
 
 def test_live_dispatch_reports_mutually_exclusive_outcomes_and_counts(tmp_path) -> None:

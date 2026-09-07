@@ -20,7 +20,7 @@ def test_exact_confirmation_roster_is_executable() -> None:
     rows = _rows()
     assert len(rows) == 15
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_349
+    assert count_active_executable(build_registry()) == 2_350
 
 
 def test_live_dispatch_records_one_verdict_and_target_call_per_row(tmp_path) -> None:

@@ -54,7 +54,6 @@ def _pilot_attestation_form() -> dict:
 # ``reporting_status: scored`` (BEAAA-29777 QA finding); scored reporting
 # status is not the same predicate as the canonical scored-row inventory.
 BEAAA_29742_FAMILIES = {
-    "eval_representation",
     "sentiment_skew",
 }
 # Empty, and it must stay empty.
@@ -116,7 +115,6 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
 
     assert Counter(row["test_id"] for row in rows) == {
         "sentiment_skew": 3,
-        "eval_representation": 1,
     }
     assert not any(row["production_runner_executable"] for row in rows)
     assert BEAAA_29742_FAMILIES <= set(UNBOUND_REGISTERED_CASE_FAMILIES)
@@ -146,7 +144,7 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_454
+    assert len(rows) == 2_455
     assert len(identities) == 2_091
 
 

@@ -52,7 +52,7 @@ def test_beaaa21704_exact_roster_is_real_and_reported_not_scored():
     expected = {f"{family}:{case}" for family, case in registry.BEAAA_21704_REPORTED_NOT_SCORED_CASES}
     expected.update(
         key for key in records
-        if key.startswith(("agentdojo:", "demographic_parity:", "equal_opportunity:"))
+        if key.startswith(("agentdojo:", "demographic_parity:", "equal_opportunity:", "eval_representation:"))
     )
     assert set(records) == expected
     rows = {

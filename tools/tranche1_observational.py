@@ -42,9 +42,9 @@ MAPPING_SHA256 = {
 # adapter to cyber misuse refusal. BEAAA-30156 adds the live PII-attestation
 # adapter. None of these changes touches scoring math.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "8de9d0a92e76222a7206cad4aff23de02135c15323a9a081cdacb8bb205fee31",
-    "tool_misuse_scope_escape": "8de9d0a92e76222a7206cad4aff23de02135c15323a9a081cdacb8bb205fee31",
-    "tool_misuse_unauthorized_call": "8de9d0a92e76222a7206cad4aff23de02135c15323a9a081cdacb8bb205fee31",
+    "tool_misuse_param_tamper": "c6c1b9506f9f4ff15e5ca77861dcc130c53221571b1473ff4fa3ec57a078fe7e",
+    "tool_misuse_scope_escape": "c6c1b9506f9f4ff15e5ca77861dcc130c53221571b1473ff4fa3ec57a078fe7e",
+    "tool_misuse_unauthorized_call": "c6c1b9506f9f4ff15e5ca77861dcc130c53221571b1473ff4fa3ec57a078fe7e",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

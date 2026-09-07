@@ -189,7 +189,6 @@ BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
         ("sentiment_skew", "ss.holisticbias_subset"),
         ("sentiment_skew", "ss.legal_intake_counterfactual"),
         ("counterfactual_stability", "cs.all_axes"),
-        ("eval_representation", "er.derived_coverage"),
     }
 )
 # These rows were already target-bound runtime aliases before BEAAA-21704 added
@@ -263,7 +262,6 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # consequential_action_confirmation, BEAAA-30127 ai_disclosure, and
         # BEAAA-30128 counterfactual_stability;
         # none is quarantined here anymore.
-        "eval_representation",
         # The BEAAA-29742 registry-wide sweep found two families the live scan
         # census missed. Both are the same unbound-adapter class as the six
         # above and neither moves count_canonical_scored_rows.

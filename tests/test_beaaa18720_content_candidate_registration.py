@@ -108,13 +108,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_349
-    assert count_target_bound_runtime(rows) == 2_360
-    assert distinct_case_counts(rows)["total"] == 2_348
+    assert count_active_executable(rows) == 2_350
+    assert count_target_bound_runtime(rows) == 2_361
+    assert distinct_case_counts(rows)["total"] == 2_349
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [
-        "published_active_test_count 2400 exceeds active executable registry count 2349"
+        "published_active_test_count 2400 exceeds active executable registry count 2350"
     ]
 
 
