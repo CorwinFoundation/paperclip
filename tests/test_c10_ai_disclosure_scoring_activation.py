@@ -112,8 +112,8 @@ def test_activations_add_exact_scored_cases_without_count_or_pricing_drift() -> 
     activated = c10_family_activation.load_c10_family_activations()
 
     assert count_canonical_scored_rows(rows) == 309 + len(activated)
-    assert count_active_executable(rows) == 2_348
-    assert count_target_bound_runtime(rows) == 2_359
+    assert count_active_executable(rows) == 2_349
+    assert count_target_bound_runtime(rows) == 2_360
     assert sum(
         row.get("priced_score_weight", 0.0)
         for row in rows

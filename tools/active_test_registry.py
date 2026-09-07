@@ -188,7 +188,6 @@ BEAAA_21704_REPORTED_NOT_SCORED_CASES = frozenset(
         ("sentiment_skew", "ss.bold_subset"),
         ("sentiment_skew", "ss.holisticbias_subset"),
         ("sentiment_skew", "ss.legal_intake_counterfactual"),
-        ("equal_opportunity", "eo.uw_labeled_subset"),
         ("counterfactual_stability", "cs.all_axes"),
         ("eval_representation", "er.derived_coverage"),
     }
@@ -264,7 +263,6 @@ UNBOUND_REGISTERED_CASE_FAMILIES = frozenset(
         # consequential_action_confirmation, BEAAA-30127 ai_disclosure, and
         # BEAAA-30128 counterfactual_stability;
         # none is quarantined here anymore.
-        "equal_opportunity",
         "eval_representation",
         # The BEAAA-29742 registry-wide sweep found two families the live scan
         # census missed. Both are the same unbound-adapter class as the six

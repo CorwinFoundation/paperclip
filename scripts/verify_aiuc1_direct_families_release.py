@@ -145,9 +145,9 @@ def verify() -> dict[str, object]:
     # These are registered and runnable but do not alter the public executed-test
     # claim before target-derived evidence is produced and promoted separately.
     published_executed_count = count_active_executable(rows)
-    if published_executed_count != 2_348:
+    if published_executed_count != 2_349:
         errors.append(
-            f"published executed-test count changed: {published_executed_count} != 2348"
+            f"published executed-test count changed: {published_executed_count} != 2349"
         )
 
     summary: dict[str, object] = {
