@@ -152,14 +152,14 @@ class CanonicalTestRegistryTests(unittest.TestCase):
         # total to 2,279; BEAAA-24273 adds the 60 six-point floor cases for
         # 2,339. BEAAA-30128 binds the 60 counterfactual-stability rows, taking
         # the active executable count to 2,317.
-        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2350)
+        self.assertEqual(self.registry["metadata"]["active_test_registry_active_executable_count"], 2353)
         active_rows = [
             row
             for row in self.registry["rows"]
             if row.get("source_bucket") == "active_test_registry"
             and row.get("countable_as_active_executable") is True
         ]
-        self.assertEqual(len(active_rows), 2350)
+        self.assertEqual(len(active_rows), 2353)
 
     def test_duplicate_and_fixture_rows_do_not_count(self) -> None:
         duplicate = {

@@ -27,13 +27,13 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     # count is not involved: 417 is a live count that this test passes into
     # ``summarize`` as an input, not the published claim, which stays at 2,279.
     rows = build_registry(include_content_candidates=False)
-    summary = summarize(rows, published_count=488)
+    summary = summarize(rows, published_count=491)
 
-    assert count_active_executable(rows) == 488
-    assert summary["active_executable_count"] == 488
-    assert count_target_bound_runtime(rows) == 510
-    assert summary["target_bound_runtime_count"] == 510
-    assert summary["published_active_test_count"] == 488
+    assert count_active_executable(rows) == 491
+    assert summary["active_executable_count"] == 491
+    assert count_target_bound_runtime(rows) == 513
+    assert summary["target_bound_runtime_count"] == 513
+    assert summary["published_active_test_count"] == 491
 
 
 def test_beaaa21704_report_only_cases_keep_runtime_coverage_not_score_countability() -> None:
@@ -45,7 +45,7 @@ def test_beaaa21704_report_only_cases_keep_runtime_coverage_not_score_countabili
         in BEAAA_21704_REPORTED_NOT_SCORED_CASES
     ]
 
-    assert len(cases) == 16
+    assert len(cases) == 13
     assert count_active_executable(cases) == 0
     assert len(BEAAA_21704_RETAINED_RUNTIME_CASES) == 12
     assert count_target_bound_runtime(cases) == 12

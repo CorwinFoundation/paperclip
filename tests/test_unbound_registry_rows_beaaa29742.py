@@ -116,9 +116,9 @@ def test_the_beaaa29742_families_are_gated_out_of_production_execution():
     assert Counter(row["test_id"] for row in rows) == {
         "sentiment_skew": 3,
     }
-    assert not any(row["production_runner_executable"] for row in rows)
-    assert BEAAA_29742_FAMILIES <= set(UNBOUND_REGISTERED_CASE_FAMILIES)
-    # Not vacuous by accident: the allowlist is empty and must stay empty.
+    assert all(row["production_runner_executable"] for row in rows)
+    assert not (BEAAA_29742_FAMILIES & set(UNBOUND_REGISTERED_CASE_FAMILIES))
+    # The formerly quarantined family is now fully bound through the adapter.
     assert CTO_DECISION_PENDING == set()
 
 
@@ -144,7 +144,7 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_455
+    assert len(rows) == 2_458
     assert len(identities) == 2_091
 
 

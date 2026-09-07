@@ -15,7 +15,7 @@ from tools.release_registry_marker import (
 
 REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "9a13b9329cf9251d43ed68fe4daffc78992762d1dca4b8c757b2f66a1a747482"
+    "fe972d472d7d6b7cd3d805c8c09004da637276fca92b1ab319ad8d39fcbe6019"
 )
 
 
@@ -25,9 +25,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_350
-    assert marker["generated_executable_count"] == 2_350
-    assert marker["distinct_runtime_count"] == 2_349
+    assert marker["published_executable_count"] == 2_353
+    assert marker["generated_executable_count"] == 2_353
+    assert marker["distinct_runtime_count"] == 2_352
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()
@@ -41,7 +41,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # this exclusion proof. The pii_attestation.evidence_pack row is now bound
     # through the production adapter. Binding the two demographic-parity rows
     # reduces the exclusion proof by two more.
-    assert len(marker["excluded_rows"]) == 128
+    assert len(marker["excluded_rows"]) == 125
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

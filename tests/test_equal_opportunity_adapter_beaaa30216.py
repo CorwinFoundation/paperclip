@@ -17,7 +17,7 @@ def test_exact_equal_opportunity_roster_is_executable() -> None:
     rows = _rows()
     assert [row["case_id"] for row in rows] == ["eo.uw_labeled_subset"]
     assert rows[0]["production_runner_executable"] is True
-    assert count_active_executable(build_registry()) == 2_350
+    assert count_active_executable(build_registry()) == 2_353
 
 
 def test_live_dispatch_records_one_verdict_and_exact_calls(tmp_path) -> None:

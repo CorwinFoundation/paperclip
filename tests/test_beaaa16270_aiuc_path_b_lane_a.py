@@ -99,7 +99,7 @@ def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphan
     # frozenset without editing this literal fails.
     from tools.active_test_registry import UNBOUND_REGISTERED_CASE_FAMILIES
 
-    unbound_families = {"sentiment_skew"}
+    unbound_families = set()
     assert unbound_families == set(UNBOUND_REGISTERED_CASE_FAMILIES)
     for family in eligible:
         family_rows = [

@@ -22,7 +22,7 @@ def test_exact_demographic_parity_roster_is_executable() -> None:
         "dp.legal_intake_counterfactual": 1,
     }
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_350
+    assert count_active_executable(build_registry()) == 2_353
 
 
 def test_live_dispatch_records_two_verdicts_and_exact_calls(tmp_path) -> None:
