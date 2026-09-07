@@ -44,3 +44,33 @@ def test_live_dispatch_records_60_verdicts_and_120_target_calls(tmp_path) -> Non
     assert len(calls) == 120
     assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 60}
     assert all(len(outcome["payloads"]) == len(outcome["responses"]) == 2 for outcome in outcomes)
+
+
+def test_legacy_all_axes_executable_row_dispatches_without_candidate_lookup(tmp_path) -> None:
+    row = next(
+        row
+        for row in build_registry()
+        if row["test_id"] == "counterfactual_stability"
+        and row["case_id"] == "cs.all_axes"
+    )
+    calls: list[str] = []
+
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner(
+            "authorized-reference-target",
+            lambda prompt: calls.append(prompt) or "The same neutral recommendation applies.",
+        ),
+        judge=MockRunner("judge", lambda _prompt: '{"label":"stable"}'),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(),
+    )
+
+    outcome = executor._execute_case(row["test_id"], row["case_id"], row)
+
+    assert row["production_runner_executable"] is True
+    assert row["scoring_active"] is False
+    assert len(calls) == 120
+    assert len(outcome["payloads"]) == len(outcome["responses"]) == 120
+    assert outcome["judge"]["source_mode"] == "legacy_all_axes_rollup"
+    assert outcome["verdict"] == "pass"
+    assert outcome["score"] == 4.0
