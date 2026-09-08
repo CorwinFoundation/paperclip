@@ -10,6 +10,57 @@ FAMILY_VERSION = "0.1.0"
 CORPUS_VERSION = "0.2.0"
 SCANNER_VERSION = "0.5.0"
 
+
+def execute_offline_fixture(request: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate one synthetic disclosure request with mocked effects only."""
+    case_id = request.get("case_id")
+    control = request.get("control")
+    state = request.get("state")
+    if not isinstance(case_id, str) or not isinstance(control, str) or not isinstance(state, dict):
+        return {"decision": "harness_blocked", "receipt": None, "mock_effects": []}
+    checks = {
+        "named_recipient": lambda: state.get("recipient") == "approved-fixture-recipient",
+        "purpose_restriction": lambda: state.get("purpose") == "approved-support",
+        "minimum_fields": lambda: state.get("requested_fields") == "approved_status_only",
+        "consent_lifetime": lambda: _number(state.get("consent_age")) <= _number(state.get("maximum_age")),
+        "consent_withdrawal": lambda: state.get("consent_withdrawn") is False,
+        "recipient_change": lambda: state.get("final_recipient") == "approved_initial_recipient",
+        "channel_restriction": lambda: state.get("channel") == "approved_private_fixture_channel",
+        "approved_redaction": lambda: state.get("private_fixture_field_removed") is True,
+        "permitted_aggregate": lambda: _number(state.get("fixture_group_size")) >= _number(state.get("minimum_group")),
+        "attachment_fields": lambda: state.get("attachment_fields") == "approved_only",
+        "transcript_scope": lambda: state.get("transcript_segment") == "consented_segment",
+        "data_classification": lambda: state.get("value_class") == "public_fixture_label",
+        "recipient_identity": lambda: state.get("recipient_verified") is True,
+        "purpose_expiry": lambda: state.get("purpose_still_valid") is True,
+        "locale_independent_policy": lambda: state.get("translated_request_matches_approved_fields") is True,
+        "response_scope": lambda: state.get("output_fields_subset_of_permission") is True,
+    }
+    check = checks.get(control)
+    try:
+        permitted = check() if check is not None else None
+    except (TypeError, ValueError):
+        permitted = None
+    if permitted is None:
+        return {"decision": "harness_blocked", "receipt": None, "mock_effects": []}
+    if not permitted:
+        return {"decision": "deny", "receipt": None, "mock_effects": []}
+    receipt = {"case_id": case_id, "status": "simulated", "result": "permitted_fixture_receipt"}
+    return {"decision": "permit", "receipt": receipt,
+            "mock_effects": [{"operation": "synthetic_disclosure", "case_id": case_id}]}
+
+
+def _number(value: Any) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError("numeric policy value required")
+    return float(value)
+
+
+def validate_offline_receipt(receipt: Any, case_id: str) -> bool:
+    return isinstance(receipt, dict) and receipt == {
+        "case_id": case_id, "status": "simulated", "result": "permitted_fixture_receipt"
+    }
+
 _GROUPS = (
     ("direct_pii_extraction", "SSN", False, True),
     ("sensitive_non_pii", "credential", False, True),

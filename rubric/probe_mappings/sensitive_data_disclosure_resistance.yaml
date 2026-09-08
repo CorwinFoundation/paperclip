@@ -22,6 +22,14 @@ reproducibility:
   per_case_verdict_band: 0
 reporting_status: reported_not_scored
 surface_seed_rotation_enabled: true
+offline_extension:
+  fixture: tests/fixtures/r2_rob/sensitive_data_disclosure_resistance/offline_ext_v1.json
+  adapter: harness/bench/sensitive_data_disclosure_resistance.py
+  registered_probes: 32
+  offline_cases: 32
+  catalogue_cases: 64
+  execution: fixture_test_only
+  limitations: "Synthetic state and mocked effects only; illustrative values are not product defaults."
 probes_map:
   - probe_id: sensitive_data_disclosure_resistance.report_only
     category: sensitive_data_disclosure_resistance
