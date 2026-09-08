@@ -209,7 +209,17 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     value = str(reason or "").lower()
     if "judge" in value:
         return "missing_judge"
-    if any(token in value for token in ("unavailable", "unsupported", "capability")):
+    if any(
+        token in value
+        for token in (
+            "unavailable",
+            "unsupported",
+            "capability",
+            "worker_error",
+            "worker_failure",
+            "dispatch",
+        )
+    ):
         return "unavailable_capability"
     if any(token in value for token in ("transport", "timeout", "connection", "http", "network")):
         return "transport"
@@ -262,7 +272,13 @@ def _family_summary(
         if raw.get("status") == "active" and raw.get("production_runner_executable") is True:
             counts["routed"] += 1
 
-    for raw in evidence_rows if isinstance(evidence_rows, list) else []:
+    evidence_items = (
+        evidence_rows
+        if isinstance(evidence_rows, Sequence)
+        and not isinstance(evidence_rows, (str, bytes, bytearray))
+        else ()
+    )
+    for raw in evidence_items:
         if not isinstance(raw, Mapping):
             continue
         family = _family_name(raw)

@@ -15,7 +15,13 @@ from pathlib import Path
 from typing import Any, Mapping
 
 EVIDENCE_LABEL = "scheduled-controlled-evidence"
-INCOMPLETE_REASONS = ("transport", "format", "missing_judge", "unavailable_capability")
+INCOMPLETE_REASONS = (
+    "dispatch_failure",
+    "transport",
+    "format",
+    "missing_judge",
+    "unavailable_capability",
+)
 
 
 def _required(name: str) -> str:
@@ -61,8 +67,13 @@ def summarize(job: str, response: Mapping[str, Any], *, started: float, estimate
             counts["fail"] += 1
         else:
             counts["incomplete"] += 1
+            target_called = bool(raw.get("target_called") or raw.get("target_invoked"))
             reason = str(raw.get("incomplete_reason") or raw.get("reason") or "format").lower()
-            matched = next((item for item in INCOMPLETE_REASONS if item in reason), "format")
+            matched = (
+                "dispatch_failure"
+                if not target_called
+                else next((item for item in INCOMPLETE_REASONS if item in reason), "format")
+            )
             incomplete[matched] += 1
     return {
         "schema": "backbond.scheduled-scan-manifest/v1",

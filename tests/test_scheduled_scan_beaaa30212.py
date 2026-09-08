@@ -10,4 +10,5 @@ def test_manifest_counts_and_evidence_label(monkeypatch):
     assert result["evidence_label"] == EVIDENCE_LABEL
     assert result["live_service_signed"] is False
     assert result["families"]["f1"] == {"considered": 2, "incomplete": 1, "pass": 1, "routed": 2, "target_called": 1}
-    assert result["incomplete_by_reason"]["missing_judge"] == 1
+    assert result["incomplete_by_reason"]["dispatch_failure"] == 1
+    assert result["incomplete_by_reason"]["missing_judge"] == 0

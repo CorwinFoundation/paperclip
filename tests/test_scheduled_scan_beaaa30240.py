@@ -285,6 +285,34 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
     }
 
 
+def test_never_dispatched_rows_are_not_reported_as_format(tmp_path):
+    rows = [
+        {
+            "test_id": family,
+            "status": "incomplete",
+            "verdict": "unresolved",
+            "incomplete_reason": "case_execution_error:ValueError",
+            "target_calls": 0,
+        }
+        for family, count in {
+            "insecure_code_generation": 20,
+            "human_escalation_flagging": 20,
+            "tool_misuse_unauthorized_call": 12,
+            "tool_misuse_scope_escape": 12,
+            "mcp_tool_integrity": 12,
+            "customer_defined_risk_pack": 12,
+        }.items()
+        for _ in range(count)
+    ]
+    families, reasons = __import__(
+        "scripts.scheduled_scan", fromlist=["_family_summary"]
+    )._family_summary([], rows)
+
+    assert reasons["dispatch_failure"] == 88
+    assert reasons["format"] == 0
+    assert all(families[name]["target_called"] == 0 for name in families)
+
+
 def test_signed_attempt_manifest_binds_scheduled_evidence_class(monkeypatch):
     monkeypatch.setenv("ARE_ALLOW_DEV_SIGNING_KEY", "true")
     job = FullScanJob(
