@@ -216,7 +216,7 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
             "target_calls": 1,
         },
     ]
-    registry_rows = [
+    registry_rows = (
         {
             "test_id": "safety",
             "status": "active",
@@ -232,15 +232,15 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
             "status": "active",
             "production_runner_executable": False,
         },
-        *[
+        *(
             {
                 "test_id": "tools",
                 "status": "active",
                 "production_runner_executable": True,
             }
             for _ in range(4)
-        ],
-    ]
+        ),
+    )
     job = SimpleNamespace(
         job_id="j1",
         scan_id="s1",
@@ -277,10 +277,11 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "incomplete": 0,
     }
     assert manifest["incomplete_by_reason"] == {
-        "transport": 1,
+        "dispatch_failure": 2,
+        "transport": 0,
         "format": 1,
         "missing_judge": 1,
-        "unavailable_capability": 1,
+        "unavailable_capability": 0,
     }
 
 

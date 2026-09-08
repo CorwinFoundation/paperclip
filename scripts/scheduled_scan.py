@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -53,6 +53,7 @@ PREFLIGHT_TARGETS = {
     "openrouter.ai": "https://openrouter.ai/",
 }
 INCOMPLETE_GROUPS = (
+    "dispatch_failure",
     "transport",
     "format",
     "missing_judge",
@@ -202,7 +203,9 @@ def run_positive_egress_preflight(
     return record
 
 
-def _incomplete_group(reason: Any) -> str:
+def _incomplete_group(reason: Any, *, target_calls: int) -> str:
+    if target_calls <= 0:
+        return "dispatch_failure"
     value = str(reason or "").lower()
     if "judge" in value:
         return "missing_judge"
@@ -229,7 +232,13 @@ def _family_summary(
 ) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
     families: dict[str, Counter[str]] = {}
     incomplete = Counter({name: 0 for name in INCOMPLETE_GROUPS})
-    for raw in registry_rows if isinstance(registry_rows, list) else []:
+    registry_items = (
+        registry_rows
+        if isinstance(registry_rows, Sequence)
+        and not isinstance(registry_rows, (str, bytes, bytearray))
+        else ()
+    )
+    for raw in registry_items:
         if not isinstance(raw, Mapping):
             continue
         family = _family_name(raw)
@@ -278,7 +287,12 @@ def _family_summary(
         verdict = str(raw.get("verdict") or "").upper()
         if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
-            incomplete[_incomplete_group(raw.get("incomplete_reason"))] += 1
+            incomplete[
+                _incomplete_group(
+                    raw.get("incomplete_reason"),
+                    target_calls=int(raw.get("target_calls") or 0),
+                )
+            ] += 1
         else:
             counts[verdict.lower()] += 1
     return (
