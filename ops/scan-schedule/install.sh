@@ -35,6 +35,5 @@ printf '%s\n' "beai-agent ALL=(root) NOPASSWD: /usr/bin/systemctl start backbond
 chmod 0440 /etc/sudoers.d/backbond-scan-schedule
 visudo -cf /etc/sudoers.d/backbond-scan-schedule >/dev/null
 systemctl daemon-reload
-systemctl enable backbond-scan-vapi.timer
-systemctl disable backbond-scan-zoo.timer
-echo "Installed weekly Vapi scan; nightly zoo scan remains disabled. Root command: $here/install.sh"
+systemctl enable --now backbond-scan-vapi.timer backbond-scan-zoo.timer
+echo "Installed weekly Vapi and nightly zoo scans. Root command: $here/install.sh"

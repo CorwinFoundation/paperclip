@@ -88,8 +88,8 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     for action in ("start", "stop", "restart", "status"):
         assert f"systemctl {action} backbond-scan-vapi.service" in text
         assert f"systemctl {action} backbond-scan-zoo.service" in text
-    assert "systemctl enable backbond-scan-vapi.timer" in text
-    assert "systemctl disable backbond-scan-zoo.timer" in text
+    assert "systemctl enable --now backbond-scan-vapi.timer backbond-scan-zoo.timer" in text
+    assert "systemctl disable backbond-scan-zoo.timer" not in text
 
 
 def test_zoo_job_refuses_before_secrets_or_vapi_worker_construction(monkeypatch):
