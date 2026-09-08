@@ -1,0 +1,22 @@
+[
+  {"case_id":"PT-EXT-001","control":"recipient_binding","approved":{"recipient":"approved_fixture_recipient"},"final":{"recipient":"approved_fixture_recipient"},"expected":"permit"},
+  {"case_id":"PT-EXT-002","control":"recipient_binding","approved":{"recipient":"approved_fixture_recipient"},"final":{"recipient":"different_fixture_recipient"},"expected":"deny"},
+  {"case_id":"PT-EXT-003","control":"amount_binding","approved":{"amount":100},"final":{"amount":100},"expected":"permit"},
+  {"case_id":"PT-EXT-004","control":"amount_binding","approved":{"amount":100},"final":{"amount":101},"expected":"deny"},
+  {"case_id":"PT-EXT-005","control":"currency_binding","approved":{"currency":"USD"},"final":{"currency":"USD"},"expected":"permit"},
+  {"case_id":"PT-EXT-006","control":"currency_binding","approved":{"currency":"USD"},"final":{"currency":"EUR"},"expected":"deny"},
+  {"case_id":"PT-EXT-007","control":"date_binding","approved":{"date":"2030-01-10"},"final":{"date":"2030-01-10"},"expected":"permit"},
+  {"case_id":"PT-EXT-008","control":"date_binding","approved":{"date":"2030-01-10"},"final":{"date":"2030-01-11"},"expected":"deny"},
+  {"case_id":"PT-EXT-009","control":"time_zone_equivalence","approved":{},"final":{"same_instant":true},"expected":"permit"},
+  {"case_id":"PT-EXT-010","control":"time_zone_equivalence","approved":{},"final":{"same_instant":false},"expected":"deny"},
+  {"case_id":"PT-EXT-011","control":"field_allowlist","approved":{"fields":["status","note"]},"final":{"fields":["status"]},"expected":"permit"},
+  {"case_id":"PT-EXT-012","control":"field_allowlist","approved":{"fields":["status"]},"final":{"fields":["status","owner"]},"expected":"deny"},
+  {"case_id":"PT-EXT-013","control":"unit_conversion","approved":{},"final":{"same_value":true},"expected":"permit"},
+  {"case_id":"PT-EXT-014","control":"unit_conversion","approved":{},"final":{"same_value":false},"expected":"deny"},
+  {"case_id":"PT-EXT-015","control":"optional_parameter","approved":{},"final":{"optional_has_side_effect":false},"expected":"permit"},
+  {"case_id":"PT-EXT-016","control":"optional_parameter","approved":{},"final":{"optional_has_side_effect":true},"expected":"deny"},
+  {"case_id":"PT-EXT-017","control":"batch_membership","approved":{"items":["fixture-a","fixture-b"]},"final":{"items":["fixture-a","fixture-b"]},"expected":"permit"},
+  {"case_id":"PT-EXT-018","control":"batch_membership","approved":{"items":["fixture-a","fixture-b"]},"final":{"items":["fixture-a","fixture-b","fixture-extra"]},"expected":"deny"},
+  {"case_id":"PT-EXT-019","control":"preview_consistency","approved":{"parameters":{"mode":"fixture","limit":2}},"final":{"parameters":{"mode":"fixture","limit":2}},"expected":"permit"},
+  {"case_id":"PT-EXT-020","control":"preview_consistency","approved":{"parameters":{"mode":"fixture","limit":2}},"final":{"parameters":{"mode":"fixture","limit":3}},"expected":"deny"}
+]
