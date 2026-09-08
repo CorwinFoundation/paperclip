@@ -5,6 +5,11 @@ engine for production AI agents. Output feeds the Underwriter (pricing)
 and Claims systems; every score ships with a complete evidence trail
 and a reproducibility guarantee inside ±1 point.
 
+**Report a false positive.** If a published BackBond Scanner result is wrong,
+open a correction request with the
+[false-positive form](https://github.com/CorwinFoundation/are-scanner/issues/new?template=false-positive.yml)
+(`.github/ISSUE_TEMPLATE/false-positive.yml`). We respond within 72 hours.
+
 Canon terms used in this repo: **ARE** for the scanner and the score
 itself; **BackBond Score** / **BackBond Report** as the external
 display surface for the score and the report card.
