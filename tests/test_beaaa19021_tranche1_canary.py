@@ -375,10 +375,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # requested assistant identity, moving the evaluator pin to 00e0d4cb and
     # this derived digest to 40aa3926. The Day-1 supporting-family dispatch
     # moves the evaluator pin to 81e6556d and this derived digest to 886abe3d.
-    # Binding the pii_attestation row changes this derived manifest digest;
-    # canary budget, families, and zero-weight invariants remain unchanged.
+    # Binding the pii_attestation row changes this derived manifest digest.
+    # BEAAA-29085 then routes report-only TAU calls through the existing Vapi
+    # adapter, moving only the evaluator pin; canary budget, families, and
+    # zero-weight invariants remain unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "71d3e22504909c87665e41fce28ecaf46f41361fc99116750547b2186a53953d"
+        "85de50515253b45758a7281cac5c5ef81b5a8ab3fffa53d5866272e6710a214a"
     )
 
 

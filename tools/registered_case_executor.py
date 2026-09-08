@@ -19,8 +19,9 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
+from harness.agent_interface import AgentTurn, ConversationTrace, ToolResult
 from harness.runner import (
     AnthropicRunner,
     ModelRunner,
@@ -1576,7 +1577,9 @@ def build_registered_case_workers(
 
     if tau_session_factory is None:
         tau_session_factory = _http_tau_session_factory(
-            scan_request.agent_endpoint, secret
+            scan_request.agent_endpoint,
+            secret,
+            getattr(scan_request, "agent_id", None),
         )
     executor = RegisteredCaseExecutor(
         subject=subject,
@@ -1696,10 +1699,79 @@ def _is_tau_support_crm_row(row: Mapping[str, Any]) -> bool:
     )
 
 
+class _ModelRunnerTauSession:
+    """Expose the production single-turn transport through AgentSession.
+
+    The TAU rows are report-only. Production providers such as Vapi do not
+    expose scanner-mediated tool calls, but they still need their provider
+    adapter (including its endpoint and target-identity binding) rather than a
+    raw OpenAI-compatible POST to the configured base URL.
+    """
+
+    def __init__(self, runner: ModelRunner, label: str) -> None:
+        self._runner = runner
+        self._session_id = f"tau-{label}-{secrets.token_hex(6)}"
+        self._turns: list[AgentTurn] = []
+
+    def session_id(self) -> str:
+        return self._session_id
+
+    def model_id(self) -> str:
+        return self._runner.model_id()
+
+    def send(
+        self, message: str, *, tool_results: Sequence[ToolResult] = ()
+    ) -> AgentTurn:
+        if tool_results:
+            raise RunnerError("production target does not support mediated tool results")
+        response = self._runner.complete(message)
+        turn = AgentTurn(
+            index=len(self._turns),
+            user_message=message,
+            assistant_text=response,
+            tool_calls=(),
+            tool_results=(),
+        )
+        self._turns.append(turn)
+        return turn
+
+    def trace(self) -> ConversationTrace:
+        return ConversationTrace(
+            session_id=self._session_id,
+            model_id=self.model_id(),
+            mode=self.mode,
+            turns=tuple(self._turns),
+            declared_tools=(),
+        )
+
+    @property
+    def mode(self) -> Any:
+        from harness.agent_interface import ToolVisibilityMode
+
+        return ToolVisibilityMode.SCANNER_MEDIATED
+
+    def close(self) -> None:
+        return None
+
+
 def _http_tau_session_factory(
-    endpoint: str, secret: str
+    endpoint: str, secret: str, agent_id: str | None = None
 ) -> Callable[[Any, int], Any]:
+    from harness.customer_runner import customer_agent_http_runner_factory
     from harness.agent_interface import HTTPAgentSession
+
+    # Provider base URLs (notably Vapi's https://api.vapi.ai) are descriptors,
+    # not callable chat routes. Reuse the production subject adapter so Vapi
+    # resolves to POST /chat with the assistant UUID and Vapi wire payload.
+    provider_runner = customer_agent_http_runner_factory(endpoint, secret, agent_id)
+
+    if provider_runner.model_id().startswith("vapi:"):
+        def provider_factory(scenario: Any, seed: int) -> _ModelRunnerTauSession:
+            return _ModelRunnerTauSession(
+                provider_runner, f"{scenario.stable_id}-seed-{seed}"
+            )
+
+        return provider_factory
 
     tools = (
         _openai_tool("lookup_charge", {"charge_id": {"type": "string"}}),

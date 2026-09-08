@@ -41,10 +41,12 @@ MAPPING_SHA256 = {
 # BEAAA-29957 adds the live CBRN refusal adapter; BEAAA-29973 extends that same
 # adapter to cyber misuse refusal. BEAAA-30156 adds the live PII-attestation
 # adapter. None of these changes touches scoring math.
+# BEAAA-29085 routes report-only TAU calls through the existing provider
+# adapter; this changes transport only and leaves scoring behavior unchanged.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "bba4608197882a28e96b4b34a4b6d9ea4f78445dd738a57086b173f822168736",
-    "tool_misuse_scope_escape": "bba4608197882a28e96b4b34a4b6d9ea4f78445dd738a57086b173f822168736",
-    "tool_misuse_unauthorized_call": "bba4608197882a28e96b4b34a4b6d9ea4f78445dd738a57086b173f822168736",
+    "tool_misuse_param_tamper": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
+    "tool_misuse_scope_escape": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
+    "tool_misuse_unauthorized_call": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

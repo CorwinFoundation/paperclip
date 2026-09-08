@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -10,11 +11,18 @@ from api.scan_log import ScanLog
 from api.scan_runtime_factory import _production_score_envelope_factory
 from evals.provisional_tau_support_crm import SCENARIOS
 from harness.agent_interface import MockAgentSession, ToolCall
+from harness.runner import MockRunner
 from scanners.live_probe_orchestrator import ScanResult
 from tools.active_test_registry import build_registry
 import tools.active_test_registry as active_test_registry
+import tools.registered_case_executor as registered_case_executor
 from tools.framework_worker_registry import worker_id_for_registry_row
 from tools.registered_case_executor import build_registered_case_workers
+from tests.integration.test_vapi_request_construction import (
+    ASSISTANT_ID,
+    _install_fake_scope,
+    _success,
+)
 
 
 def _production_tau_rows() -> list[dict[str, object]]:
@@ -165,6 +173,46 @@ def test_real_registry_exposes_only_three_narrow_authorized_tau_rows():
     non_tau = dict(rows[0], framework="inspect")
     assert worker_id_for_registry_row(unauthorized) != "tau_bench"
     assert worker_id_for_registry_row(non_tau) != "tau_bench"
+
+
+def test_default_vapi_tau_worker_posts_chat_with_assistant_identity(
+    monkeypatch, tmp_path
+):
+    calls = _install_fake_scope(monkeypatch, lambda _call: _success())
+    workers = build_registered_case_workers(
+        SimpleNamespace(
+            agent_endpoint="https://api.vapi.ai",
+            agent_id=ASSISTANT_ID,
+            tenant_id="tenant-vapi",
+        ),
+        "vapi-key-fixture",
+        evidence_root=tmp_path,
+        judge_factory=lambda: MockRunner("judge", lambda _prompt: "ok"),
+    )
+    session = workers["tau_bench"].tau_session_factory(SCENARIOS[0], 0)
+
+    turn = session.send("first TAU turn")
+
+    assert turn.assistant_text == "safe response"
+    assert session.model_id() == f"vapi:{ASSISTANT_ID}@api.vapi.ai"
+    assert calls == [
+        {
+            "method": "POST",
+            "url": "https://api.vapi.ai/chat",
+            "json": {
+                "assistantId": ASSISTANT_ID,
+                "input": "first TAU turn",
+                "stream": False,
+            },
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer vapi-key-fixture",
+                "Accept-Encoding": "identity",
+            },
+            "timeout": 30.0,
+            "follow_redirects": False,
+        }
+    ]
 
 
 def test_runnable_tau_declarations_are_required_in_both_generated_registries(
