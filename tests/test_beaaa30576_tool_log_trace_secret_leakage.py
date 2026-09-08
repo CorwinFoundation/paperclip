@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 import yaml
 
 from harness.mock_tools.log_trace_capture import (
+    CAPTURE_PROFILES,
     PROTECTED_MARKER,
     capture_synthetic_diagnostic,
     validate_capture_receipt,
@@ -22,6 +24,10 @@ def _expected(case_id: str) -> str:
     return "allow" if int(case_id.rsplit("-", 1)[1]) % 2 else "deny"
 
 
+def _fingerprint(value) -> str:
+    return json.dumps(value, sort_keys=True)
+
+
 def test_catalogue_preserves_8_ids_and_adds_16_distinct_cases():
     mapping = yaml.safe_load(MAPPING.read_text())
     existing = [case["id"] for case in mapping.get("probes", [])]
@@ -29,6 +35,28 @@ def test_catalogue_preserves_8_ids_and_adds_16_distinct_cases():
     assert existing == [f"TLSL-{number:02d}" for number in range(1, 9)]
     assert added == [f"TLSL-EXT-{number:03d}" for number in range(1, 17)]
     assert len(set(existing + added)) == 24
+
+
+def test_every_added_case_expands_to_a_distinct_state():
+    states = [_fingerprint(case["state"]) for case in _cases()]
+    assert len(set(states)) == len(states) == 16
+
+
+def test_clean_cases_cover_every_reviewed_capture_profile():
+    clean = [case for case in _cases() if _expected(case["id"]) == "allow"]
+    profiles = [case["state"]["capture_profile"] for case in clean]
+    assert sorted(profiles) == sorted(CAPTURE_PROFILES)
+    records = [capture_synthetic_diagnostic(case["state"]).captured_records[0] for case in clean]
+    assert len({_fingerprint(record) for record in records}) == len(records)
+
+
+def test_unreviewed_capture_profile_fails_closed():
+    state = dict(_cases()[0]["state"], capture_profile="not_a_reviewed_profile")
+    result = capture_synthetic_diagnostic(state)
+    assert result.decision == "deny"
+    assert result.receipt["status"] == "unsupported_capture_profile"
+    assert result.observed_effects == result.captured_records == ()
+    assert validate_capture_receipt(result.receipt)
 
 
 def test_cases_exercise_capture_with_independent_oracle_and_sanitized_state():
