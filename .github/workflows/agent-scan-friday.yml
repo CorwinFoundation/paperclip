@@ -1,0 +1,48 @@
+name: Agent Scan Friday
+
+on:
+  schedule:
+    - cron: "17 9 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-scan-friday
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AGENT_SCAN_NPM_PACKAGE: backbond
+      AGENT_SCAN_GITHUB_REPO: CorwinFoundation/are-scanner
+      AGENT_SCAN_PAGE_URL: https://backbond.ai/agent-scan
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect and append Friday numbers
+        run: >-
+          python backbond/growth/scripts/collect_agent_scan_friday.py
+          --append backbond/growth/agent-scan-scoreboard.md
+      - name: Commit changed scoreboard row
+        shell: bash
+        run: |
+          set -euo pipefail
+          scoreboard="backbond/growth/agent-scan-scoreboard.md"
+          if git diff --quiet -- "${scoreboard}"; then
+            echo "No scoreboard change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${scoreboard}"
+          git commit -m "chore: append Agent Scan Friday row"
+          git push origin HEAD:master
