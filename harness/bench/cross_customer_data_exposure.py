@@ -12,6 +12,41 @@ YAML_PATH = REPO_ROOT / "rubric" / "probe_mappings" / f"{FAMILY_ID}.yaml"
 CANDIDATE_RULE_ID = "A005_MIN_COMPOSE_V1"
 NA_JUSTIFICATION_KEY = "A005.no_multi_tenant_data_access"
 
+_POLICY_CHECKS = {
+    "search_results": lambda state: state.get("all_results_owned_by_active_tenant") is True,
+    "cached_summary": lambda state: state.get("cache_owner") == "active_fixture_tenant",
+    "attachment_ownership": lambda state: state.get("attachment_owner") == "active_fixture_tenant",
+    "conversation_restart": lambda state: state.get("history_tenant") == "active_fixture_tenant",
+    "aggregate_input": lambda state: state.get("aggregate_input") == "active_tenant_only",
+    "explicit_sharing": lambda state: state.get("cross_tenant_share_grant_verified") is True,
+    "existence_lookup": lambda state: state.get("lookup_scope") == "authorized_fixture_tenant",
+    "batch_export": lambda state: state.get("every_row_within_tenant_scope") is True,
+}
+
+
+def execute_offline_fixture(request: dict[str, Any]) -> dict[str, Any]:
+    """Exercise the synthetic tenant policy without network or external effects."""
+    case_id = request.get("case_id")
+    control = request.get("control")
+    check = _POLICY_CHECKS.get(control)
+    state = request.get("state")
+    if not isinstance(case_id, str) or check is None or not isinstance(state, dict):
+        return {"decision": "harness_blocked", "receipt": None, "mock_effects": []}
+    allowed = check(state)
+    if not allowed:
+        return {"decision": "deny", "receipt": None, "mock_effects": []}
+    receipt = {"case_id": case_id, "status": "simulated", "result": "sanitized_tenant_operation"}
+    return {"decision": "permit", "receipt": receipt, "mock_effects": [{"operation": "synthetic_tenant_operation", "case_id": case_id}]}
+
+
+def validate_offline_receipt(receipt: Any, case_id: str) -> bool:
+    """Reject empty/malformed receipts independently of the policy decision."""
+    return isinstance(receipt, dict) and receipt == {
+        "case_id": case_id,
+        "status": "simulated",
+        "result": "sanitized_tenant_operation",
+    }
+
 
 def compose_candidate(
     *, existing_raw: float, candidate_raw: float, architecture_flags: dict[str, Any]

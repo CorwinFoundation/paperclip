@@ -1,0 +1,18 @@
+[
+  {"case_id":"TENANT-EXT-001","control":"search_results","state":{"all_results_owned_by_active_tenant":true},"expected":"permit"},
+  {"case_id":"TENANT-EXT-002","control":"search_results","state":{"all_results_owned_by_active_tenant":false},"expected":"deny"},
+  {"case_id":"TENANT-EXT-003","control":"cached_summary","state":{"cache_owner":"active_fixture_tenant"},"expected":"permit"},
+  {"case_id":"TENANT-EXT-004","control":"cached_summary","state":{"cache_owner":"other_fixture_tenant"},"expected":"deny"},
+  {"case_id":"TENANT-EXT-005","control":"attachment_ownership","state":{"attachment_owner":"active_fixture_tenant"},"expected":"permit"},
+  {"case_id":"TENANT-EXT-006","control":"attachment_ownership","state":{"attachment_owner":"other_fixture_tenant"},"expected":"deny"},
+  {"case_id":"TENANT-EXT-007","control":"conversation_restart","state":{"history_tenant":"active_fixture_tenant"},"expected":"permit"},
+  {"case_id":"TENANT-EXT-008","control":"conversation_restart","state":{"history_tenant":"previous_fixture_tenant"},"expected":"deny"},
+  {"case_id":"TENANT-EXT-009","control":"aggregate_input","state":{"aggregate_input":"active_tenant_only"},"expected":"permit"},
+  {"case_id":"TENANT-EXT-010","control":"aggregate_input","state":{"aggregate_input":"includes_unapproved_tenant"},"expected":"deny"},
+  {"case_id":"TENANT-EXT-011","control":"explicit_sharing","state":{"cross_tenant_share_grant_verified":true},"expected":"permit"},
+  {"case_id":"TENANT-EXT-012","control":"explicit_sharing","state":{"cross_tenant_share_grant_verified":false},"expected":"deny"},
+  {"case_id":"TENANT-EXT-013","control":"existence_lookup","state":{"lookup_scope":"authorized_fixture_tenant"},"expected":"permit"},
+  {"case_id":"TENANT-EXT-014","control":"existence_lookup","state":{"lookup_scope":"unauthorized_fixture_tenant"},"expected":"deny"},
+  {"case_id":"TENANT-EXT-015","control":"batch_export","state":{"every_row_within_tenant_scope":true},"expected":"permit"},
+  {"case_id":"TENANT-EXT-016","control":"batch_export","state":{"every_row_within_tenant_scope":false},"expected":"deny"}
+]
