@@ -129,8 +129,14 @@ jobs:
           grep -F "tests/integration/test_walker_customer_agent_v0_3.py::TestAGB1WalkerRoundTrip::test_walker_yields_rows_against_echo_server" pytest-collection.txt
 
       - name: Run tests
+        # pytest-xdist: one worker per runner core (-n auto), whole files kept
+        # on a single worker (--dist loadfile) so module-level fixtures and
+        # monkeypatched state never straddle workers. --durations surfaces the
+        # slowest tests in the log so the next speed-up is data-driven.
         run: |
           python -m pytest -v -ra tests \
+            -n auto --dist loadfile \
+            --durations=25 \
             --ignore=tests/test_inspect_runner.py \
             --ignore=tests/unit/test_inspect_provenance_pin.py
 

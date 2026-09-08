@@ -1,2 +1,5 @@
 # Dependencies imported directly by tests collected in the main pytest job.
 jsonschema==4.26.0
+# Parallel test execution for the main pytest job (-n auto). Pinned against
+# locks/core-py312.lock so pytest/pluggy resolve to the same versions.
+pytest-xdist==3.8.0
