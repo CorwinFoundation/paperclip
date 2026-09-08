@@ -13,8 +13,11 @@ def attr(key, value):
     return {"key": key, "value": {typed: value}}
 
 
-def payload(*span_attrs, end="1785711000000000000"):
-    return {"resourceSpans": [{"resource": {"attributes": [attr("service.name", "vendor-agent")]}, "scopeSpans": [{"spans": [{"traceId": "a" * 32, "spanId": "b" * 16, "name": "chat", "startTimeUnixNano": "1785710999000000000", "endTimeUnixNano": end, "attributes": list(span_attrs)}]}]}]}
+def payload(*span_attrs, end="1785711000000000000", status=None):
+    span = {"traceId": "a" * 32, "spanId": "b" * 16, "name": "chat", "startTimeUnixNano": "1785710999000000000", "endTimeUnixNano": end, "attributes": list(span_attrs)}
+    if status is not None:
+        span["status"] = status
+    return {"resourceSpans": [{"resource": {"attributes": [attr("service.name", "vendor-agent")]}, "scopeSpans": [{"spans": [span]}]}]}
 
 
 def mapped(request=None, guard=None, sequence=1, batch_id="batch-1"):
@@ -60,3 +63,49 @@ def test_invalid_schema_clock_skew_and_tamper_shape_fail_closed():
     bad["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["events"] = []
     with pytest.raises(OTelDriverError, match="schema"):
         mapped(bad)
+
+
+@pytest.mark.parametrize(
+    ("status", "decision", "expected"),
+    [
+        ({"code": 1}, None, "completed"),
+        ({"code": 2, "message": "upstream refused"}, None, "failed"),
+        ({"code": "STATUS_CODE_ERROR"}, "deny", "denied"),
+        ({"code": 1}, "ESCALATE", "escalated"),
+    ],
+)
+def test_span_status_and_authorization_decision_derive_outcome(status, decision, expected):
+    attrs = [attr("gen_ai.operation.name", "chat")]
+    if decision is not None:
+        attrs.append(attr("backbond.authz.decision", decision))
+    event = mapped(payload(*attrs, status=status))[0]
+    assert event["payload"]["outcome_status"] == expected
+    if decision is not None:
+        assert event["payload"]["span"]["backbond.authz.decision"] == decision.lower()
+
+
+def test_status_message_is_digest_only_and_approval_path_is_bounded():
+    event = mapped(payload(
+        attr("gen_ai.operation.name", "chat"),
+        attr("backbond.authz.approval_path", "policy:treasury/dual-control"),
+        status={"code": 2, "message": "upstream refused"},
+    ))[0]
+    status = event["payload"]["causal"]["status"]
+    assert status["message_digest"].startswith("sha256:")
+    assert "upstream refused" not in str(event)
+
+
+@pytest.mark.parametrize("bad", [
+    attr("backbond.authz.decision", "denied because risky"),
+    attr("backbond.authz.approval_path", "queue with spaces"),
+    attr("backbond.authz.approval_path", "x" * 129),
+])
+def test_authorization_attributes_reject_free_text(bad):
+    with pytest.raises(OTelDriverError):
+        mapped(payload(attr("gen_ai.operation.name", "chat"), bad))
+
+
+@pytest.mark.parametrize("bad_status", [{"code": 7}, {"code": True}, {"code": 1, "extra": "x"}, {"code": 2, "message": 5}])
+def test_invalid_status_shapes_fail_closed(bad_status):
+    with pytest.raises(OTelDriverError):
+        mapped(payload(attr("gen_ai.operation.name", "chat"), status=bad_status))

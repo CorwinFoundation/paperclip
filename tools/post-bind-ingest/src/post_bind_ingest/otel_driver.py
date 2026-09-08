@@ -25,6 +25,18 @@ SCHEMA_VERSION = "1.0"
 # Deliberately smaller than the OTel semantic-convention surface. Expanding this
 # set is a reviewed implementation change because every admitted value is signed.
 RESOURCE_ALLOWLIST = frozenset({"service.name", "service.version", "deployment.environment.name"})
+AUTHZ_DECISION_ATTRIBUTE = "backbond.authz.decision"
+AUTHZ_APPROVAL_PATH_ATTRIBUTE = "backbond.authz.approval_path"
+AUTHZ_DECISIONS = frozenset({"allow", "deny", "escalate", "not_required"})
+APPROVAL_PATH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
+STATUS_CODES = {
+    0: "UNSET",
+    1: "OK",
+    2: "ERROR",
+    "STATUS_CODE_UNSET": "UNSET",
+    "STATUS_CODE_OK": "OK",
+    "STATUS_CODE_ERROR": "ERROR",
+}
 SPAN_ALLOWLIST = frozenset(
     {
         "gen_ai.operation.name",
@@ -51,6 +63,8 @@ SPAN_ALLOWLIST = frozenset(
         "backbond.retry.of_span_id",
         "backbond.handoff.from_agent_id",
         "backbond.verification.status",
+        AUTHZ_DECISION_ATTRIBUTE,
+        AUTHZ_APPROVAL_PATH_ATTRIBUTE,
     }
 )
 
@@ -129,6 +143,47 @@ def _approved(attrs: Mapping[str, Any], allowed: frozenset[str], *, content_enab
         if SECRET_RE.search(f"{key}={value}"):
             raise OTelDriverError(f"secret-bearing attribute rejected: {key}")
     return approved
+
+
+def _normalise_authz(span_attrs: dict[str, Any]) -> None:
+    """Validate decision metadata as an enum and bounded identifier."""
+    decision = span_attrs.get(AUTHZ_DECISION_ATTRIBUTE)
+    if decision is not None:
+        if not isinstance(decision, str) or decision.strip().lower() not in AUTHZ_DECISIONS:
+            raise OTelDriverError(
+                f"{AUTHZ_DECISION_ATTRIBUTE} must be one of {sorted(AUTHZ_DECISIONS)}"
+            )
+        span_attrs[AUTHZ_DECISION_ATTRIBUTE] = decision.strip().lower()
+    approval_path = span_attrs.get(AUTHZ_APPROVAL_PATH_ATTRIBUTE)
+    if approval_path is not None and (
+        not isinstance(approval_path, str) or not APPROVAL_PATH_RE.fullmatch(approval_path)
+    ):
+        raise OTelDriverError(
+            f"{AUTHZ_APPROVAL_PATH_ATTRIBUTE} must be a bounded identifier"
+        )
+
+
+def _normalise_status(status: Mapping[str, Any]) -> dict[str, Any]:
+    code = status.get("code", 0)
+    if isinstance(code, bool) or code not in STATUS_CODES:
+        raise OTelDriverError("span status code is not an OTLP status code")
+    result = {"code": STATUS_CODES[code]}
+    if status.get("message"):
+        result["message_digest"] = "sha256:" + hashlib.sha256(
+            str(status["message"]).encode()
+        ).hexdigest()
+    return result
+
+
+def _outcome_status(status: Mapping[str, Any], span_attrs: Mapping[str, Any]) -> str:
+    decision = span_attrs.get(AUTHZ_DECISION_ATTRIBUTE)
+    if decision == "deny":
+        return "denied"
+    if decision == "escalate":
+        return "escalated"
+    if status["code"] == "ERROR":
+        return "failed"
+    return "completed"
 
 
 @dataclass
@@ -219,6 +274,7 @@ def map_otlp_json(
                     _attrs(span.get("attributes"), path="span.attributes"), SPAN_ALLOWLIST,
                     content_enabled=content_enabled,
                 )
+                _normalise_authz(span_attrs)
                 parent_span_id = span.get("parentSpanId") or None
                 if parent_span_id is not None and (
                     not isinstance(parent_span_id, str)
@@ -231,9 +287,9 @@ def map_otlp_json(
                 status = span.get("status") or {}
                 if not isinstance(status, Mapping) or set(status) - {"code", "message"}:
                     raise OTelDriverError("invalid OTLP span status")
-                status_code = status.get("code", 0)
-                if not isinstance(status_code, (int, str)):
-                    raise OTelDriverError("span status code must be an integer or string")
+                if status.get("message") is not None and not isinstance(status["message"], str):
+                    raise OTelDriverError("span status message must be a string")
+                normalised_status = _normalise_status(status)
                 causal = {
                     "trace_id": trace_id.lower(),
                     "span_id": span_id.lower(),
@@ -244,7 +300,7 @@ def map_otlp_json(
                         "ended_at": ended,
                         "duration_ns": ended_nanos - started_nanos,
                     },
-                    "status": {"code": status_code, **({"message_digest": "sha256:" + hashlib.sha256(str(status["message"]).encode()).hexdigest()} if status.get("message") else {})},
+                    "status": normalised_status,
                     "correlation": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.task.id", "backbond.run.id") if key in span_attrs},
                     "identities": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.agent.id", "backbond.agent.version", "backbond.model.id", "backbond.tool.id") if key in span_attrs},
                     "facts": {key.removeprefix("backbond."): span_attrs[key] for key in ("backbond.action.kind", "backbond.action.fact", "backbond.action.digest", "backbond.retry.of_span_id", "backbond.handoff.from_agent_id", "backbond.verification.status") if key in span_attrs},
@@ -255,7 +311,12 @@ def map_otlp_json(
                     "event_type": OPERATION_EVENT_TYPES.get(operation_name, "otel_span"),
                     "logged_at": ended,
                     "schema_version": SCHEMA_VERSION,
-                    "payload": {"resource": resource_attrs, "span": span_attrs, "causal": causal},
+                    "payload": {
+                        "resource": resource_attrs,
+                        "span": span_attrs,
+                        "causal": causal,
+                        "outcome_status": _outcome_status(normalised_status, span_attrs),
+                    },
                     "provenance": {"class": "vendor_otel", "component": "post_bind_ingest.otel_driver", "source_driver": SOURCE_DRIVER, "evidence_tier": EVIDENCE_TIER},
                     "redaction_applied": [],
                 })
