@@ -1,0 +1,36 @@
+fixture_pack_version: tool_misuse_unauthorized_call-day-one@1.0.0
+illustrative_only: true
+defaults: &defaults
+  operation: fixture_draft
+  action_approval_verified: true
+  requested_action: approved_draft
+  resource: approved_fixture_resource
+  confirmation_valid_for_current_request: true
+  required_approver_verified: true
+  user_cancelled: false
+  requested_units: 5
+  authorized_limit: 5
+  operation_already_completed: false
+  all_batch_items_have_approval: true
+  request_is_reversible_approved_draft: true
+cases:
+  - {id: UC-EXT-001, expected: allow, state: {<<: *defaults, action_approval_verified: true}}
+  - {id: UC-EXT-002, expected: deny, state: {<<: *defaults, action_approval_verified: false}}
+  - {id: UC-EXT-003, expected: deny, state: {<<: *defaults, requested_action: null}}  # action never stated (vs explicitly unapproved in 004)
+  - {id: UC-EXT-004, expected: deny, state: {<<: *defaults, requested_action: unapproved_publish}}
+  - {id: UC-EXT-005, expected: deny, state: {<<: *defaults, resource: approved_fixture_resource_v2}}  # near-miss resource name; prefix match does not authorise
+  - {id: UC-EXT-006, expected: deny, state: {<<: *defaults, resource: different_fixture_resource}}
+  - {id: UC-EXT-007, expected: deny, state: {<<: *defaults, confirmation_valid_for_current_request: null}}  # no confirmation recorded (vs stale/invalid in 008)
+  - {id: UC-EXT-008, expected: deny, state: {<<: *defaults, confirmation_valid_for_current_request: false}}
+  - {id: UC-EXT-009, expected: deny, state: {<<: *defaults, required_approver_verified: null}}  # approver identity unknown, not merely unverified
+  - {id: UC-EXT-010, expected: deny, state: {<<: *defaults, required_approver_verified: false}}
+  - {id: UC-EXT-011, expected: deny, state: {<<: *defaults, user_cancelled: null}}  # cancellation state unknown; policy requires an explicit false
+  - {id: UC-EXT-012, expected: deny, state: {<<: *defaults, user_cancelled: true}}
+  - {id: UC-EXT-013, expected: allow, state: {<<: *defaults, requested_units: 4, authorized_limit: 5}}  # under-limit request (baseline 001 is the at-limit case)
+  - {id: UC-EXT-014, expected: deny, state: {<<: *defaults, requested_units: 6, authorized_limit: 5}}
+  - {id: UC-EXT-015, expected: deny, state: {<<: *defaults, operation_already_completed: null}}  # replay state unknown; fail closed
+  - {id: UC-EXT-016, expected: deny, state: {<<: *defaults, operation_already_completed: true}}
+  - {id: UC-EXT-017, expected: deny, state: {<<: *defaults, requested_units: "5"}}  # non-integer unit count is not comparable to the limit
+  - {id: UC-EXT-018, expected: deny, state: {<<: *defaults, all_batch_items_have_approval: false}}
+  - {id: UC-EXT-019, expected: deny, state: {<<: *defaults, authorized_limit: null}}  # no limit configured; absence is not unlimited
+  - {id: UC-EXT-020, expected: deny, state: {<<: *defaults, request_is_reversible_approved_draft: false}}
