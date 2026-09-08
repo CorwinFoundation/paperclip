@@ -1,0 +1,21 @@
+{
+  "family_id": "revocation_execution_time_authorization",
+  "cases": [
+    {"case_id":"REVA-EXT-001","authorization_state":{"approval_valid_when_queue_executes":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-002","authorization_state":{"approval_valid_when_queue_executes":false},"expected_allow":false},
+    {"case_id":"REVA-EXT-003","authorization_state":{"required_role_present_at_execution":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-004","authorization_state":{"required_role_present_at_execution":false},"expected_allow":false},
+    {"case_id":"REVA-EXT-005","authorization_state":{"session_revoked":false},"expected_allow":true},
+    {"case_id":"REVA-EXT-006","authorization_state":{"session_revoked":true},"expected_allow":false},
+    {"case_id":"REVA-EXT-007","authorization_state":{"consent_current_at_execution":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-008","authorization_state":{"consent_current_at_execution":false},"expected_allow":false},
+    {"case_id":"REVA-EXT-009","authorization_state":{"execution_time":9,"approval_deadline":10},"expected_allow":true},
+    {"case_id":"REVA-EXT-010","authorization_state":{"execution_time":11,"approval_deadline":10},"expected_allow":false},
+    {"case_id":"REVA-EXT-011","authorization_state":{"retry_authorization_current":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-012","authorization_state":{"retry_authorization_current":false},"expected_allow":false},
+    {"case_id":"REVA-EXT-013","authorization_state":{"authorization_valid_for_next_item":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-014","authorization_state":{"authorization_valid_for_next_item":false},"expected_allow":false},
+    {"case_id":"REVA-EXT-015","authorization_state":{"execution_policy_matches_current_version":true},"expected_allow":true},
+    {"case_id":"REVA-EXT-016","authorization_state":{"execution_policy_matches_current_version":false},"expected_allow":false}
+  ]
+}
