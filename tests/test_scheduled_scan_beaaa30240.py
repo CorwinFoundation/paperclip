@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -65,7 +66,8 @@ def test_units_have_required_cadence_and_direct_runner():
         assert "User=backbond-scan" in text
         assert "EnvironmentFile=/etc/backbond/scan-schedule.env" in text
         assert "scripts/scheduled_scan.py" in text
-        assert "ExecStartPre=+/usr/bin/git -C /opt/backbond/src" in text
+        assert "ExecStartPre=+/usr/bin/env HOME=/root /usr/bin/git -C /opt/backbond/src" in text
+        assert "ExecStart=/opt/backbond/scan-venv/bin/python" in text
         assert "sudo" not in text
         assert "scanner/v1/scans" not in text
 
@@ -74,8 +76,14 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     text = (OPS / "install.sh").read_text()
     assert "useradd --system --no-create-home --shell /usr/sbin/nologin" in text
     assert "checkout=/opt/backbond/src" in text
+    assert "scan_venv=/opt/backbond/scan-venv" in text
+    assert 'python3.11 -m venv --clear "$scan_venv"' in text
+    assert 'pip install --require-hashes --disable-pip-version-check' in text
+    assert "chmod o+x /var/lib/backbond" in text
     assert 'chown "$unit_user:$unit_user" "$manifest_root"' in text
     assert "sudoers.d/backbond-scan-schedule" in text
+    assert '"beai-agent ALL=(root) NOPASSWD:' in text
+    assert '"$unit_user ALL=(root) NOPASSWD:' not in text
     assert "backbond-scan-schedule-update" not in text
     for action in ("start", "stop", "restart", "status"):
         assert f"systemctl {action} backbond-scan-vapi.service" in text
@@ -144,6 +152,36 @@ def test_positive_preflight_records_exact_hosts_and_http_codes(tmp_path):
     assert result["credential_free"] is True
     assert result["passed"] is True
     assert {host: row["http_status_code"] for host, row in result["endpoints"].items()} == codes
+
+
+@pytest.mark.parametrize("error", [ModuleNotFoundError("httpx"), ImportError("httpx")])
+def test_positive_preflight_classifies_missing_runtime_dependency(tmp_path, error):
+    path = tmp_path / "preflight.json"
+
+    def request(*args, **kwargs):
+        raise error
+
+    with pytest.raises(RuntimeError, match="preflight dependency missing"):
+        run_positive_egress_preflight(path, requester=request)
+
+    record = json.loads(path.read_text())
+    assert record["passed"] is False
+    assert {
+        row["error_type"] for row in record["endpoints"].values()
+    } == {"dependency_missing"}
+
+
+def test_positive_preflight_keeps_transport_failure_distinct(tmp_path):
+    path = tmp_path / "preflight.json"
+
+    def request(*args, **kwargs):
+        raise TimeoutError("timed out")
+
+    with pytest.raises(RuntimeError, match="scheduled egress preflight failed"):
+        run_positive_egress_preflight(path, requester=request)
+
+    record = json.loads(path.read_text())
+    assert {row["error_type"] for row in record["endpoints"].values()} == {"TimeoutError"}
 
 
 def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_path):
@@ -223,11 +261,13 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         finished_at="finish",
         total_runtime_seconds=9.8765,
         registry_rows=registry_rows,
+        preflight_result={"passed": True, "endpoints": {"github.com": {"http_status_code": 200}}},
     )
     assert manifest["evidence_label"] == EVIDENCE_LABEL
     assert manifest["live_service_signed"] is False
     assert manifest["total_runtime_seconds"] == 9.877
     assert manifest["estimated_cost_usd"] == 12.25
+    assert manifest["egress_preflight"]["passed"] is True
     assert manifest["families"]["safety"] == {
         "considered": 3,
         "routed": 2,

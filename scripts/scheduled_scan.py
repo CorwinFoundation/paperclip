@@ -168,13 +168,19 @@ def run_positive_egress_preflight(
     """Prove credential-free reachability and retain each HTTP response code."""
     results: dict[str, dict[str, Any]] = {}
     failures: list[str] = []
+    dependency_failures: list[str] = []
     for host, url in PREFLIGHT_TARGETS.items():
         try:
             response = requester(url, timeout=10.0, follow_redirects=False)
             results[host] = {"url": url, "http_status_code": int(response.status_code)}
         except Exception as exc:
-            results[host] = {"url": url, "error_type": type(exc).__name__}
+            if isinstance(exc, (ModuleNotFoundError, ImportError)):
+                error_type = "dependency_missing"
+                dependency_failures.append(host)
+            else:
+                error_type = type(exc).__name__
             failures.append(host)
+            results[host] = {"url": url, "error_type": error_type}
     record = {
         "schema": "backbond.scheduled-egress-preflight/v1",
         "credential_free": True,
@@ -186,6 +192,11 @@ def run_positive_egress_preflight(
         json.dumps(record, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    if dependency_failures:
+        raise RuntimeError(
+            "scheduled egress preflight dependency missing: "
+            + ", ".join(dependency_failures)
+        )
     if failures:
         raise RuntimeError(f"scheduled egress preflight failed: {', '.join(failures)}")
     return record
@@ -286,6 +297,7 @@ def _operator_manifest(
     finished_at: str,
     total_runtime_seconds: float,
     registry_rows: list[Mapping[str, Any]],
+    preflight_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     final = dict(job.final_manifest or {})
     families, incomplete = _family_summary(registry_rows, final.get("evidence_rows", []))
@@ -313,6 +325,7 @@ def _operator_manifest(
             float(budget.get("estimated_judge_cost_usd") or 0), 6
         ),
         "egress_preflight_result_path": str(preflight_path),
+        "egress_preflight": dict(preflight_result or {}),
         "families": families,
         "incomplete_by_reason": incomplete,
         "evidence_rows": len(final.get("evidence_rows", [])),
@@ -338,7 +351,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
     output_dir.mkdir(parents=True, exist_ok=True)
     preflight_path = output_dir / "egress-preflight.json"
     negative_control_path = output_dir / "egress-negative-control.json"
-    run_positive_egress_preflight(preflight_path)
+    preflight_result = run_positive_egress_preflight(preflight_path)
     verify_live_egress_fail_closed(
         scanner_version=config.scanner_version,
         corpus_version=config.corpus_version,
@@ -408,6 +421,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         finished_at=finished_at,
         total_runtime_seconds=time.monotonic() - runtime_started,
         registry_rows=rows,
+        preflight_result=preflight_result,
     )
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
