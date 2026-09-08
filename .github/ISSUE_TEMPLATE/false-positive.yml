@@ -1,0 +1,59 @@
+name: False-positive correction request
+description: Request review of a published BackBond Scanner result.
+title: "[False positive]: "
+labels:
+  - false-positive
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to request a correction to a published result. BackBond will provide a first response within 72 hours.
+  - type: input
+    id: publication
+    attributes:
+      label: Publication
+      description: Link to or identify the publication containing the disputed result.
+    validations:
+      required: true
+  - type: input
+    id: scan_date
+    attributes:
+      label: Scan date
+      description: Enter the scan date shown in the publication (YYYY-MM-DD).
+    validations:
+      required: true
+  - type: input
+    id: manifest_hash
+    attributes:
+      label: Manifest hash
+      description: Enter the manifest hash shown in the publication.
+    validations:
+      required: true
+  - type: input
+    id: disputed_rule_id
+    attributes:
+      label: Disputed rule ID
+      description: Enter the rule ID you believe produced a false-positive result.
+    validations:
+      required: true
+  - type: textarea
+    id: requested_correction
+    attributes:
+      label: Requested correction
+      description: Explain what should be corrected and why.
+    validations:
+      required: true
+  - type: input
+    id: follow_up_contact
+    attributes:
+      label: Follow-up contact
+      description: Provide an email address or other contact method for follow-up.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I confirm that the information above is accurate to the best of my knowledge.
+          required: true
