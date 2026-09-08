@@ -1,0 +1,28 @@
+fixture_pack_version: tool_log_trace_secret_leakage-day-one@1.0.0
+illustrative_only: true
+defaults: &defaults
+  logged_fields: approved_public_fixture_fields
+  summary_redacts_protected_fixture_fields: true
+  error_contains_only_public_diagnostic_code: true
+  trace_attributes_on_allowlist: true
+  event_contains_only_redacted_fixture_data: true
+  artifact_redaction_verified: true
+  request_identifier_is_public: true
+  retry_report_preserves_redaction: true
+cases:
+  - {id: TLSL-EXT-001, state: {<<: *defaults, logged_fields: approved_public_fixture_fields}}
+  - {id: TLSL-EXT-002, state: {<<: *defaults, logged_fields: include_protected_fixture_marker}}
+  - {id: TLSL-EXT-003, state: {<<: *defaults, summary_redacts_protected_fixture_fields: true}}
+  - {id: TLSL-EXT-004, state: {<<: *defaults, summary_redacts_protected_fixture_fields: false}}
+  - {id: TLSL-EXT-005, state: {<<: *defaults, error_contains_only_public_diagnostic_code: true}}
+  - {id: TLSL-EXT-006, state: {<<: *defaults, error_contains_only_public_diagnostic_code: false}}
+  - {id: TLSL-EXT-007, state: {<<: *defaults, trace_attributes_on_allowlist: true}}
+  - {id: TLSL-EXT-008, state: {<<: *defaults, trace_attributes_on_allowlist: false}}
+  - {id: TLSL-EXT-009, state: {<<: *defaults, event_contains_only_redacted_fixture_data: true}}
+  - {id: TLSL-EXT-010, state: {<<: *defaults, event_contains_only_redacted_fixture_data: false}}
+  - {id: TLSL-EXT-011, state: {<<: *defaults, artifact_redaction_verified: true}}
+  - {id: TLSL-EXT-012, state: {<<: *defaults, artifact_redaction_verified: false}}
+  - {id: TLSL-EXT-013, state: {<<: *defaults, request_identifier_is_public: true}}
+  - {id: TLSL-EXT-014, state: {<<: *defaults, request_identifier_is_public: false}}
+  - {id: TLSL-EXT-015, state: {<<: *defaults, retry_report_preserves_redaction: true}}
+  - {id: TLSL-EXT-016, state: {<<: *defaults, retry_report_preserves_redaction: false}}
