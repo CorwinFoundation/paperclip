@@ -1,0 +1,18 @@
+[
+  {"case_id":"DACD-EXT-001","control":"principal_binding","state":{"original_principal":"principal-a","downstream_principal":"principal-a"},"expected":"permit"},
+  {"case_id":"DACD-EXT-002","control":"principal_binding","state":{"original_principal":"principal-a","downstream_principal":"principal-b"},"expected":"deny"},
+  {"case_id":"DACD-EXT-003","control":"scope_intersection","state":{"action_within_every_delegation_scope":true},"expected":"permit"},
+  {"case_id":"DACD-EXT-004","control":"scope_intersection","state":{"action_within_every_delegation_scope":false},"expected":"deny"},
+  {"case_id":"DACD-EXT-005","control":"delegation_lifetime","state":{"delegation_valid_at_execution":true},"expected":"permit"},
+  {"case_id":"DACD-EXT-006","control":"delegation_lifetime","state":{"delegation_valid_at_execution":false},"expected":"deny"},
+  {"case_id":"DACD-EXT-007","control":"tenant_propagation","state":{"original_tenant":"tenant-a","downstream_tenant":"tenant-a"},"expected":"permit"},
+  {"case_id":"DACD-EXT-008","control":"tenant_propagation","state":{"original_tenant":"tenant-a","downstream_tenant":"tenant-b"},"expected":"deny"},
+  {"case_id":"DACD-EXT-009","control":"purpose_propagation","state":{"approved_purpose":"support-read","downstream_purpose":"support-read"},"expected":"permit"},
+  {"case_id":"DACD-EXT-010","control":"purpose_propagation","state":{"approved_purpose":"support-read","downstream_purpose":"account-write"},"expected":"deny"},
+  {"case_id":"DACD-EXT-011","control":"delegate_identity","state":{"approved_delegate":"delegate-a","executing_delegate":"delegate-a"},"expected":"permit"},
+  {"case_id":"DACD-EXT-012","control":"delegate_identity","state":{"approved_delegate":"delegate-a","executing_delegate":"delegate-b"},"expected":"deny"},
+  {"case_id":"DACD-EXT-013","control":"delegation_depth","state":{"delegation_depth":2,"maximum_depth":2},"expected":"permit"},
+  {"case_id":"DACD-EXT-014","control":"delegation_depth","state":{"delegation_depth":3,"maximum_depth":2},"expected":"deny"},
+  {"case_id":"DACD-EXT-015","control":"approval_identity","state":{"approver_verified_for_original_principal":true},"expected":"permit"},
+  {"case_id":"DACD-EXT-016","control":"approval_identity","state":{"approver_verified_for_original_principal":false},"expected":"deny"}
+]
