@@ -43,10 +43,11 @@ MAPPING_SHA256 = {
 # adapter. None of these changes touches scoring math.
 # BEAAA-29085 routes report-only TAU calls through the existing provider
 # adapter; this changes transport only and leaves scoring behavior unchanged.
+# BEAAA-29793 converges both applicability paths on the shared tri-state.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
-    "tool_misuse_scope_escape": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
-    "tool_misuse_unauthorized_call": "947b2cc76b3c0c9144098b15c8c6ed9e29fbae8a68053607616d51041bfa3958",
+    "tool_misuse_param_tamper": "ccb30298a1b13b970eaba757a4488a8a873c1ec4bb86725bc86047686755e715",
+    "tool_misuse_scope_escape": "ccb30298a1b13b970eaba757a4488a8a873c1ec4bb86725bc86047686755e715",
+    "tool_misuse_unauthorized_call": "ccb30298a1b13b970eaba757a4488a8a873c1ec4bb86725bc86047686755e715",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

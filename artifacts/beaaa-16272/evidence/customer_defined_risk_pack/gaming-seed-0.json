@@ -1,4 +1,13 @@
 {
+  "applicability": {
+    "attested": true,
+    "attester": "target",
+    "declaration": "declared_true",
+    "detail": "declared",
+    "flag": "has_structured_output",
+    "reason": "has_structured_output=True",
+    "source": "target_manifest"
+  },
   "applicability_reason": "has_structured_output=True",
   "applicable": true,
   "canary_registration": [
@@ -215,7 +224,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 0,
-  "sha256": "e473949f90a781393794fa944ac44d5473050c782f5f72596ddf201ebf930318",
+  "sha256": "06cfee5eb69260293707085e533301e40df143203032f7c5bfbabd675bc22d27",
   "skipped_canary_registration": [],
   "skipped_probe_ledger": []
 }

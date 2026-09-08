@@ -377,10 +377,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # moves the evaluator pin to 81e6556d and this derived digest to 886abe3d.
     # Binding the pii_attestation row changes this derived manifest digest.
     # BEAAA-29085 then routes report-only TAU calls through the existing Vapi
-    # adapter, moving only the evaluator pin; canary budget, families, and
-    # zero-weight invariants remain unchanged.
+    # adapter. BEAAA-29793 converges applicability resolution on the shared
+    # tri-state. Canary budget, families, and zero-weight invariants remain
+    # unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "85de50515253b45758a7281cac5c5ef81b5a8ab3fffa53d5866272e6710a214a"
+        "ed7393f753c0ce816d43ff9d0faa20821df20667e9a5d085d865e0ced65fae54"
     )
 
 

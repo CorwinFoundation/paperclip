@@ -544,9 +544,9 @@ class RegisteredCaseExecutor:
         # an MCP surface, and reported the answer as a pass. A conditional
         # family run against a surface it does not apply to is a fabricated
         # result whether or not anyone reads it (directive BEAAA-24008, D.3).
-        applicable, reason = _resolve_applicability(test_id, registry_row)
-        if not applicable:
-            return _not_applicable_outcome(test_id, case_id, reason)
+        resolution = _resolve_applicability(test_id, registry_row)
+        if not resolution.applicable:
+            return _not_applicable_outcome(test_id, case_id, resolution)
 
         from harness.bench.day1_supporting_families import SUPPORTING_FAMILIES
 
@@ -1619,37 +1619,37 @@ def _declared_applicability_flag(test_id: str) -> str | None:
     return str(flag) if flag else None
 
 
-def _resolve_applicability(
-    test_id: str, registry_row: Mapping[str, Any]
-) -> tuple[bool, str]:
+def _resolve_applicability(test_id: str, registry_row: Mapping[str, Any]):
     """Decide whether a conditional family applies to the target under scan.
 
-    Fail-closed, matching ``run_family``'s ``architecture_flags.get(flag,
-    False)`` and the mapping's ``applicability.na_when_absent: true``: only an
-    explicit ``True`` in the job's capability manifest makes a gated family
-    applicable. An absent, null or malformed manifest cannot affirm a surface,
-    so it yields N/A rather than a probe run — the safe direction, because the
-    alternative is charging a verdict to a surface that was never shown to
-    exist.
+    Delegates to ``evals.aiuc_path_b.applicability.resolve`` — the same resolver
+    ``run_family`` calls — so the production path and the eval library cannot
+    disagree about a conditional family's applicability. They disagreed until
+    BEAAA-29793 on exactly the undeclared case, which is why the shared resolver
+    exists rather than a second copy of this logic.
+
+    Fail-closed, matching the mapping's ``applicability.na_when_absent: true``:
+    only an explicit ``True`` in the job's capability manifest makes a gated
+    family applicable. An absent, null or malformed manifest cannot affirm a
+    surface, so it yields N/A rather than a probe run — the safe direction,
+    because the alternative is charging a verdict to a surface that was never
+    shown to exist. That N/A is a policy default, not anyone's declaration, and
+    the returned record says so (``source="policy_default"``, ``attested=False``)
+    instead of leaving it indistinguishable from a considered decline.
+
+    Returns an ``Applicability`` record. Every reason string it renders is
+    byte-identical to what this function returned before the promotion; the
+    boolean is unchanged for every input (BEAAA-29793 delta-zero condition).
     """
 
-    flag = _declared_applicability_flag(test_id)
-    if flag is None:
-        return True, "always"
+    from evals.aiuc_path_b import applicability
 
-    capability = registry_row.get("capability_manifest")
-    if capability is None:
-        return False, f"{flag}=absent_capability_manifest"
-    if not isinstance(capability, Mapping):
-        return False, f"{flag}=malformed_capability_manifest"
-    declared = capability.get(flag)
-    if declared is True:
-        return True, f"{flag}=True"
-    return False, f"{flag}={declared!r}"
+    flag = _declared_applicability_flag(test_id)
+    return applicability.resolve(flag, registry_row.get("capability_manifest"))
 
 
 def _not_applicable_outcome(
-    test_id: str, case_id: str, reason: str
+    test_id: str, case_id: str, resolution: Any
 ) -> dict[str, Any]:
     """N/A terminal state: no score, no target call, no judge call.
 
@@ -1679,7 +1679,8 @@ def _not_applicable_outcome(
             "type": "deterministic_applicability_gate",
             "family_id": test_id,
             "applicable": False,
-            "applicability_reason": reason,
+            "applicability_reason": resolution.reason,
+            "applicability": resolution.as_evidence(),
             "reported_not_scored": True,
         },
         score=None,

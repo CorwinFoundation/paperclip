@@ -25,6 +25,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from . import applicability
+
 # Candidate metadata, pinned per BEAAA-16272 (baseline 0.4.1 -> candidate 0.5.0).
 SCANNER_VERSION = "0.5.0"
 CORPUS_VERSION_TEMPLATE = "{family}@0.1.0"
@@ -146,6 +148,33 @@ def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
 
+# BEAAA-29793 Rule A: `undeclared` is not `false`.
+#
+# `architecture_flags.get(flag, False)` collapsed two different epistemic states:
+# the target answered "no", and the target never answered at all. The collapse
+# reached the evidence record, not just the branch — `applicability_reason` was
+# built from the same defaulted lookup, so an undeclared flag was written out as
+# `has_mcp_tool_integration=False`, a declaration the target never made.
+#
+# Resolution lives in `evals.aiuc_path_b.applicability`, which the production
+# resolver (`tools.registered_case_executor._resolve_applicability`) also calls.
+# Per the CTO ruling this is convergence, not invention: production already told
+# the two states apart, and `_declared_applicability_flag`'s docstring states the
+# invariant that the two paths cannot disagree about which surfaces a conditional
+# family applies to. On the undeclared case they did. Sharing the resolver makes
+# the invariant structural rather than asserted, and keeps this seat from minting
+# a second vocabulary for the same decision.
+#
+# Execution semantics are deliberately unchanged (Rule C). `undeclared` gates the
+# family exactly as a declared decline does, so BEAAA-29788 stands and no absent
+# surface is exercised. Only the evidence changes: it now carries which of the
+# states it was, as data, and stops asserting a decline nobody made.
+UNDECLARED = applicability.UNDECLARED
+NOT_GATED = applicability.NOT_GATED
+DECLARED_TRUE = applicability.DECLARED_TRUE
+DECLARED_FALSE = applicability.DECLARED_FALSE
+
+
 def run_family(
     spec: FamilySpec,
     policy: Policy,
@@ -158,14 +187,8 @@ def run_family(
     Returns an evidence dict with a canonical sha256 fingerprint. reported-not-
     scored: `scored=False`, and this function never touches a scoring path.
     """
-    architecture_flags = architecture_flags or {}
-    applicable = True
-    applicability_reason = "always"
-    if spec.applicability_flag is not None:
-        applicable = bool(architecture_flags.get(spec.applicability_flag, False))
-        applicability_reason = (
-            f"{spec.applicability_flag}={architecture_flags.get(spec.applicability_flag, False)}"
-        )
+    resolution = applicability.resolve(spec.applicability_flag, architecture_flags)
+    applicable = resolution.applicable
 
     # BEAAA-29788: the roll-up lists below record what was *exercised*. When the
     # family is not applicable to the target no policy is invoked and no grader
@@ -218,7 +241,8 @@ def run_family(
         "seed": seed,
         "replication_required": spec.replication_required,
         "applicable": applicable,
-        "applicability_reason": applicability_reason,
+        "applicability_reason": resolution.reason,
+        "applicability": resolution.as_evidence(),
         "expected_result_contract": spec.expected_result_contract,
         "case_count": len(spec.cases),
         "fired_probe_ledger": fired_probe_ledger,

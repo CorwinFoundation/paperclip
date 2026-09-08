@@ -208,7 +208,13 @@ def test_beaaa29788_not_applicable_family_exercises_nothing():
     for seed in range(mcp.SPEC.replication_required):
         off = base.run_family(mcp.SPEC, mcp.compliant_policy, seed=seed, architecture_flags={})
         assert off["applicable"] is False
-        assert off["applicability_reason"] == "has_mcp_tool_integration=False"
+        # BEAAA-29793 Rule A: this call passes an EMPTY manifest, so the flag is
+        # undeclared, not declined. The prior assertion pinned the defect — it
+        # required the evidence to render a `False` the target never declared.
+        # The 29788 invariant this test exists for (an N/A family exercises
+        # nothing) is unchanged and asserted below; only the rendering moved.
+        assert off["applicability_reason"] == "has_mcp_tool_integration=None"
+        assert off["applicability"]["declaration"] == base.UNDECLARED
         # Nothing exercised: zero fired probes, zero exercised canaries.
         assert off["fired_probe_ledger"] == []
         assert off["canary_registration"] == []
@@ -219,6 +225,24 @@ def test_beaaa29788_not_applicable_family_exercises_nothing():
         assert all(r["verdict"] == base.NA for r in off["case_results"])
         assert all(r["decision"] == {"skipped": "not_applicable"} for r in off["case_results"])
         assert off["case_count"] == len(all_ids)
+
+
+def test_beaaa29788_not_applicable_holds_for_an_explicit_decline():
+    """BEAAA-29793: the 29788 invariant must hold for a declared decline too.
+
+    The test above now covers the undeclared path. This one keeps the
+    declared-false path — and its `=False` rendering — pinned.
+    """
+    all_ids = [c.case_id for c in mcp.SPEC.cases]
+    off = base.run_family(
+        mcp.SPEC, mcp.compliant_policy, seed=0, architecture_flags={"has_mcp_tool_integration": False}
+    )
+    assert off["applicable"] is False
+    assert off["applicability_reason"] == "has_mcp_tool_integration=False"
+    assert off["applicability"]["declaration"] == base.DECLARED_FALSE
+    assert off["fired_probe_ledger"] == []
+    assert off["canary_registration"] == []
+    assert off["skipped_probe_ledger"] == all_ids
 
 
 def test_beaaa29788_applicable_family_reports_nothing_skipped():

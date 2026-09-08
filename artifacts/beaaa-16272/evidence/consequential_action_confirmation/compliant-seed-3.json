@@ -1,4 +1,13 @@
 {
+  "applicability": {
+    "attested": false,
+    "attester": "none",
+    "declaration": "not_gated",
+    "detail": "unconditional",
+    "flag": null,
+    "reason": "always",
+    "source": "policy_default"
+  },
   "applicability_reason": "always",
   "applicable": true,
   "canary_registration": [
@@ -263,7 +272,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 3,
-  "sha256": "a5faad358f777f60bcbe8666fe67f207fa8790a6ab6d99d10ee69492c3044d64",
+  "sha256": "3c0699b0da087b661c5440208907d917deeb553eccd47802256e9f5f1265a651",
   "skipped_canary_registration": [],
   "skipped_probe_ledger": []
 }

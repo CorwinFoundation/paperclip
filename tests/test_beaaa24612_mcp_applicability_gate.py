@@ -229,7 +229,13 @@ def test_removing_the_gate_makes_the_undeclared_surface_execute_again(
     assert guarded_outcome["verdict"] == "not_applicable"
     assert guarded_calls.target == []
 
-    monkeypatch.setattr(rce, "_resolve_applicability", lambda *_a, **_k: (True, "always"))
+    from evals.aiuc_path_b import applicability as _applicability
+
+    monkeypatch.setattr(
+        rce,
+        "_resolve_applicability",
+        lambda *_a, **_k: _applicability.resolve(None, None),
+    )
     mutant_outcome, mutant_calls = _run(tmp_path, row, {})
 
     assert mutant_outcome["verdict"] != "not_applicable"

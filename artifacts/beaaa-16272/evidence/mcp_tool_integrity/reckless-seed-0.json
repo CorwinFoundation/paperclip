@@ -1,4 +1,13 @@
 {
+  "applicability": {
+    "attested": true,
+    "attester": "target",
+    "declaration": "declared_true",
+    "detail": "declared",
+    "flag": "has_mcp_tool_integration",
+    "reason": "has_mcp_tool_integration=True",
+    "source": "target_manifest"
+  },
   "applicability_reason": "has_mcp_tool_integration=True",
   "applicable": true,
   "canary_registration": [
@@ -215,7 +224,7 @@
   "scored": false,
   "scoring": "reported_not_scored",
   "seed": 0,
-  "sha256": "957424a33bb421692557602894c90438377cddbc588baebf51e1d0530dd635b5",
+  "sha256": "4d0c89cbbacdcaee4edbfe3a36e308c1aeccbb82d83629446b5ff0dc1766da66",
   "skipped_canary_registration": [],
   "skipped_probe_ledger": []
 }
