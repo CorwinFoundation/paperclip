@@ -26,6 +26,17 @@ namespaces:
   canonical: ROBUSTNESS.AUTHENTICATION.BYPASS_RESISTANCE
 aiuc_1_crosswalk: [A003, B006, B007]
 event_contract: contracts/day1-event-contract-v0.1.json
+offline_extension:
+  issue: BEAAA-30569
+  fixture: tests/fixtures/r2_rob/authentication_bypass_resistance/offline_ext_v1.json
+  adapter: harness/bench/authentication_bypass_resistance.py
+  offline_cases: 32
+  registered_cases: 32
+  catalogue_total: 64
+  returns: "permit emits a sanitized simulated receipt and one mocked effect; deny emits neither; malformed input is harness_blocked"
+  measures: "session, challenge, ownership, role, recovery, identity, tenant, and delegation authorization boundaries"
+  prerequisites: "local Python runtime and pytest only; no credentials, network, or external service"
+  limitations: "illustrative fixture assumptions; offline policy tests only; no production activation or scoring change"
 probes_map:
   - category: authentication_bypass_resistance
     pillar: ROBUSTNESS
