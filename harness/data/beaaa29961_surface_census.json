@@ -1,0 +1,1518 @@
+{
+  "adapter_proofs": [
+    {
+      "adapter": "harness.vapi_synthetic_capability_adapter",
+      "declared_surfaces": [
+        "prose",
+        "voice"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "prose",
+        "voice"
+      ],
+      "status": "PASS",
+      "target": "vapi"
+    },
+    {
+      "adapter": "harness.direct_family_adapter",
+      "declared_surfaces": [
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "status": "PASS",
+      "target": "mcp"
+    },
+    {
+      "adapter": "tools.canonical_family_target_runner",
+      "declared_surfaces": [
+        "code_execution",
+        "prose",
+        "structured_output"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "code_execution",
+        "prose",
+        "structured_output"
+      ],
+      "status": "PASS",
+      "target": "coding"
+    },
+    {
+      "adapter": "tools.batch_a_local_family_target_runner",
+      "declared_surfaces": [
+        "prose",
+        "structured_output"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "prose",
+        "structured_output"
+      ],
+      "status": "PASS",
+      "target": "rag"
+    },
+    {
+      "adapter": "tools.adversarial_stateful_target_runner",
+      "declared_surfaces": [
+        "browser",
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "browser",
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "status": "PASS",
+      "target": "browser"
+    },
+    {
+      "adapter": "tools.portal_v1.portal",
+      "declared_surfaces": [
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "proof_mode": "adapter_smoke",
+      "required_adapter_surfaces": [
+        "prose",
+        "structured_output",
+        "tool_calls"
+      ],
+      "status": "PASS",
+      "target": "paperclip"
+    }
+  ],
+  "counts": {
+    "applicable": 138,
+    "incomplete": 0,
+    "routed": 138,
+    "verdict": 0
+  },
+  "families": [
+    {
+      "family": "accessibility_assistive_action_integrity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "advbench",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "agent_identity_signed_handoff",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "agentdojo",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "ai_disclosure",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "approval_freshness_replay",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "approval_preview_mutation_binding",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "authentication_bypass_resistance",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "authorization_revocation_race",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "backbond-output-attack-fixtures",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "browser_surface_action_integrity",
+      "reason": "compatible_targets=browser",
+      "required_surfaces": [
+        "browser"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "cbrn_refusal",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "checkpoint_restore_integrity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "citation_integrity_legal",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "code_agent_supply_chain",
+      "reason": "compatible_targets=coding",
+      "required_surfaces": [
+        "code_execution"
+      ],
+      "status": "routed",
+      "target": "coding",
+      "verdict": "pending"
+    },
+    {
+      "family": "code_patch_scope_preservation",
+      "reason": "compatible_targets=coding",
+      "required_surfaces": [
+        "code_execution"
+      ],
+      "status": "routed",
+      "target": "coding",
+      "verdict": "pending"
+    },
+    {
+      "family": "code_review_regression_detection",
+      "reason": "compatible_targets=coding",
+      "required_surfaces": [
+        "code_execution"
+      ],
+      "status": "routed",
+      "target": "coding",
+      "verdict": "pending"
+    },
+    {
+      "family": "concurrent_shared_state_isolation",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "confidence_calibration",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "consequential_action_confirmation",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "context_truncation_fail_safe",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "counterfactual_stability",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "credential_secret_output_log_handling",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "crescendo",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "cross_customer_data_exposure",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "cross_session_data_leak",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "customer_defined_risk_pack",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "cyber_misuse_refusal",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "data_containment_transformed_exfiltration",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "data_residency_locality_boundary",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "delegated_authority_confused_deputy",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "demographic_parity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "email_calendar_injection",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "equal_opportunity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "eval_coverage_ledger",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "eval_representation",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "evaluation_awareness_behavior_consistency",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "factscore",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "file_temporary_link_leakage",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "file_upload_parser_boundary",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "garak",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "garak_beaaa152",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "hallucination_legal",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "halueval",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "harmbench",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "harmful_output_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "human_escalation_flagging",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "human_override_takeover_relinquishment",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "idempotency_retry_double_execution",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "impersonation_social_engineering",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "indirect_injection",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "indirect_injection_channels",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "insecure_code_generation",
+      "reason": "compatible_targets=coding",
+      "required_surfaces": [
+        "code_execution"
+      ],
+      "status": "routed",
+      "target": "coding",
+      "verdict": "pending"
+    },
+    {
+      "family": "jailbreakbench",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "long_context_instruction_hierarchy_retention",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "long_running_cancellation_race",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "mcp_tool_integrity",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "mitigation_evidence",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "multi_agent_handoff_integrity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "multilingual_policy_consistency",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "multimodal_hidden_instruction",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "out_of_scope_containment",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_1_factuality_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_2_citation_integrity_floor",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_2_citation_integrity_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_2_citation_integrity_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_3_consistency_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_4_refusal_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_5_calibration_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_5_confidence_calibration_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_6_eval_breadth_floor",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_6_eval_breadth_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p1_6_eval_coverage_breadth_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_1_demographic_parity_gap",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_2_equal_opportunity_gap",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_3_counterfactual_stability",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_4_eval_representation",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_5_sentiment_skew_by_attribute",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_5_sentiment_skew_floor",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_5_sentiment_skew_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_5_sentiment_skew_golden",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p2_6_mitigation_evidence",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_2_indirect_injection_floor",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_2_indirect_injection_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_2_indirect_injection_rob",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_3_secret_exfil_floor",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_3_secret_exfil_floor30",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_3_secret_exfiltration_rob",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_5_multiturn_jailbreak",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p3_6_output_attack",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_audit_log",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_eval_cadence",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_incident_response",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_kill_switch",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_owner_matrix",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "p4_version_control",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "peril_data_containment",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "peril_recipient_integrity",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "peril_tool_grounded_factuality",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "persistent_memory_poisoning",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "perturbation_seeds",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "pii_attestation",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "pii_scan_time_detection",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "privacy_minimization_reidentification",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "privacybench",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "promptbench",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "promptinject",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "provenance_chain_of_custody",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "pyrit",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "rag_grounding_retrieval_integrity",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "recipient_identity_integrity",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "resource_budget_enforcement",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "retrieval_source_trust_poisoning",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "revocation_execution_time_authorization",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "sandbox_process_network_boundary",
+      "reason": "compatible_targets=coding",
+      "required_surfaces": [
+        "code_execution"
+      ],
+      "status": "routed",
+      "target": "coding",
+      "verdict": "pending"
+    },
+    {
+      "family": "secret_exfil",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "self_contradiction_pairs",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "sensitive_data_disclosure_resistance",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "sentiment_skew",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "stop_instruction_v1",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "stop_resume_memory_boundary",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "structured_output_contract_semantics",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "system_prompt_extraction",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tau_support_crm",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tenant_account_boundary",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "time_sensitive_decision_freshness",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_authorization_confused_deputy",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_log_trace_secret_leakage",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_misuse_param_tamper",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_misuse_scope_escape",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_misuse_unauthorized_call",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "tool_schema_drift_partial_failure",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "transaction_end_state",
+      "reason": "compatible_targets=browser,mcp,paperclip",
+      "required_surfaces": [
+        "tool_calls"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "truthfulqa",
+      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "required_surfaces": [
+        "prose"
+      ],
+      "status": "routed",
+      "target": "browser",
+      "verdict": "pending"
+    },
+    {
+      "family": "voice_adversarial_pack",
+      "reason": "compatible_targets=vapi",
+      "required_surfaces": [
+        "voice"
+      ],
+      "status": "routed",
+      "target": "vapi",
+      "verdict": "pending"
+    },
+    {
+      "family": "voice_consent_recording_boundary",
+      "reason": "compatible_targets=vapi",
+      "required_surfaces": [
+        "voice"
+      ],
+      "status": "routed",
+      "target": "vapi",
+      "verdict": "pending"
+    },
+    {
+      "family": "voice_identity_channel_transfer",
+      "reason": "compatible_targets=vapi",
+      "required_surfaces": [
+        "voice"
+      ],
+      "status": "routed",
+      "target": "vapi",
+      "verdict": "pending"
+    },
+    {
+      "family": "voice_turn_taking_interruption_recovery",
+      "reason": "compatible_targets=vapi",
+      "required_surfaces": [
+        "voice"
+      ],
+      "status": "routed",
+      "target": "vapi",
+      "verdict": "pending"
+    }
+  ],
+  "schema": "backbond-scanner/surface-census/v1",
+  "target_manifests": {
+    "browser": {
+      "has_browser": true,
+      "has_prose_output": true,
+      "has_structured_output": true,
+      "has_tool_calling": true
+    },
+    "coding": {
+      "has_code_execution": true,
+      "has_prose_output": true,
+      "has_structured_output": true
+    },
+    "mcp": {
+      "has_prose_output": true,
+      "has_structured_output": true,
+      "has_tool_calling": true
+    },
+    "paperclip": {
+      "has_prose_output": true,
+      "has_structured_output": true,
+      "has_tool_calling": true
+    },
+    "rag": {
+      "has_prose_output": true,
+      "has_structured_output": true
+    },
+    "vapi": {
+      "has_prose_output": true,
+      "has_voice": true
+    }
+  }
+}

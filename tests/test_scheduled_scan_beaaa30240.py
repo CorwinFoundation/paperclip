@@ -92,16 +92,22 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     assert "systemctl disable backbond-scan-zoo.timer" not in text
 
 
-def test_zoo_job_refuses_before_secrets_or_vapi_worker_construction(monkeypatch):
+def test_zoo_job_never_reads_vapi_secrets(monkeypatch):
+    """BEAAA-30515 replaced the refusal stub with a real controlled-target run.
+
+    The property this test was written to hold is unchanged and still the
+    point: whatever the zoo lane does, it must not reach for a Vapi
+    credential. Only the observable changed — the lane now fails closed on its
+    own missing secret instead of refusing outright.
+    """
     monkeypatch.setattr(
         "scripts.scheduled_scan.map_secret_environment",
-        lambda: pytest.fail("zoo must not read Vapi secrets"),
+        lambda *args, **kwargs: pytest.fail("zoo must not read Vapi secrets"),
     )
-    monkeypatch.setattr(
-        "scripts.scheduled_scan.build_registered_case_workers",
-        lambda *args, **kwargs: pytest.fail("zoo must not construct Vapi workers"),
-    )
-    with pytest.raises(RuntimeError, match="controlled-target runner"):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "x")
+    monkeypatch.setenv("ARE_EVAL_PROVENANCE_KEY", "x")
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
         run_scheduled_scan("zoo")
 
 

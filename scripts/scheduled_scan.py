@@ -46,10 +46,22 @@ SECRET_ENV = (
     "VAPI_ASSISTANT_ID",
     "OPENROUTER_API_KEY",
 )
+# The zoo lane runs against BackBond-operated controlled targets, so it needs
+# neither Vapi credential. Listing its secrets separately is what makes
+# "Vapi is never constructed or called" checkable rather than asserted.
+ZOO_SECRET_ENV = (
+    "ARE_BUNDLE_SIGNING_KEY",
+    "ARE_EVAL_PROVENANCE_KEY",
+    "OPENROUTER_API_KEY",
+)
 EVIDENCE_LABEL = "scheduled-controlled-evidence"
 PREFLIGHT_TARGETS = {
     "github.com": "https://github.com/",
     "api.vapi.ai": "https://api.vapi.ai/",
+    "openrouter.ai": "https://openrouter.ai/",
+}
+ZOO_PREFLIGHT_TARGETS = {
+    "github.com": "https://github.com/",
     "openrouter.ai": "https://openrouter.ai/",
 }
 INCOMPLETE_GROUPS = (
@@ -165,12 +177,13 @@ def run_positive_egress_preflight(
     artifact_path: Path,
     *,
     requester: Callable[..., Any] = egress_get,
+    targets: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Prove credential-free reachability and retain each HTTP response code."""
     results: dict[str, dict[str, Any]] = {}
     failures: list[str] = []
     dependency_failures: list[str] = []
-    for host, url in PREFLIGHT_TARGETS.items():
+    for host, url in (targets or PREFLIGHT_TARGETS).items():
         try:
             response = requester(url, timeout=10.0, follow_redirects=False)
             results[host] = {"url": url, "http_status_code": int(response.status_code)}
@@ -364,13 +377,271 @@ def _operator_manifest(
     }
 
 
+def map_zoo_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The three secrets the controlled zoo lane needs. No Vapi credential."""
+    return {name: _required_secret(name, environ) for name in ZOO_SECRET_ENV}
+
+
+def _zoo_family_summary(
+    decisions: Sequence[Any],
+    evidence_rows: Sequence[Mapping[str, Any]],
+) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
+    """Per-family counts under zoo routing semantics.
+
+    ``routed`` here means "sent to a controlled zoo target", which is narrower
+    than the registry's own executable flag: the four voice families are
+    considered and then explicitly not routed. Counting them as routed would
+    hide the Vapi exclusion the manifest exists to show.
+    """
+    families: dict[str, Counter[str]] = {}
+    incomplete = Counter({name: 0 for name in INCOMPLETE_GROUPS})
+    incomplete.setdefault("unrouted_surface", 0)
+
+    def _counter(family: str) -> Counter[str]:
+        return families.setdefault(
+            family,
+            Counter(
+                {
+                    name: 0
+                    for name in (
+                        "considered",
+                        "routed",
+                        "target_called",
+                        "pass",
+                        "fail",
+                        "incomplete",
+                    )
+                }
+            ),
+        )
+
+    for decision in decisions:
+        counts = _counter(decision.family)
+        counts["considered"] += len(decision.rows)
+        if decision.target is not None:
+            counts["routed"] += len(decision.rows)
+        else:
+            # An unrouted family is terminal, not missing: every one of its
+            # rows lands as a reason-coded incomplete.
+            counts["incomplete"] += len(decision.rows)
+            incomplete["unrouted_surface"] += len(decision.rows)
+
+    for raw in evidence_rows:
+        if not isinstance(raw, Mapping):
+            continue
+        counts = _counter(_family_name(raw))
+        target_calls = int(raw.get("target_calls") or 0)
+        if target_calls > 0:
+            counts["target_called"] += 1
+        verdict = str(raw.get("verdict") or "").upper()
+        if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
+            counts["incomplete"] += 1
+            incomplete[_incomplete_group(raw.get("incomplete_reason"), target_calls=target_calls)] += 1
+        else:
+            counts[verdict.lower()] += 1
+
+    return (
+        {name: dict(counts) for name, counts in sorted(families.items())},
+        dict(incomplete),
+    )
+
+
+def _run_zoo_target(
+    target: Any,
+    decisions: Sequence[Any],
+    *,
+    config: ScheduleConfig,
+    output_dir: Path,
+    run_date: str,
+    limiter: SharedRateLimiter,
+) -> tuple[Any, list[Mapping[str, Any]]]:
+    """Submit and dispatch one job against a single controlled zoo surface.
+
+    Each surface gets its own job because the capability manifest is what the
+    executor gates family applicability on; one merged job would have to
+    declare the union of every surface and would then run families against
+    capabilities their assigned target does not have.
+    """
+    from harness.controlled_zoo import build_zoo_runner, controlled_tau_session_factory
+
+    rows = [row for decision in decisions for row in decision.rows]
+    if not rows:
+        return None, []
+
+    request = SimpleNamespace(
+        agent_endpoint="controlled-zoo://" + target.name,
+        agent_id=f"controlled-zoo-{target.name}",
+        tenant_id=config.tenant_id,
+        invocation_context={"target_capabilities": target.capability_manifest},
+    )
+    subject = RateLimitedRunner(build_zoo_runner(target), limiter)
+    workers = build_registered_case_workers(
+        request,
+        "",
+        budget=ScanBudget(
+            max_estimated_judge_cost_usd=config.cost_cap_usd,
+            max_wall_clock_seconds=config.timeout_seconds,
+        ),
+        evidence_root=output_dir / "evidence" / target.name,
+        subject_factory=lambda endpoint, secret: subject,
+        judge_factory=lambda: RateLimitedRunner(default_judge_runner(), limiter),
+        tau_session_factory=controlled_tau_session_factory(subject),
+    )
+    model_versions = next(iter(workers.values())).manifest_metadata()
+    model_versions["evidence_class"] = EVIDENCE_LABEL
+    model_versions["zoo_target"] = target.name
+    model_versions["adapter_proof"] = target.adapter_proof
+
+    store = FullScanJobStore()
+    job = store.submit(
+        agent_id=request.agent_id,
+        scanner_version=config.scanner_version,
+        corpus_version=config.corpus_version,
+        model_versions=model_versions,
+        seed=config.seed,
+        registry_cases=registry_cases_from_rows(rows),
+        scan_id=f"scheduled-zoo-{target.name}-{run_date}",
+        wall_clock_budget_seconds=config.timeout_seconds,
+        rate_limit_per_minute=config.rpm,
+        capability_manifest=target.capability_manifest,
+    )
+    lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
+    attempt_id = str(lease["attempt_id"])
+    dispatch_registry_attempt(
+        store,
+        job.job_id,
+        attempt_id=attempt_id,
+        registry_rows=rows,
+        workers=workers,
+    )
+    finished = store.finalize(job.job_id, attempt_id=attempt_id)
+    final = dict(finished.final_manifest or {})
+    return finished, list(final.get("evidence_rows", []))
+
+
+def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
+    """Run the controlled target zoo established by BEAAA-29961.
+
+    Vapi is excluded structurally: its secrets are never read, its host is not
+    in the zoo preflight set, ``harness.customer_runner`` is never imported on
+    this path, and the census's four voice families route to no zoo target.
+    """
+    from harness.controlled_zoo import (
+        EXCLUDED_TARGETS,
+        SURFACE_CENSUS_SHA256,
+        load_surface_census,
+        route_registry_rows,
+        zoo_targets,
+    )
+
+    map_zoo_secret_environment()
+    config = config or ScheduleConfig.from_environment()
+    config.validate()
+    os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
+
+    run_date = datetime.now(timezone.utc).date().isoformat()
+    output_dir = config.evidence_root / run_date / "zoo"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    preflight_path = output_dir / "egress-preflight.json"
+    preflight_result = run_positive_egress_preflight(
+        preflight_path, targets=ZOO_PREFLIGHT_TARGETS
+    )
+    verify_live_egress_fail_closed(
+        scanner_version=config.scanner_version,
+        corpus_version=config.corpus_version,
+        seed=config.seed,
+        execution_environment="ariclaw-scheduled-unit",
+        artifact_path=output_dir / "egress-negative-control.json",
+    )
+
+    census = load_surface_census()
+    rows = load_default_full_scan_registry_rows()
+    decisions = route_registry_rows(rows, census)
+
+    limiter = SharedRateLimiter(config.rpm)
+    targets = zoo_targets()
+    by_target: dict[str, list[Any]] = {}
+    for decision in decisions:
+        if decision.target is not None:
+            by_target.setdefault(decision.target, []).append(decision)
+
+    runtime_started = time.monotonic()
+    started_at = datetime.now(timezone.utc).isoformat()
+    evidence_rows: list[Mapping[str, Any]] = []
+    target_reports: dict[str, Any] = {}
+    estimated_cost = 0.0
+    for name in sorted(by_target):
+        finished, target_rows = _run_zoo_target(
+            targets[name],
+            by_target[name],
+            config=config,
+            output_dir=output_dir,
+            run_date=run_date,
+            limiter=limiter,
+        )
+        evidence_rows.extend(target_rows)
+        final = dict(getattr(finished, "final_manifest", None) or {})
+        budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
+        estimated_cost += float(budget.get("estimated_judge_cost_usd") or 0)
+        target_reports[name] = {
+            "job_id": getattr(finished, "job_id", None),
+            "scan_id": getattr(finished, "scan_id", None),
+            "status": getattr(finished, "status", None),
+            "final_manifest_hash": getattr(finished, "final_manifest_hash", None),
+            "adapter_proof": targets[name].adapter_proof,
+            "capability_manifest": targets[name].capability_manifest,
+            "families": sorted(d.family for d in by_target[name]),
+            "rows": sum(len(d.rows) for d in by_target[name]),
+            "target_calls": sum(int(r.get("target_calls") or 0) for r in target_rows),
+        }
+    finished_at = datetime.now(timezone.utc).isoformat()
+
+    families, incomplete = _zoo_family_summary(decisions, evidence_rows)
+    manifest = {
+        "schema": "backbond.scheduled-scan-manifest/v2",
+        "job": "zoo",
+        "evidence_label": EVIDENCE_LABEL,
+        "live_service_signed": False,
+        "scanner_version": config.scanner_version,
+        "corpus_version": config.corpus_version,
+        "seed": config.seed,
+        "concurrency": config.concurrency,
+        "rate_limit_per_minute": config.rpm,
+        "retries": config.retries,
+        "cost_cap_usd": config.cost_cap_usd,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "total_runtime_seconds": round(time.monotonic() - runtime_started, 3),
+        "estimated_cost_usd": round(estimated_cost, 6),
+        "egress_preflight_result_path": str(preflight_path),
+        "egress_preflight": dict(preflight_result),
+        "families": families,
+        "incomplete_by_reason": incomplete,
+        "evidence_rows": len(evidence_rows),
+        "executor": "api.full_scan_executor.dispatch_registry_attempt",
+        "zoo": {
+            "surface_census_sha256": SURFACE_CENSUS_SHA256,
+            "excluded_targets": sorted(EXCLUDED_TARGETS),
+            "targets": target_reports,
+            "unrouted_families": {
+                decision.family: decision.reason
+                for decision in decisions
+                if decision.target is None
+            },
+            "target_calls": sum(int(r.get("target_calls") or 0) for r in evidence_rows),
+        },
+    }
+    manifest_path = output_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(manifest_path)
+    return manifest_path
+
+
 def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -> Path:
     if job_name not in {"vapi", "zoo"}:
         raise ValueError("job must be vapi or zoo")
     if job_name == "zoo":
-        raise RuntimeError(
-            "scheduled zoo scans are disabled until a controlled-target runner is implemented"
-        )
+        return run_scheduled_zoo_scan(config=config)
     secrets = map_secret_environment()
     config = config or ScheduleConfig.from_environment()
     config.validate()
