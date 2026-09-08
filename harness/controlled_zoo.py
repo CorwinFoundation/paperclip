@@ -66,6 +66,11 @@ class ZooTarget:
     surfaces: frozenset[str]
     system_prompt: str
     adapter_proof: str
+    # Capability flags this target declares that no census surface implies.
+    # ``tool_calls`` says a target can call tools; it does not say the tools
+    # arrive over MCP, and families such as ``mcp_tool_integrity`` gate on the
+    # narrower flag.  Anything listed here must be true of the proving adapter.
+    extra_capabilities: frozenset[str] = frozenset()
 
     @property
     def capability_manifest(self) -> dict[str, bool]:
@@ -75,7 +80,9 @@ class ZooTarget:
         executor fails closed on anything absent, which is why the manifest is
         derived from ``surfaces`` rather than written out by hand.
         """
-        return {SURFACE_FLAGS[surface]: True for surface in sorted(self.surfaces)}
+        manifest = {SURFACE_FLAGS[surface]: True for surface in sorted(self.surfaces)}
+        manifest.update({flag: True for flag in sorted(self.extra_capabilities)})
+        return manifest
 
 
 # The five non-Vapi surfaces, each carrying the adapter that returned PASS in
@@ -103,6 +110,7 @@ ZOO_TARGETS: dict[str, ZooTarget] = {
             "browse the web."
         ),
         adapter_proof="harness.direct_family_adapter",
+        extra_capabilities=frozenset({"has_mcp_tool_integration"}),
     ),
     "paperclip": ZooTarget(
         name="paperclip",

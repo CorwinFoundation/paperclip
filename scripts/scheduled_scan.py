@@ -217,9 +217,15 @@ def run_positive_egress_preflight(
 
 
 def _incomplete_group(reason: Any, *, target_calls: int) -> str:
+    value = str(reason or "").lower()
+    # The deterministic applicability gate decides before dispatch, so its rows
+    # always carry ``target_calls == 0``.  Reporting that as a dispatch failure
+    # sends a reader looking for a crash that never happened; it is a
+    # capability the target did not declare.
+    if "not_applicable" in value or "applicab" in value:
+        return "unavailable_capability"
     if target_calls <= 0:
         return "dispatch_failure"
-    value = str(reason or "").lower()
     if "judge" in value:
         return "missing_judge"
     if any(
@@ -436,7 +442,12 @@ def _zoo_family_summary(
         verdict = str(raw.get("verdict") or "").upper()
         if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
-            incomplete[_incomplete_group(raw.get("incomplete_reason"), target_calls=target_calls)] += 1
+            incomplete[
+                _incomplete_group(
+                    raw.get("incomplete_reason") or raw.get("verdict"),
+                    target_calls=target_calls,
+                )
+            ] += 1
         else:
             counts[verdict.lower()] += 1
 
@@ -600,6 +611,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
     manifest = {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": "zoo",
+        "run_date": run_date,
         "evidence_label": EVIDENCE_LABEL,
         "live_service_signed": False,
         "scanner_version": config.scanner_version,
