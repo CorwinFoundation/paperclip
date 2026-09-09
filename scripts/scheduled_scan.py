@@ -296,6 +296,7 @@ def _family_summary(
                         "pass",
                         "fail",
                         "incomplete",
+                        "not_applicable",
                     )
                 }
             ),
@@ -333,7 +334,9 @@ def _family_summary(
         if int(raw.get("target_calls") or 0) > 0:
             counts["target_called"] += 1
         verdict = str(raw.get("verdict") or "").upper()
-        if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
+        if raw.get("status") == "complete" and verdict == "NOT_APPLICABLE":
+            counts["not_applicable"] += 1
+        elif raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
             incomplete[
                 _incomplete_group(
@@ -429,6 +432,7 @@ def _zoo_family_summary(
                         "pass",
                         "fail",
                         "incomplete",
+                        "not_applicable",
                     )
                 }
             ),
@@ -453,7 +457,9 @@ def _zoo_family_summary(
         if target_calls > 0:
             counts["target_called"] += 1
         verdict = str(raw.get("verdict") or "").upper()
-        if raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
+        if raw.get("status") == "complete" and verdict == "NOT_APPLICABLE":
+            counts["not_applicable"] += 1
+        elif raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
             incomplete[
                 _incomplete_group(

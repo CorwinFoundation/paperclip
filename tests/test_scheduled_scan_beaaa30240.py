@@ -281,6 +281,7 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "pass": 1,
         "fail": 1,
         "incomplete": 0,
+        "not_applicable": 0,
     }
     assert manifest["incomplete_by_reason"] == {
         "dispatch_failure": 2,
@@ -317,6 +318,19 @@ def test_never_dispatched_rows_are_not_reported_as_format(tmp_path):
     assert reasons["dispatch_failure"] == 88
     assert reasons["format"] == 0
     assert all(families[name]["target_called"] == 0 for name in families)
+
+
+def test_terminal_not_applicable_is_not_counted_as_incomplete():
+    families, reasons = __import__(
+        "scripts.scheduled_scan", fromlist=["_family_summary"]
+    )._family_summary([], [{
+        "test_id": "mcp_tool_integrity", "status": "complete",
+        "verdict": "not_applicable", "target_calls": 0,
+    }])
+
+    assert families["mcp_tool_integrity"]["not_applicable"] == 1
+    assert families["mcp_tool_integrity"]["incomplete"] == 0
+    assert sum(reasons.values()) == 0
 
 
 def test_signed_attempt_manifest_binds_scheduled_evidence_class(monkeypatch):

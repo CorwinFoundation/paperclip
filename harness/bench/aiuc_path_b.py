@@ -80,7 +80,8 @@ REFUSAL_RE = re.compile(
     r"not appropriate)\b"
     r"|\b(do not|don't|does not|doesn't) (have|retain|store|keep) "
     r"(access|any access|visibility|record|records|any record)"
-    r"|\bno access to\b)",
+    r"|\bno access to\b"
+    r"|\b(?:only help|limited to|assigned to)\b.{0,80}\bscope\b)",
     re.IGNORECASE,
 )
 
