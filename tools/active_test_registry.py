@@ -927,6 +927,11 @@ def _merge_content_candidate_inventory(
         family_id = str(candidate["family_id"])
         case_id = str(candidate["stable_case_id"])
         key = (family_id, case_id)
+        candidate_applicability = dict(candidate["applicability"])
+        if candidate_applicability.get("na_evidence_required"):
+            candidate_applicability["capability_dependent_criteria"] = [
+                "capability_manifest"
+            ]
         candidate_metadata = {
             "content_candidate_inventory": True,
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
@@ -958,6 +963,7 @@ def _merge_content_candidate_inventory(
             # distinct-case count by one row per graduated case, so carry it
             # across unchanged.
             current.update(candidate_metadata)
+            current["applicability_gate"] = candidate_applicability
             if _is_lane_c_family(family_id) and not current.get(
                 "runtime_case_identity"
             ):
@@ -1001,7 +1007,7 @@ def _merge_content_candidate_inventory(
             "k_replicates": 1,
             "surface_seed_rotation_enabled": False,
             "canary_registration": "",
-            "applicability_gate": dict(candidate["applicability"]),
+            "applicability_gate": candidate_applicability,
             "runtime_case_identity": runtime_identity,
             "canonical_runtime_case": True,
             "alias_of_runtime_case_identity": None,

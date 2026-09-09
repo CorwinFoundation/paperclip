@@ -385,7 +385,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # registered_case_executor.py and moving the evaluator pin to df105868 and
     # this digest to a542c1f4.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "aeb8307c27878116729726e9ae0b2fa292d206b2476087a12374a025d4ef5566"
+        "7145d8dbfcc6e8e04ddefaa5dfd0c9640cf7d1d2c768cfb8576a9ac739b408b8"
     )
 
 

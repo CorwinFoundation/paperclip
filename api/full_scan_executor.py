@@ -180,6 +180,10 @@ class WorkerAttemptResult:
     estimated_judge_cost_usd: float = 0.0
     duration_ms: int = 0
     numeric_result: float | None = None
+    # Structured judge output.  Empty means the worker cannot prove which
+    # criteria produced its verdict, so capability-based reclassification must
+    # fail closed and preserve the verdict.
+    unmet_criteria: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1023,6 +1027,13 @@ def dispatch_registry_attempt(
         )
         model_version = _primary_model_version(job.model_versions)
 
+        # Keep the declared applicability contract for post-judge
+        # classification.  Capability absence must never suppress dispatch:
+        # the target may still fail a behavioral criterion.
+        applicability = registry_row.get("applicability_gate")
+        if not isinstance(applicability, Mapping):
+            applicability = registry_row.get("applicability")
+
         worker = workers.get(worker_id)
         if worker is None:
             rows_to_checkpoint.append(
@@ -1055,6 +1066,51 @@ def dispatch_registry_attempt(
                 incomplete_reason=f"worker_error:{worker_id}:{exc.__class__.__name__}",
             )
 
+        required_capability = (
+            str(applicability.get("required_capability") or "")
+            if isinstance(applicability, Mapping)
+            else ""
+        )
+        capability_criteria = {
+            str(value)
+            for value in (
+                applicability.get("capability_dependent_criteria") or ()
+                if isinstance(applicability, Mapping)
+                else ()
+            )
+        }
+        unmet_criteria = {str(value) for value in result.unmet_criteria}
+        capability_unmet = bool(
+            isinstance(applicability, Mapping)
+            and applicability.get("status") == "applicable_when_capability_declared"
+            and applicability.get("na_evidence_required")
+            and required_capability
+            and (
+                not isinstance(job.capability_manifest, Mapping)
+                or job.capability_manifest.get(required_capability) is not True
+            )
+        )
+        capability_only_failure = bool(
+            result.status == "complete"
+            and str(result.verdict or "").lower() == "fail"
+            and capability_unmet
+            and unmet_criteria
+            and unmet_criteria <= capability_criteria
+        )
+        result_status = "incomplete" if capability_only_failure else result.status
+        result_verdict = None if capability_only_failure else result.verdict
+        result_reason = result.incomplete_reason
+        if capability_only_failure:
+            declared = (
+                job.capability_manifest.get(required_capability)
+                if isinstance(job.capability_manifest, Mapping)
+                else None
+            )
+            result_reason = (
+                "unavailable_capability:"
+                f"{required_capability}={declared!r}"
+            )
+
         rows_to_checkpoint.append(
             # These axes describe evidence provenance independently. A completed,
             # attributable target execution is measured; all other terminal paths
@@ -1062,15 +1118,15 @@ def dispatch_registry_attempt(
             EvidenceAttemptRow(
                 probe_id=case_id,
                 rubric_point_id=rubric_point_id,
-                status=result.status,
+                status=result_status,
                 framework=framework,
                 corpus_version=job.corpus_version,
                 model_version=result.model_version or model_version,
                 seed=job.seed,
                 evidence_ref=_manifest_evidence_ref(result.evidence_ref, job_id=job.job_id),
-                incomplete_reason=result.incomplete_reason,
+                incomplete_reason=result_reason,
                 test_id=str(registry_row.get("test_id") or ""),
-                verdict=result.verdict,
+                verdict=result_verdict,
                 target_calls=result.target_calls,
                 judge_calls=result.judge_calls,
                 estimated_judge_input_tokens=result.estimated_judge_input_tokens,
@@ -1080,19 +1136,19 @@ def dispatch_registry_attempt(
                 numeric_result=result.numeric_result,
                 acquisition_basis=(
                     "target-measured"
-                    if result.status == "complete" and result.target_calls > 0
+                    if result_status == "complete" and result.target_calls > 0
                     else "missing"
-                    if result.status == "complete"
+                    if result_status == "complete"
                     else "failed"
-                    if result.status == "failed"
+                    if result_status == "failed"
                     else "missing"
                 ),
                 underwriting_relevance=(
                     "category-proxy"
-                    if result.status == "complete"
+                    if result_status == "complete"
                     and str(registry_row.get("test_id") or "") == "halueval"
                     else "direct"
-                    if result.status == "complete"
+                    if result_status == "complete"
                     else "failed"
                 ),
                 source_acquisition_basis=(

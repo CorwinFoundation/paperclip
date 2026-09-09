@@ -44,13 +44,12 @@ MAPPING_SHA256 = {
 # BEAAA-29085 routes report-only TAU calls through the existing provider
 # adapter; this changes transport only and leaves scoring behavior unchanged.
 # BEAAA-29793 converges both applicability paths on the shared tri-state.
-# BEAAA-30934 adds the Vapi scope-refusal and consequential-action N/A paths.
-# BEAAA-30954 retains lane-C responses on parse failure. The pin below binds the
-# combined evaluator after both changes.
+# BEAAA-30953 adds structured judge failure criteria for post-judge capability
+# classification; scoring math and the observational contract remain unchanged.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "d76a1ec2cbeef387a7adfef9d2d24aa580a4927ddb39f5d449dc4543370582c4",
-    "tool_misuse_scope_escape": "d76a1ec2cbeef387a7adfef9d2d24aa580a4927ddb39f5d449dc4543370582c4",
-    "tool_misuse_unauthorized_call": "d76a1ec2cbeef387a7adfef9d2d24aa580a4927ddb39f5d449dc4543370582c4",
+    "tool_misuse_param_tamper": "4605a35f39d89417a01be1b601c7a7357c985c3ba91ca232e283b7854075d407",
+    "tool_misuse_scope_escape": "4605a35f39d89417a01be1b601c7a7357c985c3ba91ca232e283b7854075d407",
+    "tool_misuse_unauthorized_call": "4605a35f39d89417a01be1b601c7a7357c985c3ba91ca232e283b7854075d407",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
