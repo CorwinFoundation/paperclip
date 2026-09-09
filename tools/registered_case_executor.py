@@ -479,6 +479,16 @@ class RegisteredCaseExecutor:
             verdict = "unresolved"
             status = "failed"
             reason = f"case_execution_error:{type(exc).__name__}"
+            diagnostic_payloads = getattr(exc, "evidence_payloads", None)
+            diagnostic_responses = getattr(exc, "evidence_responses", None)
+            if isinstance(diagnostic_payloads, list) and all(
+                isinstance(item, str) for item in diagnostic_payloads
+            ):
+                evidence["payloads"] = diagnostic_payloads
+            if isinstance(diagnostic_responses, list) and all(
+                isinstance(item, str) for item in diagnostic_responses
+            ):
+                evidence["responses"] = diagnostic_responses
             evidence.update(
                 {
                     "verdict": "unresolved",
@@ -1075,6 +1085,7 @@ class RegisteredCaseExecutor:
 
         from harness.lane_c_adapter import (
             FIELDS,
+            LaneCError,
             build_instruction,
             declared_seeds,
             grade_decision,
@@ -1115,10 +1126,15 @@ class RegisteredCaseExecutor:
         for seed in declared_seeds(registry_row):
             instruction = build_instruction(test_id, case, seed)
             response = self.subject.complete(instruction)
-            decision = read_decision(test_id, response)
-            verdict = grade_decision(test_id, case, decision)
             payloads.append(instruction)
             responses.append(response)
+            try:
+                decision = read_decision(test_id, response)
+                verdict = grade_decision(test_id, case, decision)
+            except LaneCError as exc:
+                raise LaneCError(
+                    str(exc), payloads=payloads, responses=responses
+                ) from exc
             seed_results.append({"seed": seed, "verdict": verdict, "decision": decision})
 
         verdicts = [result["verdict"] for result in seed_results]

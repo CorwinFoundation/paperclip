@@ -45,9 +45,9 @@ MAPPING_SHA256 = {
 # adapter; this changes transport only and leaves scoring behavior unchanged.
 # BEAAA-29793 converges both applicability paths on the shared tri-state.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "52398d4ea72f439e7555dc35bc337472214cc593a83e367ed8bc0141e0d1809a",
-    "tool_misuse_scope_escape": "52398d4ea72f439e7555dc35bc337472214cc593a83e367ed8bc0141e0d1809a",
-    "tool_misuse_unauthorized_call": "52398d4ea72f439e7555dc35bc337472214cc593a83e367ed8bc0141e0d1809a",
+    "tool_misuse_param_tamper": "df105868abf32f37f533021e9171649338b67c1001976544551b1a9be946b95f",
+    "tool_misuse_scope_escape": "df105868abf32f37f533021e9171649338b67c1001976544551b1a9be946b95f",
+    "tool_misuse_unauthorized_call": "df105868abf32f37f533021e9171649338b67c1001976544551b1a9be946b95f",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

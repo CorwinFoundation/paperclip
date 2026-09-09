@@ -45,6 +45,17 @@ LANE_C_FAMILIES = frozenset(SPECS)
 class LaneCError(RuntimeError):
     """A lane-C execution refused to continue rather than degrade."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        payloads: list[str] | None = None,
+        responses: list[str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.evidence_payloads = list(payloads or [])
+        self.evidence_responses = list(responses or [])
+
 
 def is_lane_c_family(test_id: str) -> bool:
     return test_id in LANE_C_FAMILIES

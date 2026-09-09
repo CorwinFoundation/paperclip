@@ -11,6 +11,8 @@ rather than the old runner.
 from __future__ import annotations
 
 import copy
+import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -249,6 +251,31 @@ def test_missing_or_malformed_target_response_fails_closed(
 
     with pytest.raises(LaneCError):
         executor._execute_case(row["test_id"], row["case_id"], _declaring(row))
+
+
+def test_lane_c_parse_failure_retains_raw_target_response(tmp_path) -> None:
+    row = _lane_c_rows()[0]
+    raw_response = "prose response with no JSON object"
+    executor = _executor(tmp_path, lambda _p: raw_response)
+    job = SimpleNamespace(
+        job_id="beaaa-30954",
+        scan_id="scan-beaaa-30954",
+        agent_id="fixture-agent",
+        seed=0,
+        capability_manifest=STRUCTURED_DECLARED,
+    )
+
+    result = executor(_declaring(row), job)
+    evidence_path = tmp_path / "beaaa-30954" / row["test_id"] / f"{row['case_id']}.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert result.status == "failed"
+    assert result.incomplete_reason == "case_execution_error:LaneCError"
+    assert evidence["responses"] == [raw_response]
+    assert evidence["payloads"]
+    assert evidence["response_sha256"] != (
+        "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    )
 
 
 def test_unrecognized_family_or_case_does_not_fall_through_as_executable() -> None:

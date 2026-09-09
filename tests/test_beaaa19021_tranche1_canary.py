@@ -381,9 +381,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # tri-state. Canary budget, families, and zero-weight invariants remain
     # unchanged. BEAAA-30946 gates tau_support_crm rows rather than raising
     # RuntimeError, moving the evaluator pin to 52398d4e and this digest to
-    # c9536ff5.
+    # c9536ff5. BEAAA-30954 retains lane-C responses on parse failure, touching
+    # registered_case_executor.py and moving the evaluator pin to df105868 and
+    # this digest to a542c1f4.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "c9536ff5db70b05f5045c9a0851042f1af0473b20c993ebbb61a3c1f6a31920b"
+        "a542c1f4b741cccf47b9f9df53292147c65aa4bb4a8c60a5c86eb122473efbd0"
     )
 
 
