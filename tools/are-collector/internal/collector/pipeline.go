@@ -62,7 +62,7 @@ func (pipeline Pipeline) normalizeRecords(records []source.RawEnvelope, driver s
 			"source_integrity": normalized.SourceIntegrity,
 			"attributes":       normalized.Attributes,
 		}
-		event := schemav1.NewEvent(normalized.SourceEventID, eventType, normalized.ObservedAt, schemav1.SourceNumbat, payload)
+		event := schemav1.NewEvent(normalized.SourceEventID, eventType, normalized.ObservedAt, sourceKind(driver), payload)
 		policy := redaction.Policy{}
 		for _, path := range normalized.SensitivePaths {
 			policy["attributes."+path] = redaction.Drop
@@ -77,6 +77,17 @@ func (pipeline Pipeline) normalizeRecords(records []source.RawEnvelope, driver s
 		events = append(events, event)
 	}
 	return events, nil
+}
+
+func sourceKind(driver source.SourceDriver) schemav1.SourceKind {
+	switch driver.Descriptor().DriverID {
+	case "langfuse":
+		return schemav1.SourceLangfuse
+	case "numbat":
+		return schemav1.SourceNumbat
+	default:
+		return schemav1.SourceKind(driver.Descriptor().DriverID)
+	}
 }
 
 func (pipeline Pipeline) Collect(ctx context.Context) ([]schemav1.Event, error) {

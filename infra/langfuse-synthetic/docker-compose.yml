@@ -44,7 +44,7 @@ x-langfuse-environment: &langfuse-environment
 
 services:
   langfuse-worker:
-    image: docker.io/langfuse/langfuse-worker:3.176.0@sha256:56c99a7a1ce53e947280e207ac4a1540298098f440c5480389de34adac1c4fd3
+    image: docker.io/langfuse/langfuse-worker:4.32.0@sha256:ca93a7cd1e84bd14086cb5c0825459cbbf2ab59973cbe9d37da739dda4ff4c8f
     restart: unless-stopped
     depends_on:
       postgres: {condition: service_healthy}
@@ -56,7 +56,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   langfuse-web:
-    image: docker.io/langfuse/langfuse:3.176.0@sha256:88ca1ec907c8411f76c4602d2aac753045c18b5ae455cddfe08f609e07852976
+    image: docker.io/langfuse/langfuse:4.32.0@sha256:da9397a06b170149daa5ca89e38d22460d199a444b96a458f2d33a264da4b3ad
     restart: unless-stopped
     depends_on:
       postgres: {condition: service_healthy}

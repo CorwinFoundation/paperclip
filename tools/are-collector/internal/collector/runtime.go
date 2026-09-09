@@ -131,6 +131,19 @@ func (r Runtime) Collect(ctx context.Context, driver source.SourceDriver) (Windo
 			}
 			var se *SourceError
 			if errors.As(err, &se) {
+				// Drivers live in source/, so they cannot construct this
+				// package's error type without an import cycle. Translate their
+				// shared boundary error into the runtime taxonomy here.
+				if se == nil {
+					return result, err
+				}
+			} else {
+				var sourceErr *source.Error
+				if errors.As(err, &sourceErr) {
+					se = &SourceError{Kind: FailureKind(sourceErr.Kind), Err: sourceErr}
+				}
+			}
+			if se != nil {
 				switch se.Kind {
 				case FailureAuth:
 					result.Health = AuthDenied

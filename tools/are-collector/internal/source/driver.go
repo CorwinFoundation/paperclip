@@ -5,6 +5,26 @@ import "context"
 
 const InterfaceVersion = "source-driver-v0.1"
 
+// FailureKind is the small error taxonomy shared by source drivers and the
+// collector runtime. Keeping it here avoids an import cycle while preserving
+// the runtime's single owner for retry and health-state behavior.
+type FailureKind string
+
+const (
+	FailureAuth      FailureKind = "auth"
+	FailureRateLimit FailureKind = "rate_limit"
+	FailureSchema    FailureKind = "schema"
+	FailureTransient FailureKind = "transient"
+)
+
+type Error struct {
+	Kind FailureKind
+	Err  error
+}
+
+func (e *Error) Error() string { return e.Err.Error() }
+func (e *Error) Unwrap() error { return e.Err }
+
 type EvidenceQuality string
 
 const (

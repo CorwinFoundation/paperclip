@@ -31,7 +31,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	flags := flag.NewFlagSet("are-collector", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	mode := flags.String("mode", "", "collector mode: fixture-smoke or source-driver")
-	source := flags.String("source", "", "one of datadog, splunk, cloudwatch, otel")
+	source := flags.String("source", "", "one of datadog, splunk, cloudwatch, otel, numbat, langfuse")
 	customerID := flags.String("customer-id", "", "BackBond customer id")
 	agentID := flags.String("agent-id", "", "BackBond agent id")
 	batchID := flags.String("batch-id", "", "batch id")
@@ -45,6 +45,10 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	numbatCommit := flags.String("numbat-commit", "", "Numbat source commit pin")
 	numbatSchema := flags.String("numbat-schema", "", "Numbat schema pin")
 	checkpointPath := flags.String("checkpoint-path", "", "durable source cursor checkpoint")
+	langfuseBaseURL := flags.String("langfuse-base-url", os.Getenv("LANGFUSE_BASE_URL"), "Langfuse base URL (or LANGFUSE_BASE_URL)")
+	langfusePublicKey := flags.String("langfuse-public-key", os.Getenv("LANGFUSE_PUBLIC_KEY"), "Langfuse public key (or LANGFUSE_PUBLIC_KEY)")
+	langfuseSecretKey := flags.String("langfuse-secret-key", os.Getenv("LANGFUSE_SECRET_KEY"), "Langfuse secret key (or LANGFUSE_SECRET_KEY)")
+	langfuseVersion := flags.String("langfuse-version", os.Getenv("LANGFUSE_VERSION"), "pinned Langfuse version (or LANGFUSE_VERSION)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -90,6 +94,21 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		} else {
 			events, err = (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
 		}
+	} else if *source == "langfuse" {
+		if *mode != "source-driver" {
+			return fmt.Errorf("langfuse requires source-driver mode")
+		}
+		if *checkpointPath == "" {
+			return fmt.Errorf("source-driver mode requires checkpoint-path")
+		}
+		driver, driverErr := numbatsource.NewLangfuseSourceDriver(numbatsource.LangfuseConfig{
+			BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion,
+		})
+		if driverErr != nil {
+			return driverErr
+		}
+		window, runtimeErr := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: *checkpointPath}}).Collect(context.Background(), driver)
+		events, err = window.Events, runtimeErr
 	} else {
 		sink, adapterErr := adapter.AdapterFromFixture(*source, stdin)
 		if adapterErr != nil {

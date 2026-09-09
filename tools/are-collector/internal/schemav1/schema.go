@@ -19,6 +19,7 @@ const (
 	SourceCloudWatch SourceKind = "cloudwatch"
 	SourceOTEL       SourceKind = "otel"
 	SourceNumbat     SourceKind = "numbat"
+	SourceLangfuse   SourceKind = "langfuse"
 )
 
 type EventType string
