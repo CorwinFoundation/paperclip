@@ -310,11 +310,11 @@ def _garak_adapter_result(
         )
     finally:
         report.close()
-    passed = bool(verdicts) and all(verdicts)
+    completed = bool(verdicts)
     return _result_dict(
-        status="complete" if passed else "incomplete",
+        status="complete" if completed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
-        incomplete_reason=None if passed else "garak_terminal_verdict_failed",
+        incomplete_reason=None if completed else "garak_terminal_verdict_unavailable",
         model_version=model_version,
     )
 

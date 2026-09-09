@@ -2,8 +2,7 @@
 # Build the per-framework offline eval venvs (BEAAA-13331).
 #
 # The full eval-framework release contract in requirements.txt is NOT
-# installable in one interpreter: garak==0.10.0 (datasets<2.17) is mutually
-# exclusive with pyrit==0.6.0 (datasets>=3.0.0). This recipe materializes each
+# reliably installable in one interpreter. This recipe materializes each
 # conflicting framework in its OWN venv so the whole contract is materializable
 # for offline N=5 calibration / CI without asking pip to solve an impossible
 # graph.
@@ -37,7 +36,7 @@ TRANSCRIPT_DIR="${TRANSCRIPT_DIR:-$VENVS_DIR/transcripts}"
 
 # framework -> "requirements-file import-module distribution-name expected-version"
 declare -A FRAMEWORKS=(
-  [garak]="requirements-eval-garak.txt garak garak 0.10.0"
+  [garak]="requirements-eval-garak.txt garak garak 0.16.0"
   [pyrit]="requirements-eval-pyrit.txt pyrit pyrit 0.6.0"
   [agentdojo]="requirements-eval-agentdojo.txt agentdojo agentdojo 0.1.35"
   [inspect]="requirements-eval-inspect.txt inspect_ai inspect-ai 0.3.220"

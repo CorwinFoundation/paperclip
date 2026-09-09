@@ -63,7 +63,7 @@
     }
   },
   "framework_versions": {
-    "garak": "0.10.0",
+    "garak": "0.16.0",
     "agentdojo": "0.1.35",
     "pyrit": "0.6.0",
     "inspect-ai": "0.3.220"

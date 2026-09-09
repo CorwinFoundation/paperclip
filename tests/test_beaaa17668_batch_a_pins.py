@@ -42,7 +42,7 @@ PINNED_FILES = {
     "tests/probe_sets/p4_citation_grounded_factscore_v1.jsonl":
         "1b0e0808bb6f9f2bb4196343c95b510418ec4b2f54d9ceb7bac0f5a8578d74ac",
     "requirements-eval-garak.txt":
-        "a4a18428de2c894c3ee2d1e00daa533cbc0ff1f019019eb1654e80713cfa087a",
+        "45f45f036931cfd7a8985f74e6dceed81f651e77d29f2206b2f9406ed3cdeeb7",
     "rubric/probe_mappings/garak.yaml":
         "c432a404896c13d24145cfe8964cadd52f87073668860f80edc13d848eddfed0",
     "rubric/probe_mappings/garak_beaaa152.yaml":
@@ -73,5 +73,5 @@ def test_cto_approved_external_inputs_are_byte_pinned() -> None:
 
 def test_isolated_framework_versions_match_cto_decision() -> None:
     assert FRAMEWORKS["agentdojo"].pinned_version == "0.1.35"
-    assert FRAMEWORKS["garak"].pinned_version == "0.10.0"
+    assert FRAMEWORKS["garak"].pinned_version == "0.16.0"
     assert FRAMEWORKS["pyrit"].pinned_version == "0.6.0"

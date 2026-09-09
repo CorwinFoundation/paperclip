@@ -131,7 +131,7 @@ class FrameworkRegistryTests(unittest.TestCase):
         # Guards against silent drift between the registry and the per-venv
         # requirements slices. A bump is a rule-change, not a code edit.
         expected = {
-            "garak": "0.10.0",
+            "garak": "0.16.0",
             "pyrit": "0.6.0",
             "agentdojo": "0.1.35",
             "inspect": "0.3.220",

@@ -243,7 +243,7 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
             ["pathlib", "json", "csv", "hashlib"],
         )
         self.assertEqual(registry["upstream_framework_pins"]["promptfoo"], "0.115.0")
-        self.assertEqual(registry["upstream_framework_pins"]["garak"], "0.10.0")
+        self.assertEqual(registry["upstream_framework_pins"]["garak"], "0.16.0")
         self.assertEqual(registry["upstream_framework_pins"]["inspect-ai"], "0.3.220")
         self.assertIn("rubric/probe_mappings/*.yaml", registry["source_inputs"])
 

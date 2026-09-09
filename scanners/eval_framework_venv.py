@@ -1,9 +1,8 @@
 """Per-framework virtualenv resolver for the conflicting offline eval frameworks.
 
 BEAAA-13331 (non-blocking follow-up to ADR-0036 / BEAAA-7347). The full
-eval-framework release contract in ``requirements.txt`` can never be installed
-into one interpreter: ``garak==0.10.0`` requires ``datasets<2.17`` while
-``pyrit==0.6.0`` requires ``datasets>=3.0.0`` (and the openai pins collided
+eval-framework release contract in ``requirements.txt`` is split across
+framework-specific interpreters because upstream dependency graphs can conflict
 before that). Offline calibration / CI still needs every framework available
 so the garak / pyrit / agentdojo / inspect probe families can run.
 
@@ -89,7 +88,7 @@ FRAMEWORKS: dict[str, FrameworkSpec] = {
         key="garak",
         import_name="garak",
         distribution_name="garak",
-        pinned_version="0.10.0",
+        pinned_version="0.16.0",
         requirements="requirements-eval-garak.txt",
     ),
     "pyrit": FrameworkSpec(

@@ -66,7 +66,7 @@ def test_real_agentdojo_0135_suite_runtime_and_native_verifier():
     assert result["evidence_ref"].endswith("/agentdojo/workspace.user_task_0.json")
 
 
-def test_real_garak_0100_probe_generator_detector_and_seed():
+def test_real_garak_0160_probe_generator_detector_and_seed():
     result = _run(
         "garak",
         {

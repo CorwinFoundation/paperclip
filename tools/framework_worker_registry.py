@@ -120,8 +120,8 @@ WORKERS: dict[str, WorkerDefinition] = {
     "garak": WorkerDefinition(
         worker_id="garak",
         owner=OWNER,
-        framework_version="0.10.0",
-        dependency_pins={"garak": "0.10.0"},
+        framework_version="0.16.0",
+        dependency_pins={"garak": "0.16.0"},
         corpus_sources=(
             "requirements.txt",
             "rubric/probe_mappings/garak.yaml",

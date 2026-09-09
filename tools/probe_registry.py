@@ -21,7 +21,7 @@ REPO_DEFAULT = Path.cwd()
 PY_YAML_PIN = "6.0.2"
 FRAMEWORK_PINS = {
     "promptfoo": "0.115.0",
-    "garak": "0.10.0",
+    "garak": "0.16.0",
     "inspect-ai": "0.3.220",
     "pyrit": "0.6.0",
     "agentdojo": "0.1.35",
