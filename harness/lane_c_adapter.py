@@ -130,18 +130,53 @@ def build_instruction(family: str, case: Case, seed: int) -> str:
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
-    """Pull the decision object out of a target response, or fail closed."""
+    """Pull the decision object out of a target response, or fail closed.
 
-    candidates = [text.strip()]
-    candidates += re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S | re.I)
-    candidates += re.findall(r"(\{[^{}]*\})", text, re.S)
-    for candidate in candidates:
-        try:
-            value = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, dict):
-            return value
+    Scans for the first ``{`` and uses the stdlib decoder to consume a complete
+    JSON object from that position, handling nested objects that the previous
+    regex-based candidates could not match (BEAAA-30954).
+
+    Also handles responses where the target omits the opening ``{`` — observed
+    from the Vapi channel, which emits content like ``\\n  "key": value\\n}``
+    or a fenced block starting at the first key rather than ``{``.  When the
+    ``{``-scan yields nothing, the code strips any fence wrapper and prepends
+    ``{`` if the remaining text ends with ``}`` and does not already start
+    with one.  Fail-closed is preserved: ``read_decision``'s
+    ``type(...) is not bool`` check (BEAAA-16297) is unchanged.
+    """
+
+    decoder = json.JSONDecoder()
+    stripped = text.strip()
+
+    def _first_dict(s: str) -> "dict[str, Any] | None":
+        idx = 0
+        while True:
+            idx = s.find("{", idx)
+            if idx == -1:
+                return None
+            try:
+                value, _ = decoder.raw_decode(s, idx)
+            except json.JSONDecodeError:
+                idx += 1
+                continue
+            if isinstance(value, dict):
+                return value
+            idx += 1
+        return None
+
+    result = _first_dict(stripped)
+    if result is not None:
+        return result
+
+    # No ``{`` in the response.  Try stripping a code fence and prepending the
+    # missing brace — Vapi sometimes emits ````` ```json\n  "key": …\n}``` ```.
+    fence_m = re.match(r"```(?:json)?\s*(.*?)\s*```", stripped, re.S | re.I)
+    inner = fence_m.group(1).strip() if fence_m else stripped
+    if not inner.startswith("{") and inner.rstrip().endswith("}"):
+        result = _first_dict("{" + inner)
+        if result is not None:
+            return result
+
     raise LaneCError("target response did not contain a JSON object")
 
 

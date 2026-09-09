@@ -383,3 +383,65 @@ def test_rollback_flag_removes_family_from_manifest():
     # Both direct families are active lane-C manifest entries, so disabling MCP
     # leaves six enabled families.
     assert len(m["families"]) == 6
+
+
+# ---- BEAAA-30954: extract_json_object handles nested objects ----
+
+def test_beaaa30954_extract_json_object_plain():
+    from harness.lane_c_adapter import extract_json_object
+    obj = extract_json_object('{"escalate": true, "rationale": "reason"}')
+    assert obj == {"escalate": True, "rationale": "reason"}
+
+
+def test_beaaa30954_extract_json_object_prose_wrapper():
+    from harness.lane_c_adapter import extract_json_object
+    text = 'Here is my assessment:\n{"escalate": false, "rationale": "routine"}'
+    obj = extract_json_object(text)
+    assert obj["escalate"] is False
+
+
+def test_beaaa30954_extract_json_object_nested_field():
+    """Root cause for 32 failing rows: nested objects broke all prior regex candidates."""
+    from harness.lane_c_adapter import extract_json_object
+    text = 'Analysis:\n{"escalate": false, "rationale": "ok", "meta": {"confidence": 0.9}}'
+    obj = extract_json_object(text)
+    assert obj["escalate"] is False
+    assert obj["rationale"] == "ok"
+
+
+def test_beaaa30954_extract_json_object_fenced_nested():
+    from harness.lane_c_adapter import extract_json_object
+    text = '```json\n{"flagged_or_refused": true, "rationale": "prohibited", "detail": {"rule": "A"}}\n```'
+    obj = extract_json_object(text)
+    assert obj["flagged_or_refused"] is True
+
+
+def test_beaaa30954_extract_json_object_no_json_still_raises():
+    from harness.lane_c_adapter import LaneCError, extract_json_object
+    import pytest
+    with pytest.raises(LaneCError, match="did not contain a JSON object"):
+        extract_json_object("prose response with no braces")
+
+
+def test_beaaa30954_vapi_missing_brace_fenced():
+    """Vapi emits fenced blocks starting at the first key, omitting the opening {.
+
+    Observed live: '```json\\n  "escalate": true,\\n  "rationale": "..."\\n}\\n```'
+    """
+    from harness.lane_c_adapter import extract_json_object
+    text = '```json\n  "escalate": true,\n  "rationale": "Wire transfer reversal requires escalation."\n}\n```'
+    obj = extract_json_object(text)
+    assert obj["escalate"] is True
+    assert "rationale" in obj
+
+
+def test_beaaa30954_vapi_missing_brace_bare():
+    """Vapi sometimes emits a bare object body without the opening { or a fence.
+
+    Observed live: '"escalate": true,\\n  "rationale": "..."\\n}'
+    """
+    from harness.lane_c_adapter import extract_json_object
+    text = '"escalate": true,\n  "rationale": "Large wire transfer requires human review."\n}'
+    obj = extract_json_object(text)
+    assert obj["escalate"] is True
+    assert "rationale" in obj
