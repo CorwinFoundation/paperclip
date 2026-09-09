@@ -101,6 +101,17 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     assert "systemctl disable backbond-scan-zoo.timer" in text
 
 
+def test_installer_materializes_isolated_garak_worker_venv():
+    install = (OPS / "install.sh").read_text()
+    config = (OPS / "scan-schedule.conf").read_text()
+
+    assert "eval_venvs=/opt/are-scanner/eval-venvs" in install
+    assert 'ARE_EVAL_VENVS_DIR="$eval_venvs"' in install
+    assert 'PYTHON=python3.12' in install
+    assert '"$checkout/scripts/build_eval_framework_venvs.sh" garak' in install
+    assert "ARE_EVAL_VENVS_DIR=/opt/are-scanner/eval-venvs" in config
+
+
 def test_zoo_job_never_reads_vapi_secrets(monkeypatch):
     """BEAAA-30515 replaced the refusal stub with a real controlled-target run.
 

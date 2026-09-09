@@ -5,6 +5,7 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 unit_user=backbond-scan
 checkout=/opt/backbond/src
 scan_venv=/opt/backbond/scan-venv
+eval_venvs=/opt/are-scanner/eval-venvs
 manifest_root=/var/lib/backbond/scans
 
 id "$unit_user" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$unit_user"
@@ -17,11 +18,22 @@ command -v python3.11 >/dev/null 2>&1 || {
   echo "python3.11 is required for the hash-frozen runtime" >&2
   exit 1
 }
+command -v python3.12 >/dev/null 2>&1 || {
+  echo "python3.12 is required for the hash-frozen Garak worker" >&2
+  exit 1
+}
 python3.11 -m venv --clear "$scan_venv"
 "$scan_venv/bin/python" -m pip install --require-hashes --disable-pip-version-check \
   -r "$checkout/requirements-runtime.txt"
 chown -R root:root "$scan_venv"
 chmod -R a+rX "$scan_venv"
+
+# Garak is intentionally excluded from the runtime dependency slice. Build its
+# hash-frozen, isolated worker environment before enabling scheduled scans.
+ARE_EVAL_VENVS_DIR="$eval_venvs" PYTHON=python3.12 \
+  "$checkout/scripts/build_eval_framework_venvs.sh" garak
+chown -R root:root "$eval_venvs"
+chmod -R a+rX "$eval_venvs"
 
 install -d -m 0755 /var/lib/backbond /usr/local/libexec /etc/backbond /etc/systemd/system /etc/sudoers.d "$manifest_root"
 chmod o+x /var/lib/backbond
