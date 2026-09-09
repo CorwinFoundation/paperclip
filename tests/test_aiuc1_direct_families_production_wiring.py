@@ -21,6 +21,7 @@ from scripts.verify_aiuc1_direct_families_canary import verify_manifest
 from scripts.verify_aiuc1_direct_families_release import verify as verify_release
 from tools.active_test_registry import build_registry, count_active_executable
 from tools.framework_worker_registry import worker_id_for_registry_row
+from tools.framework_workers import build_live_framework_workers
 from tools.registered_case_executor import (
     EvidenceStore,
     RegisteredCaseExecutor,
@@ -141,7 +142,7 @@ def test_default_production_runtime_binds_source_registry_and_registered_workers
     ]
 
     assert len(direct_rows) == 116
-    assert runtime._full_scan_workers_factory is build_registered_case_workers
+    assert runtime._full_scan_workers_factory is build_live_framework_workers
 
 
 def test_release_gate_covers_all_eight_day1_families_with_current_claim_count():

@@ -857,10 +857,10 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     # adapter are runnable; declarations and fixtures remain visible but cannot
     # inflate the published executed-test count.
     from tools.active_test_registry import build_registry as build_active_registry
-    from tools.registered_case_executor import build_registered_case_workers
+    from tools.framework_workers import build_live_framework_workers
 
     runtime._full_scan_registry_rows = tuple(build_active_registry())
-    runtime._full_scan_workers_factory = build_registered_case_workers
+    runtime._full_scan_workers_factory = build_live_framework_workers
 
     # Ensure parent dir exists when caller pointed at a non-prod path; the
     # EFS-mount path is created at infra-provision time and exists in prod.

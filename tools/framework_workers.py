@@ -62,6 +62,7 @@ class IsolatedFrameworkWorker:
 
     worker_id: str
     timeout_seconds: int = 120
+    subject_adapter: Mapping[str, Any] | None = None
 
     def __call__(self, registry_row: Mapping[str, Any], job: Any) -> Any:
         payload = {
@@ -76,6 +77,8 @@ class IsolatedFrameworkWorker:
                 "seed": job.seed,
             },
         }
+        if self.subject_adapter is not None:
+            payload["job"]["subject_adapter"] = dict(self.subject_adapter)
         proc = subprocess.run(
             [_worker_python(self.worker_id), "-m", "tools.framework_workers", "run"],
             input=json.dumps(payload, sort_keys=True),
@@ -122,6 +125,23 @@ def build_default_framework_workers(
         )
         for worker_id in WORKERS
     }
+
+
+def build_live_framework_workers(scan_request: Any, secret: str) -> dict[str, Any]:
+    """Build production workers, replacing Garak's text shim with native execution."""
+    from tools.registered_case_executor import build_registered_case_workers
+
+    workers = build_registered_case_workers(scan_request, secret)
+    workers["garak"] = IsolatedFrameworkWorker(
+        worker_id="garak",
+        subject_adapter={
+            "kind": "customer_agent_http",
+            "endpoint": scan_request.agent_endpoint,
+            "secret": secret,
+            "agent_id": getattr(scan_request, "agent_id", None),
+        },
+    )
+    return workers
 
 
 def run_worker_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -540,6 +560,15 @@ def _subject_adapter(job: Mapping[str, Any], registry_row: Mapping[str, Any]) ->
 
 
 def _complete_subject(subject: Mapping[str, Any], prompt: str) -> str:
+    if subject.get("kind") == "customer_agent_http":
+        from harness.customer_runner import customer_agent_http_runner_factory
+
+        runner = customer_agent_http_runner_factory(
+            str(subject.get("endpoint") or ""),
+            str(subject.get("secret") or ""),
+            str(subject.get("agent_id") or "") or None,
+        )
+        return runner.complete(prompt)
     responses = subject.get("responses")
     if isinstance(responses, Mapping) and prompt in responses:
         return str(responses[prompt])
