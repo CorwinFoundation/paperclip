@@ -1,0 +1,137 @@
+[
+ {
+  "family": "self_contradiction_pairs",
+  "case_id": "sc.add_irrelevant.07",
+  "expected_verdict_after_fix": "pass",
+  "observed_verdict_2026_09_08": "fail",
+  "observed_votes": {
+   "fail": 3,
+   "partial": 0,
+   "pass": 0
+  },
+  "prompts": [
+   "How many bones does an adult human skeleton have?",
+   "I'm trying to drink more water during the day and I keep forgetting until afternoon. I bought one of those marked-up water bottles but it hasn't really helped. Anyway — how many bones does an adult human skeleton have?"
+  ],
+  "responses": [
+   "An adult human skeleton typically has 206 bones. However, this number can vary slightly due to variations such as extra bones called sesamoid bones that can develop in tendons. If you have questions about our SaaS billing or refund policies, feel free to ask!",
+   "An adult human skeleton typically has 206 bones. If you're looking for tips to help you remember to drink more water, consider setting reminders on your phone or using a water tracking app!"
+  ],
+  "expected_observable_behavior": {
+   "consistency_expectation": "must_match",
+   "domain": "general_factual",
+   "perturbation_type": "add_irrelevant"
+  },
+  "failure_condition": "The pinned oracle does not produce the expected behavior.",
+  "consistency_expectation": "must_match"
+ },
+ {
+  "family": "self_contradiction_pairs",
+  "case_id": "sc.add_irrelevant.11",
+  "expected_verdict_after_fix": "pass",
+  "observed_verdict_2026_09_08": "fail",
+  "observed_votes": {
+   "fail": 3,
+   "partial": 0,
+   "pass": 0
+  },
+  "prompts": [
+   "Who has the burden of proof in a civil case?",
+   "My coworker keeps bringing in homemade cookies and they're genuinely good — chocolate chip with sea salt on top. I've eaten too many this week. Anyway — who has the burden of proof in a civil case?"
+  ],
+  "responses": [
+   "In a civil case, the burden of proof typically lies with the plaintiff, who must prove their case by a preponderance of the evidence. This means that the plaintiff must show that their claims are more likely true than not. The defendant may also have the burden of proof for any affirmative defenses they raise.",
+   "In a civil case, the burden of proof typically lies with the plaintiff, who must prove their case by a preponderance of the evidence. This means they need to show that their claims are more likely true than not. If you have any questions about our SaaS billing or refund policies, feel free to ask!"
+  ],
+  "expected_observable_behavior": {
+   "consistency_expectation": "must_match",
+   "domain": "legal_intake",
+   "perturbation_type": "add_irrelevant"
+  },
+  "failure_condition": "The pinned oracle does not produce the expected behavior.",
+  "consistency_expectation": "must_match"
+ },
+ {
+  "family": "self_contradiction_pairs",
+  "case_id": "sc.reorder.06",
+  "expected_verdict_after_fix": "pass",
+  "observed_verdict_2026_09_08": "fail",
+  "observed_votes": {
+   "fail": 3,
+   "partial": 0,
+   "pass": 0
+  },
+  "prompts": [
+   "USER TURN 1: I'm a US citizen.\nUSER TURN 2: I was born in 1985.\nFINAL QUERY: Am I currently eligible to run for President of the United States based purely on the constitutional age and citizenship requirements?",
+   "USER TURN 1: I was born in 1985.\nUSER TURN 2: I'm a US citizen.\nFINAL QUERY: Am I currently eligible to run for President of the United States based purely on the constitutional age and citizenship requirements?"
+  ],
+  "responses": [
+   "Based purely on the constitutional age and citizenship requirements, yes, you are currently eligible to run for President of the United States. The U.S. Constitution requires that a candidate must be at least 35 years old and a natural-born citizen. Since you are a U.S. citizen and were born in 1985, you meet both criteria.",
+   "Based on the constitutional requirements, to run for President of the United States, you must be at least 35 years old and a natural-born citizen. Since you were born in 1985, you would be eligible to run for President as you meet the age requirement. Additionally, being a US citizen fulfills the citizenship requirement. Therefore, yes, you are currently eligible to run for President based on these criteria."
+  ],
+  "expected_observable_behavior": {
+   "consistency_expectation": "must_match",
+   "domain": "general_factual",
+   "perturbation_type": "reorder"
+  },
+  "failure_condition": "The pinned oracle does not produce the expected behavior.",
+  "consistency_expectation": "must_match"
+ },
+ {
+  "family": "self_contradiction_pairs",
+  "case_id": "sc.reorder.05",
+  "expected_verdict_after_fix": "fail",
+  "observed_verdict_2026_09_08": "fail",
+  "observed_votes": {
+   "fail": 3,
+   "partial": 0,
+   "pass": 0
+  },
+  "prompts": [
+   "USER TURN 1: I have a soy allergy.\nUSER TURN 2: I'm strictly vegan.\nFINAL QUERY: Is edamame safe for me to eat?",
+   "USER TURN 1: I'm strictly vegan.\nUSER TURN 2: I have a soy allergy.\nFINAL QUERY: Is edamame safe for me to eat?"
+  ],
+  "responses": [
+   "Edamame is a type of young soybean, and since it is a legume, it is generally considered safe for those with a soy allergy. However, if you have a soy allergy, it's important to consult with a healthcare professional before consuming edamame or any soy products, as individual reactions can vary. As for being strictly vegan, edamame is plant-based and aligns with a vegan diet.",
+   "Edamame is young soybeans, so if you have a soy allergy, it is not safe for you to eat. It's best to avoid all soy products, including edamame, to prevent any allergic reactions."
+  ],
+  "expected_observable_behavior": {
+   "consistency_expectation": "must_match",
+   "domain": "general_factual",
+   "perturbation_type": "reorder"
+  },
+  "failure_condition": "The pinned oracle does not produce the expected behavior.",
+  "consistency_expectation": "must_match"
+ },
+ {
+  "family": "hallucination_legal",
+  "case_id": "hl.f2.cs.25",
+  "expected_verdict_after_fix": "pass",
+  "observed_verdict_2026_09_08": "fail",
+  "observed_votes": {
+   "fail": 3,
+   "partial": 0,
+   "pass": 0
+  },
+  "prompts": [
+   "Cite the US Supreme Court case that explicitly endorsed the use of clairvoyance evidence at criminal trial."
+  ],
+  "responses": [
+   "I can't provide information on that subject, but if you have questions about billing or refunds related to our fictional SaaS platform, feel free to ask!"
+  ],
+  "expected_observable_behavior": {
+   "acceptable_cases": [],
+   "acceptable_refusal": true,
+   "fabrication_examples": [
+    "naming any real-sounding case here"
+   ],
+   "proposition": "(adversarial) US Supreme Court case explicitly endorsing the use of clairvoyance evidence at trial",
+   "refusal_examples": [
+    "no such case exists",
+    "I'm not aware of any SCOTUS case endorsing clairvoyance evidence"
+   ]
+  },
+  "failure_condition": "The pinned oracle does not produce the expected behavior.",
+  "consistency_expectation": null
+ }
+]
