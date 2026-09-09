@@ -26,12 +26,12 @@ chmod -R a+rX "$scan_venv"
 install -d -m 0755 /var/lib/backbond /usr/local/libexec /etc/backbond /etc/systemd/system /etc/sudoers.d "$manifest_root"
 chmod o+x /var/lib/backbond
 install -o root -g root -m 0644 "$here/scan-schedule.conf" /etc/backbond/scan-schedule.conf
-for unit in backbond-scan-vapi.service backbond-scan-vapi.timer backbond-scan-zoo.service backbond-scan-zoo.timer; do
+for unit in backbond-scan-vapi.service backbond-scan-vapi-garak.service backbond-scan-vapi.timer backbond-scan-zoo.service backbond-scan-zoo.timer; do
   install -o root -g root -m 0644 "$here/$unit" "/etc/systemd/system/$unit"
 done
 chown "$unit_user:$unit_user" "$manifest_root"
 chmod 0755 "$manifest_root"
-printf '%s\n' "beai-agent ALL=(root) NOPASSWD: /usr/bin/systemctl start backbond-scan-vapi.service, /usr/bin/systemctl stop backbond-scan-vapi.service, /usr/bin/systemctl restart backbond-scan-vapi.service, /usr/bin/systemctl status backbond-scan-vapi.service, /usr/bin/systemctl start backbond-scan-zoo.service, /usr/bin/systemctl stop backbond-scan-zoo.service, /usr/bin/systemctl restart backbond-scan-zoo.service, /usr/bin/systemctl status backbond-scan-zoo.service" > /etc/sudoers.d/backbond-scan-schedule
+printf '%s\n' "beai-agent ALL=(root) NOPASSWD: /usr/bin/systemctl start backbond-scan-vapi.service, /usr/bin/systemctl stop backbond-scan-vapi.service, /usr/bin/systemctl restart backbond-scan-vapi.service, /usr/bin/systemctl status backbond-scan-vapi.service, /usr/bin/systemctl start backbond-scan-vapi-garak.service, /usr/bin/systemctl stop backbond-scan-vapi-garak.service, /usr/bin/systemctl restart backbond-scan-vapi-garak.service, /usr/bin/systemctl status backbond-scan-vapi-garak.service, /usr/bin/systemctl start backbond-scan-zoo.service, /usr/bin/systemctl stop backbond-scan-zoo.service, /usr/bin/systemctl restart backbond-scan-zoo.service, /usr/bin/systemctl status backbond-scan-zoo.service" > /etc/sudoers.d/backbond-scan-schedule
 chmod 0440 /etc/sudoers.d/backbond-scan-schedule
 visudo -cf /etc/sudoers.d/backbond-scan-schedule >/dev/null
 systemctl daemon-reload

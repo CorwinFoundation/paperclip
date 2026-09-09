@@ -127,11 +127,15 @@ def build_default_framework_workers(
     }
 
 
-def build_live_framework_workers(scan_request: Any, secret: str) -> dict[str, Any]:
+def build_live_framework_workers(
+    scan_request: Any, secret: str, **registered_worker_kwargs: Any
+) -> dict[str, Any]:
     """Build production workers, replacing Garak's text shim with native execution."""
     from tools.registered_case_executor import build_registered_case_workers
 
-    workers = build_registered_case_workers(scan_request, secret)
+    workers = build_registered_case_workers(
+        scan_request, secret, **registered_worker_kwargs
+    )
     workers["garak"] = IsolatedFrameworkWorker(
         worker_id="garak",
         subject_adapter={

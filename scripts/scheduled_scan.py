@@ -12,6 +12,7 @@ import argparse
 from collections import Counter
 import json
 import os
+import re
 import socket
 import sys
 import threading
@@ -39,6 +40,7 @@ from tools.registered_case_executor import (  # noqa: E402
     build_registered_case_workers,
     default_judge_runner,
 )
+from tools.framework_workers import build_live_framework_workers  # noqa: E402
 
 SECRET_ENV = (
     "ARE_BUNDLE_SIGNING_KEY",
@@ -85,6 +87,25 @@ def _required_secret(name: str, environ: Mapping[str, str] | None = None) -> str
 def map_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """Validate and return the five explicitly ruled secret bindings."""
     return {name: _required_secret(name, environ) for name in SECRET_ENV}
+
+
+def load_garak_dispatch_rows() -> list[dict[str, Any]]:
+    """Select all 27 mapped Garak rows without changing production countability."""
+    from tools.active_test_registry import build_registry
+
+    selected = []
+    for raw in build_registry():
+        if raw.get("status") != "active" or raw.get("test_id") not in {
+            "garak", "garak_beaaa152"
+        }:
+            continue
+        row = dict(raw)
+        row["garak_live_dispatch"] = True
+        row["runtime_case_identity"] = f"{row['test_id']}:{row['case_id']}"
+        selected.append(row)
+    if len(selected) != 27:
+        raise RuntimeError(f"expected 27 Garak dispatch rows, found {len(selected)}")
+    return selected
 
 
 def _config(name: str, default: str | None = None) -> str:
@@ -365,7 +386,26 @@ def _operator_manifest(
     preflight_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     final = dict(job.final_manifest or {})
-    families, incomplete = _family_summary(registry_rows, final.get("evidence_rows", []))
+    evidence_rows = [
+        {**dict(row), "executed_in_latest_evidenced_run": True}
+        for row in final.get("evidence_rows", [])
+        if isinstance(row, Mapping)
+    ]
+    families, incomplete = _family_summary(registry_rows, evidence_rows)
+    dimensions: dict[str, Counter[str]] = {}
+    for row in evidence_rows:
+        rubric_point_id = str(row.get("rubric_point_id") or "")
+        for dimension in filter(None, re.split(r"[,;]", rubric_point_id)):
+            counts = dimensions.setdefault(
+                dimension.strip(),
+                Counter({"rows": 0, "pass": 0, "fail": 0, "not_applicable": 0, "incomplete": 0}),
+            )
+            counts["rows"] += 1
+            verdict = str(row.get("verdict") or "").upper()
+            if row.get("status") == "complete" and verdict in {"PASS", "FAIL", "NOT_APPLICABLE"}:
+                counts[verdict.lower()] += 1
+            else:
+                counts["incomplete"] += 1
     budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
     return {
         "schema": "backbond.scheduled-scan-manifest/v2",
@@ -392,8 +432,10 @@ def _operator_manifest(
         "egress_preflight_result_path": str(preflight_path),
         "egress_preflight": dict(preflight_result or {}),
         "families": families,
+        "dimensions": {name: dict(counts) for name, counts in sorted(dimensions.items())},
         "incomplete_by_reason": incomplete,
-        "evidence_rows": len(final.get("evidence_rows", [])),
+        "evidence_rows": len(evidence_rows),
+        "row_results": evidence_rows,
         "final_manifest_hash": job.final_manifest_hash,
         "executor": "api.full_scan_executor.dispatch_registry_attempt",
     }
@@ -669,8 +711,8 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
 
 
 def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -> Path:
-    if job_name not in {"vapi", "zoo"}:
-        raise ValueError("job must be vapi or zoo")
+    if job_name not in {"vapi", "vapi-garak", "zoo"}:
+        raise ValueError("job must be vapi, vapi-garak, or zoo")
     if job_name == "zoo":
         return run_scheduled_zoo_scan(config=config)
     secrets = map_secret_environment()
@@ -707,7 +749,12 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         max_estimated_judge_cost_usd=config.cost_cap_usd,
         max_wall_clock_seconds=config.timeout_seconds,
     )
-    workers = build_registered_case_workers(
+    worker_factory = (
+        build_live_framework_workers
+        if job_name == "vapi-garak"
+        else build_registered_case_workers
+    )
+    workers = worker_factory(
         request,
         secrets["VAPI_API_KEY"],
         budget=budget,
@@ -715,8 +762,15 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         subject_factory=target_factory,
         judge_factory=judge_factory,
     )
-    rows = load_default_full_scan_registry_rows()
-    cases = registry_cases_from_rows(rows)
+    rows = (
+        load_garak_dispatch_rows()
+        if job_name == "vapi-garak"
+        else list(load_default_full_scan_registry_rows())
+    )
+    execution_flag = (
+        "garak_live_dispatch" if job_name == "vapi-garak" else "production_runner_executable"
+    )
+    cases = registry_cases_from_rows(rows, execution_flag=execution_flag)
     model_versions = next(iter(workers.values())).manifest_metadata()
     model_versions["evidence_class"] = EVIDENCE_LABEL
     store = FullScanJobStore()
@@ -741,6 +795,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         attempt_id=attempt_id,
         registry_rows=rows,
         workers=workers,
+        execution_flag=execution_flag,
     )
     finished = store.finalize(job.job_id, attempt_id=attempt_id)
     finished_at = datetime.now(timezone.utc).isoformat()
@@ -763,7 +818,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job", choices=("vapi", "zoo"), required=True)
+    parser.add_argument("--job", choices=("vapi", "vapi-garak", "zoo"), required=True)
     args = parser.parse_args(argv)
     run_scheduled_scan(args.job)
     return 0

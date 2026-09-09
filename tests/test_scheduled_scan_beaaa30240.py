@@ -17,9 +17,18 @@ from scripts.scheduled_scan import (
     SharedRateLimiter,
     _operator_manifest,
     map_secret_environment,
+    load_garak_dispatch_rows,
     run_positive_egress_preflight,
     run_scheduled_scan,
 )
+
+
+def test_garak_live_dispatch_selects_exactly_27_target_bound_rows():
+    rows = load_garak_dispatch_rows()
+    assert len(rows) == 27
+    assert {row["test_id"] for row in rows} == {"garak", "garak_beaaa152"}
+    assert all(row["garak_live_dispatch"] is True for row in rows)
+    assert len({row["runtime_case_identity"] for row in rows}) == 27
 
 
 ROOT = Path(__file__).parents[1]
@@ -290,6 +299,9 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "missing_judge": 1,
         "unavailable_capability": 0,
     }
+    assert manifest["evidence_rows"] == 6
+    assert all(row["executed_in_latest_evidenced_run"] for row in manifest["row_results"])
+    assert manifest["dimensions"] == {}
 
 
 def test_never_dispatched_rows_are_not_reported_as_format(tmp_path):
