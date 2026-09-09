@@ -13,6 +13,7 @@ from .normalizer import EMAIL_RE, REDACTED_TOKEN_RE, SECRET_KEY_RE
 MONITOR_DATA_CONTRACT_VERSION = "monitor-data-contract-v0.1"
 TRANSMIT_ENV = "POST_BIND_INGEST_TRANSMIT"
 ENDPOINT_ENV = "POST_BIND_INGEST_EGRESS_ENDPOINT"
+ALLOWED_HOSTS_ENV = "POST_BIND_INGEST_EGRESS_ALLOWED_HOSTS"
 MAX_EXCERPT_CHARS = 160
 ALLOWED_EVENT_TYPES = frozenset(
     {
@@ -47,11 +48,15 @@ class EgressConfig:
     @classmethod
     def from_env(cls) -> "EgressConfig":
         endpoint = os.environ.get(ENDPOINT_ENV)
-        allowed_hosts = (urlparse(endpoint).hostname or "",) if endpoint else ()
+        allowed_hosts = tuple(
+            host.strip().lower()
+            for host in os.environ.get(ALLOWED_HOSTS_ENV, "").split(",")
+            if host.strip()
+        )
         return cls(
             transmit_enabled=os.environ.get(TRANSMIT_ENV, "").strip().lower() in {"1", "true", "yes", "on"},
             endpoint=endpoint,
-            allowed_hosts=tuple(host for host in allowed_hosts if host),
+            allowed_hosts=allowed_hosts,
         )
 
 
@@ -99,7 +104,7 @@ def transmit_monitor_artifact(
     artifact: Mapping[str, Any],
     *,
     config: EgressConfig | None = None,
-    transport: Callable[[str, bytes], None] | None = None,
+    transport: Callable[[str, bytes], str | None] | None = None,
 ) -> EgressResult:
     config = config or EgressConfig.from_env()
     validate_monitor_artifact(artifact, max_excerpt_chars=config.max_excerpt_chars)
@@ -112,7 +117,9 @@ def transmit_monitor_artifact(
     _validate_endpoint(config.endpoint, config.allowed_hosts)
     if transport is None:
         raise EgressGateError("egress transport is not configured")
-    transport(config.endpoint, payload)
+    final_endpoint = transport(config.endpoint, payload)
+    if final_endpoint is not None:
+        _validate_endpoint(final_endpoint, config.allowed_hosts)
     return EgressResult(transmitted=True, endpoint=config.endpoint, bytes_prepared=len(payload))
 
 
@@ -226,7 +233,7 @@ def _validate_endpoint(endpoint: str, allowed_hosts: tuple[str, ...]) -> None:
         raise EgressGateError("egress endpoint must use https")
     if not parsed.hostname:
         raise EgressGateError("egress endpoint host is required")
-    if parsed.hostname not in allowed_hosts:
+    if parsed.hostname.lower() not in {host.lower() for host in allowed_hosts}:
         raise EgressGateError("egress endpoint host is not allowlisted")
 
 

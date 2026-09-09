@@ -32,6 +32,17 @@ func (pipeline Pipeline) CollectDriver(ctx context.Context, driver source.Source
 	if err != nil {
 		return nil, err
 	}
+	events, err := pipeline.normalizeRecords(records, driver)
+	if err != nil {
+		return nil, err
+	}
+	if err := driver.Commit(ctx, next); err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (pipeline Pipeline) normalizeRecords(records []source.RawEnvelope, driver source.SourceDriver) ([]schemav1.Event, error) {
 	events := make([]schemav1.Event, 0, len(records))
 	for _, record := range records {
 		normalized, err := driver.Normalize(record)
@@ -64,9 +75,6 @@ func (pipeline Pipeline) CollectDriver(ctx context.Context, driver source.Source
 			return nil, err
 		}
 		events = append(events, event)
-	}
-	if err := driver.Commit(ctx, next); err != nil {
-		return nil, err
 	}
 	return events, nil
 }

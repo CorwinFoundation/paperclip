@@ -27,6 +27,8 @@ spec:
           image: ghcr.io/backbond/are-collector:are-collector-v0.1.0
           imagePullPolicy: IfNotPresent
           args:
+            - "-mode"
+            - "source-driver"
             - "-source"
             - "datadog"
             - "-customer-id"
@@ -38,11 +40,24 @@ spec:
           envFrom:
             - secretRef:
                 name: are-collector-runtime
+          env:
+            - name: POST_BIND_INGEST_EGRESS_ALLOWED_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: are-collector-egress-hosts
+                  key: approved-hosts
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: are-collector-egress-hosts
+data:
+  approved-hosts: "ingest.backbond.ai"
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -50,6 +65,7 @@ metadata:
   name: are-collector-egress-ingest
   annotations:
     backbond.ai/egress-host: ingest.backbond.ai
+    backbond.ai/egress-approved-hosts-config: are-collector-egress-hosts
     backbond.ai/egress-port: "443"
 spec:
   endpointSelector:

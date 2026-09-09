@@ -30,7 +30,7 @@ func main() {
 func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	flags := flag.NewFlagSet("are-collector", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	mode := flags.String("mode", "", "collector mode; currently only fixture-smoke is enabled")
+	mode := flags.String("mode", "", "collector mode: fixture-smoke or source-driver")
 	source := flags.String("source", "", "one of datadog, splunk, cloudwatch, otel")
 	customerID := flags.String("customer-id", "", "BackBond customer id")
 	agentID := flags.String("agent-id", "", "BackBond agent id")
@@ -44,14 +44,15 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	deploymentID := flags.String("deployment-id", "", "pinned deployment id")
 	numbatCommit := flags.String("numbat-commit", "", "Numbat source commit pin")
 	numbatSchema := flags.String("numbat-schema", "", "Numbat schema pin")
+	checkpointPath := flags.String("checkpoint-path", "", "durable source cursor checkpoint")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if *mode == "" || *source == "" || *customerID == "" || *agentID == "" || *batchID == "" || *keyID == "" {
 		return fmt.Errorf("mode, source, customer-id, agent-id, batch-id, and key-id are required")
 	}
-	if *mode != "fixture-smoke" {
-		return fmt.Errorf("collector mode %q is not wired; only fixture-smoke is enabled in this image", *mode)
+	if *mode != "fixture-smoke" && *mode != "source-driver" {
+		return fmt.Errorf("collector mode %q is not wired; only fixture-smoke is enabled for legacy adapters; source-driver is the production mode", *mode)
 	}
 	if *privateKeyB64 == "" {
 		return fmt.Errorf("ed25519-private-key-b64 is required")
@@ -76,11 +77,19 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		if *numbatSchema != numbatsource.NumbatSchemaVersion {
 			return fmt.Errorf("numbat schema pin mismatch: got %q, require %q", *numbatSchema, numbatsource.NumbatSchemaVersion)
 		}
-		driver, driverErr := numbatsource.NewNumbatSourceDriver(stdin)
+		driver, driverErr := numbatsource.DefaultRegistry().Resolve(*source, stdin)
 		if driverErr != nil {
 			return driverErr
 		}
-		events, err = (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+		if *mode == "source-driver" {
+			if *checkpointPath == "" {
+				return fmt.Errorf("source-driver mode requires checkpoint-path")
+			}
+			window, runtimeErr := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: *checkpointPath}}).Collect(context.Background(), driver)
+			events, err = window.Events, runtimeErr
+		} else {
+			events, err = (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+		}
 	} else {
 		sink, adapterErr := adapter.AdapterFromFixture(*source, stdin)
 		if adapterErr != nil {

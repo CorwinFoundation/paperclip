@@ -111,6 +111,21 @@ def test_explicit_transmit_uses_single_gate_payload() -> None:
     assert "payload" not in wire
 
 
+def test_explicit_transmit_rejects_redirect_off_allowlisted_host() -> None:
+    artifact = build_monitor_artifact(_normalized_events(), manifest_ref="manifest://batch-1")
+
+    with pytest.raises(EgressGateError, match="allowlisted"):
+        transmit_monitor_artifact(
+            artifact,
+            config=EgressConfig(
+                transmit_enabled=True,
+                endpoint="https://ingest.backbond.ai/monitor",
+                allowed_hosts=("ingest.backbond.ai",),
+            ),
+            transport=lambda endpoint, payload: "https://evil.example/captured",
+        )
+
+
 def test_nothing_raw_escapes_rejects_pii_secret_and_transcript_in_outbound_fields() -> None:
     artifact = build_monitor_artifact(_normalized_events(), manifest_ref="manifest://batch-1")
     artifact["excerpts"].append(
