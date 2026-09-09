@@ -22,6 +22,14 @@ func testPrivateKeyB64(t *testing.T) string {
 	return base64.StdEncoding.EncodeToString(privateKey)
 }
 
+func TestCLISourceDriverUnknownSourceFailsClosedAtRegistry(t *testing.T) {
+	args := []string{"-mode", "source-driver", "-source", "otel", "-customer-id", "tenant-1", "-agent-id", "agent-1", "-batch-id", "batch-1", "-key-id", "key-1", "-ed25519-private-key-b64", testPrivateKeyB64(t), "-checkpoint-path", t.TempDir() + "/checkpoint.json"}
+	err := run(args, strings.NewReader(`{"event_type":"error"}`), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), `unknown source driver "otel"`) {
+		t.Fatalf("source-driver request did not fail closed at registry: %v", err)
+	}
+}
+
 // Negative control: make Append never match a prior row (`for false && scanner.Scan()`).
 // Observed: "replay duplicated output" at main_test.go:46, the replay re-emitting a full batch.
 func TestCLINumbatReconcilesAndReplayIsIdempotent(t *testing.T) {

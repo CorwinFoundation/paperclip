@@ -69,58 +69,11 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	var events []schemav1.Event
 	started := time.Now().UTC()
-	if *source == "numbat" {
-		if *receiptPath == "" || *deploymentID == "" {
-			return fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
-		}
-		if *numbatCommit != numbatsource.NumbatCommit {
-			return fmt.Errorf("numbat commit pin mismatch: got %q, require %q", *numbatCommit, numbatsource.NumbatCommit)
-		}
-		if *numbatSchema != numbatsource.NumbatSchemaVersion {
-			return fmt.Errorf("numbat schema pin mismatch: got %q, require %q", *numbatSchema, numbatsource.NumbatSchemaVersion)
-		}
-		driver, driverErr := numbatsource.DefaultRegistry().Resolve(*source, stdin)
-		if driverErr != nil {
-			return driverErr
-		}
-		if *mode == "source-driver" {
-			if *checkpointPath == "" {
-				return fmt.Errorf("source-driver mode requires checkpoint-path")
-			}
-			window, runtimeErr := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: *checkpointPath}}).Collect(context.Background(), driver)
-			events, err = window.Events, runtimeErr
-		} else {
-			events, err = (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
-		}
-	} else if *source == "langfuse" {
-		if *mode != "source-driver" {
-			return fmt.Errorf("langfuse requires source-driver mode")
-		}
-		if *checkpointPath == "" {
-			return fmt.Errorf("source-driver mode requires checkpoint-path")
-		}
-		driver, driverErr := numbatsource.NewLangfuseSourceDriver(numbatsource.LangfuseConfig{
-			BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion,
-		})
-		if driverErr != nil {
-			return driverErr
-		}
-		window, runtimeErr := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: *checkpointPath}}).Collect(context.Background(), driver)
-		events, err = window.Events, runtimeErr
-	} else {
-		sink, adapterErr := adapter.AdapterFromFixture(*source, stdin)
-		if adapterErr != nil {
-			return adapterErr
-		}
-		events, err = collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
-	}
+	events, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.LangfuseConfig{BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion})
 	if err != nil {
 		return err
 	}
-	encoder := json.NewEncoder(stdout)
-	encoder.SetEscapeHTML(false)
 	var batch any
 	// batchIdentity is the hash the receipt binds: the v1 event digest on the v1
 	// wire, and the v2 chain identity (which commits to wire_version and
@@ -150,7 +103,44 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	default:
 		return fmt.Errorf("unsupported wire-version %q", *wireVersion)
 	}
-	if *source == "numbat" {
+	return encodeBatch(stdout, *source, *receiptPath, *deploymentID, *customerID, *agentID, *batchID, *prevBatchHash, started, selectedWire, batchDigest, batchIdentity, events, batch)
+}
+
+func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Policy, receiptPath, deploymentID, numbatCommit, numbatSchema, checkpointPath string, langfuseConfig numbatsource.LangfuseConfig) ([]schemav1.Event, error) {
+	if mode == "source-driver" {
+		if checkpointPath == "" {
+			return nil, fmt.Errorf("source-driver mode requires checkpoint-path")
+		}
+		registry := numbatsource.ConfiguredRegistry(numbatsource.RegistryConfig{NumbatCommit: numbatCommit, NumbatSchema: numbatSchema, Langfuse: langfuseConfig})
+		driver, err := registry.Resolve(sourceID, stdin)
+		if err != nil {
+			return nil, err
+		}
+		window, err := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: checkpointPath}}).Collect(context.Background(), driver)
+		return window.Events, err
+	}
+	if sourceID == "numbat" {
+		if receiptPath == "" || deploymentID == "" {
+			return nil, fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
+		}
+		registry := numbatsource.ConfiguredRegistry(numbatsource.RegistryConfig{NumbatCommit: numbatCommit, NumbatSchema: numbatSchema, Langfuse: langfuseConfig})
+		driver, err := registry.Resolve(sourceID, stdin)
+		if err != nil {
+			return nil, err
+		}
+		return (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+	}
+	sink, err := adapter.AdapterFromFixture(sourceID, stdin)
+	if err != nil {
+		return nil, err
+	}
+	return collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
+}
+
+func encodeBatch(stdout io.Writer, sourceID, receiptPath, deploymentID, customerID, agentID, batchID, prevBatchHash string, started time.Time, selectedWire, batchDigest, batchIdentity string, events []schemav1.Event, batch any) error {
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	if sourceID == "numbat" {
 		totals := map[string]int{}
 		nonBillable := 0
 		for _, event := range events {
@@ -159,11 +149,11 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 				nonBillable++
 			}
 		}
-		receipt, replay, receiptErr := reconciliation.Append(*receiptPath, reconciliation.Receipt{
-			TenantID: *customerID, AgentID: *agentID, DeploymentID: *deploymentID,
+		receipt, replay, receiptErr := reconciliation.Append(receiptPath, reconciliation.Receipt{
+			TenantID: customerID, AgentID: agentID, DeploymentID: deploymentID,
 			SourceCount: len(events), EmittedCount: len(events), QuarantineCount: 0, NonBillableCount: nonBillable,
 			OrderedBatchHashes: []string{batchIdentity}, WireVersion: selectedWire, EventTotals: totals,
-			IdempotencyKey:   reconciliation.IdempotencyKey(*customerID, *agentID, *deploymentID, selectedWire, *batchID, *prevBatchHash, batchDigest),
+			IdempotencyKey:   reconciliation.IdempotencyKey(customerID, agentID, deploymentID, selectedWire, batchID, prevBatchHash, batchDigest),
 			CollectorVersion: "are-collector@76da84e+BEAAA-23693", ScannerVersion: "0.5.0", CorpusVersion: "0.1.0",
 			ProbeSetVersion: "monitor-only-numbat-v0.1", RubricPointID: "none-exercised", NumbatVersion: numbatsource.NumbatVersion,
 			NumbatCommit: numbatsource.NumbatCommit, NumbatSchema: numbatsource.NumbatSchemaVersion, MappingVersion: numbatsource.NumbatMappingVersion,

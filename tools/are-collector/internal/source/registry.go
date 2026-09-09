@@ -10,6 +10,11 @@ type Factory func(io.Reader) (SourceDriver, error)
 
 type Registry struct{ factories map[string]Factory }
 
+type RegistryConfig struct {
+	NumbatCommit, NumbatSchema string
+	Langfuse                   LangfuseConfig
+}
+
 func NewRegistry() *Registry { return &Registry{factories: map[string]Factory{}} }
 
 func (r *Registry) Register(id string, factory Factory) error {
@@ -44,4 +49,25 @@ func DefaultRegistry() *Registry {
 	r := NewRegistry()
 	_ = r.Register("numbat", func(input io.Reader) (SourceDriver, error) { return NewNumbatSourceDriver(input) })
 	return r
+}
+
+func ConfiguredRegistry(cfg RegistryConfig) *Registry {
+	r := NewRegistry()
+	_ = r.Register("numbat", func(input io.Reader) (SourceDriver, error) {
+		if cfg.NumbatCommit != NumbatCommit {
+			return nil, fmt.Errorf("numbat commit pin mismatch: got %q, require %q", cfg.NumbatCommit, NumbatCommit)
+		}
+		if cfg.NumbatSchema != NumbatSchemaVersion {
+			return nil, fmt.Errorf("numbat schema pin mismatch: got %q, require %q", cfg.NumbatSchema, NumbatSchemaVersion)
+		}
+		return NewNumbatSourceDriver(input)
+	})
+	_ = r.RegisterLangfuse(cfg.Langfuse)
+	return r
+}
+
+func (r *Registry) RegisterLangfuse(cfg LangfuseConfig) error {
+	return r.Register("langfuse", func(io.Reader) (SourceDriver, error) {
+		return NewLangfuseSourceDriver(cfg)
+	})
 }
