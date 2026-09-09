@@ -379,9 +379,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-29085 then routes report-only TAU calls through the existing Vapi
     # adapter. BEAAA-29793 converges applicability resolution on the shared
     # tri-state. Canary budget, families, and zero-weight invariants remain
-    # unchanged.
+    # unchanged. BEAAA-30946 gates tau_support_crm rows rather than raising
+    # RuntimeError, moving the evaluator pin to 52398d4e and this digest to
+    # c9536ff5.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "ed7393f753c0ce816d43ff9d0faa20821df20667e9a5d085d865e0ced65fae54"
+        "c9536ff5db70b05f5045c9a0851042f1af0473b20c993ebbb61a3c1f6a31920b"
     )
 
 

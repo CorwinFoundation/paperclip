@@ -182,6 +182,50 @@ def test_registered_case_budget_failure_is_terminal_and_evidenced(tmp_path):
     assert evidence["error"] == "budget_exceeded:max_target_calls"
 
 
+def test_tau_without_session_factory_is_gated_not_runner_error(tmp_path):
+    row = {
+        "test_id": "tau_support_crm",
+        "case_id": "tau_support_crm.refund_credit.001",
+        "status": "active",
+        "framework": "tau-bench",
+        "risk_or_rubric_id": "UNSCORED.TAU.SUPPORT_CRM",
+        "source_pack": "evals/provisional_tau_support_crm.py",
+        "runner": "tau_bench",
+        "production_runner_executable": True,
+        "scoring_active": False,
+        "weight": 0.0,
+        "score_contribution": False,
+    }
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: "unused"),
+        judge=MockRunner("judge", lambda _prompt: "unused"),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(max_estimated_judge_cost_usd=100.0),
+    )
+
+    result = executor(
+        row,
+        SimpleNamespace(job_id="job-tau-gated", agent_id="agent-1", seed=42),
+    )
+
+    assert result.status == "complete"
+    assert result.verdict == "not_applicable"
+    assert result.incomplete_reason is None
+    assert result.target_calls == 0
+    assert result.judge_calls == 0
+    evidence = json.loads(
+        (
+            tmp_path
+            / "job-tau-gated"
+            / "tau_support_crm"
+            / "tau_support_crm.refund_credit.001.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert evidence["verdict"] == "not_applicable"
+    assert evidence["judge"]["applicability_reason"] == "tau_session_factory_unconfigured"
+    assert evidence["budget"]["case_delta"]["target_calls"] == 0
+
+
 def test_default_judge_opens_only_the_provider_scope(monkeypatch):
     seen = []
 

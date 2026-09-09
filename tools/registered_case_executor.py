@@ -615,7 +615,14 @@ class RegisteredCaseExecutor:
 
         if _is_tau_support_crm_row(registry_row):
             if self.tau_session_factory is None:
-                raise RuntimeError("tau_session_factory_unconfigured")
+                # TAU support/CRM is report-only and requires a multi-turn
+                # session adapter. A controlled full scan may still include
+                # its registry rows for reconciliation, but an unconfigured
+                # adapter is a deterministic gate, not a runner failure.
+                return _tau_not_applicable_outcome(
+                    case_id,
+                    reason="tau_session_factory_unconfigured",
+                )
             from evals.provisional_tau_support_crm import SCENARIOS, run_scenario
 
             scenario = next(
@@ -1685,6 +1692,26 @@ def _not_applicable_outcome(
         },
         score=None,
         expected=expected,
+        verdict="not_applicable",
+    )
+
+
+def _tau_not_applicable_outcome(case_id: str, *, reason: str) -> dict[str, Any]:
+    """Return a terminal report-only gate for an unavailable TAU adapter."""
+
+    return _case_outcome(
+        payloads=[],
+        responses=[],
+        judge={
+            "type": "deterministic_applicability_gate",
+            "family_id": "tau_support_crm",
+            "case_id": case_id,
+            "applicable": False,
+            "applicability_reason": reason,
+            "reported_not_scored": True,
+        },
+        score=None,
+        expected={},
         verdict="not_applicable",
     )
 
