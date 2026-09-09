@@ -12,10 +12,11 @@ import argparse
 from collections import Counter
 import json
 import os
+import socket
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -93,6 +94,11 @@ def _config(name: str, default: str | None = None) -> str:
     return str(value).strip()
 
 
+def _default_execution_environment() -> str:
+    """Name the host this unit actually runs on, so provenance is not a guess."""
+    return f"{socket.gethostname().split('.')[0].lower()}-scheduled-unit"
+
+
 @dataclass(frozen=True)
 class ScheduleConfig:
     tenant_id: str
@@ -107,6 +113,9 @@ class ScheduleConfig:
     cost_cap_usd: float
     timeout_seconds: int
     judge_model: str
+    execution_environment: str = field(
+        default_factory=_default_execution_environment
+    )
 
     @classmethod
     def from_environment(cls) -> "ScheduleConfig":
@@ -123,6 +132,10 @@ class ScheduleConfig:
             cost_cap_usd=float(_config("BACKBOND_SCAN_COST_CAP_USD", "100")),
             timeout_seconds=int(_config("BACKBOND_SCAN_TIMEOUT_SECONDS", "21600")),
             judge_model=_config("BACKBOND_SCAN_JUDGE_MODEL"),
+            execution_environment=_config(
+                "BACKBOND_SCAN_EXECUTION_ENVIRONMENT",
+                _default_execution_environment(),
+            ),
         )
 
     def validate(self) -> None:
@@ -561,7 +574,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         scanner_version=config.scanner_version,
         corpus_version=config.corpus_version,
         seed=config.seed,
-        execution_environment="ariclaw-scheduled-unit",
+        execution_environment=config.execution_environment,
         artifact_path=output_dir / "egress-negative-control.json",
     )
 
@@ -669,7 +682,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         scanner_version=config.scanner_version,
         corpus_version=config.corpus_version,
         seed=config.seed,
-        execution_environment="ariclaw-scheduled-unit",
+        execution_environment=config.execution_environment,
         artifact_path=negative_control_path,
     )
 

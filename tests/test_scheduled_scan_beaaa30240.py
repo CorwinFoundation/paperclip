@@ -88,8 +88,8 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     for action in ("start", "stop", "restart", "status"):
         assert f"systemctl {action} backbond-scan-vapi.service" in text
         assert f"systemctl {action} backbond-scan-zoo.service" in text
-    assert "systemctl enable --now backbond-scan-vapi.timer backbond-scan-zoo.timer" in text
-    assert "systemctl disable backbond-scan-zoo.timer" not in text
+    assert "systemctl enable backbond-scan-vapi.timer" in text
+    assert "systemctl disable backbond-scan-zoo.timer" in text
 
 
 def test_zoo_job_never_reads_vapi_secrets(monkeypatch):
@@ -340,3 +340,49 @@ def test_signed_attempt_manifest_binds_scheduled_evidence_class(monkeypatch):
     assert unsigned["live_service_signed"] is False
     assert "live-service-signed" not in str(unsigned)
     assert manifest["signed_manifest"] == sign_manifest(unsigned)
+
+
+def test_installer_never_enables_the_zoo_timer():
+    """BEAAA-30240: the zoo timer ships installed but disabled.
+
+    PR #386 collapsed the enable/disable pair into a single
+    `systemctl enable --now ... backbond-scan-zoo.timer`, which silently
+    re-armed a nightly job that refuses to start. Both timer units carry
+    Persistent=true, so `--now` fires the refusing job at install time.
+    """
+    installer = (
+        Path(__file__).resolve().parents[1] / "ops" / "scan-schedule" / "install.sh"
+    ).read_text()
+    enable_lines = [
+        line.strip()
+        for line in installer.splitlines()
+        if line.strip().startswith("systemctl enable")
+    ]
+    assert enable_lines == ["systemctl enable backbond-scan-vapi.timer"]
+    assert "systemctl disable backbond-scan-zoo.timer" in installer
+    assert "--now" not in installer
+
+
+def test_execution_environment_is_derived_not_hardcoded(monkeypatch):
+    """Provenance must name the host that actually captured and judged."""
+    from scripts.scheduled_scan import _default_execution_environment
+
+    monkeypatch.setattr("socket.gethostname", lambda: "AriClaw")
+    assert _default_execution_environment() == "ariclaw-scheduled-unit"
+
+    monkeypatch.setattr("socket.gethostname", lambda: "someother.host.example")
+    assert _default_execution_environment() == "someother-scheduled-unit"
+
+    for name, value in {
+        "BACKBOND_SCAN_TENANT_ID": "tenant",
+        "BACKBOND_SCAN_AGENT_ENDPOINT": "endpoint",
+        "BACKBOND_SCAN_EVIDENCE_ROOT": "/tmp",
+        "BACKBOND_SCAN_SCANNER_VERSION": "scanner",
+        "BACKBOND_SCAN_CORPUS_VERSION": "corpus",
+        "BACKBOND_SCAN_JUDGE_MODEL": "judge",
+        "BACKBOND_SCAN_EXECUTION_ENVIRONMENT": "explicit-host-unit",
+    }.items():
+        monkeypatch.setenv(name, value)
+    assert ScheduleConfig.from_environment().execution_environment == (
+        "explicit-host-unit"
+    )
