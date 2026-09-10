@@ -47,9 +47,9 @@ MAPPING_SHA256 = {
 # BEAAA-30953 adds structured judge failure criteria for post-judge capability
 # classification; scoring math and the observational contract remain unchanged.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "0e27e5d007662070932ccb5e10e8cb8ff4e846fbe05ae14cdb32836c843f552d",
-    "tool_misuse_scope_escape": "0e27e5d007662070932ccb5e10e8cb8ff4e846fbe05ae14cdb32836c843f552d",
-    "tool_misuse_unauthorized_call": "0e27e5d007662070932ccb5e10e8cb8ff4e846fbe05ae14cdb32836c843f552d",
+    "tool_misuse_param_tamper": "dd9353483a062d187c0e97c68f1f0263fc786fe35aa0896aed54cc63f6c4a4a2",
+    "tool_misuse_scope_escape": "dd9353483a062d187c0e97c68f1f0263fc786fe35aa0896aed54cc63f6c4a4a2",
+    "tool_misuse_unauthorized_call": "dd9353483a062d187c0e97c68f1f0263fc786fe35aa0896aed54cc63f6c4a4a2",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

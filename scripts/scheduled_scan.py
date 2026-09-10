@@ -258,6 +258,11 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     # capability the target did not declare.
     if "not_applicable" in value or "applicab" in value:
         return "unavailable_capability"
+    # Provider HTTP failures are transport failures, not malformed judge
+    # output.  The row retains the status-specific upstream_http_<code>
+    # reason for diagnosis while the operator manifest groups it correctly.
+    if value.startswith("upstream_http_"):
+        return "transport"
     if target_calls <= 0:
         return "dispatch_failure"
     if "judge" in value:

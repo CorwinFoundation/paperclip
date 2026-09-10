@@ -44,6 +44,14 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+def _incomplete_reason_for_exception(exc: BaseException) -> str:
+    """Keep upstream HTTP status visible to the scheduled-scan manifest."""
+    match = re.search(r"\bHTTP\s+(\d{3})\b", str(exc), flags=re.IGNORECASE)
+    if match:
+        return f"upstream_http_{match.group(1)}"
+    return f"case_execution_error:{type(exc).__name__}"
+
+
 @dataclass(frozen=True)
 class ScanBudget:
     max_target_calls: int = 6_000
@@ -480,7 +488,7 @@ class RegisteredCaseExecutor:
         except Exception as exc:  # evidence must land even when a runner fails
             verdict = "unresolved"
             status = "failed"
-            reason = f"case_execution_error:{type(exc).__name__}"
+            reason = _incomplete_reason_for_exception(exc)
             diagnostic_payloads = getattr(exc, "evidence_payloads", None)
             diagnostic_responses = getattr(exc, "evidence_responses", None)
             if isinstance(diagnostic_payloads, list) and all(

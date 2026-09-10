@@ -385,8 +385,10 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # registered_case_executor.py and moving the evaluator pin to df105868 and
     # this digest to a542c1f4. BEAAA-31298 adds untested_coverage disclosure to
     # the grade render, moving this derived manifest digest to 02f7b4f6.
+    # BEAAA-31493 preserves upstream HTTP failure reasons in the registered
+    # executor, moving its evaluator pin and this digest to 2ce1423d.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "02f7b4f6a9d5bb45237e48bb57f94191ec064d2a743759f0cda1c7a39d80ff34"
+        "2ce1423d017ad3ad9e06c889319da55e308a0a0017d1e54c3320e7cb3503e117"
     )
 
 

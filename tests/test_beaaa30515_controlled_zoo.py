@@ -249,6 +249,17 @@ def test_zero_call_families_remain_routed_and_fail_coverage():
     )
 
 
+def test_upstream_http_failure_is_not_reported_as_format():
+    import scheduled_scan
+
+    assert scheduled_scan._incomplete_group(
+        "upstream_http_403", target_calls=1
+    ) == "transport"
+    assert scheduled_scan._incomplete_group(
+        "case_execution_error:ValueError", target_calls=1
+    ) == "format"
+
+
 def test_zoo_job_no_longer_raises_the_disabled_stub():
     import scheduled_scan
 
@@ -280,8 +291,17 @@ def test_dispatch_records_real_target_calls_against_a_controlled_surface(
             self.calls += 1
             return "I cannot help with that request."
 
+    class _Judge(_Controlled):
+        def complete(self, prompt: str) -> str:
+            self.calls += 1
+            return json.dumps({
+                "verdict": "pass",
+                "score": 1.0,
+                "unmet_criteria": [],
+            })
+
     subject = _Controlled()
-    judge = _Controlled()
+    judge = _Judge()
     monkeypatch.setattr(
         "harness.controlled_zoo.build_zoo_runner", lambda target, **kw: subject
     )
@@ -319,9 +339,69 @@ def test_dispatch_records_real_target_calls_against_a_controlled_surface(
     assert rows, "dispatch produced no evidence rows"
     assert subject.calls > 0, "the controlled target was never called"
     assert sum(int(r.get("target_calls") or 0) for r in rows) > 0
+    assert any(
+        r.get("status") == "complete"
+        and int(r.get("target_calls") or 0) > 0
+        and int(r.get("judge_calls") or 0) > 0
+        for r in rows
+    ), rows
 
     families, _ = scheduled_scan._zoo_family_summary(trimmed, rows)
     assert any(counts["target_called"] > 0 for counts in families.values())
+
+
+def test_wrapped_provider_http_failure_keeps_diagnosis_and_error_evidence(
+    tmp_path, monkeypatch, decisions
+):
+    """Provider failures must remain distinguishable from malformed rows."""
+    import scheduled_scan
+    from harness.runner import ModelRunner
+
+    class _Failing(ModelRunner):
+        def model_id(self) -> str:
+            return "controlled-zoo:failing"
+
+        def complete(self, prompt: str) -> str:
+            raise RuntimeError(
+                'openrouter HTTP 403: {"error":{"message":"Key limit exceeded"}}'
+            )
+
+    monkeypatch.setattr(
+        "harness.controlled_zoo.build_zoo_runner", lambda target, **kw: _Failing()
+    )
+    monkeypatch.setattr(scheduled_scan, "default_judge_runner", _Failing)
+    config = scheduled_scan.ScheduleConfig(
+        tenant_id="ariclaw",
+        agent_endpoint="controlled-zoo://rag",
+        evidence_root=tmp_path,
+        scanner_version="0.5.0",
+        corpus_version="0.2.0",
+        seed=0,
+        concurrency=1,
+        rpm=30,
+        retries=0,
+        cost_cap_usd=100.0,
+        timeout_seconds=600,
+        judge_model="anthropic/claude-haiku-4.5",
+    )
+    chosen = [d for d in decisions if d.target == "rag"][:1]
+    trimmed = [
+        type(d)(d.family, d.target, d.required_surfaces, d.reason, d.rows[:1])
+        for d in chosen
+    ]
+    _finished, rows = scheduled_scan._run_zoo_target(
+        zoo_targets()["rag"],
+        trimmed,
+        config=config,
+        output_dir=tmp_path,
+        run_date="2026-09-10",
+        limiter=scheduled_scan.SharedRateLimiter(600),
+    )
+    assert rows and rows[0]["incomplete_reason"] == "upstream_http_403"
+    evidence = next(tmp_path.rglob("*.json"))
+    payload = json.loads(evidence.read_text())
+    assert "openrouter HTTP 403" in payload["error_detail"]
+    assert payload["error_traceback"]
 
 
 def test_the_whole_dispatch_path_never_constructs_the_vapi_transport(
