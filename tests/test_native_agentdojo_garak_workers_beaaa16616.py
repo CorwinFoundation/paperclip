@@ -113,85 +113,68 @@ def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
             reportfile = None
         def load_base_config(self): pass
 
-    fake_garak = type("garak", (), {"_config": FakeConfig(), "_plugins": FakePlugins()})()
-
     import sys, types
-
-    mod = types.ModuleType("garak")
-    mod._config = FakeConfig()
-    mod._plugins = FakePlugins()
-
-    class FakeGenerator:
-        pass
-
-    class FakeEvaluator:
-        def __init__(self, threshold): pass
-        def test(self, score): return score > 0.5
-
     garak_mod = types.ModuleType("garak")
     garak_mod._config = FakeConfig()
     garak_mod._plugins = FakePlugins()
     generators_base = types.ModuleType("garak.generators.base")
-    generators_base.Generator = FakeGenerator
+    generators_base.Generator = type("FakeGenerator", (), {})
     evaluators_base = types.ModuleType("garak.evaluators.base")
-    evaluators_base.ThresholdEvaluator = FakeEvaluator
-
+    evaluators_base.ThresholdEvaluator = type(
+        "FakeEvaluator", (), {"__init__": lambda self, threshold: None,
+                               "test": lambda self, score: score > 0.5}
+    )
     monkeypatch.setitem(sys.modules, "garak", garak_mod)
     monkeypatch.setitem(sys.modules, "garak.generators", types.ModuleType("garak.generators"))
     monkeypatch.setitem(sys.modules, "garak.generators.base", generators_base)
     monkeypatch.setitem(sys.modules, "garak.evaluators", types.ModuleType("garak.evaluators"))
     monkeypatch.setitem(sys.modules, "garak.evaluators.base", evaluators_base)
 
-    from tools.framework_worker_registry import WORKERS
-    result = _garak_adapter_result(
+    _garak_adapter_result(
         WORKERS["garak"],
         {"case_id": "garak.misleading.FalseAssertion"},
-        {
-            "job_id": "j1", "seed": 0,
-            "subject_adapter": {
-                "kind": "customer_agent_http",
-                "endpoint": "https://api.vapi.ai",
-                "secret": "k",
-                "agent_id": "a",
-            },
-        },
+        {"job_id": "j1", "seed": 0, "subject_adapter": {"kind": "customer_agent_http", "endpoint": "https://api.vapi.ai", "secret": "k", "agent_id": "a"}},
         "v1",
     )
-
-    assert any(n == "probes.misleading.FalseAssertion" for n in loaded), (
-        f"expected 'probes.misleading.FalseAssertion' in {loaded}"
-    )
+    assert "probes.misleading.FalseAssertion" in loaded
     assert "probes.garak.misleading.FalseAssertion" not in loaded
 
 
 def test_garak_worker_subprocess_stdout_is_clean_json(monkeypatch):
-    """framework_workers.main() must redirect any library output on stdout to
-    stderr so that the single-line JSON result is uncontaminated."""
-    import io, sys, json
-
+    """framework_workers.main() keeps framework progress off JSON stdout."""
+    import io, json, sys
     import tools.framework_workers as fw
 
     def noisy_payload(_payload):
-        # Simulate a framework library (garak, pyrit, …) writing progress
-        # output to sys.stdout during execution.
-        sys.stdout.write("\U0001fab4 noise from framework lib\n")
-        return {
-            "status": "incomplete",
-            "incomplete_reason": "test",
-            "evidence_ref": None,
-            "model_version": "v0",
-            "schema": "s",
-        }
+        sys.stdout.write("noise from framework lib\n")
+        return {"status": "incomplete", "incomplete_reason": "test", "evidence_ref": None, "model_version": "v0", "schema": "s"}
 
     monkeypatch.setattr(fw, "run_worker_payload", noisy_payload)
-
     buf = io.StringIO()
     monkeypatch.setattr(sys, "stdin", io.StringIO("{}"))
     monkeypatch.setattr(sys, "stdout", buf)
-
     fw.main(["run"])
-
     captured = buf.getvalue()
-    parsed = json.loads(captured)
-    assert parsed["status"] == "incomplete"
+    assert json.loads(captured)["status"] == "incomplete"
     assert "noise" not in captured
+
+
+def test_garak_exception_detail_is_sanitized_collapsed_and_bounded():
+    from tools.framework_workers import _garak_exception_reason
+    secret = "vapi-secret-value"
+    assistant_id = "11111111-1111-4111-8111-111111111111"
+    exc = TypeError(f"bad call\nBearer {secret} assistant={assistant_id} token=also-secret " + "x" * 300)
+    reason = _garak_exception_reason("native_probe_interface", exc, {"secret": secret, "agent_id": assistant_id})
+    assert reason.startswith("native_probe_interface:TypeError:bad call ")
+    assert "\n" not in reason
+    assert secret not in reason
+    assert assistant_id not in reason
+    assert "also-secret" not in reason
+    assert len(reason.rsplit(":", 1)[-1]) <= 200
+
+
+def test_appended_garak_detail_preserves_scheduled_scan_bucket():
+    from scripts.scheduled_scan import _incomplete_group
+    original = "worker_unsupported_interface:garak:native_probe_interface:TypeError"
+    assert _incomplete_group(original, target_calls=0) == "dispatch_failure"
+    assert _incomplete_group(f"{original}:unexpected keyword argument", target_calls=0) == "dispatch_failure"

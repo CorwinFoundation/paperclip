@@ -14,6 +14,7 @@ import importlib
 import importlib.metadata
 import inspect as py_inspect
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -328,11 +329,15 @@ def _garak_adapter_result(
             for score in detector.detect(attempt)
         ]
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
-        return _unsupported_interface(worker, model_version, f"native_probe_interface:{exc.__class__.__name__}")
+        reason = _garak_exception_reason("native_probe_interface", exc, subject)
+        return _unsupported_interface(worker, model_version, reason)
     except Exception as exc:
         return _result_dict(
             status="incomplete", evidence_ref=None,
-            incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:{exc.__class__.__name__}",
+            incomplete_reason=(
+                f"worker_native_invocation_error:{worker.worker_id}:"
+                f"{_garak_exception_reason('', exc, subject)}"
+            ),
             model_version=model_version,
         )
     finally:
@@ -557,6 +562,36 @@ def _unsupported_interface(worker: WorkerDefinition, model_version: str, reason:
         incomplete_reason=f"worker_unsupported_interface:{worker.worker_id}:{reason}",
         model_version=model_version,
     )
+
+
+def _garak_exception_reason(
+    prefix: str, exc: BaseException, subject: Mapping[str, Any]
+) -> str:
+    """Keep Garak failures diagnosable without leaking target credentials."""
+    detail = " ".join(str(exc).split())
+    for protected in (subject.get("secret"), subject.get("agent_id")):
+        value = str(protected or "")
+        if value:
+            detail = detail.replace(value, "[REDACTED]")
+    detail = re.sub(
+        r"(?i)\b(bearer\s+)[^\s,;]+",
+        r"\1[REDACTED]",
+        detail,
+    )
+    detail = re.sub(
+        r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*[^\s,;]+",
+        r"\1=[REDACTED]",
+        detail,
+    )
+    detail = re.sub(
+        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+        r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b",
+        "[REDACTED]",
+        detail,
+    )
+    detail = detail[:200]
+    base = f"{prefix}:{exc.__class__.__name__}" if prefix else exc.__class__.__name__
+    return f"{base}:{detail}" if detail else base
 
 
 def _subject_adapter(job: Mapping[str, Any], registry_row: Mapping[str, Any]) -> Mapping[str, Any] | None:
