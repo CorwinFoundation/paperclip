@@ -17,7 +17,7 @@ import socket
 import sys
 import threading
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -524,11 +524,11 @@ def _zoo_family_summary(
     )
 
 
-def _reason_code_uncovered_zoo_routes(
+def _zoo_coverage_failures(
     decisions: Sequence[Any],
     evidence_rows: Sequence[Mapping[str, Any]],
-) -> list[Any]:
-    """Only report routes that observed both target and judge execution."""
+) -> dict[str, str]:
+    """Report missing calls without rewriting genuine routing decisions."""
     calls: dict[str, Counter[str]] = {}
     for raw in evidence_rows:
         if not isinstance(raw, Mapping):
@@ -537,23 +537,23 @@ def _reason_code_uncovered_zoo_routes(
         family_calls["target"] += int(raw.get("target_calls") or 0)
         family_calls["judge"] += int(raw.get("judge_calls") or 0)
 
-    effective = []
+    failures: dict[str, str] = {}
     for decision in decisions:
         if decision.target is None:
-            effective.append(decision)
             continue
         family_calls = calls.get(decision.family, Counter())
         if family_calls["target"] <= 0:
-            effective.append(
-                replace(decision, target=None, reason="no_target_calls_observed")
-            )
+            failures[decision.family] = "no_target_calls_observed"
         elif family_calls["judge"] <= 0:
-            effective.append(
-                replace(decision, target=None, reason="no_judge_calls_observed")
-            )
-        else:
-            effective.append(decision)
-    return effective
+            failures[decision.family] = "no_judge_calls_observed"
+    return failures
+
+
+def _zoo_coverage_passed(
+    *, routed_families: int, target_calls: int, coverage_failures: Mapping[str, str]
+) -> bool:
+    """Fail closed when target work exists but the routed denominator is empty."""
+    return not coverage_failures and not (target_calls > 0 and routed_families == 0)
 
 
 def _run_zoo_target(
@@ -706,8 +706,11 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         }
     finished_at = datetime.now(timezone.utc).isoformat()
 
-    effective_decisions = _reason_code_uncovered_zoo_routes(decisions, evidence_rows)
-    families, incomplete = _zoo_family_summary(effective_decisions, evidence_rows)
+    coverage_failures = _zoo_coverage_failures(decisions, evidence_rows)
+    families, incomplete = _zoo_family_summary(decisions, evidence_rows)
+    routed_families = sum(1 for counts in families.values() if counts["routed"] > 0)
+    target_calls = sum(int(r.get("target_calls") or 0) for r in evidence_rows)
+    judge_calls = sum(int(r.get("judge_calls") or 0) for r in evidence_rows)
     manifest = {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": "zoo",
@@ -728,6 +731,14 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         "egress_preflight_result_path": str(preflight_path),
         "egress_preflight": dict(preflight_result),
         "families": families,
+        "routed_families": routed_families,
+        "judge_calls": judge_calls,
+        "coverage_failures": coverage_failures,
+        "coverage_passed": _zoo_coverage_passed(
+            routed_families=routed_families,
+            target_calls=target_calls,
+            coverage_failures=coverage_failures,
+        ),
         "incomplete_by_reason": incomplete,
         "evidence_rows": len(evidence_rows),
         "executor": "api.full_scan_executor.dispatch_registry_attempt",
@@ -737,10 +748,10 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             "targets": target_reports,
             "unrouted_families": {
                 decision.family: decision.reason
-                for decision in effective_decisions
+                for decision in decisions
                 if decision.target is None
             },
-            "target_calls": sum(int(r.get("target_calls") or 0) for r in evidence_rows),
+            "target_calls": target_calls,
         },
     }
     manifest_path = output_dir / "manifest.json"
