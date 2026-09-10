@@ -284,6 +284,9 @@ def _garak_adapter_result(
     if not probe_name:
         case_id = str(registry_row.get("case_id") or "")
         probe_name = case_id.rsplit(":", 1)[-1] if "." in case_id else ""
+    # garak_beaaa152 rows carry a "garak." namespace prefix in the case_id that
+    # is not part of the probe module path inside the garak package itself.
+    probe_name = probe_name.removeprefix("garak.")
     if not probe_name:
         return _unsupported_interface(worker, model_version, "missing_probe_name")
     try:
@@ -847,7 +850,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "run":
         payload = json.loads(sys.stdin.read() or "{}")
-        result = run_worker_payload(payload)
+        # Framework libraries (garak, pyrit, etc.) emit progress and diagnostic
+        # output to stdout, which would corrupt the single-line JSON result that
+        # the parent process parses. Redirect stdout to stderr for the duration
+        # of the worker invocation, then restore and write the clean result.
+        _real_stdout = sys.stdout
+        sys.stdout = sys.stderr
+        try:
+            result = run_worker_payload(payload)
+        finally:
+            sys.stdout = _real_stdout
         sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
         return 0
     raise AssertionError(args.command)

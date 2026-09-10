@@ -81,3 +81,117 @@ def test_live_worker_factory_replaces_garak_text_materializer(monkeypatch):
         "agent_id": "11111111-1111-4111-8111-111111111111",
     }
     assert workers["promptfoo"] is generic
+
+
+def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
+    """garak_beaaa152 case_id values carry a 'garak.' namespace prefix; the
+    worker must strip it before calling _plugins.load_plugin."""
+    loaded = []
+
+    class FakeProbe:
+        primary_detector = "always.Fail"
+        def probe(self, gen):
+            return []
+
+    class FakeDetector:
+        def detect(self, attempt):
+            return []
+
+    class FakePlugins:
+        def load_plugin(self, name):
+            loaded.append(name)
+            if name.startswith("probes."):
+                return FakeProbe()
+            return FakeDetector()
+
+    class FakeConfig:
+        class run:
+            generations = 1
+            seed = 0
+            eval_threshold = 0.5
+        class transient:
+            reportfile = None
+        def load_base_config(self): pass
+
+    fake_garak = type("garak", (), {"_config": FakeConfig(), "_plugins": FakePlugins()})()
+
+    import sys, types
+
+    mod = types.ModuleType("garak")
+    mod._config = FakeConfig()
+    mod._plugins = FakePlugins()
+
+    class FakeGenerator:
+        pass
+
+    class FakeEvaluator:
+        def __init__(self, threshold): pass
+        def test(self, score): return score > 0.5
+
+    garak_mod = types.ModuleType("garak")
+    garak_mod._config = FakeConfig()
+    garak_mod._plugins = FakePlugins()
+    generators_base = types.ModuleType("garak.generators.base")
+    generators_base.Generator = FakeGenerator
+    evaluators_base = types.ModuleType("garak.evaluators.base")
+    evaluators_base.ThresholdEvaluator = FakeEvaluator
+
+    monkeypatch.setitem(sys.modules, "garak", garak_mod)
+    monkeypatch.setitem(sys.modules, "garak.generators", types.ModuleType("garak.generators"))
+    monkeypatch.setitem(sys.modules, "garak.generators.base", generators_base)
+    monkeypatch.setitem(sys.modules, "garak.evaluators", types.ModuleType("garak.evaluators"))
+    monkeypatch.setitem(sys.modules, "garak.evaluators.base", evaluators_base)
+
+    from tools.framework_worker_registry import WORKERS
+    result = _garak_adapter_result(
+        WORKERS["garak"],
+        {"case_id": "garak.misleading.FalseAssertion"},
+        {
+            "job_id": "j1", "seed": 0,
+            "subject_adapter": {
+                "kind": "customer_agent_http",
+                "endpoint": "https://api.vapi.ai",
+                "secret": "k",
+                "agent_id": "a",
+            },
+        },
+        "v1",
+    )
+
+    assert any(n == "probes.misleading.FalseAssertion" for n in loaded), (
+        f"expected 'probes.misleading.FalseAssertion' in {loaded}"
+    )
+    assert "probes.garak.misleading.FalseAssertion" not in loaded
+
+
+def test_garak_worker_subprocess_stdout_is_clean_json(monkeypatch):
+    """framework_workers.main() must redirect any library output on stdout to
+    stderr so that the single-line JSON result is uncontaminated."""
+    import io, sys, json
+
+    import tools.framework_workers as fw
+
+    def noisy_payload(_payload):
+        # Simulate a framework library (garak, pyrit, …) writing progress
+        # output to sys.stdout during execution.
+        sys.stdout.write("\U0001fab4 noise from framework lib\n")
+        return {
+            "status": "incomplete",
+            "incomplete_reason": "test",
+            "evidence_ref": None,
+            "model_version": "v0",
+            "schema": "s",
+        }
+
+    monkeypatch.setattr(fw, "run_worker_payload", noisy_payload)
+
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("{}"))
+    monkeypatch.setattr(sys, "stdout", buf)
+
+    fw.main(["run"])
+
+    captured = buf.getvalue()
+    parsed = json.loads(captured)
+    assert parsed["status"] == "incomplete"
+    assert "noise" not in captured
