@@ -212,6 +212,38 @@ def test_family_summary_accounts_for_unrouted_rows_by_reason(decisions):
         assert counts["considered"] == counts["routed"] + counts["incomplete"]
 
 
+def test_zero_call_families_are_reason_coded_not_routed():
+    """A route is only manifest-valid after both target and judge executed."""
+    import scheduled_scan
+    from harness.controlled_zoo import RoutingDecision
+
+    decisions = [
+        RoutingDecision("no-target", "rag", frozenset({"prose"}), "target=rag", ({},)),
+        RoutingDecision("no-judge", "rag", frozenset({"prose"}), "target=rag", ({},)),
+        RoutingDecision("covered", "rag", frozenset({"prose"}), "target=rag", ({},)),
+    ]
+    evidence = [
+        {"family": "no-target", "target_calls": 0, "judge_calls": 0},
+        {"family": "no-judge", "target_calls": 1, "judge_calls": 0},
+        {"family": "covered", "target_calls": 1, "judge_calls": 1,
+         "status": "complete", "verdict": "PASS"},
+    ]
+
+    effective = scheduled_scan._reason_code_uncovered_zoo_routes(decisions, evidence)
+    families, _ = scheduled_scan._zoo_family_summary(effective, evidence)
+    reasons = {d.family: d.reason for d in effective if d.target is None}
+
+    assert reasons == {
+        "no-target": "no_target_calls_observed",
+        "no-judge": "no_judge_calls_observed",
+    }
+    assert families["no-target"]["routed"] == 0
+    assert families["no-judge"]["routed"] == 0
+    assert families["covered"]["routed"] == 1
+    assert families["covered"]["target_called"] == 1
+    assert families["covered"]["judge_calls"] == 1
+
+
 def test_zoo_job_no_longer_raises_the_disabled_stub():
     import scheduled_scan
 

@@ -17,7 +17,7 @@ import socket
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -482,12 +482,15 @@ def _zoo_family_summary(
             ),
         )
 
+    evidenced_families = {
+        _family_name(raw) for raw in evidence_rows if isinstance(raw, Mapping)
+    }
     for decision in decisions:
         counts = _counter(decision.family)
         counts["considered"] += len(decision.rows)
         if decision.target is not None:
             counts["routed"] += len(decision.rows)
-        else:
+        elif decision.family not in evidenced_families:
             # An unrouted family is terminal, not missing: every one of its
             # rows lands as a reason-coded incomplete.
             counts["incomplete"] += len(decision.rows)
@@ -500,6 +503,7 @@ def _zoo_family_summary(
         target_calls = int(raw.get("target_calls") or 0)
         if target_calls > 0:
             counts["target_called"] += 1
+        counts["judge_calls"] += int(raw.get("judge_calls") or 0)
         verdict = str(raw.get("verdict") or "").upper()
         if raw.get("status") == "complete" and verdict == "NOT_APPLICABLE":
             counts["not_applicable"] += 1
@@ -518,6 +522,38 @@ def _zoo_family_summary(
         {name: dict(counts) for name, counts in sorted(families.items())},
         dict(incomplete),
     )
+
+
+def _reason_code_uncovered_zoo_routes(
+    decisions: Sequence[Any],
+    evidence_rows: Sequence[Mapping[str, Any]],
+) -> list[Any]:
+    """Only report routes that observed both target and judge execution."""
+    calls: dict[str, Counter[str]] = {}
+    for raw in evidence_rows:
+        if not isinstance(raw, Mapping):
+            continue
+        family_calls = calls.setdefault(_family_name(raw), Counter())
+        family_calls["target"] += int(raw.get("target_calls") or 0)
+        family_calls["judge"] += int(raw.get("judge_calls") or 0)
+
+    effective = []
+    for decision in decisions:
+        if decision.target is None:
+            effective.append(decision)
+            continue
+        family_calls = calls.get(decision.family, Counter())
+        if family_calls["target"] <= 0:
+            effective.append(
+                replace(decision, target=None, reason="no_target_calls_observed")
+            )
+        elif family_calls["judge"] <= 0:
+            effective.append(
+                replace(decision, target=None, reason="no_judge_calls_observed")
+            )
+        else:
+            effective.append(decision)
+    return effective
 
 
 def _run_zoo_target(
@@ -670,7 +706,8 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         }
     finished_at = datetime.now(timezone.utc).isoformat()
 
-    families, incomplete = _zoo_family_summary(decisions, evidence_rows)
+    effective_decisions = _reason_code_uncovered_zoo_routes(decisions, evidence_rows)
+    families, incomplete = _zoo_family_summary(effective_decisions, evidence_rows)
     manifest = {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": "zoo",
@@ -700,7 +737,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             "targets": target_reports,
             "unrouted_families": {
                 decision.family: decision.reason
-                for decision in decisions
+                for decision in effective_decisions
                 if decision.target is None
             },
             "target_calls": sum(int(r.get("target_calls") or 0) for r in evidence_rows),
