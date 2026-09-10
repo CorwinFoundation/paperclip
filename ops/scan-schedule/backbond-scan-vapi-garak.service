@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=backbond-scan
+Environment=HOME=/var/lib/backbond/scan-home
 EnvironmentFile=/etc/backbond/scan-schedule.env
 EnvironmentFile=/etc/backbond/scan-schedule.conf
 WorkingDirectory=/opt/backbond/src

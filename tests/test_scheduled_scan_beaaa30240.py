@@ -70,7 +70,11 @@ def test_units_have_required_cadence_and_direct_runner():
     zoo_timer = (OPS / "backbond-scan-zoo.timer").read_text()
     assert "OnCalendar=Mon *-*-* 03:00:00 UTC" in vapi_timer
     assert "OnCalendar=*-*-* 03:30:00 UTC" in zoo_timer
-    for name in ("backbond-scan-vapi.service", "backbond-scan-zoo.service"):
+    for name in (
+        "backbond-scan-vapi.service",
+        "backbond-scan-vapi-garak.service",
+        "backbond-scan-zoo.service",
+    ):
         text = (OPS / name).read_text()
         assert "User=backbond-scan" in text
         assert "EnvironmentFile=/etc/backbond/scan-schedule.env" in text
@@ -79,6 +83,8 @@ def test_units_have_required_cadence_and_direct_runner():
         assert "ExecStart=/opt/backbond/scan-venv/bin/python" in text
         assert "sudo" not in text
         assert "scanner/v1/scans" not in text
+    garak_service = (OPS / "backbond-scan-vapi-garak.service").read_text()
+    assert "Environment=HOME=/var/lib/backbond/scan-home" in garak_service
 
 
 def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
@@ -86,6 +92,8 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     assert "useradd --system --no-create-home --shell /usr/sbin/nologin" in text
     assert "checkout=/opt/backbond/src" in text
     assert "scan_venv=/opt/backbond/scan-venv" in text
+    assert "runtime_home=/var/lib/backbond/scan-home" in text
+    assert 'install -d -o "$unit_user" -g "$unit_user" -m 0700 "$runtime_home"' in text
     assert 'python3.11 -m venv --clear "$scan_venv"' in text
     assert 'pip install --require-hashes --disable-pip-version-check' in text
     assert "chmod o+x /var/lib/backbond" in text

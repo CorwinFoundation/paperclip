@@ -7,6 +7,7 @@ checkout=/opt/backbond/src
 scan_venv=/opt/backbond/scan-venv
 eval_venvs=/opt/are-scanner/eval-venvs
 manifest_root=/var/lib/backbond/scans
+runtime_home=/var/lib/backbond/scan-home
 
 id "$unit_user" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$unit_user"
 test -d "$checkout/.git" || { echo "missing root-owned checkout: $checkout" >&2; exit 1; }
@@ -36,6 +37,7 @@ chown -R root:root "$eval_venvs"
 chmod -R a+rX "$eval_venvs"
 
 install -d -m 0755 /var/lib/backbond /usr/local/libexec /etc/backbond /etc/systemd/system /etc/sudoers.d "$manifest_root"
+install -d -o "$unit_user" -g "$unit_user" -m 0700 "$runtime_home"
 chmod o+x /var/lib/backbond
 install -o root -g root -m 0644 "$here/scan-schedule.conf" /etc/backbond/scan-schedule.conf
 for unit in backbond-scan-vapi.service backbond-scan-vapi-garak.service backbond-scan-vapi.timer backbond-scan-zoo.service backbond-scan-zoo.timer; do
