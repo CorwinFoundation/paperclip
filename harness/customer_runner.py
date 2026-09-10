@@ -71,6 +71,17 @@ _UUID_RE = re.compile(
 )
 
 
+class CustomerEndpointHTTPError(RunnerError):
+    """Non-2xx customer response with bounded diagnostics for scan evidence."""
+
+    def __init__(self, status_code: int, reason_phrase: str, body: str, headers: dict[str, str]):
+        super().__init__(f"customer endpoint HTTP {status_code}: {reason_phrase}")
+        self.status_code = status_code
+        self.reason_phrase = reason_phrase
+        self.body = body
+        self.headers = headers
+
+
 def _extract_host(agent_endpoint: str) -> str:
     """Parse the host component out of ``agent_endpoint`` for the allow-list.
 
@@ -206,15 +217,17 @@ class _CustomerAgentHttpRunner(ModelRunner):
                                 f"{resp.status_code} {resp.reason_phrase}"
                             )
                         if resp.status_code >= 400:
-                            # Read reason_phrase before exiting the
-                            # stream context (response object is still
-                            # usable for headers/status after exit, but
-                            # surface the error eagerly so the body
-                            # generator is closed without consuming
-                            # potentially-oversized chunks).
-                            raise RunnerError(
-                                f"customer endpoint HTTP {resp.status_code}: "
-                                f"{resp.reason_phrase}"
+                            error_buf = bytearray()
+                            for chunk in resp.iter_raw():
+                                remaining = _MAX_RESPONSE_BYTES - len(error_buf)
+                                if remaining <= 0:
+                                    break
+                                error_buf.extend(chunk[:remaining])
+                            raise CustomerEndpointHTTPError(
+                                resp.status_code,
+                                resp.reason_phrase,
+                                bytes(error_buf).decode("utf-8", errors="replace"),
+                                {str(k).lower(): str(v) for k, v in resp.headers.items()},
                             )
                         # BEAAA-5532: Content-Encoding gate. Reject any
                         # response that carries a non-identity

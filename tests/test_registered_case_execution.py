@@ -12,7 +12,8 @@ from api.full_scan_executor import EvidenceAttemptRow, FullScanExecutorError, Wo
 from api.scan_log import ScanLog
 from api.scan_handlers import HandlerError, ScanRuntime, scan_status_handler
 from harness import egress
-from harness.runner import MockRunner
+from harness.runner import MockRunner, ModelRunner
+from harness.customer_runner import CustomerEndpointHTTPError
 from scanners.live_probe_orchestrator import ScanRequest, ScanResult
 import tools.registered_case_executor as execution
 from tools.registered_case_executor import (
@@ -154,6 +155,50 @@ def test_materialized_framework_case_records_runtime_identity_and_aliases(tmp_pa
     assert evidence["execution_mode"] == "materialized_framework_compatible_case"
     assert evidence["source_aliases"]
     assert evidence["judge"]["computed_runtime_case_identity"] == row["runtime_case_identity"]
+
+
+def test_vapi_cloudflare_injection_refusal_is_terminal_without_judge(tmp_path):
+    row = next(
+        row for row in build_registry()
+        if row.get("case_id") == "P3.2-ROB-03"
+        and row.get("production_runner_executable") is True
+    )
+
+    class RefusingVapi(ModelRunner):
+        def model_id(self):
+            return "vapi:09aea361@api.vapi.ai"
+
+        def complete(self, _prompt):
+            raise CustomerEndpointHTTPError(
+                403,
+                "Forbidden",
+                "<title>Attention Required! | Cloudflare</title> Sorry, you have been blocked",
+                {"cf-ray": "fixture-ray"},
+            )
+
+    executor = RegisteredCaseExecutor(
+        subject=RefusingVapi(),
+        judge=MockRunner("judge", lambda _: pytest.fail("judge must not run")),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(max_estimated_judge_cost_usd=100.0),
+    )
+    result = executor(row, SimpleNamespace(job_id="job-edge-refusal", agent_id="vapi", seed=42))
+
+    assert result.status == "complete"
+    assert result.verdict == "edge_refusal"
+    assert result.numeric_result is None
+    assert result.target_calls == 1
+    assert result.judge_calls == 0
+    evidence = json.loads((tmp_path / "job-edge-refusal" / row["test_id"] / "P3.2-ROB-03.json").read_text())
+    assert evidence["judge"] == {
+        "cf_ray": "fixture-ray",
+        "http_reason": "Forbidden",
+        "http_status": 403,
+        "judge_called": False,
+        "provider": "cloudflare",
+        "response_reason": "The request triggered the target edge security service.",
+        "type": "target_edge_refusal",
+    }
 
 
 def test_registered_case_budget_failure_is_terminal_and_evidenced(tmp_path):

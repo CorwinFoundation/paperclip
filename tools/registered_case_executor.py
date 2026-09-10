@@ -841,7 +841,38 @@ class RegisteredCaseExecutor:
 
         if is_text_compatible_test(test_id):
             spec = materialize_text_case(test_id, case_id, registry_row)
-            responses = [self.subject.complete(prompt) for prompt in spec.prompts]
+            try:
+                responses = [self.subject.complete(prompt) for prompt in spec.prompts]
+            except Exception as exc:
+                from harness.customer_runner import CustomerEndpointHTTPError
+
+                body = getattr(exc, "body", "")
+                is_vapi_edge_refusal = (
+                    isinstance(exc, CustomerEndpointHTTPError)
+                    and test_id == "p3_2_indirect_injection_rob"
+                    and exc.status_code == 403
+                    and self.subject.model_id().startswith("vapi:")
+                    and "Cloudflare" in body
+                    and "Sorry, you have been blocked" in body
+                )
+                if not is_vapi_edge_refusal:
+                    raise
+                return _case_outcome(
+                    payloads=list(spec.prompts),
+                    responses=["Target edge refused the injection payload."],
+                    judge={
+                        "type": "target_edge_refusal",
+                        "provider": "cloudflare",
+                        "http_status": exc.status_code,
+                        "http_reason": exc.reason_phrase,
+                        "response_reason": "The request triggered the target edge security service.",
+                        "cf_ray": exc.headers.get("cf-ray"),
+                        "judge_called": False,
+                    },
+                    score=None,
+                    expected=spec.expected,
+                    verdict="edge_refusal",
+                )
             judged = _judge_materialized_text_case(
                 self.judge,
                 prompts=list(spec.prompts),
