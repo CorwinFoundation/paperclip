@@ -52,6 +52,32 @@ def adapt_codex_item(item: dict[str, Any], *, created_at_ms: int) -> dict[str, A
     }
 
 
+def adapt_codex_items(item: dict[str, Any], *, created_at_ms: int) -> list[dict[str, Any]]:
+    """Map one history item, splitting command output from the agent-authored call."""
+    event = adapt_codex_item(item, created_at_ms=created_at_ms)
+    if event is None:
+        return []
+    if item.get("type") != "commandExecution":
+        return [event]
+    output = item.get("aggregatedOutput")
+    if not isinstance(output, str) or not output:
+        return [event]
+    source_event_id = f"{event['event_id']}-output"
+    event["payload"]["tool_source_reference_id"] = source_event_id
+    source_event = {
+        "event_id": source_event_id,
+        "event_type": "tool_source_reference",
+        "logged_at": event["logged_at"],
+        "payload": {
+            "content": output,
+            "source_type": "command_output",
+            "trust": "untrusted-content",
+            "tool_call_event_id": event["event_id"],
+        },
+    }
+    return [source_event, event]
+
+
 def iter_sqlite_events(path: str | Path) -> Iterator[dict[str, Any]]:
     uri = f"file:{Path(path)}?mode=ro&immutable=1"
     with sqlite3.connect(uri, uri=True) as connection:
@@ -63,8 +89,8 @@ def iter_sqlite_events(path: str | Path) -> Iterator[dict[str, Any]]:
                 item = json.loads(raw_item)
             except (TypeError, json.JSONDecodeError):
                 continue
-            if isinstance(item, dict) and (event := adapt_codex_item(item, created_at_ms=created_at_ms)):
-                yield event
+            if isinstance(item, dict):
+                yield from adapt_codex_items(item, created_at_ms=created_at_ms)
 
 
 def inventory_sqlite(path: str | Path) -> tuple[int, list[dict[str, Any]]]:
@@ -89,7 +115,8 @@ def main() -> int:
 
     inventoried, events = inventory_sqlite(args.database)
     candidates = [event for event in events if event["event_type"] == "tool_call"]
-    matched = [event for event in candidates if _find_markers(event["payload"])]
+    sources = [event for event in events if event["event_type"] == "tool_source_reference"]
+    matched = [event for event in sources if _find_markers(event["payload"])]
     digest = _digest_events(events)
     findings = detect_p5_events(
         events,
@@ -102,6 +129,8 @@ def main() -> int:
         "records_inventoried": inventoried,
         "records_normalized": len(events),
         "p5_candidates": len(candidates),
+        "untrusted_content_events": len(sources),
+        "untrusted_content_pattern_matches": len(matched),
         "injection_pattern_matches": len(matched),
         "matched_events": matched,
         "p5_findings": findings,
