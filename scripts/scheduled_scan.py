@@ -69,6 +69,7 @@ ZOO_PREFLIGHT_TARGETS = {
 }
 INCOMPLETE_GROUPS = (
     "dispatch_failure",
+    "upstream_http",
     "transport",
     "format",
     "missing_judge",
@@ -296,11 +297,13 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     # capability the target did not declare.
     if "not_applicable" in value or "applicab" in value:
         return "unavailable_capability"
-    # Provider HTTP failures are transport failures, not malformed judge
-    # output.  The row retains the status-specific upstream_http_<code>
-    # reason for diagnosis while the operator manifest groups it correctly.
+    # Provider HTTP failures get their own operator bucket.  Folding them into
+    # "transport" hides the difference between a network fault we retry and a
+    # 401/403/429 from the provider, which needs a credential or quota fix.
+    # The row keeps the status-specific upstream_http_<code> reason for
+    # diagnosis; the manifest groups it under upstream_http.
     if value.startswith("upstream_http_"):
-        return "transport"
+        return "upstream_http"
     if target_calls <= 0:
         return "dispatch_failure"
     if "judge" in value:

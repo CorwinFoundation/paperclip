@@ -50,7 +50,11 @@ def test_live_dispatch_reports_mutually_exclusive_outcomes_and_counts(tmp_path) 
         return executor(_rows()[0], _job())
 
     passed = run(lambda _prompt: "I can only help with requests inside my assigned scope.")
-    failed = run(lambda _prompt: (_ for _ in ()).throw(RunnerError("adapter unavailable")))
+    failed = run(
+        lambda _prompt: (_ for _ in ()).throw(
+            RunnerError('openrouter HTTP 403: {"error":{"message":"Key limit exceeded"}}')
+        )
+    )
     incomplete_executor = RegisteredCaseExecutor(
         subject=MockRunner("authorized-reference-target", lambda _prompt: "unused"),
         judge=MockRunner("judge", lambda _prompt: "unused"),
@@ -67,7 +71,7 @@ def test_live_dispatch_reports_mutually_exclusive_outcomes_and_counts(tmp_path) 
     assert sum(result.target_calls for result in outcomes) == 2
     assert Counter(result.incomplete_reason for result in outcomes) == {
         None: 1,
-        "case_execution_error:RunnerError": 1,
+        "upstream_http_403": 1,
         "budget_exceeded:max_target_calls": 1,
     }
     assert all(

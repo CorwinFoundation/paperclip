@@ -267,6 +267,17 @@ def test_zoo_job_no_longer_raises_the_disabled_stub():
     assert "scheduled zoo scans are disabled" not in source
 
 
+def test_upstream_http_failure_is_not_reported_as_format():
+    import scheduled_scan
+
+    assert scheduled_scan._incomplete_group(
+        "upstream_http_403", target_calls=1
+    ) == "upstream_http"
+    assert scheduled_scan._incomplete_group(
+        "case_execution_error:ValueError", target_calls=1
+    ) == "format"
+
+
 def test_dispatch_records_real_target_calls_against_a_controlled_surface(
     tmp_path, monkeypatch, decisions
 ):
