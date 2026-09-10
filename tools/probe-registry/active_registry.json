@@ -15270,7 +15270,7 @@
     },
     {
       "bucket": "runnable_today",
-      "case_id_or_probe_id": "abcde731f528f6456462ae31985c569a5a8a9318d07aafb609c43c2b51c019b7",
+      "case_id_or_probe_id": "41434ba01a96220c7076269675ae228f400f345dcfe3f0cd57bece13f631103f",
       "categories": {
         "attestation_only": false,
         "blocked_unsupported": false,
@@ -15296,7 +15296,7 @@
         "path": "rubric/probe_mappings/p3_2_indirect_injection_rob.yaml",
         "version": "p3_2_indirect_injection_rob@0.1.0"
       },
-      "stable_id": "07049a27ad042dee97a42cac8d4cbc32b2433210520b0f588dc7818f7a688529",
+      "stable_id": "a8f5b8100c01b5f63426734adb097324a749543efbf20a90101bcd11d6c88b61",
       "version_pin": "p3_2_indirect_injection_rob@0.1.0",
       "worker_runner": "bench_wrapper"
     },

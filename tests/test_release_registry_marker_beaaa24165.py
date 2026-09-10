@@ -14,8 +14,11 @@ from tools.release_registry_marker import (
 
 
 REPO = Path(__file__).resolve().parents[1]
+# Re-pinned for BEAAA-31091: the ii-015 indirect-injection fixture prompt changed
+# to clear the VAPI 403, moving that one row's runtime identity to
+# 41434ba0...103f. Row counts are unchanged (2,353 / 2,352); only the hash moves.
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "23cad4ddc70108fc8a597c7a1e29082fa623b106fe1dcc5bf6e5851101f79a04"
+    "7c8670af54b9583a38e5c05acc6e431288a3642c5319e738fda61026e883fa1e"
 )
 
 
