@@ -115,6 +115,44 @@ def _config(name: str, default: str | None = None) -> str:
     return str(value).strip()
 
 
+def _ensure_writable_worker_home(evidence_root: Path) -> Path:
+    """Guarantee the worker process has a writable ``HOME``.
+
+    Garak, and the huggingface libraries it imports, write caches and config
+    under ``HOME`` at import time. The scan unit runs as ``backbond-scan``,
+    whose passwd home does not exist on the host, so an unset or unwritable
+    ``HOME`` aborts the run before a single probe dispatches. The evidence root
+    is already owned by the scan user, so a directory beneath it is writable
+    without a privileged step. An already-writable ``HOME`` is left alone.
+    """
+    current = os.environ.get("HOME", "").strip()
+    if current:
+        candidate = Path(current)
+        probe = candidate / ".backbond-home-probe"
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            probe.touch()
+            probe.unlink()
+            return candidate
+        except OSError:
+            pass
+
+    home = evidence_root / ".worker-home"
+    home.mkdir(parents=True, exist_ok=True)
+    os.chmod(home, 0o700)
+    os.environ["HOME"] = str(home)
+    for name, leaf in (
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_CONFIG_HOME", "config"),
+        ("XDG_DATA_HOME", "data"),
+        ("XDG_STATE_HOME", "state"),
+    ):
+        path = home / leaf
+        path.mkdir(parents=True, exist_ok=True)
+        os.environ[name] = str(path)
+    return home
+
+
 def _default_execution_environment() -> str:
     """Name the host this unit actually runs on, so provenance is not a guess."""
     return f"{socket.gethostname().split('.')[0].lower()}-scheduled-unit"
@@ -652,6 +690,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
     map_zoo_secret_environment()
     config = config or ScheduleConfig.from_environment()
     config.validate()
+    _ensure_writable_worker_home(config.evidence_root)
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
 
     run_date = datetime.now(timezone.utc).date().isoformat()
@@ -773,6 +812,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
     secrets = map_secret_environment()
     config = config or ScheduleConfig.from_environment()
     config.validate()
+    _ensure_writable_worker_home(config.evidence_root)
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
 
     run_date = datetime.now(timezone.utc).date().isoformat()

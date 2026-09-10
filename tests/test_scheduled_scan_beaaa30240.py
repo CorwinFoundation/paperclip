@@ -15,6 +15,7 @@ from scripts.scheduled_scan import (
     RateLimitedRunner,
     ScheduleConfig,
     SharedRateLimiter,
+    _ensure_writable_worker_home,
     _operator_manifest,
     map_secret_environment,
     load_garak_dispatch_rows,
@@ -431,3 +432,33 @@ def test_execution_environment_is_derived_not_hardcoded(monkeypatch):
     assert ScheduleConfig.from_environment().execution_environment == (
         "explicit-host-unit"
     )
+
+
+def test_worker_home_falls_back_under_evidence_root_when_home_is_unwritable(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("HOME", "/nonexistent/backbond-scan")
+    evidence_root = tmp_path / "scans"
+    evidence_root.mkdir()
+
+    home = _ensure_writable_worker_home(evidence_root)
+
+    assert home == evidence_root / ".worker-home"
+    assert home.is_dir()
+    assert os.environ["HOME"] == str(home)
+    assert os.environ["XDG_CACHE_HOME"] == str(home / "cache")
+    assert Path(os.environ["XDG_DATA_HOME"]).is_dir()
+
+
+def test_worker_home_keeps_an_already_writable_home(tmp_path, monkeypatch):
+    writable = tmp_path / "real-home"
+    writable.mkdir()
+    monkeypatch.setenv("HOME", str(writable))
+    evidence_root = tmp_path / "scans"
+    evidence_root.mkdir()
+
+    home = _ensure_writable_worker_home(evidence_root)
+
+    assert home == writable
+    assert os.environ["HOME"] == str(writable)
+    assert not (evidence_root / ".worker-home").exists()
