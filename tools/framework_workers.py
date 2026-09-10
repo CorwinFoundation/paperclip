@@ -271,6 +271,25 @@ def _agentdojo_adapter_result(
     )
 
 
+def _garak_prompt_text(prompt: Any) -> str:
+    """Return the prompt text a Garak generator was handed.
+
+    garak 0.16.0 calls `Generator._call_model` with a `Conversation`, not the
+    bare string earlier pins passed. The subject transport serialises its
+    request body as JSON, so handing the object through raised
+    `TypeError: Object of type Conversation is not JSON serializable` on every
+    native probe row (BEAAA-31012, dispatch #3). Accepting both shapes keeps
+    this correct across a pin bump in either direction.
+    """
+    last_message = getattr(prompt, "last_message", None)
+    if callable(last_message):
+        message = last_message()
+        if message is None:
+            return ""
+        return str(getattr(message, "text", "") or "")
+    return str(prompt)
+
+
 def _garak_adapter_result(
     worker: WorkerDefinition,
     registry_row: Mapping[str, Any],
@@ -292,6 +311,7 @@ def _garak_adapter_result(
         return _unsupported_interface(worker, model_version, "missing_probe_name")
     try:
         from garak import _config, _plugins  # type: ignore
+        from garak.attempt import Message  # type: ignore
         from garak.evaluators.base import ThresholdEvaluator  # type: ignore
         from garak.generators.base import Generator  # type: ignore
     except ImportError as exc:
@@ -307,8 +327,12 @@ def _garak_adapter_result(
         generator_family_name = "backbond-worker-subject"
         parallel_capable = False
 
-        def _call_model(self, prompt: str, generations_this_call: int = 1) -> list[str]:
-            return [_complete_subject(subject, prompt) for _ in range(generations_this_call)]
+        def _call_model(self, prompt: Any, generations_this_call: int = 1) -> list[Any]:
+            text = _garak_prompt_text(prompt)
+            return [
+                Message(_complete_subject(subject, text))
+                for _ in range(generations_this_call)
+            ]
 
     report = tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8")
     try:

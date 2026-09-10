@@ -117,6 +117,10 @@ def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
     garak_mod = types.ModuleType("garak")
     garak_mod._config = FakeConfig()
     garak_mod._plugins = FakePlugins()
+    # The worker imports garak.attempt.Message for the 0.16.0 generator return
+    # contract, so the stub package has to carry it or the import fails closed.
+    attempt_mod = types.ModuleType("garak.attempt")
+    attempt_mod.Message = type("FakeMessage", (), {"__init__": lambda self, text: setattr(self, "text", text)})
     generators_base = types.ModuleType("garak.generators.base")
     generators_base.Generator = type("FakeGenerator", (), {})
     evaluators_base = types.ModuleType("garak.evaluators.base")
@@ -125,6 +129,7 @@ def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
                                "test": lambda self, score: score > 0.5}
     )
     monkeypatch.setitem(sys.modules, "garak", garak_mod)
+    monkeypatch.setitem(sys.modules, "garak.attempt", attempt_mod)
     monkeypatch.setitem(sys.modules, "garak.generators", types.ModuleType("garak.generators"))
     monkeypatch.setitem(sys.modules, "garak.generators.base", generators_base)
     monkeypatch.setitem(sys.modules, "garak.evaluators", types.ModuleType("garak.evaluators"))
@@ -178,3 +183,144 @@ def test_appended_garak_detail_preserves_scheduled_scan_bucket():
     original = "worker_unsupported_interface:garak:native_probe_interface:TypeError"
     assert _incomplete_group(original, target_calls=0) == "dispatch_failure"
     assert _incomplete_group(f"{original}:unexpected keyword argument", target_calls=0) == "dispatch_failure"
+
+
+def _stub_garak(monkeypatch, probe_cls):
+    """Install a minimal fake garak package and return the module namespace."""
+    import sys, types
+
+    class FakeMessage:
+        def __init__(self, text):
+            self.text = text
+
+    class FakeDetector:
+        def detect(self, attempt):
+            return []
+
+    class FakePlugins:
+        def load_plugin(self, name):
+            return probe_cls() if name.startswith("probes.") else FakeDetector()
+
+    class FakeConfig:
+        class run:
+            generations = 1
+            seed = 0
+            eval_threshold = 0.5
+
+        class transient:
+            reportfile = None
+
+        def load_base_config(self):
+            pass
+
+    garak_mod = types.ModuleType("garak")
+    garak_mod._config = FakeConfig()
+    garak_mod._plugins = FakePlugins()
+    attempt_mod = types.ModuleType("garak.attempt")
+    attempt_mod.Message = FakeMessage
+    generators_base = types.ModuleType("garak.generators.base")
+    generators_base.Generator = type("FakeGenerator", (), {"__init__": lambda self, name=None: None})
+    evaluators_base = types.ModuleType("garak.evaluators.base")
+    evaluators_base.ThresholdEvaluator = type(
+        "FakeEvaluator", (), {"__init__": lambda self, threshold: None,
+                              "test": lambda self, score: score > 0.5}
+    )
+    monkeypatch.setitem(sys.modules, "garak", garak_mod)
+    monkeypatch.setitem(sys.modules, "garak.attempt", attempt_mod)
+    monkeypatch.setitem(sys.modules, "garak.generators", types.ModuleType("garak.generators"))
+    monkeypatch.setitem(sys.modules, "garak.generators.base", generators_base)
+    monkeypatch.setitem(sys.modules, "garak.evaluators", types.ModuleType("garak.evaluators"))
+    monkeypatch.setitem(sys.modules, "garak.evaluators.base", evaluators_base)
+    return FakeMessage
+
+
+def _run_garak_with_probe(monkeypatch, probe_cls):
+    import tools.framework_workers as fw
+
+    message_cls = _stub_garak(monkeypatch, probe_cls)
+    seen = []
+
+    def fake_complete(subject, prompt):
+        seen.append(prompt)
+        return "target replied"
+
+    monkeypatch.setattr(fw, "_complete_subject", fake_complete)
+    fw._garak_adapter_result(
+        WORKERS["garak"],
+        {"case_id": "garak.misleading.FalseAssertion"},
+        {"job_id": "j1", "seed": 0,
+         "subject_adapter": {"kind": "customer_agent_http", "endpoint": "https://api.vapi.ai",
+                             "secret": "k", "agent_id": "a"}},
+        "v1",
+    )
+    return seen, message_cls
+
+
+def test_garak_generator_unwraps_conversation_prompt(monkeypatch):
+    """garak 0.16.0 hands _call_model a Conversation; the subject transport
+    serialises JSON, so the object must be reduced to its text first.
+
+    Passing it through raised `Object of type Conversation is not JSON
+    serializable` on 21 of 27 rows in the BEAAA-31012 dispatch."""
+    captured = {}
+
+    class ConversationProbe:
+        primary_detector = "always.Fail"
+
+        def probe(self, gen):
+            captured["outputs"] = gen._call_model(_FakeConversation("say the quiet part"), 1)
+            return []
+
+    seen, message_cls = _run_garak_with_probe(monkeypatch, ConversationProbe)
+
+    assert seen == ["say the quiet part"]
+    assert [type(item) for item in captured["outputs"]] == [message_cls]
+    assert [item.text for item in captured["outputs"]] == ["target replied"]
+
+
+def test_garak_generator_still_accepts_a_plain_string_prompt(monkeypatch):
+    """Earlier garak pins passed a bare string. Keep that path working so a pin
+    bump in either direction cannot silently break the transport."""
+    class StringProbe:
+        primary_detector = "always.Fail"
+
+        def probe(self, gen):
+            gen._call_model("plain string prompt", 1)
+            return []
+
+    seen, _ = _run_garak_with_probe(monkeypatch, StringProbe)
+    assert seen == ["plain string prompt"]
+
+
+def test_garak_generator_honours_generations_this_call(monkeypatch):
+    class MultiProbe:
+        primary_detector = "always.Fail"
+
+        def probe(self, gen):
+            captured_outputs.extend(gen._call_model(_FakeConversation("hi"), 3))
+            return []
+
+    captured_outputs: list = []
+    seen, _ = _run_garak_with_probe(monkeypatch, MultiProbe)
+    assert seen == ["hi", "hi", "hi"]
+    assert len(captured_outputs) == 3
+
+
+def test_garak_prompt_text_handles_an_empty_conversation():
+    from tools.framework_workers import _garak_prompt_text
+
+    class Empty:
+        def last_message(self, role=None):
+            return None
+
+    assert _garak_prompt_text(Empty()) == ""
+
+
+class _FakeConversation:
+    """Stands in for garak.attempt.Conversation: last_message() -> Message."""
+
+    def __init__(self, text):
+        self._text = text
+
+    def last_message(self, role=None):
+        return type("M", (), {"text": self._text})()
