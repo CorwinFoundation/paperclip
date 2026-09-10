@@ -762,3 +762,21 @@ prompts, or request bodies.
 10. Likely critique addressed: the deployable surface cannot create a second
     listener (structurally rejected outside a server block), and no signature or
     digest is guessed — the signed manifest binding these fragments is mandatory.
+
+## Exporting retained evidence from the deploy seat (BEAAA-31542)
+
+The live unit bind-mounts `/var/lib/are-scanner` read-write at the same path on the
+host, so retained evidence is already on the host filesystem. The directory is mode
+0710 and owned by `are-scanner`, so the `are-deploy` seat cannot traverse it, and the
+seat has no docker socket access. The export runs under the one NOPASSWD entry the
+seat holds:
+
+```
+ssh are-deploy@srv1749248 sudo /usr/local/sbin/scanner-deploy export-evidence
+```
+
+It prints two paths in `/var/tmp/are-scanner-evidence-exports/`, both owned by the
+invoking user: a `.tar.gz` of the `retained-evidence` subtree and a
+`.manifest.json` carrying a sha256 for every file plus the archive digest. Verify
+with the manifest, then do row selection locally. No root step, no console session,
+and no companion file anywhere on the box.

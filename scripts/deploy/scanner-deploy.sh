@@ -18,6 +18,11 @@ CONTAINER="${SCANNER_CONTAINER_NAME:-backbond-scanner-live-edge}"
 EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
+# BEAAA-31542: retained-evidence export. The live unit bind-mounts the state
+# directory read-write at the same path on the host, so the evidence is already
+# on disk; only the 0710 mode on the state directory keeps the deploy seat out.
+EVIDENCE_STATE_DIR="${SCANNER_EVIDENCE_STATE_DIR:-/var/lib/are-scanner}"
+EVIDENCE_EXPORT_DIR="${SCANNER_EVIDENCE_EXPORT_DIR:-/var/tmp/are-scanner-evidence-exports}"
 
 REVISION_LABEL=org.opencontainers.image.revision
 # BEAAA-23948: the Development Mode helper remains argument-driven, but this
@@ -66,7 +71,86 @@ wait_200() {
   return 1
 }
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id>'
+# BEAAA-31542: `scanner-deploy export-evidence` copies the retained-evidence
+# subtree out to a directory the invoking seat user owns, with a per-file
+# sha256 manifest. Self-contained on purpose: the 2026-09-10 07:00Z run failed
+# on a companion file in /tmp, so this depends on nothing outside the helper.
+export_evidence() {
+  [ "$#" = 0 ] || die 'usage: scanner-deploy export-evidence'
+  [ ! -L "$EVIDENCE_STATE_DIR" ] || die 'evidence state directory is a symlink'
+  src="$EVIDENCE_STATE_DIR/retained-evidence"
+  [ ! -L "$src" ] || die 'retained-evidence directory is a symlink'
+  [ -d "$src" ] || die "retained-evidence directory missing: $src"
+  out_uid="${SUDO_UID:-$(id -u)}"
+  out_gid="${SUDO_GID:-$(id -g)}"
+  [[ "$out_uid" =~ ^[0-9]+$ ]] || die 'SUDO_UID is not numeric'
+  [[ "$out_gid" =~ ^[0-9]+$ ]] || die 'SUDO_GID is not numeric'
+  install -d -m 0755 "$EVIDENCE_EXPORT_DIR"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  base="retained-evidence-$stamp"
+  work="$(mktemp -d)" || die 'cannot create export staging directory'
+  trap 'rm -rf -- "$work"' EXIT INT TERM
+  # No --dereference: a symlink inside the evidence tree is archived as a
+  # symlink, never followed out of the tree by a root-owned tar.
+  tar --numeric-owner --owner=0 --group=0 -czf "$work/$base.tar.gz" \
+    -C "$EVIDENCE_STATE_DIR" retained-evidence || die 'cannot archive retained evidence'
+  python3 - "$src" "$work/$base.tar.gz" "$work/$base.manifest.json" "$stamp" <<'PY'
+import hashlib, json, os, sys
+src, archive, out, stamp = sys.argv[1:5]
+
+def digest(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+entries = []
+for root, dirs, names in os.walk(src):
+    dirs.sort()
+    for name in sorted(names):
+        path = os.path.join(root, name)
+        rel = os.path.relpath(path, src)
+        if os.path.islink(path):
+            entries.append({"path": rel, "type": "symlink"})
+        elif os.path.isfile(path):
+            entries.append({"path": rel, "type": "file",
+                            "size_bytes": os.path.getsize(path),
+                            "sha256": digest(path)})
+        else:
+            entries.append({"path": rel, "type": "other"})
+manifest = {
+    "schema_version": "backbond-retained-evidence-export@1",
+    "exported_at": stamp,
+    "source_dir": src,
+    "archive_name": os.path.basename(archive),
+    "archive_sha256": digest(archive),
+    "file_count": sum(1 for e in entries if e["type"] == "file"),
+    "entries": entries,
+}
+with open(out, 'w', encoding='utf-8') as fh:
+    json.dump(manifest, fh, indent=2, sort_keys=True)
+    fh.write("\n")
+PY
+  [ -s "$work/$base.manifest.json" ] || die 'cannot write export manifest'
+  if [ "$(id -u)" = 0 ]; then
+    install -o "$out_uid" -g "$out_gid" -m 0640 "$work/$base.tar.gz" "$EVIDENCE_EXPORT_DIR/$base.tar.gz"
+    install -o "$out_uid" -g "$out_gid" -m 0640 "$work/$base.manifest.json" "$EVIDENCE_EXPORT_DIR/$base.manifest.json"
+  else
+    install -m 0640 "$work/$base.tar.gz" "$EVIDENCE_EXPORT_DIR/$base.tar.gz"
+    install -m 0640 "$work/$base.manifest.json" "$EVIDENCE_EXPORT_DIR/$base.manifest.json"
+  fi
+  log "OK: exported retained evidence for uid $out_uid"
+  printf '%s\n%s\n' "$EVIDENCE_EXPORT_DIR/$base.tar.gz" "$EVIDENCE_EXPORT_DIR/$base.manifest.json"
+}
+
+if [ "${1:-}" = export-evidence ]; then
+  shift
+  export_evidence "$@"
+  exit 0
+fi
+
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
