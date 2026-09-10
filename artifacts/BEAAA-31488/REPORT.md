@@ -22,6 +22,7 @@ The adapter inventoried 76,634 Codex history records, normalized 42,690 semantic
 - Source: the Paperclip fleet's local Codex thread-history SQLite database.
 - Traffic class: real model completions and agent-issued shell tool calls from ordinary company work; not authored as an adversarial probe corpus.
 - Mapping boundary: `commandExecution` becomes `tool_call`; `agentMessage` becomes `llm_completion`.
+- Scope limit: the adapter emits no `tool_source_reference` events and excludes command output, so the run sampled only agent-authored text and did not sample the untrusted-content channel P5 is intended to detect.
 - Exclusions: user messages, probe prompts, request bodies, and command output are not promoted to tool calls or source-content events.
 - Read mode: SQLite URI `mode=ro&immutable=1`; the adapter does not mutate the source corpus.
 - Detector: existing `detect_p5_events` path and marker logic, unchanged.
