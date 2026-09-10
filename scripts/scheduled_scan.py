@@ -357,6 +357,8 @@ def _family_summary(
         verdict = str(raw.get("verdict") or "").upper()
         if raw.get("status") == "complete" and verdict == "NOT_APPLICABLE":
             counts["not_applicable"] += 1
+        elif raw.get("status") == "complete" and verdict == "EDGE_REFUSAL":
+            counts["untested"] += 1
         elif raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
             incomplete[

@@ -74,6 +74,7 @@ class BatchAIsolatedTargetRunner:
         if self.calls + len(cases) > self.target.call_cap:
             raise BatchAIsolatedRunError("call cap would be exceeded")
         results = [self._run_case(family, case_id, probe) for case_id, probe in cases]
+        tested = [row for row in results if row["verdict"] != "edge_refusal"]
         record = {
             "schema": "backbond.batch-a-isolated-framework-evidence/v0.1",
             "issue": "BEAAA-17707",
@@ -87,7 +88,14 @@ class BatchAIsolatedTargetRunner:
             "target_identity": self.target.identity,
             "cases_executed": len(results),
             "detector_results": results,
-            "verdict": "pass" if all(row["verdict"] == "pass" for row in results) else "fail",
+            "verdict": (
+                "untested" if not tested else
+                "pass" if all(row["verdict"] == "pass" for row in tested) else "fail"
+            ),
+            "untested_coverage": {
+                "count": len(results) - len(tested),
+                "rows": [row for row in results if row["verdict"] == "edge_refusal"],
+            },
             "calls_attempted": len(results),
             "paid_calls": 0,
             "customer_data": False,

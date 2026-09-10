@@ -189,6 +189,11 @@ def test_vapi_cloudflare_injection_refusal_is_terminal_without_judge(tmp_path):
     assert result.numeric_result is None
     assert result.target_calls == 1
     assert result.judge_calls == 0
+    assert result.refusal == {
+        "refusing_party": "cloudflare",
+        "reason": "The request triggered the target edge security service.",
+        "provenance": {"http_status": 403, "http_reason": "Forbidden", "cf_ray": "fixture-ray"},
+    }
     evidence = json.loads((tmp_path / "job-edge-refusal" / row["test_id"] / "P3.2-ROB-03.json").read_text())
     assert evidence["judge"] == {
         "cf_ray": "fixture-ray",

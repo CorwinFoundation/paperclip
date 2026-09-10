@@ -159,7 +159,11 @@ class BatchAPinnedJsonlTargetRunner:
 
         summary_families = []
         for family_id, path_results in sorted(families.items()):
-            verdict = "pass" if all(item["verdict"] == "pass" for item in path_results) else "fail"
+            tested = [item for item in path_results if item["verdict"] != "edge_refusal"]
+            verdict = (
+                "untested" if not tested else
+                "pass" if all(item["verdict"] == "pass" for item in tested) else "fail"
+            )
             summary_families.append(
                 {
                     "family_id": family_id,

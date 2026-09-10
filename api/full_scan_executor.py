@@ -131,6 +131,7 @@ class EvidenceAttemptRow:
     case_version: str | None = None
     derived_result_id: str | None = None
     derived_result_version: str = "registered-case-result/v1"
+    refusal: dict[str, Any] | None = None
 
     def to_manifest_row(self) -> dict[str, Any]:
         return {
@@ -161,6 +162,7 @@ class EvidenceAttemptRow:
             "case_version": self.case_version,
             "derived_result_id": self.derived_result_id,
             "derived_result_version": self.derived_result_version,
+            "refusal": self.refusal,
         }
 
 
@@ -184,6 +186,7 @@ class WorkerAttemptResult:
     # criteria produced its verdict, so capability-based reclassification must
     # fail closed and preserve the verdict.
     unmet_criteria: tuple[str, ...] = ()
+    refusal: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -653,6 +656,22 @@ def build_attempt_manifest(
     verdict_counts = Counter(
         str(row.get("verdict") or "unresolved") for row in rows
     )
+    refused_rows = [row for row in rows if str(row.get("verdict") or "").lower() == "edge_refusal"]
+    untested_coverage = {
+        "count": len(refused_rows),
+        "rows": [
+            {
+                "probe_id": row["probe_id"],
+                "case_id": row["probe_id"],
+                "family_id": row.get("test_id") or row.get("framework"),
+                "refusing_party": (row.get("refusal") or {}).get("refusing_party"),
+                "reason": (row.get("refusal") or {}).get("reason"),
+                "provenance": (row.get("refusal") or {}).get("provenance", {}),
+                "evidence_ref": row.get("evidence_ref"),
+            }
+            for row in refused_rows
+        ],
+    }
     status_counts = Counter(str(row.get("status") or "unknown") for row in rows)
     budget = {
         "target_calls": sum(int(row.get("target_calls") or 0) for row in rows),
@@ -729,6 +748,7 @@ def build_attempt_manifest(
             "passed": acceptance_passed,
         },
         "verdict_counts": dict(sorted(verdict_counts.items())),
+        "untested_coverage": untested_coverage,
         "budget": budget,
         "analysis_status": (
             "complete" if not incomplete_reasons else "analysis_incomplete"
@@ -1134,6 +1154,7 @@ def dispatch_registry_attempt(
                 estimated_judge_cost_usd=result.estimated_judge_cost_usd,
                 duration_ms=result.duration_ms,
                 numeric_result=result.numeric_result,
+                refusal=result.refusal,
                 acquisition_basis=(
                     "target-measured"
                     if result_status == "complete" and result.target_calls > 0

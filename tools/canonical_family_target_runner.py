@@ -312,6 +312,8 @@ def _terminal_verdict(
         return "fail"
     if payload.get("rubric_point_id") != row["rubric_point_id"]:
         return "fail"
+    if payload.get("verdict") == "edge_refusal":
+        return "untested"
     if payload.get("verdict") != "pass":
         return "fail"
     if payload.get("customer_data") is not False:

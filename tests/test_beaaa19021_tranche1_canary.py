@@ -383,9 +383,10 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # RuntimeError, moving the evaluator pin to 52398d4e and this digest to
     # c9536ff5. BEAAA-30954 retains lane-C responses on parse failure, touching
     # registered_case_executor.py and moving the evaluator pin to df105868 and
-    # this digest to a542c1f4.
+    # this digest to a542c1f4. BEAAA-31298 adds untested_coverage disclosure to
+    # the grade render, moving this derived manifest digest to 02f7b4f6.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "c31be802c2e9a2791990b8f5e9ff335b3adad16b346910c77d8a1c6ab3fe364b"
+        "02f7b4f6a9d5bb45237e48bb57f94191ec064d2a743759f0cda1c7a39d80ff34"
     )
 
 

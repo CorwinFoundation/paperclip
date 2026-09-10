@@ -541,6 +541,19 @@ class RegisteredCaseExecutor:
                 else None
             ),
             unmet_criteria=unmet_criteria if status == "complete" else (),
+            refusal=(
+                {
+                    "refusing_party": evidence["judge"].get("provider"),
+                    "reason": evidence["judge"].get("response_reason"),
+                    "provenance": {
+                        key: evidence["judge"][key]
+                        for key in ("http_status", "http_reason", "cf_ray")
+                        if evidence["judge"].get(key) is not None
+                    },
+                }
+                if verdict == "edge_refusal" and isinstance(evidence.get("judge"), dict)
+                else None
+            ),
         )
 
     def _execute_case(
