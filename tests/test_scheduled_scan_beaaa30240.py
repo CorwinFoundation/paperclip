@@ -301,6 +301,7 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "target_called": 2,
         "pass": 1,
         "fail": 1,
+        "measured": 0,
         "incomplete": 0,
         "not_applicable": 0,
     }
@@ -308,8 +309,10 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "aborted_upstream": 0,
         "dispatch_failure": 2,
         "transport": 0,
-        "format": 1,
+        "format": 0,
+        "insufficient_sample": 0,
         "missing_judge": 1,
+        "unclassified": 1,
         "unavailable_capability": 0,
         "upstream_http": 0,
     }

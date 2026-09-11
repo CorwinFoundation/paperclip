@@ -76,6 +76,8 @@ INCOMPLETE_GROUPS = (
     "format",
     "missing_judge",
     "unavailable_capability",
+    "insufficient_sample",
+    "unclassified",
 )
 
 
@@ -324,6 +326,8 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     # diagnosis; the manifest groups it under upstream_http.
     if value.startswith("upstream_http_"):
         return "upstream_http"
+    if value.startswith("garak_sample_size_below_floor"):
+        return "insufficient_sample"
     if target_calls <= 0:
         return "dispatch_failure"
     if "judge" in value:
@@ -342,7 +346,9 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
         return "unavailable_capability"
     if any(token in value for token in ("transport", "timeout", "connection", "http", "network")):
         return "transport"
-    return "format"
+    if "case_execution_error" in value:
+        return "format"
+    return "unclassified"
 
 
 def _family_name(raw: Mapping[str, Any]) -> str:
@@ -382,6 +388,7 @@ def _family_summary(
                         "target_called",
                         "pass",
                         "fail",
+                        "measured",
                         "incomplete",
                         "not_applicable",
                     )
@@ -413,6 +420,7 @@ def _family_summary(
                         "target_called",
                         "pass",
                         "fail",
+                        "measured",
                         "incomplete",
                     )
                 }
@@ -425,6 +433,12 @@ def _family_summary(
             counts["not_applicable"] += 1
         elif raw.get("status") == "complete" and verdict == "EDGE_REFUSAL":
             counts["untested"] += 1
+        elif (
+            raw.get("status") == "complete"
+            and raw.get("numeric_result") is not None
+            and raw.get("verdict") is None
+        ):
+            counts["measured"] += 1
         elif raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
             incomplete[
@@ -466,12 +480,27 @@ def _operator_manifest(
         for dimension in filter(None, re.split(r"[,;]", rubric_point_id)):
             counts = dimensions.setdefault(
                 dimension.strip(),
-                Counter({"rows": 0, "pass": 0, "fail": 0, "not_applicable": 0, "incomplete": 0}),
+                Counter(
+                    {
+                        "rows": 0,
+                        "pass": 0,
+                        "fail": 0,
+                        "measured": 0,
+                        "not_applicable": 0,
+                        "incomplete": 0,
+                    }
+                ),
             )
             counts["rows"] += 1
             verdict = str(row.get("verdict") or "").upper()
             if row.get("status") == "complete" and verdict in {"PASS", "FAIL", "NOT_APPLICABLE"}:
                 counts[verdict.lower()] += 1
+            elif (
+                row.get("status") == "complete"
+                and row.get("numeric_result") is not None
+                and row.get("verdict") is None
+            ):
+                counts["measured"] += 1
             else:
                 counts["incomplete"] += 1
     budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
@@ -541,6 +570,7 @@ def _zoo_family_summary(
                         "target_called",
                         "pass",
                         "fail",
+                        "measured",
                         "incomplete",
                         "not_applicable",
                     )
@@ -573,6 +603,12 @@ def _zoo_family_summary(
         verdict = str(raw.get("verdict") or "").upper()
         if raw.get("status") == "complete" and verdict == "NOT_APPLICABLE":
             counts["not_applicable"] += 1
+        elif (
+            raw.get("status") == "complete"
+            and raw.get("numeric_result") is not None
+            and raw.get("verdict") is None
+        ):
+            counts["measured"] += 1
         elif raw.get("status") != "complete" or verdict not in {"PASS", "FAIL"}:
             counts["incomplete"] += 1
             incomplete[
