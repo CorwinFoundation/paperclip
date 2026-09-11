@@ -375,14 +375,31 @@ def _garak_adapter_result(
         generator_family_name = "backbond-worker-subject"
         parallel_capable = False
 
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            # Garak 0.10 passes only the current challenge to a generator.  The
+            # generator therefore owns the target session for iterative probes.
+            self.conversation: list[dict[str, Any]] = []
+
         def _call_model(self, prompt: Any, generations_this_call: int = 1) -> list[Any]:
             nonlocal target_calls
-            text = _garak_prompt_text(prompt)
-            messages = []
+            incoming = _subject_messages(prompt)
+            if len(incoming) > 1:
+                self.conversation = incoming
+            else:
+                self.conversation.extend(incoming)
+            outputs = []
+            continued_conversation = self.conversation
             for _ in range(generations_this_call):
                 target_calls += 1
-                messages.append(Message(_complete_subject(subject, text)))
-            return messages
+                text, candidate_conversation = _run_subject_turn(subject, self.conversation)
+                if not outputs:
+                    continued_conversation = candidate_conversation
+                outputs.append(Message(text))
+            # Multiple generations are alternatives from one prompt, not turns
+            # in a conversation. Continue from the first deterministic branch.
+            self.conversation = continued_conversation
+            return outputs
 
     report = tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8")
     try:
@@ -699,6 +716,69 @@ def _subject_adapter(job: Mapping[str, Any], registry_row: Mapping[str, Any]) ->
     return adapter if isinstance(adapter, Mapping) else None
 
 
+def _subject_messages(prompt: Any) -> list[dict[str, Any]]:
+    turns = getattr(prompt, "turns", None)
+    if isinstance(turns, list):
+        return [
+            {
+                "role": str(getattr(turn, "role", "user")),
+                "content": str(getattr(getattr(turn, "content", None), "text", getattr(turn, "content", "")) or ""),
+            }
+            for turn in turns
+        ]
+    return [{"role": "user", "content": _garak_prompt_text(prompt)}]
+
+
+def _response_for_messages(subject: Mapping[str, Any], messages: list[dict[str, Any]]) -> Any:
+    transcript = json.dumps(messages, separators=(",", ":"), ensure_ascii=False)
+    prompt = str(messages[-1].get("content") or "") if messages else ""
+    responses = subject.get("responses")
+    if isinstance(responses, Mapping):
+        if transcript in responses:
+            return responses[transcript]
+        if prompt in responses:
+            return responses[prompt]
+    return subject.get("response")
+
+
+def _run_subject_turn(subject: Mapping[str, Any], messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+    history = [dict(message) for message in messages]
+    if subject.get("kind") == "customer_agent_http":
+        from harness.customer_runner import customer_agent_http_runner_factory
+        runner = customer_agent_http_runner_factory(
+            str(subject.get("endpoint") or ""), str(subject.get("secret") or ""),
+            str(subject.get("agent_id") or "") or None,
+        )
+        complete_messages = getattr(runner, "complete_messages", None)
+        response = (
+            complete_messages(history, tools=subject.get("tools", ()))
+            if callable(complete_messages)
+            else _complete_subject(subject, str(history[-1]["content"]))
+        )
+    else:
+        response = _response_for_messages(subject, history)
+
+    for _ in range(8):
+        envelope = response if isinstance(response, Mapping) else {"text": response}
+        text = str(envelope.get("text") or envelope.get("content") or "")
+        calls = envelope.get("tool_calls") or []
+        history.append({"role": "assistant", "content": text, "tool_calls": calls or None})
+        if not calls:
+            return text, history
+        tools = subject.get("tools")
+        if not isinstance(tools, Mapping):
+            raise ValueError("subject_tool_surface_unavailable")
+        for call in calls:
+            name = str(call.get("name") or call.get("function") or "")
+            if name not in tools:
+                raise ValueError(f"subject_tool_unavailable:{name}")
+            tool = tools[name]
+            result = tool.get("result") if isinstance(tool, Mapping) and "result" in tool else tool
+            history.append({"role": "tool", "tool_call_id": str(call.get("id") or name), "name": name, "content": result})
+        response = _response_for_messages(subject, history)
+    raise ValueError("subject_tool_loop_limit")
+
+
 def _complete_subject(subject: Mapping[str, Any], prompt: str) -> str:
     if subject.get("kind") == "customer_agent_http":
         from harness.customer_runner import customer_agent_http_runner_factory
@@ -709,11 +789,11 @@ def _complete_subject(subject: Mapping[str, Any], prompt: str) -> str:
             str(subject.get("agent_id") or "") or None,
         )
         return runner.complete(prompt)
-    responses = subject.get("responses")
-    if isinstance(responses, Mapping) and prompt in responses:
-        return str(responses[prompt])
-    if "response" in subject:
-        return str(subject["response"])
+    response = _response_for_messages(subject, _subject_messages(prompt))
+    if response is not None:
+        if isinstance(response, Mapping):
+            return str(response.get("text") or response.get("content") or response)
+        return str(response)
     return f"LOCAL_TARGET_RESPONSE prompt_sha256={_sha256(prompt)[:16]} status=terminal"
 
 

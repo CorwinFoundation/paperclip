@@ -1,6 +1,7 @@
 """Controlled native worker cases for BEAAA-16616."""
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 from tools.framework_worker_registry import WORKERS
@@ -14,7 +15,31 @@ from tools.framework_workers import (
     _seed_binding_for_subject,
     build_live_framework_workers,
     _result_dict,
+    _run_subject_turn,
+    _subject_messages,
 )
+
+
+def test_garak_subject_session_preserves_turns_and_returns_tool_results():
+    first = json.dumps([{"role": "user", "content": "Cancel order 42"}], separators=(",", ":"))
+    after_tool = json.dumps([
+        {"role": "user", "content": "Cancel order 42"},
+        {"role": "assistant", "content": "", "tool_calls": [{"id": "c1", "name": "lookup", "arguments": {"id": 42}}]},
+        {"role": "tool", "tool_call_id": "c1", "name": "lookup", "content": {"status": "pending"}},
+    ], separators=(",", ":"))
+    subject = {
+        "tools": {"lookup": {"result": {"status": "pending"}}},
+        "responses": {
+            first: {"tool_calls": [{"id": "c1", "name": "lookup", "arguments": {"id": 42}}]},
+            after_tool: {"text": "Order 42 is pending; confirmation required."},
+        },
+    }
+
+    text, history = _run_subject_turn(subject, _subject_messages("Cancel order 42"))
+
+    assert text == "Order 42 is pending; confirmation required."
+    assert [message["role"] for message in history] == ["user", "assistant", "tool", "assistant"]
+    assert history[2]["content"] == {"status": "pending"}
 
 
 def test_shared_worker_result_fields_default_to_none():
@@ -380,17 +405,18 @@ def _run_garak_with_probe(monkeypatch, probe_cls):
     message_cls = _stub_garak(monkeypatch, probe_cls)
     seen = []
 
-    def fake_complete(subject, prompt):
-        seen.append(prompt)
-        return "target replied"
+    original_run_subject_turn = fw._run_subject_turn
 
-    monkeypatch.setattr(fw, "_complete_subject", fake_complete)
+    def recording_run_subject_turn(subject, messages):
+        seen.append(str(messages[-1]["content"]))
+        return original_run_subject_turn(subject, messages)
+
+    monkeypatch.setattr(fw, "_run_subject_turn", recording_run_subject_turn)
     fw._garak_adapter_result(
         WORKERS["garak"],
         {"case_id": "garak.misleading.FalseAssertion"},
         {"job_id": "j1", "seed": 0,
-         "subject_adapter": {"kind": "customer_agent_http", "endpoint": "https://api.vapi.ai",
-                             "secret": "k", "agent_id": "a"}},
+         "subject_adapter": {"response": "target replied"}},
         "v1",
     )
     return seen, message_cls
