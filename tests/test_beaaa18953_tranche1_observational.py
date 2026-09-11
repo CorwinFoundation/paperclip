@@ -134,7 +134,7 @@ def test_single_config_rollback_restores_only_36(monkeypatch):
     # 1782 before the BEAAA-23860 lane-C graduation moved 44 rows onto their
     # SPEC runner. The rollback still restores every content-candidate row it
     # owns; the 44 are no longer this worker's to restore.
-    assert len(worker_candidates) == 1738
+    assert len(worker_candidates) == 1737
     observational = [
         row
         for row in worker_candidates

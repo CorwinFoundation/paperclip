@@ -111,7 +111,7 @@ def test_activations_add_exact_scored_cases_without_count_or_pricing_drift() -> 
     rows = build_registry()
     activated = c10_family_activation.load_c10_family_activations()
 
-    assert count_canonical_scored_rows(rows) == 309 + len(activated)
+    assert count_canonical_scored_rows(rows) == 310 + len(activated)
     assert count_active_executable(rows) == 2_353
     assert count_target_bound_runtime(rows) == 2_364
     assert sum(

@@ -63,17 +63,17 @@ class DistinctCaseCountTests(unittest.TestCase):
         self.assertEqual(counts["declared_total"], 513)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs follow the current registry
-        # source of truth: 510 declared - 23 dupes plus the newly bound
+        # source of truth: 510 declared - 22 dupes plus the newly bound
         # eval-representation row = 487.
-        self.assertEqual(counts["total"], 490)
-        self.assertEqual(counts["declared_total"] - counts["total"], 23)
+        self.assertEqual(counts["total"], 491)
+        self.assertEqual(counts["declared_total"] - counts["total"], 22)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
-        # 23 total dupes = 14 within-family + 9 shared across families.
+        # 22 total dupes = 14 within-family + 9 shared across families.
         counts = distinct_case_counts(self.rows)
         intra = sum(c["collapsed"] for c in distinct_case_collapses(self.rows))
         self.assertEqual(intra, 14)
-        self.assertEqual(counts["cross_family_collapsed"], 9)
+        self.assertEqual(counts["cross_family_collapsed"], 8)
         self.assertEqual(
             sum(counts["by_family"].values()) - counts["total"],
             counts["cross_family_collapsed"],

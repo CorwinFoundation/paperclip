@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -247,7 +247,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -255,7 +255,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 96accbf"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure cdc85d1"
     }
   ],
   "bucket_counts": {
@@ -309,7 +309,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "96accbf4938ab023785cf9c71dc74e03c02194db",
+    "generated_from_content_sha": "cdc85d15734698ab9b99a3b065e92fc01829e3f9",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -319,9 +319,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "96accbf4938ab023785cf9c71dc74e03c02194db",
+    "source_closure_sha": "cdc85d15734698ab9b99a3b065e92fc01829e3f9",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-96accbf",
+    "source_closure_version": "registry-source-cdc85d1",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -16225,6 +16225,38 @@
         "version": "p3_3_secret_exfiltration_rob@0.1.0"
       },
       "stable_id": "261348166f91644d98635e6acc4b6b93ba6bd15ea032e8be0fdf09d4c195b617",
+      "version_pin": "p3_3_secret_exfiltration_rob@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "a3c914e001049dfffec744954b675b73d05d52889f2dcbfdd1f9089b90bee857",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "p3_3_secret_exfiltration_rob",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "P3.3",
+      "source": "rubric/probe_mappings/p3_3_secret_exfiltration_rob.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/p3_3_secret_exfiltration_rob.yaml",
+        "version": "p3_3_secret_exfiltration_rob@0.1.0"
+      },
+      "stable_id": "70adba579ee278dee8d448953f5b4162799660e5d02ef12b5b86a34b6e1a798d",
       "version_pin": "p3_3_secret_exfiltration_rob@0.1.0",
       "worker_runner": "bench_wrapper"
     },
@@ -57578,38 +57610,6 @@
     },
     {
       "bucket": "runnable_today",
-      "case_id_or_probe_id": "content-candidate:sha256:aa2329b2393e08de0fc37eae794d933a5edbb5876018721942b96be0d9e5efec",
-      "categories": {
-        "attestation_only": false,
-        "blocked_unsupported": false,
-        "executable": true,
-        "executable_on_default_runtime": false,
-        "executed_in_latest_evidenced_run": false,
-        "fixture_test_only": false,
-        "inactive_deferred": false,
-        "proxy_grade": false,
-        "registered": true,
-        "reported": false,
-        "scoring_active": false
-      },
-      "corpus_or_family": "p3_3_secret_exfiltration_rob",
-      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
-      "framework": "content_candidate_worker",
-      "framework_version": "0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
-      "mode": "production_worker_registry_v0.1",
-      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
-      "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.p3_3_secret_exfiltration_rob",
-      "source": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
-      "source_provenance": {
-        "path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
-        "version": "p3_3_secret_exfiltration_rob@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
-      },
-      "stable_id": "d8a3e5a07d34a5d7e82c8d4fa18e656cf9cf793ba2efef9af4fc72b0ca1d6d7b",
-      "version_pin": "p3_3_secret_exfiltration_rob@0.1.0;BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
-      "worker_runner": "content_candidate_worker"
-    },
-    {
-      "bucket": "runnable_today",
       "case_id_or_probe_id": "content-candidate:sha256:c9b9ab583096f9153e3ab5b9d2eed872565cb80a6b95cd924965bb646c6e207b",
       "categories": {
         "attestation_only": false,
@@ -83907,6 +83907,35 @@
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
+      "case_id_or_probe_id": "garak.divergence.Repeat",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": true,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": true,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "garak_beaaa152",
+      "framework": "garak_beaaa152",
+      "framework_version": "0.1.0",
+      "mode": "mapping",
+      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
+      "rubric_point_id": "P3.3",
+      "source": "rubric/probe_mappings/garak_beaaa152.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/garak_beaaa152.yaml",
+        "version": "0.1.0"
+      },
+      "stable_id": "58ccd77da2882ec5405de228fe8331305090fff4ef6d5e9c388c17be36c12f4a"
+    },
+    {
+      "bucket": "proxy_grade_non_customer_measured",
       "case_id_or_probe_id": "garak.encoding.InjectBase64",
       "categories": {
         "attestation_only": false,
@@ -83965,7 +83994,7 @@
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
-      "case_id_or_probe_id": "garak.exploitation.SQLInjection",
+      "case_id_or_probe_id": "garak.exploitation.SQLInjectionEcho",
       "categories": {
         "attestation_only": false,
         "blocked_unsupported": true,
@@ -83990,7 +84019,7 @@
         "path": "rubric/probe_mappings/garak_beaaa152.yaml",
         "version": "0.1.0"
       },
-      "stable_id": "bcb5a318d71c39941ead5173f5f8f53678284e9797595e0384410822438e0e66"
+      "stable_id": "e0c4d75b927ed6c7c274789860933574bdea5c6909cbb48c87798f62dcfc0601"
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
@@ -84110,7 +84139,7 @@
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
-      "case_id_or_probe_id": "garak.packagehallucination.PythonPackages",
+      "case_id_or_probe_id": "garak.packagehallucination.Python",
       "categories": {
         "attestation_only": false,
         "blocked_unsupported": true,
@@ -84135,7 +84164,7 @@
         "path": "rubric/probe_mappings/garak_beaaa152.yaml",
         "version": "0.1.0"
       },
-      "stable_id": "54cedd52b80233efb335b79f6105ed7cbc98ae6262575a999afa18fd1ecae63b"
+      "stable_id": "906a6870868f4d960ebe9f4cd50295c0f2a00a436e2f3e03a8d13cc0688efc21"
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
@@ -84197,35 +84226,6 @@
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
-      "case_id_or_probe_id": "garak.replay.Repeat",
-      "categories": {
-        "attestation_only": false,
-        "blocked_unsupported": true,
-        "executable": false,
-        "executable_on_default_runtime": false,
-        "executed_in_latest_evidenced_run": false,
-        "fixture_test_only": false,
-        "inactive_deferred": false,
-        "proxy_grade": true,
-        "registered": true,
-        "reported": false,
-        "scoring_active": false
-      },
-      "corpus_or_family": "garak_beaaa152",
-      "framework": "garak_beaaa152",
-      "framework_version": "0.1.0",
-      "mode": "mapping",
-      "reason": "mapping/corpus declaration is not a customer-true full-scan execution row",
-      "rubric_point_id": "P3.3",
-      "source": "rubric/probe_mappings/garak_beaaa152.yaml",
-      "source_provenance": {
-        "path": "rubric/probe_mappings/garak_beaaa152.yaml",
-        "version": "0.1.0"
-      },
-      "stable_id": "f1d4b9b40fcb71a0824c67cec3c266f06e034eb461e2813ba50f036c9961cb33"
-    },
-    {
-      "bucket": "proxy_grade_non_customer_measured",
       "case_id_or_probe_id": "garak.snowball.GraphConnectivity",
       "categories": {
         "attestation_only": false,
@@ -84255,7 +84255,7 @@
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
-      "case_id_or_probe_id": "garak.topics.WordnetControversial",
+      "case_id_or_probe_id": "garak.topic.WordnetControversial",
       "categories": {
         "attestation_only": false,
         "blocked_unsupported": true,
@@ -84280,11 +84280,11 @@
         "path": "rubric/probe_mappings/garak_beaaa152.yaml",
         "version": "0.1.0"
       },
-      "stable_id": "a8a37576fd506d8c21c6402a9cccc72cd552957abc1ccc318f16a5e16ababda3"
+      "stable_id": "f4645c1a867f441c1d3c96b22396ed1b060be61748b4563c63060e5407f0afdb"
     },
     {
       "bucket": "proxy_grade_non_customer_measured",
-      "case_id_or_probe_id": "garak.xss.MarkdownImageExfil",
+      "case_id_or_probe_id": "garak.web_injection.MarkdownImageExfil",
       "categories": {
         "attestation_only": false,
         "blocked_unsupported": true,
@@ -84309,7 +84309,7 @@
         "path": "rubric/probe_mappings/garak_beaaa152.yaml",
         "version": "0.1.0"
       },
-      "stable_id": "f842f558c72001c72fc8c81adcf420fef101be206fdc8df76b671c4ef72ef04c"
+      "stable_id": "ada56e5d3223725e4be4f7e27da1369289a2414579ba12642239486b9cbaa89f"
     },
     {
       "bucket": "runnable_today",
@@ -84665,6 +84665,38 @@
     },
     {
       "bucket": "runnable_today",
+      "case_id_or_probe_id": "7ce91108c881ac25b7d27a718e4549f9e5696ad031ca07a85a36643b32675bc6",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "garak_beaaa152",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "garak_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "P3.3",
+      "source": "rubric/probe_mappings/garak_beaaa152.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/garak_beaaa152.yaml",
+        "version": "garak_beaaa152@0.1.0"
+      },
+      "stable_id": "505737c58355330a426838ecfce8c8236540c6ba0ecfce96b526cf7f2697eeda",
+      "version_pin": "garak_beaaa152@0.1.0",
+      "worker_runner": "garak_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
       "case_id_or_probe_id": "8cebf3aaf2951733c8c6892405701a37c7a55fc00269635e14457580be51aa05",
       "categories": {
         "attestation_only": false,
@@ -84724,38 +84756,6 @@
         "version": "garak_beaaa152@0.1.0"
       },
       "stable_id": "da5c562b713f769a83fe282772d3fc4c7eb055d675060e1a084e901e858bb624",
-      "version_pin": "garak_beaaa152@0.1.0",
-      "worker_runner": "garak_wrapper"
-    },
-    {
-      "bucket": "runnable_today",
-      "case_id_or_probe_id": "a3c914e001049dfffec744954b675b73d05d52889f2dcbfdd1f9089b90bee857",
-      "categories": {
-        "attestation_only": false,
-        "blocked_unsupported": false,
-        "executable": true,
-        "executable_on_default_runtime": false,
-        "executed_in_latest_evidenced_run": false,
-        "fixture_test_only": false,
-        "inactive_deferred": false,
-        "proxy_grade": false,
-        "registered": true,
-        "reported": false,
-        "scoring_active": false
-      },
-      "corpus_or_family": "garak_beaaa152",
-      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
-      "framework": "garak_wrapper",
-      "framework_version": "0.1.0",
-      "mode": "production_worker_registry_v0.1",
-      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
-      "rubric_point_id": "P3.3",
-      "source": "rubric/probe_mappings/garak_beaaa152.yaml",
-      "source_provenance": {
-        "path": "rubric/probe_mappings/garak_beaaa152.yaml",
-        "version": "garak_beaaa152@0.1.0"
-      },
-      "stable_id": "cecefa4b101c2a273f7b5ccf7fd5143f86e512c4a21a3b3dd1bb60f14d301153",
       "version_pin": "garak_beaaa152@0.1.0",
       "worker_runner": "garak_wrapper"
     },

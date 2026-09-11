@@ -164,6 +164,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         headers = {
             "Content-Type": "application/json",
             "Authorization": self._auth_header,
+            "User-Agent": "BackBond-Scanner/0.5",
             "Accept-Encoding": "identity",
         }
         # BEAAA-5528: stream the response and early-abort the moment

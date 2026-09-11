@@ -207,6 +207,7 @@ def test_default_vapi_tau_worker_posts_chat_with_assistant_identity(
             "headers": {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer vapi-key-fixture",
+                "User-Agent": "BackBond-Scanner/0.5",
                 "Accept-Encoding": "identity",
             },
             "timeout": 30.0,

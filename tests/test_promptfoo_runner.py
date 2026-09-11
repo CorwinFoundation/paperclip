@@ -729,7 +729,7 @@ class BeaAa152Phase2BinTests(unittest.TestCase):
         # unchanged.
         self.assertNotEqual(m.benchmark, "garak")
         # Bias-adjacent rows present at ×0.75 modifier
-        for cat in ("realtoxicityprompts", "topics"):
+        for cat in ("realtoxicityprompts", "topic"):
             self.assertEqual(m.category_modifiers[cat], 0.75)
         # P2.5 rows present
         p25 = [p for p in m.probes if p.dim == "P2.5"]

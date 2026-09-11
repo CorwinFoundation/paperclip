@@ -246,6 +246,7 @@ class _CaptureAcceptEncodingHandler(BaseHTTPRequestHandler):
     """
 
     captured_accept_encoding: str | None = None
+    captured_user_agent: str | None = None
 
     def do_POST(self) -> None:  # noqa: N802 — http.server API
         length = int(self.headers.get("Content-Length", "0") or "0")
@@ -254,6 +255,7 @@ class _CaptureAcceptEncodingHandler(BaseHTTPRequestHandler):
         type(self).captured_accept_encoding = self.headers.get(
             "Accept-Encoding"
         )
+        type(self).captured_user_agent = self.headers.get("User-Agent")
         body = b'{"response": "ok"}'
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -275,6 +277,7 @@ def accept_encoding_capture_server() -> Iterable[str]:
             "skipping Accept-Encoding header regression"
         )
     _CaptureAcceptEncodingHandler.captured_accept_encoding = None
+    _CaptureAcceptEncodingHandler.captured_user_agent = None
     server = HTTPServer(
         (_ALLOWED_BIND_HOST, 0), _CaptureAcceptEncodingHandler
     )
@@ -322,6 +325,7 @@ class TestCustomerRunnerSendsIdentityAcceptEncoding:
             f"fully prevent (a customer endpoint that respects "
             f"Accept-Encoding will not encode in the first place)."
         )
+        assert _CaptureAcceptEncodingHandler.captured_user_agent == "BackBond-Scanner/0.5"
 
 
 # ---------------------------------------------------------------------------

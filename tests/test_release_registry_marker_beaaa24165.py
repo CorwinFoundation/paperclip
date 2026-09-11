@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[1]
 # to clear the VAPI 403, moving that one row's runtime identity to
 # 41434ba0...103f. Row counts are unchanged (2,353 / 2,352); only the hash moves.
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "7c8670af54b9583a38e5c05acc6e431288a3642c5319e738fda61026e883fa1e"
+    "7da2a0b20435c98397360f210ae562879470425d282f0f0e8fc203e962b3d655"
 )
 
 

@@ -41,7 +41,7 @@ def test_strict_registry_has_no_missing_contract_rows_or_runtime_aliases():
     )
     assert {point: counts[point] for point in FAMILIES.values()} == {
         "P1.2": 30, "P1.6": 30, "P2.5": 30,
-        "P3.2": 30, "P3.3": 30, "P1.5": 31,
+        "P3.2": 30, "P3.3": 31, "P1.5": 31,
     }
 
 

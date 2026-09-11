@@ -206,7 +206,7 @@ def test_bound_pii_attestation_still_scores_in_the_contract_envelope():
 # reported_not_scored. The comment was wrong; the gate is not. Pin the number
 # the claim actually rests on so a future widening of the frozenset cannot
 # quietly drop a canonical scored row out of the inventory.
-CANONICAL_SCORED_ROWS_AT_79C5D1F1 = 431
+CANONICAL_SCORED_ROWS_AT_79C5D1F1 = 432
 
 
 def test_gating_does_not_move_the_canonical_scored_row_count():

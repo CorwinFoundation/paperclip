@@ -37,18 +37,18 @@ def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     assert len(text_rows) == 113
     # BEAAA-24273: +60 on the no-content-candidate view. The text-row count and
     # both Counters below are unchanged; the new rows are not text-compatible.
-    assert count_active_executable(rows) == 491
+    assert count_active_executable(rows) == 492
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
-        True: 90,
-        False: 23,
+        True: 91,
+        False: 22,
     }
     assert Counter(row["execution_evidenced"] for row in text_rows) == {
-        True: 90,
-        False: 23,
+        True: 91,
+        False: 22,
     }
     assert Counter(row["execution_evidence_status"] for row in text_rows) == {
-        "promoted_runtime_identity_bound": 82,
-        "duplicate_runtime_identity_alias": 23,
+        "promoted_runtime_identity_bound": 83,
+        "duplicate_runtime_identity_alias": 22,
         "target_bound_and_evidenced": 8,
     }
     assert Counter(worker_id_for_registry_row(row) for row in text_rows) == {

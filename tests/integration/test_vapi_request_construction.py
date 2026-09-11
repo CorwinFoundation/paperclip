@@ -125,6 +125,7 @@ def test_vapi_factory_builds_exact_fresh_chat_request(monkeypatch) -> None:
     assert calls[0]["headers"] == {
         "Content-Type": "application/json",
         "Authorization": "Bearer private-key-fixture",
+        "User-Agent": "BackBond-Scanner/0.5",
         "Accept-Encoding": "identity",
     }
     assert calls[0]["follow_redirects"] is False

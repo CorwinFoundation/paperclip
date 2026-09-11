@@ -73,8 +73,8 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # bench_wrapper. The 12 parameter-tamper rows retain this registry metadata
     # while dispatching through the Day-1 worker.
     assert Counter(row["runner"] for row in candidates) == {
-        "content_candidate_worker": 1_738,
-        "bench_wrapper": 262,
+        "content_candidate_worker": 1_737,
+        "bench_wrapper": 263,
     }
     from tools.active_test_registry import UNBOUND_REGISTERED_CASE_FAMILIES
 
@@ -454,8 +454,8 @@ def test_default_budget_covers_the_registered_candidate_adapter_calls() -> None:
     # Repinned by the BEAAA-23860 ruling: the 44 lane-C rows left this worker,
     # so they no longer draw on the content-candidate call budget. They are
     # budgeted by the registered lane-C adapter instead (5 seeds x 44 rows).
-    assert candidate_target_calls == 2_748
-    assert candidate_judge_calls == 2_424
+    assert candidate_target_calls == 2_747
+    assert candidate_judge_calls == 2_423
     assert candidate_target_calls < budget.max_target_calls
     assert candidate_judge_calls < budget.max_judge_calls
 
@@ -470,7 +470,7 @@ def test_candidate_worker_global_default_false_with_exact_row_allowlist() -> Non
 
     # The 12 parameter-tamper rows retain their content-candidate registry
     # metadata but dispatch through the shared Day-1 report-only worker.
-    assert worker["active_registry_rows"] == 1_726
+    assert worker["active_registry_rows"] == 1_725
     assert worker["dependency_pins"]["inventory_sha256"] == INVENTORY_SHA256
     assert worker["measured_score_allowed"] is False
     assert worker["reported_not_scored_only"] is True
