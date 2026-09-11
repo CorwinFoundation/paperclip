@@ -31,12 +31,16 @@ spec:
             - "source-driver"
             - "-source"
             - "datadog"
+            - "-datadog-site"
+            - "$(DATADOG_SITE)"
             - "-customer-id"
             - "$(BACKBOND_CUSTOMER_ID)"
             - "-agent-id"
             - "$(BACKBOND_AGENT_ID)"
             - "-batch-id"
             - "$(BACKBOND_BATCH_ID)"
+            - "-checkpoint-path"
+            - "/var/lib/are-collector/checkpoint.json"
           envFrom:
             - secretRef:
                 name: are-collector-runtime
@@ -57,14 +61,14 @@ kind: ConfigMap
 metadata:
   name: are-collector-egress-hosts
 data:
-  approved-hosts: "ingest.backbond.ai"
+  approved-hosts: "ingest.backbond.ai,api.datadoghq.com"
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: are-collector-egress-ingest
   annotations:
-    backbond.ai/egress-host: ingest.backbond.ai
+    backbond.ai/egress-host: ingest.backbond.ai,api.datadoghq.com
     backbond.ai/egress-approved-hosts-config: are-collector-egress-hosts
     backbond.ai/egress-port: "443"
 spec:
@@ -74,6 +78,12 @@ spec:
   egress:
     - toFQDNs:
         - matchName: ingest.backbond.ai
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: api.datadoghq.com
       toPorts:
         - ports:
             - port: "443"

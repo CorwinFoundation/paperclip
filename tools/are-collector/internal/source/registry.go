@@ -3,6 +3,7 @@ package source
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 )
 
@@ -13,6 +14,7 @@ type Registry struct{ factories map[string]Factory }
 type RegistryConfig struct {
 	NumbatCommit, NumbatSchema string
 	Langfuse                   LangfuseConfig
+	Datadog                    DatadogConfig
 }
 
 func NewRegistry() *Registry { return &Registry{factories: map[string]Factory{}} }
@@ -48,6 +50,12 @@ func (r *Registry) IDs() []string {
 func DefaultRegistry() *Registry {
 	r := NewRegistry()
 	_ = r.Register("numbat", func(input io.Reader) (SourceDriver, error) { return NewNumbatSourceDriver(input) })
+	_ = r.RegisterDatadog(DatadogConfig{
+		Site:           os.Getenv("DATADOG_SITE"),
+		APIKey:         os.Getenv("DD_API_KEY"),
+		ApplicationKey: os.Getenv("DD_APP_KEY"),
+		Query:          os.Getenv("DATADOG_QUERY"),
+	})
 	return r
 }
 
@@ -63,11 +71,30 @@ func ConfiguredRegistry(cfg RegistryConfig) *Registry {
 		return NewNumbatSourceDriver(input)
 	})
 	_ = r.RegisterLangfuse(cfg.Langfuse)
+	if cfg.Datadog.Site == "" && cfg.Datadog.APIKey == "" && cfg.Datadog.ApplicationKey == "" && cfg.Datadog.Query == "" && cfg.Datadog.Client == nil {
+		cfg.Datadog = datadogConfigFromEnvironment()
+	}
+	_ = r.RegisterDatadog(cfg.Datadog)
 	return r
+}
+
+func datadogConfigFromEnvironment() DatadogConfig {
+	return DatadogConfig{
+		Site:           os.Getenv("DATADOG_SITE"),
+		APIKey:         os.Getenv("DD_API_KEY"),
+		ApplicationKey: os.Getenv("DD_APP_KEY"),
+		Query:          os.Getenv("DATADOG_QUERY"),
+	}
 }
 
 func (r *Registry) RegisterLangfuse(cfg LangfuseConfig) error {
 	return r.Register("langfuse", func(io.Reader) (SourceDriver, error) {
 		return NewLangfuseSourceDriver(cfg)
+	})
+}
+
+func (r *Registry) RegisterDatadog(cfg DatadogConfig) error {
+	return r.Register("datadog", func(io.Reader) (SourceDriver, error) {
+		return NewDatadogSourceDriver(cfg)
 	})
 }

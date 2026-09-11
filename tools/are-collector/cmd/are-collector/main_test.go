@@ -30,6 +30,27 @@ func TestCLISourceDriverUnknownSourceFailsClosedAtRegistry(t *testing.T) {
 	}
 }
 
+func TestCLIDatadogSourceDriverFailsClosedBeforeFixtureRead(t *testing.T) {
+	for _, key := range []string{"DATADOG_SITE", "DD_API_KEY", "DD_APP_KEY", "DATADOG_QUERY"} {
+		t.Setenv(key, "")
+	}
+	reader := &countingReader{Reader: strings.NewReader(`{"event_type":"error","payload":{"fixture":true}}`)}
+	args := []string{
+		"-mode", "source-driver", "-source", "datadog",
+		"-customer-id", "tenant-1", "-agent-id", "agent-1", "-batch-id", "batch-1",
+		"-key-id", "key-1", "-ed25519-private-key-b64", testPrivateKeyB64(t),
+		"-checkpoint-path", t.TempDir() + "/checkpoint.json",
+		"-datadog-site", "https://api.datadoghq.com",
+	}
+	err := run(args, reader, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "datadog API and application keys are required") {
+		t.Fatalf("expected Datadog credential failure, got %v", err)
+	}
+	if reader.reads != 0 {
+		t.Fatalf("Datadog source-driver fell through to fixture stdin: reads=%d", reader.reads)
+	}
+}
+
 // Negative control: make Append never match a prior row (`for false && scanner.Scan()`).
 // Observed: "replay duplicated output" at main_test.go:46, the replay re-emitting a full batch.
 func TestCLINumbatReconcilesAndReplayIsIdempotent(t *testing.T) {

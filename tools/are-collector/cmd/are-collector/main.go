@@ -49,6 +49,10 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	langfusePublicKey := flags.String("langfuse-public-key", os.Getenv("LANGFUSE_PUBLIC_KEY"), "Langfuse public key (or LANGFUSE_PUBLIC_KEY)")
 	langfuseSecretKey := flags.String("langfuse-secret-key", os.Getenv("LANGFUSE_SECRET_KEY"), "Langfuse secret key (or LANGFUSE_SECRET_KEY)")
 	langfuseVersion := flags.String("langfuse-version", os.Getenv("LANGFUSE_VERSION"), "pinned Langfuse version (or LANGFUSE_VERSION)")
+	datadogSite := flags.String("datadog-site", os.Getenv("DATADOG_SITE"), "Datadog site (or DATADOG_SITE)")
+	datadogAPIKey := flags.String("datadog-api-key", os.Getenv("DD_API_KEY"), "Datadog API key (or DD_API_KEY)")
+	datadogAppKey := flags.String("datadog-app-key", os.Getenv("DD_APP_KEY"), "Datadog application key (or DD_APP_KEY)")
+	datadogQuery := flags.String("datadog-query", os.Getenv("DATADOG_QUERY"), "Datadog Logs v2 query (or DATADOG_QUERY)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -70,7 +74,11 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	started := time.Now().UTC()
-	events, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.LangfuseConfig{BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion})
+	events, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.RegistryConfig{
+		NumbatCommit: *numbatCommit, NumbatSchema: *numbatSchema,
+		Langfuse: numbatsource.LangfuseConfig{BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion},
+		Datadog:  numbatsource.DatadogConfig{Site: *datadogSite, APIKey: *datadogAPIKey, ApplicationKey: *datadogAppKey, Query: *datadogQuery},
+	})
 	if err != nil {
 		return err
 	}
@@ -106,12 +114,12 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	return encodeBatch(stdout, *source, *receiptPath, *deploymentID, *customerID, *agentID, *batchID, *prevBatchHash, started, selectedWire, batchDigest, batchIdentity, events, batch)
 }
 
-func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Policy, receiptPath, deploymentID, numbatCommit, numbatSchema, checkpointPath string, langfuseConfig numbatsource.LangfuseConfig) ([]schemav1.Event, error) {
+func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Policy, receiptPath, deploymentID, numbatCommit, numbatSchema, checkpointPath string, registryConfig numbatsource.RegistryConfig) ([]schemav1.Event, error) {
 	if mode == "source-driver" {
 		if checkpointPath == "" {
 			return nil, fmt.Errorf("source-driver mode requires checkpoint-path")
 		}
-		registry := numbatsource.ConfiguredRegistry(numbatsource.RegistryConfig{NumbatCommit: numbatCommit, NumbatSchema: numbatSchema, Langfuse: langfuseConfig})
+		registry := numbatsource.ConfiguredRegistry(registryConfig)
 		driver, err := registry.Resolve(sourceID, stdin)
 		if err != nil {
 			return nil, err
@@ -123,7 +131,7 @@ func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Poli
 		if receiptPath == "" || deploymentID == "" {
 			return nil, fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
 		}
-		registry := numbatsource.ConfiguredRegistry(numbatsource.RegistryConfig{NumbatCommit: numbatCommit, NumbatSchema: numbatSchema, Langfuse: langfuseConfig})
+		registry := numbatsource.ConfiguredRegistry(registryConfig)
 		driver, err := registry.Resolve(sourceID, stdin)
 		if err != nil {
 			return nil, err
