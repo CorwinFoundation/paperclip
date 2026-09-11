@@ -19,6 +19,8 @@ from scripts.scheduled_scan import (
     _operator_manifest,
     map_secret_environment,
     load_garak_dispatch_rows,
+    _rows_for_job,
+    _worker_factory_for_job,
     run_positive_egress_preflight,
     run_scheduled_scan,
 )
@@ -30,6 +32,25 @@ def test_garak_live_dispatch_selects_exactly_27_target_bound_rows():
     assert {row["test_id"] for row in rows} == {"garak", "garak_beaaa152"}
     assert all(row["garak_live_dispatch"] is True for row in rows)
     assert len({row["runtime_case_identity"] for row in rows}) == 27
+
+
+def test_default_vapi_promotes_garak_into_the_live_worker_union():
+    rows, execution_flag = _rows_for_job("vapi")
+    garak = [row for row in rows if row.get("test_id") in {"garak", "garak_beaaa152"}]
+
+    assert execution_flag == "production_runner_executable"
+    assert len(garak) == 19  # BEAAA-31623 canonical runtime identities
+    assert all(row[execution_flag] is True for row in garak)
+    assert _worker_factory_for_job("vapi").__name__ == "build_live_framework_workers"
+
+
+def test_vapi_garak_debug_lane_keeps_native_dispatch_flag_and_factory():
+    rows, execution_flag = _rows_for_job("vapi-garak")
+
+    assert len(rows) == 27
+    assert execution_flag == "garak_live_dispatch"
+    assert all(row[execution_flag] is True for row in rows)
+    assert _worker_factory_for_job("vapi-garak").__name__ == "build_live_framework_workers"
 
 
 ROOT = Path(__file__).parents[1]

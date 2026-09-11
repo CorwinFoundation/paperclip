@@ -113,6 +113,27 @@ def load_garak_dispatch_rows() -> list[dict[str, Any]]:
     return selected
 
 
+def _worker_factory_for_job(job_name: str) -> Callable[..., dict[str, Any]]:
+    """Return the worker union needed by a scheduled Vapi job.
+
+    The live factory starts with every registered-case worker and replaces the
+    Garak entry with its native isolated worker.  Using it for the default
+    registry preserves ordinary rows while ensuring promoted Garak rows cannot
+    be shadowed by the generic executor.  The dedicated ``vapi-garak`` lane
+    remains available for one-shot debugging.
+    """
+    if job_name in {"vapi", "vapi-garak"}:
+        return build_live_framework_workers
+    return build_registered_case_workers
+
+
+def _rows_for_job(job_name: str) -> tuple[list[dict[str, Any]], str]:
+    """Return registry rows and their dispatch flag for a Vapi job."""
+    if job_name == "vapi-garak":
+        return load_garak_dispatch_rows(), "garak_live_dispatch"
+    return list(load_default_full_scan_registry_rows()), "production_runner_executable"
+
+
 def _config(name: str, default: str | None = None) -> str:
     value = os.environ.get(name, default)
     if value is None or not str(value).strip():
@@ -996,11 +1017,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         max_estimated_judge_cost_usd=config.cost_cap_usd,
         max_wall_clock_seconds=config.timeout_seconds,
     )
-    worker_factory = (
-        build_live_framework_workers
-        if job_name == "vapi-garak"
-        else build_registered_case_workers
-    )
+    worker_factory = _worker_factory_for_job(job_name)
     workers = worker_factory(
         request,
         secrets["VAPI_API_KEY"],
@@ -1009,14 +1026,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         subject_factory=target_factory,
         judge_factory=judge_factory,
     )
-    rows = (
-        load_garak_dispatch_rows()
-        if job_name == "vapi-garak"
-        else list(load_default_full_scan_registry_rows())
-    )
-    execution_flag = (
-        "garak_live_dispatch" if job_name == "vapi-garak" else "production_runner_executable"
-    )
+    rows, execution_flag = _rows_for_job(job_name)
     cases = registry_cases_from_rows(rows, execution_flag=execution_flag)
     model_versions = next(iter(workers.values())).manifest_metadata()
     model_versions["evidence_class"] = EVIDENCE_LABEL
