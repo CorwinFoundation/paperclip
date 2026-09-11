@@ -433,6 +433,42 @@ def test_full_registry_kickoff_is_async_and_bypasses_legacy_walker(monkeypatch):
     assert legacy_called == []
 
 
+def test_garak_rate_and_sample_counts_reach_full_manifest(monkeypatch):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
+    row = {
+        **_row(), "test_id": "garak_beaaa152", "case_id": "garak.test.Probe",
+        "runner": "garak_wrapper",
+    }
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
+        full_scan_registry_rows=[row],
+        full_scan_workers_factory=lambda *_args: {
+            "garak": lambda *_worker_args: WorkerAttemptResult(
+                status="complete",
+                evidence_ref="evidence://fixture/garak.json",
+                target_calls=48,
+                numeric_result=0.25,
+                hit_count=12,
+                sample_size=48,
+            )
+        },
+    )
+    request = _request("scan-garak-rate")
+    runtime.kickoff(request, "secret")
+    deadline = time.monotonic() + 3
+    completed = runtime.fetch(request.scan_id)
+    while completed is not None and completed.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        completed = runtime.fetch(request.scan_id)
+
+    evidence_row = completed.full_suite_manifest["evidence_rows"][0]
+    assert evidence_row["numeric_result"] == 0.25
+    assert evidence_row["numeric_result"] == evidence_row["hit_count"] / evidence_row["sample_size"]
+    assert evidence_row["score_contribution"] is False
+    assert evidence_row["disposition"] == "report-only"
+
+
 def test_halueval_attempt_stays_category_proxy_and_report_only(monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
     row = {**_row(), "test_id": "halueval", "case_id": "halueval-1"}

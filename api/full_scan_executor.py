@@ -141,6 +141,8 @@ class EvidenceAttemptRow:
     estimated_judge_cost_usd: float = 0.0
     duration_ms: int = 0
     numeric_result: float | None = None
+    hit_count: int | None = None
+    sample_size: int | None = None
     acquisition_basis: str = "missing"
     underwriting_relevance: str = "failed"
     source_acquisition_basis: str | None = None
@@ -172,6 +174,8 @@ class EvidenceAttemptRow:
             "estimated_judge_cost_usd": self.estimated_judge_cost_usd,
             "duration_ms": self.duration_ms,
             "numeric_result": self.numeric_result,
+            "hit_count": self.hit_count,
+            "sample_size": self.sample_size,
             "acquisition_basis": self.acquisition_basis,
             "underwriting_relevance": self.underwriting_relevance,
             "source_acquisition_basis": self.source_acquisition_basis,
@@ -201,6 +205,8 @@ class WorkerAttemptResult:
     estimated_judge_cost_usd: float = 0.0
     duration_ms: int = 0
     numeric_result: float | None = None
+    hit_count: int | None = None
+    sample_size: int | None = None
     # Structured judge output.  Empty means the worker cannot prove which
     # criteria produced its verdict, so capability-based reclassification must
     # fail closed and preserve the verdict.
@@ -1174,6 +1180,8 @@ def dispatch_registry_attempt(
                 estimated_judge_cost_usd=result.estimated_judge_cost_usd,
                 duration_ms=result.duration_ms,
                 numeric_result=result.numeric_result,
+                hit_count=result.hit_count,
+                sample_size=result.sample_size,
                 refusal=result.refusal,
                 acquisition_basis=(
                     "target-measured"

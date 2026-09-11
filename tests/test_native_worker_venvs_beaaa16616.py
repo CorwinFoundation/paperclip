@@ -78,8 +78,14 @@ def test_real_garak_0160_probe_generator_detector_and_seed():
         },
         seed=16616,
     )
-    assert result["status"] == "complete", result
+    # test.Blank generates 1 target call, which is below the GARAK_MIN_SAMPLE_SIZE=48
+    # floor, so the row is correctly marked incomplete with rate fields still populated.
+    assert result["status"] == "incomplete", result
+    assert "garak_sample_size_below_floor" in (result.get("incomplete_reason") or ""), result
     assert result["evidence_ref"].endswith("/garak/garak.test.Blank.json")
+    assert result["sample_size"] == 1
+    assert result["hit_count"] == 0
+    assert result["numeric_result"] == 0.0
 
 
 def test_real_inspect_03220_eval_target_model_and_terminal_verdict():

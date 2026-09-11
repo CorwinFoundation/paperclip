@@ -5,13 +5,76 @@ from types import SimpleNamespace
 
 from tools.framework_worker_registry import WORKERS
 from tools.framework_workers import (
+    GARAK_MIN_SAMPLE_SIZE,
     GARAK_NATIVE_PROBE_TIMEOUT_SECONDS,
     IsolatedFrameworkWorker,
     _agentdojo_adapter_result,
     _complete_subject,
     _garak_adapter_result,
     build_live_framework_workers,
+    _result_dict,
 )
+
+
+def test_shared_worker_result_fields_default_to_none():
+    result = _result_dict(
+        status="complete", evidence_ref="evidence://fixture", incomplete_reason=None,
+        model_version="v1",
+    )
+
+    assert result["numeric_result"] is None
+    assert result["hit_count"] is None
+    assert result["sample_size"] is None
+
+
+def test_isolated_worker_preserves_rate_and_sample_counts(monkeypatch):
+    import json
+    import subprocess
+
+    payload = {
+        "status": "complete", "evidence_ref": "evidence://fixture/garak.json",
+        "incomplete_reason": None, "model_version": "m1", "target_calls": 48,
+        "judge_calls": 0, "duration_ms": 41, "numeric_result": 0.25,
+        "hit_count": 12, "sample_size": 48,
+    }
+    monkeypatch.setattr(
+        "tools.framework_workers.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload), stderr=""
+        ),
+    )
+    job = SimpleNamespace(
+        job_id="j1", agent_id="a1", scanner_version="v1", corpus_version="c1",
+        model_versions={"primary": "m1"}, seed=7,
+    )
+
+    result = IsolatedFrameworkWorker("garak")({}, job)
+
+    assert result.numeric_result == result.hit_count / result.sample_size == 0.25
+
+
+def test_garak_sub_floor_sample_is_incomplete(monkeypatch):
+    class OneAttemptProbe:
+        primary_detector = "always.Fail"
+        detector_scores = [1.0]
+
+        def probe(self, _gen):
+            return [object()]
+
+    _stub_garak(monkeypatch, OneAttemptProbe)
+    result = _garak_adapter_result(
+        WORKERS["garak"], {"case_id": "garak.misleading.FalseAssertion"},
+        {"job_id": "j1", "seed": 0,
+         "subject_adapter": {"kind": "customer_agent_http", "endpoint": "https://api.vapi.ai",
+                             "secret": "k", "agent_id": "a"}},
+        "v1",
+    )
+
+    assert result["status"] == "incomplete"
+    assert result["incomplete_reason"] == f"garak_sample_size_below_floor:1<{GARAK_MIN_SAMPLE_SIZE}"
+    assert result["numeric_result"] == 1.0
+    assert result["hit_count"] == 1
+    assert result["sample_size"] == 1
 
 def test_native_workers_return_terminal_incomplete_for_unsupported_target():
     for worker_id, adapter in (
@@ -244,7 +307,7 @@ def _stub_garak(monkeypatch, probe_cls):
 
     class FakeDetector:
         def detect(self, attempt):
-            return []
+            return list(getattr(probe_cls, "detector_scores", ()))
 
     class FakePlugins:
         def load_plugin(self, name):

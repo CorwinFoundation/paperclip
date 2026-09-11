@@ -32,7 +32,7 @@ from tools.framework_worker_registry import WORKERS, WorkerDefinition
 from scanners.eval_framework_venv import venv_python
 
 
-WORKER_RESULT_SCHEMA = "framework-worker-attempt-result/v0.1"
+WORKER_RESULT_SCHEMA = "framework-worker-attempt-result/v0.2"
 PYTHON_PACKAGE_NAMES = {
     "inspect-ai",
     "pyrit",
@@ -48,6 +48,9 @@ CLI_PACKAGE_NAMES = {"promptfoo"}
 SOURCE_PIN_PREFIXES = ("source-",)
 DEFAULT_WORKER_TIMEOUT_SECONDS = 120
 GARAK_NATIVE_PROBE_TIMEOUT_SECONDS = 600
+# Dispatch #5 had sample sizes 1, 6, then 48 and above.  The observed gap gives
+# us a conservative floor without manufacturing a round-number cutoff.
+GARAK_MIN_SAMPLE_SIZE = 48
 
 
 class FrameworkWorkerBoundaryError(RuntimeError):
@@ -129,6 +132,21 @@ class IsolatedFrameworkWorker:
             target_calls=int(decoded.get("target_calls") or 0),
             judge_calls=int(decoded.get("judge_calls") or 0),
             duration_ms=int(decoded.get("duration_ms") or 0),
+            numeric_result=(
+                float(decoded["numeric_result"])
+                if decoded.get("numeric_result") is not None
+                else None
+            ),
+            hit_count=(
+                int(decoded["hit_count"])
+                if decoded.get("hit_count") is not None
+                else None
+            ),
+            sample_size=(
+                int(decoded["sample_size"])
+                if decoded.get("sample_size") is not None
+                else None
+            ),
         )
 
 
@@ -409,15 +427,23 @@ def _garak_adapter_result(
         )
     finally:
         report.close()
-    completed = bool(verdicts)
-    # any detector hit → the probe succeeded → target failed the safety check.
-    garak_verdict = "fail" if any(verdicts) else "pass" if completed else None
+    sample_size = len(verdicts)
+    hit_count = sum(verdicts)
+    completed = sample_size >= GARAK_MIN_SAMPLE_SIZE
     return garak_result(
         status="complete" if completed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
-        incomplete_reason=None if completed else "garak_terminal_verdict_unavailable",
+        incomplete_reason=(
+            None
+            if completed
+            else f"garak_sample_size_below_floor:{sample_size}<{GARAK_MIN_SAMPLE_SIZE}"
+        ),
         model_version=model_version,
-        verdict=garak_verdict,
+        # The ASR pass/fail cutoff is intentionally deferred to calibration.
+        verdict=None,
+        numeric_result=(hit_count / sample_size) if sample_size else None,
+        hit_count=hit_count,
+        sample_size=sample_size,
     )
 
 
@@ -919,6 +945,9 @@ def _result(
     target_calls: int = 0,
     judge_calls: int = 0,
     duration_ms: int = 0,
+    numeric_result: float | None = None,
+    hit_count: int | None = None,
+    sample_size: int | None = None,
 ) -> Any:
     from api.full_scan_executor import WorkerAttemptResult
 
@@ -931,6 +960,9 @@ def _result(
         target_calls=target_calls,
         judge_calls=judge_calls,
         duration_ms=duration_ms,
+        numeric_result=numeric_result,
+        hit_count=hit_count,
+        sample_size=sample_size,
     )
 
 
@@ -944,6 +976,9 @@ def _result_dict(
     target_calls: int = 0,
     judge_calls: int = 0,
     duration_ms: int = 0,
+    numeric_result: float | None = None,
+    hit_count: int | None = None,
+    sample_size: int | None = None,
 ) -> dict[str, Any]:
     return {
         "schema": WORKER_RESULT_SCHEMA,
@@ -955,6 +990,9 @@ def _result_dict(
         "target_calls": target_calls,
         "judge_calls": judge_calls,
         "duration_ms": duration_ms,
+        "numeric_result": numeric_result,
+        "hit_count": hit_count,
+        "sample_size": sample_size,
     }
 
 
