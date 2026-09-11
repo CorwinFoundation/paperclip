@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 from tools.framework_worker_registry import WORKERS
 from tools.framework_workers import (
+    GARAK_NATIVE_PROBE_TIMEOUT_SECONDS,
+    IsolatedFrameworkWorker,
     _agentdojo_adapter_result,
     _complete_subject,
     _garak_adapter_result,
@@ -80,7 +82,54 @@ def test_live_worker_factory_replaces_garak_text_materializer(monkeypatch):
         "secret": "vapi-secret",
         "agent_id": "11111111-1111-4111-8111-111111111111",
     }
+    assert workers["garak"].timeout_seconds == GARAK_NATIVE_PROBE_TIMEOUT_SECONDS
     assert workers["promptfoo"] is generic
+
+
+def test_isolated_worker_timeout_is_terminal_and_records_elapsed_time(monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(
+        "tools.framework_workers.subprocess.run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+        ),
+    )
+    job = SimpleNamespace(
+        job_id="j1", agent_id="a1", scanner_version="v1", corpus_version="c1",
+        model_versions={"primary": "m1"}, seed=7,
+    )
+
+    result = IsolatedFrameworkWorker("garak", timeout_seconds=3)({}, job)
+
+    assert result.incomplete_reason == "worker_timeout:garak:3s"
+    assert result.duration_ms >= 1
+
+
+def test_isolated_worker_preserves_child_telemetry(monkeypatch):
+    import json
+    import subprocess
+
+    payload = {
+        "status": "incomplete", "evidence_ref": None,
+        "incomplete_reason": "worker_native_invocation_error:garak:HTTP403",
+        "model_version": "m1", "target_calls": 2, "judge_calls": 0,
+        "duration_ms": 41,
+    }
+    monkeypatch.setattr(
+        "tools.framework_workers.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=json.dumps(payload), stderr=""
+        ),
+    )
+    job = SimpleNamespace(
+        job_id="j1", agent_id="a1", scanner_version="v1", corpus_version="c1",
+        model_versions={"primary": "m1"}, seed=7,
+    )
+
+    result = IsolatedFrameworkWorker("garak")({}, job)
+
+    assert (result.target_calls, result.judge_calls, result.duration_ms) == (2, 0, 41)
 
 
 def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
@@ -304,6 +353,34 @@ def test_garak_generator_honours_generations_this_call(monkeypatch):
     seen, _ = _run_garak_with_probe(monkeypatch, MultiProbe)
     assert seen == ["hi", "hi", "hi"]
     assert len(captured_outputs) == 3
+
+
+def test_garak_failed_target_call_records_telemetry(monkeypatch):
+    import tools.framework_workers as fw
+
+    class OneCallProbe:
+        primary_detector = "always.Fail"
+
+        def probe(self, gen):
+            gen._call_model(_FakeConversation("will fail"), 1)
+            return []
+
+    _stub_garak(monkeypatch, OneCallProbe)
+    monkeypatch.setattr(
+        fw, "_complete_subject", lambda *_args: (_ for _ in ()).throw(RuntimeError("HTTP 403"))
+    )
+
+    result = fw._garak_adapter_result(
+        WORKERS["garak"],
+        {"case_id": "garak.misleading.FalseAssertion"},
+        {"job_id": "j1", "seed": 0, "subject_adapter": {"kind": "customer_agent_http"}},
+        "v1",
+    )
+
+    assert result["status"] == "incomplete"
+    assert result["target_calls"] == 1
+    assert result["judge_calls"] == 0
+    assert result["duration_ms"] >= 1
 
 
 def test_garak_prompt_text_handles_an_empty_conversation():

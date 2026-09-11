@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -45,6 +46,8 @@ PYTHON_PACKAGE_NAMES = {
 }
 CLI_PACKAGE_NAMES = {"promptfoo"}
 SOURCE_PIN_PREFIXES = ("source-",)
+DEFAULT_WORKER_TIMEOUT_SECONDS = 120
+GARAK_NATIVE_PROBE_TIMEOUT_SECONDS = 600
 
 
 class FrameworkWorkerBoundaryError(RuntimeError):
@@ -62,7 +65,7 @@ class IsolatedFrameworkWorker:
     """
 
     worker_id: str
-    timeout_seconds: int = 120
+    timeout_seconds: int = DEFAULT_WORKER_TIMEOUT_SECONDS
     subject_adapter: Mapping[str, Any] | None = None
 
     def __call__(self, registry_row: Mapping[str, Any], job: Any) -> Any:
@@ -80,15 +83,25 @@ class IsolatedFrameworkWorker:
         }
         if self.subject_adapter is not None:
             payload["job"]["subject_adapter"] = dict(self.subject_adapter)
-        proc = subprocess.run(
-            [_worker_python(self.worker_id), "-m", "tools.framework_workers", "run"],
-            input=json.dumps(payload, sort_keys=True),
-            text=True,
-            capture_output=True,
-            timeout=self.timeout_seconds,
-            cwd=str(REPO_ROOT),
-            check=False,
-        )
+        started = time.monotonic()
+        try:
+            proc = subprocess.run(
+                [_worker_python(self.worker_id), "-m", "tools.framework_workers", "run"],
+                input=json.dumps(payload, sort_keys=True),
+                text=True,
+                capture_output=True,
+                timeout=self.timeout_seconds,
+                cwd=str(REPO_ROOT),
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return _result(
+                status="incomplete",
+                evidence_ref=None,
+                incomplete_reason=f"worker_timeout:{self.worker_id}:{self.timeout_seconds}s",
+                model_version=_primary_model_version(payload["job"]["model_versions"]),
+                duration_ms=max(1, int((time.monotonic() - started) * 1000)),
+            )
         if proc.returncode != 0:
             detail = (proc.stderr or proc.stdout).strip().splitlines()
             suffix = f":{detail[-1][:180]}" if detail else ""
@@ -112,12 +125,15 @@ class IsolatedFrameworkWorker:
             evidence_ref=decoded.get("evidence_ref"),
             incomplete_reason=decoded.get("incomplete_reason"),
             model_version=decoded.get("model_version"),
+            target_calls=int(decoded.get("target_calls") or 0),
+            judge_calls=int(decoded.get("judge_calls") or 0),
+            duration_ms=int(decoded.get("duration_ms") or 0),
         )
 
 
 def build_default_framework_workers(
     *,
-    timeout_seconds: int = 120,
+    timeout_seconds: int = DEFAULT_WORKER_TIMEOUT_SECONDS,
 ) -> dict[str, IsolatedFrameworkWorker]:
     return {
         worker_id: IsolatedFrameworkWorker(
@@ -139,6 +155,7 @@ def build_live_framework_workers(
     )
     workers["garak"] = IsolatedFrameworkWorker(
         worker_id="garak",
+        timeout_seconds=GARAK_NATIVE_PROBE_TIMEOUT_SECONDS,
         subject_adapter={
             "kind": "customer_agent_http",
             "endpoint": scan_request.agent_endpoint,
@@ -309,13 +326,23 @@ def _garak_adapter_result(
     probe_name = probe_name.removeprefix("garak.")
     if not probe_name:
         return _unsupported_interface(worker, model_version, "missing_probe_name")
+    started = time.monotonic()
+    target_calls = 0
+
+    def garak_result(**kwargs: Any) -> dict[str, Any]:
+        return _result_dict(
+            **kwargs,
+            target_calls=target_calls,
+            judge_calls=0,
+            duration_ms=max(1, int((time.monotonic() - started) * 1000)),
+        )
     try:
         from garak import _config, _plugins  # type: ignore
         from garak.attempt import Message  # type: ignore
         from garak.evaluators.base import ThresholdEvaluator  # type: ignore
         from garak.generators.base import Generator  # type: ignore
     except ImportError as exc:
-        return _result_dict(
+        return garak_result(
             status="incomplete", evidence_ref=None,
             incomplete_reason=f"worker_dependency_unavailable:{worker.worker_id}:garak={exc.__class__.__name__}",
             model_version=model_version,
@@ -328,11 +355,13 @@ def _garak_adapter_result(
         parallel_capable = False
 
         def _call_model(self, prompt: Any, generations_this_call: int = 1) -> list[Any]:
+            nonlocal target_calls
             text = _garak_prompt_text(prompt)
-            return [
-                Message(_complete_subject(subject, text))
-                for _ in range(generations_this_call)
-            ]
+            messages = []
+            for _ in range(generations_this_call):
+                target_calls += 1
+                messages.append(Message(_complete_subject(subject, text)))
+            return messages
 
     report = tempfile.NamedTemporaryFile(mode="w+", encoding="utf-8")
     try:
@@ -354,9 +383,14 @@ def _garak_adapter_result(
         ]
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         reason = _garak_exception_reason("native_probe_interface", exc, subject)
-        return _unsupported_interface(worker, model_version, reason)
+        return garak_result(
+            status="incomplete",
+            evidence_ref=None,
+            incomplete_reason=f"worker_unsupported_interface:{worker.worker_id}:{reason}",
+            model_version=model_version,
+        )
     except Exception as exc:
-        return _result_dict(
+        return garak_result(
             status="incomplete", evidence_ref=None,
             incomplete_reason=(
                 f"worker_native_invocation_error:{worker.worker_id}:"
@@ -367,7 +401,7 @@ def _garak_adapter_result(
     finally:
         report.close()
     completed = bool(verdicts)
-    return _result_dict(
+    return garak_result(
         status="complete" if completed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
         incomplete_reason=None if completed else "garak_terminal_verdict_unavailable",
@@ -869,6 +903,9 @@ def _result(
     evidence_ref: str | None,
     incomplete_reason: str | None,
     model_version: str | None,
+    target_calls: int = 0,
+    judge_calls: int = 0,
+    duration_ms: int = 0,
 ) -> Any:
     from api.full_scan_executor import WorkerAttemptResult
 
@@ -877,6 +914,9 @@ def _result(
         evidence_ref=evidence_ref,
         incomplete_reason=incomplete_reason,
         model_version=model_version,
+        target_calls=target_calls,
+        judge_calls=judge_calls,
+        duration_ms=duration_ms,
     )
 
 
@@ -886,6 +926,9 @@ def _result_dict(
     evidence_ref: str | None,
     incomplete_reason: str | None,
     model_version: str | None,
+    target_calls: int = 0,
+    judge_calls: int = 0,
+    duration_ms: int = 0,
 ) -> dict[str, Any]:
     return {
         "schema": WORKER_RESULT_SCHEMA,
@@ -893,6 +936,9 @@ def _result_dict(
         "evidence_ref": evidence_ref,
         "incomplete_reason": incomplete_reason,
         "model_version": model_version,
+        "target_calls": target_calls,
+        "judge_calls": judge_calls,
+        "duration_ms": duration_ms,
     }
 
 
