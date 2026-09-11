@@ -13,6 +13,7 @@ import asyncio
 import importlib
 import importlib.metadata
 import inspect as py_inspect
+from api.attacker_pins import attacker_pin, bind_attacker_credentials
 import json
 import re
 import shutil
@@ -407,6 +408,14 @@ def _garak_adapter_result(
         _config.transient.reportfile = report
         _config.run.generations = 1
         _config.run.seed = int(job.get("seed") or 0)
+        pin = attacker_pin(probe_name)
+        if pin is not None:
+            # Multi-turn probe: pin the attacker to a dated API snapshot before
+            # the plugin loader applies garak's unpinned HuggingFace default.
+            bind_attacker_credentials()
+            probe_config = _config.plugins.probes.setdefault(probe_name, {})
+            for key in ("red_team_model_type", "red_team_model_name", "red_team_model_config"):
+                probe_config[key] = pin[key]
         probe = _plugins.load_plugin(f"probes.{probe_name}")
         attempts = list(probe.probe(BackBondSubjectGenerator(model_version)))
         detector_names = [probe.primary_detector] if getattr(probe, "primary_detector", None) else list(probe.recommended_detector)

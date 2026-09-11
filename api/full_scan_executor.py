@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from threading import RLock
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from api.attacker_pins import attacker_pins_manifest_block
 from api.bundle import sign_manifest
 from api.full_scan_job_persistence import FullScanJobPersistence
 from api.full_suite_manifest import (
@@ -754,6 +755,7 @@ def build_attempt_manifest(
         "scanner_version": job.scanner_version,
         "corpus_version": job.corpus_version,
         "model_versions": dict(job.model_versions),
+        "attacker_pins": attacker_pins_manifest_block(),
         "seed": job.seed,
         "attempts": list(job.attempts),
         "registry_snapshot_hash": registry_snapshot_hash(job.registry_cases),
