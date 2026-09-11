@@ -733,6 +733,23 @@ def _zoo_family_summary(
     )
 
 
+def _row_produced_grade(row: Mapping[str, Any]) -> bool:
+    """Report whether a row reached a terminal grade.
+
+    Judge calls are not proof of grading: deterministic oracles
+    (``deterministic_local_oracle``, ``structured_invariant``, the registered
+    lane-C runners) call the target, decide, and return a verdict without ever
+    invoking an LLM.  Applicability gates grade ``not_applicable`` without
+    calling the target at all.  The verdict, or a numeric measurement for the
+    families that report one instead, is what says the row was graded.
+    """
+    if str(row.get("status") or "") != "complete":
+        return False
+    return bool(str(row.get("verdict") or "").strip()) or (
+        row.get("numeric_result") is not None
+    )
+
+
 def _zoo_coverage_failures(
     decisions: Sequence[Any],
     evidence_rows: Sequence[Mapping[str, Any]],
@@ -744,17 +761,19 @@ def _zoo_coverage_failures(
             continue
         family_calls = calls.setdefault(_family_name(raw), Counter())
         family_calls["target"] += int(raw.get("target_calls") or 0)
-        family_calls["judge"] += int(raw.get("judge_calls") or 0)
+        family_calls["graded"] += int(_row_produced_grade(raw))
 
     failures: dict[str, str] = {}
     for decision in decisions:
         if decision.target is None:
             continue
         family_calls = calls.get(decision.family, Counter())
+        if family_calls["graded"] > 0:
+            continue
         if family_calls["target"] <= 0:
             failures[decision.family] = "no_target_calls_observed"
-        elif family_calls["judge"] <= 0:
-            failures[decision.family] = "no_judge_calls_observed"
+        else:
+            failures[decision.family] = "no_graded_verdict_observed"
     return failures
 
 

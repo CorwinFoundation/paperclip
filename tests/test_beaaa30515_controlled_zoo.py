@@ -212,19 +212,21 @@ def test_family_summary_accounts_for_unrouted_rows_by_reason(decisions):
         assert counts["considered"] == counts["routed"] + counts["incomplete"]
 
 
-def test_zero_call_families_are_reason_coded_not_routed_and_fail_coverage():
-    """A route is valid only after both target and judge execution."""
+def test_ungraded_families_are_reason_coded_not_routed_and_fail_coverage():
+    """A route is valid only once it produced a graded terminal verdict."""
     import scheduled_scan
     from harness.controlled_zoo import RoutingDecision
 
     decisions = [
         RoutingDecision("no-target", "rag", frozenset({"prose"}), "target=rag", ({},)),
-        RoutingDecision("no-judge", "rag", frozenset({"prose"}), "target=rag", ({},)),
+        RoutingDecision("no-grade", "rag", frozenset({"prose"}), "target=rag", ({},)),
         RoutingDecision("covered", "rag", frozenset({"prose"}), "target=rag", ({},)),
     ]
     evidence = [
-        {"family": "no-target", "target_calls": 0, "judge_calls": 0},
-        {"family": "no-judge", "target_calls": 1, "judge_calls": 0},
+        {"family": "no-target", "target_calls": 0, "judge_calls": 0,
+         "status": "incomplete", "verdict": None},
+        {"family": "no-grade", "target_calls": 1, "judge_calls": 1,
+         "status": "incomplete", "verdict": None},
         {"family": "covered", "target_calls": 1, "judge_calls": 1,
          "status": "complete", "verdict": "PASS"},
     ]
@@ -235,10 +237,10 @@ def test_zero_call_families_are_reason_coded_not_routed_and_fail_coverage():
 
     assert failures == {
         "no-target": "no_target_calls_observed",
-        "no-judge": "no_judge_calls_observed",
+        "no-grade": "no_graded_verdict_observed",
     }
     assert families["no-target"]["routed"] == 0
-    assert families["no-judge"]["routed"] == 0
+    assert families["no-grade"]["routed"] == 0
     assert families["covered"]["routed"] == 1
     assert families["covered"]["target_called"] == 1
     assert families["covered"]["judge_calls"] == 1
@@ -248,6 +250,61 @@ def test_zero_call_families_are_reason_coded_not_routed_and_fail_coverage():
     assert not scheduled_scan._zoo_coverage_passed(
         routed_families=0, target_calls=2, coverage_failures={}
     )
+
+
+def test_deterministic_oracle_families_stay_routed_without_judge_calls():
+    """Deterministic oracles grade without an LLM; that is coverage, not a gap.
+
+    Mirrors the BEAAA-31934 slice, where 24 of 118 rows were graded by
+    oracles such as ``deterministic_local_oracle`` and the judge-call
+    predicate demoted every one of their families to not-routed.
+    """
+    import scheduled_scan
+    from harness.controlled_zoo import RoutingDecision
+
+    decisions = [
+        RoutingDecision(
+            "cross_session_data_leak", "rag", frozenset({"prose"}), "target=rag", ({},)
+        ),
+        RoutingDecision(
+            "insecure_code_generation", "rag", frozenset({"prose"}), "target=rag", ({},)
+        ),
+    ]
+    evidence = [
+        # deterministic_local_oracle: one target call, no judge call, real verdict.
+        {"family": "cross_session_data_leak", "target_calls": 1, "judge_calls": 0,
+         "status": "complete", "verdict": "PASS"},
+        # applicability gate: declines before any target call, terminal verdict.
+        {"family": "insecure_code_generation", "target_calls": 0, "judge_calls": 0,
+         "status": "complete", "verdict": "NOT_APPLICABLE"},
+    ]
+
+    failures = scheduled_scan._zoo_coverage_failures(decisions, evidence)
+    effective = scheduled_scan._reason_code_uncovered_zoo_routes(decisions, failures)
+    families, _ = scheduled_scan._zoo_family_summary(effective, evidence)
+
+    assert failures == {}
+    assert families["cross_session_data_leak"]["routed"] == 1
+    assert families["insecure_code_generation"]["routed"] == 1
+    assert scheduled_scan._zoo_coverage_passed(
+        routed_families=2, target_calls=1, coverage_failures=failures
+    )
+
+
+def test_measured_rows_without_a_verdict_count_as_graded():
+    """Numeric families report a measurement instead of PASS/FAIL."""
+    import scheduled_scan
+    from harness.controlled_zoo import RoutingDecision
+
+    decisions = [
+        RoutingDecision("measured", "rag", frozenset({"prose"}), "target=rag", ({},))
+    ]
+    evidence = [
+        {"family": "measured", "target_calls": 1, "judge_calls": 0,
+         "status": "complete", "verdict": None, "numeric_result": 0.25}
+    ]
+
+    assert scheduled_scan._zoo_coverage_failures(decisions, evidence) == {}
 
 
 def test_upstream_http_failure_is_not_reported_as_format():
