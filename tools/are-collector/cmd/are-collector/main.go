@@ -74,7 +74,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	started := time.Now().UTC()
-	events, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.RegistryConfig{
+	events, sourceCounter, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.RegistryConfig{
 		NumbatCommit: *numbatCommit, NumbatSchema: *numbatSchema,
 		Langfuse: numbatsource.LangfuseConfig{BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion},
 		Datadog:  numbatsource.DatadogConfig{Site: *datadogSite, APIKey: *datadogAPIKey, ApplicationKey: *datadogAppKey, Query: *datadogQuery},
@@ -111,62 +111,55 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	default:
 		return fmt.Errorf("unsupported wire-version %q", *wireVersion)
 	}
-	return encodeBatch(stdout, *source, *receiptPath, *deploymentID, *customerID, *agentID, *batchID, *prevBatchHash, started, selectedWire, batchDigest, batchIdentity, events, batch)
+	return encodeBatch(stdout, *source, *receiptPath, *deploymentID, *customerID, *agentID, *batchID, *prevBatchHash, started, selectedWire, batchDigest, batchIdentity, events, sourceCounter, batch)
 }
 
-func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Policy, receiptPath, deploymentID, numbatCommit, numbatSchema, checkpointPath string, registryConfig numbatsource.RegistryConfig) ([]schemav1.Event, error) {
+type sourceRecordCounter interface {
+	SourceRecordCount() int
+}
+
+func collectEvents(mode, sourceID string, stdin io.Reader, policy redaction.Policy, receiptPath, deploymentID, numbatCommit, numbatSchema, checkpointPath string, registryConfig numbatsource.RegistryConfig) ([]schemav1.Event, sourceRecordCounter, error) {
 	if mode == "source-driver" {
 		if checkpointPath == "" {
-			return nil, fmt.Errorf("source-driver mode requires checkpoint-path")
+			return nil, nil, fmt.Errorf("source-driver mode requires checkpoint-path")
 		}
 		registry := numbatsource.ConfiguredRegistry(registryConfig)
 		driver, err := registry.Resolve(sourceID, stdin)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		window, err := (collector.Runtime{Pipeline: collector.Pipeline{}, Store: collector.FileCheckpointStore{Path: checkpointPath}}).Collect(context.Background(), driver)
-		return window.Events, err
+		counter, _ := driver.(sourceRecordCounter)
+		return window.Events, counter, err
 	}
 	if sourceID == "numbat" {
 		if receiptPath == "" || deploymentID == "" {
-			return nil, fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
+			return nil, nil, fmt.Errorf("numbat requires reconciliation-receipt and deployment-id")
 		}
 		registry := numbatsource.ConfiguredRegistry(registryConfig)
 		driver, err := registry.Resolve(sourceID, stdin)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+		events, err := (collector.Pipeline{}).CollectDriver(context.Background(), driver, 0)
+		counter, _ := driver.(sourceRecordCounter)
+		return events, counter, err
 	}
 	sink, err := adapter.AdapterFromFixture(sourceID, stdin)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
+	events, err := collector.Pipeline{Adapter: sink, Policy: policy}.Collect(context.Background())
+	return events, nil, err
 }
 
-func encodeBatch(stdout io.Writer, sourceID, receiptPath, deploymentID, customerID, agentID, batchID, prevBatchHash string, started time.Time, selectedWire, batchDigest, batchIdentity string, events []schemav1.Event, batch any) error {
+func encodeBatch(stdout io.Writer, sourceID, receiptPath, deploymentID, customerID, agentID, batchID, prevBatchHash string, started time.Time, selectedWire, batchDigest, batchIdentity string, events []schemav1.Event, sourceCounter sourceRecordCounter, batch any) error {
 	encoder := json.NewEncoder(stdout)
 	encoder.SetEscapeHTML(false)
 	if sourceID == "numbat" {
-		totals := map[string]int{}
-		nonBillable := 0
-		for _, event := range events {
-			totals[string(event.EventType)]++
-			if billable, _ := event.Payload["billable"].(bool); !billable {
-				nonBillable++
-			}
-		}
-		receipt, replay, receiptErr := reconciliation.Append(receiptPath, reconciliation.Receipt{
-			TenantID: customerID, AgentID: agentID, DeploymentID: deploymentID,
-			SourceCount: len(events), EmittedCount: len(events), QuarantineCount: 0, NonBillableCount: nonBillable,
-			OrderedBatchHashes: []string{batchIdentity}, WireVersion: selectedWire, EventTotals: totals,
-			IdempotencyKey:   reconciliation.IdempotencyKey(customerID, agentID, deploymentID, selectedWire, batchID, prevBatchHash, batchDigest),
-			CollectorVersion: "are-collector@76da84e+BEAAA-23693", ScannerVersion: "0.5.0", CorpusVersion: "0.1.0",
-			ProbeSetVersion: "monitor-only-numbat-v0.1", RubricPointID: "none-exercised", NumbatVersion: numbatsource.NumbatVersion,
-			NumbatCommit: numbatsource.NumbatCommit, NumbatSchema: numbatsource.NumbatSchemaVersion, MappingVersion: numbatsource.NumbatMappingVersion,
-			StartedAt: started.Format(time.RFC3339Nano), CompletedAt: time.Now().UTC().Format(time.RFC3339Nano),
-		})
+		receipt, replay, receiptErr := reconciliation.Append(receiptPath,
+			numbatReceipt(sourceCounter, events, customerID, agentID, deploymentID,
+				batchIdentity, selectedWire, batchID, prevBatchHash, batchDigest, started))
 		if receiptErr != nil {
 			return receiptErr
 		}
@@ -176,6 +169,33 @@ func encodeBatch(stdout io.Writer, sourceID, receiptPath, deploymentID, customer
 		return encoder.Encode(map[string]any{"batch": batch, "reconciliation_receipt": receipt})
 	}
 	return encoder.Encode(batch)
+}
+
+func numbatReceipt(counter sourceRecordCounter, events []schemav1.Event,
+	customerID, agentID, deploymentID, batchIdentity, wireVersion, batchID, prevBatchHash, batchDigest string,
+	started time.Time) reconciliation.Receipt {
+	totals := map[string]int{}
+	nonBillable := 0
+	for _, event := range events {
+		totals[string(event.EventType)]++
+		if billable, _ := event.Payload["billable"].(bool); !billable {
+			nonBillable++
+		}
+	}
+	sourceCount := len(events)
+	if counter != nil {
+		sourceCount = counter.SourceRecordCount()
+	}
+	return reconciliation.Receipt{
+		TenantID: customerID, AgentID: agentID, DeploymentID: deploymentID,
+		SourceCount: sourceCount, EmittedCount: len(events), QuarantineCount: 0, NonBillableCount: nonBillable,
+		OrderedBatchHashes: []string{batchIdentity}, WireVersion: wireVersion, EventTotals: totals,
+		IdempotencyKey:   reconciliation.IdempotencyKey(customerID, agentID, deploymentID, wireVersion, batchID, prevBatchHash, batchDigest),
+		CollectorVersion: "are-collector@276becc+BEAAA-24444", ScannerVersion: "0.5.0", CorpusVersion: "0.1.0",
+		ProbeSetVersion: "monitor-only-numbat-v0.1", RubricPointID: "none-exercised", NumbatVersion: numbatsource.NumbatVersion,
+		NumbatCommit: numbatsource.NumbatCommit, NumbatSchema: numbatsource.NumbatSchemaVersion, MappingVersion: numbatsource.NumbatMappingVersion,
+		StartedAt: started.Format(time.RFC3339Nano), CompletedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
 }
 
 func parsePolicy(raw string) (redaction.Policy, error) {

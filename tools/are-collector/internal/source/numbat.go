@@ -21,8 +21,9 @@ const (
 )
 
 type NumbatSourceDriver struct {
-	records    []RawEnvelope
-	checkpoint string
+	records     []RawEnvelope
+	checkpoint  string
+	recordsRead int
 }
 
 func NewNumbatSourceDriver(reader io.Reader) (*NumbatSourceDriver, error) {
@@ -32,6 +33,10 @@ func NewNumbatSourceDriver(reader io.Reader) (*NumbatSourceDriver, error) {
 		if strings.TrimSpace(scanner.Text()) == "" {
 			continue
 		}
+		// Counted here, at the read boundary, before the line is parsed, pin
+		// checked, or filtered. Any later step that discards the record leaves
+		// recordsRead above the emitted event count instead of moving with it.
+		driver.recordsRead++
 		var payload map[string]any
 		if err := json.Unmarshal(scanner.Bytes(), &payload); err != nil {
 			return nil, fmt.Errorf("numbat ndjson: %w", err)
@@ -58,6 +63,19 @@ func (d *NumbatSourceDriver) Descriptor() Descriptor {
 }
 
 func (d *NumbatSourceDriver) Checkpoint(context.Context) (string, error) { return d.checkpoint, nil }
+
+// SourceRecordCount reports records taken off the spool, and is deliberately
+// independent of the events the pipeline emits. It is the receipt's
+// source_count: derived from len(events) instead, the
+// source == emitted + quarantine guard is tautological, because a dropped
+// record decrements both sides of the equation equally.
+//
+// The count spans the whole spool, which is the whole batch while the collector
+// acquires without a limit, as the only wired mode does. If a batch limit is
+// ever added, an unread remainder leaves source above emitted and the receipt
+// is rejected rather than written with an understated source count; that is the
+// direction this is meant to fail in.
+func (d *NumbatSourceDriver) SourceRecordCount() int { return d.recordsRead }
 
 func (d *NumbatSourceDriver) Acquire(_ context.Context, after string, max int) ([]RawEnvelope, string, error) {
 	start := 0

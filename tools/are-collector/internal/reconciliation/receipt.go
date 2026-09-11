@@ -11,12 +11,22 @@ import (
 	"strings"
 )
 
-// ReceiptVersion is bumped to v3 with the addition of idempotency_key. v1 rows
-// record only ordered_batch_hashes; v2 added wire_version. Neither could carry a
-// dedupe key that is both stable across time and distinct per batch, because
-// ordered_batch_hashes[0] holds the emitted batch identity, and on the v2 wire
-// that identity commits to issued_at.
-const ReceiptVersion = "numbat-reconciliation-receipt-v3"
+// ReceiptVersion is bumped when two rows that mean different things would
+// otherwise be indistinguishable.
+//
+// v1 rows record only ordered_batch_hashes; v2 added wire_version. v3 added
+// idempotency_key, because neither earlier row could carry a dedupe key that is
+// both stable across time and distinct per batch: ordered_batch_hashes[0] holds
+// the emitted batch identity, and on the v2 wire that identity commits to
+// issued_at.
+//
+// v4 changes no field. source_count stops being a copy of emitted_count and
+// becomes a count taken at the source driver, so the reconciliation guard below
+// is an assertion about the collection rather than an identity. A v3 row and a
+// v4 row are shaped alike and mean different things, which is the same test the
+// earlier bumps were made under: a stored v3 source_count was never a
+// measurement and must not be read as one.
+const ReceiptVersion = "numbat-reconciliation-receipt-v4"
 
 // IdempotencyKey is the time-independent identity of a collection run: the same
 // spool re-collected under the same pins produces the same key, while any batch
@@ -80,6 +90,10 @@ func Append(path string, receipt Receipt) (Receipt, bool, error) {
 	if receipt.IdempotencyKey == "" {
 		return Receipt{}, false, fmt.Errorf("receipt idempotency_key is required")
 	}
+	// source_count comes from the source driver's own read count, so this is a
+	// real reconciliation of the batch against the spool. non_billable_count is
+	// a property of the emitted events rather than a fourth disjoint bucket, and
+	// is deliberately not a term here.
 	if receipt.SourceCount != receipt.EmittedCount+receipt.QuarantineCount {
 		return Receipt{}, false, fmt.Errorf("reconciliation mismatch: source=%d emitted=%d quarantine=%d", receipt.SourceCount, receipt.EmittedCount, receipt.QuarantineCount)
 	}

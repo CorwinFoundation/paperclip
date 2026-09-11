@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
@@ -10,7 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"backbond/are-collector/internal/collector"
 	"backbond/are-collector/internal/egress"
+	"backbond/are-collector/internal/reconciliation"
+	"backbond/are-collector/internal/schemav1"
+	numbatsource "backbond/are-collector/internal/source"
 )
 
 func testPrivateKeyB64(t *testing.T) string {
@@ -261,7 +266,7 @@ func TestCLINumbatDistinctBatchIDsAreNotDeduped(t *testing.T) {
 // against (BEAAA-24615, ruling BEAAA-24451).
 //
 // Negative control: restore RubricPointID: "monitor-only" in main.go. Observed at
-// main_test.go:250: "rubric_point_id = monitor-only, want none-exercised".
+// main_test.go:255: "rubric_point_id = monitor-only, want none-exercised".
 func TestCLINumbatReceiptClaimsNoRubricPoint(t *testing.T) {
 	receiptPath := t.TempDir() + "/receipts.ndjson"
 	input := `{"schema_version":"0.2.0","record_type":"event","event_id":"e1","timestamp":"2026-07-31T00:00:00Z","event_type":"tool.call","content":"private prompt"}`
@@ -279,13 +284,19 @@ func TestCLINumbatReceiptClaimsNoRubricPoint(t *testing.T) {
 		t.Fatalf("rubric_point_id = %v, want none-exercised", receipt["rubric_point_id"])
 	}
 	// The key and the schema version are deliberately untouched by BEAAA-24615.
-	if receipt["receipt_version"] != "numbat-reconciliation-receipt-v3" {
+	// The literal is v4 rather than v3 because BEAAA-24444 moved it, per the CTO
+	// ruling on BEAAA-24448: v3 belongs to the idempotency_key candidate, and
+	// source_count ceasing to be a copy of emitted_count earns v4. This assertion
+	// still does its job — it fails if anything moves the version without a
+	// ruling behind it — and it is pinned to the literal rather than to
+	// reconciliation.ReceiptVersion, which would agree with any value.
+	if receipt["receipt_version"] != "numbat-reconciliation-receipt-v4" {
 		t.Fatalf("receipt_version moved: %v", receipt["receipt_version"])
 	}
 }
 
 // Negative control: make the commit pin check vacuous (compare the flag to itself).
-// Observed at main_test.go:266: "pin mismatch read source: err=numbat record requires
+// Observed at main_test.go:277: "pin mismatch read source: err=numbat record requires
 // record_type or legacy event_type and observed_at reads=2" — the spool was read before
 // the mismatch was caught.
 func TestCLINumbatPinMismatchFailsBeforeRead(t *testing.T) {
@@ -369,5 +380,113 @@ func TestCLIRejectsMissingPrivateKey(t *testing.T) {
 	)
 	if err == nil || !strings.Contains(err.Error(), "ed25519-private-key-b64 is required") {
 		t.Fatalf("expected private key error, got %v", err)
+	}
+}
+
+// droppingDriver stands in for a source driver that reads a record off the
+// spool and then discards it before the pipeline ever sees it. Nothing in the
+// shipped Numbat driver does this. The point of the fixture is that the receipt
+// has to catch it if anything ever starts to, which it could not do while
+// source_count was derived from the emitted events.
+type droppingDriver struct {
+	*numbatsource.NumbatSourceDriver
+}
+
+func (d droppingDriver) Acquire(ctx context.Context, after string, max int) ([]numbatsource.RawEnvelope, string, error) {
+	records, next, err := d.NumbatSourceDriver.Acquire(ctx, after, max)
+	if err != nil || len(records) == 0 {
+		return records, next, err
+	}
+	return records[:len(records)-1], next, nil
+}
+
+const threeRecordSpool = `{"schema_version":"0.2.0","record_type":"event","event_id":"e1","timestamp":"2026-07-31T00:00:00Z","event_type":"tool.call"}
+{"schema_version":"0.2.0","record_type":"event","event_id":"e2","timestamp":"2026-07-31T00:00:01Z","event_type":"prompt.user"}
+{"schema_version":"0.2.0","record_type":"event","event_id":"e3","timestamp":"2026-07-31T00:00:02Z","event_type":"file.write"}`
+
+func collectWithDriver(t *testing.T, spool string, drop bool) (*numbatsource.NumbatSourceDriver, []schemav1.Event) {
+	t.Helper()
+	driver, err := numbatsource.NewNumbatSourceDriver(strings.NewReader(spool))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var used numbatsource.SourceDriver = driver
+	if drop {
+		used = droppingDriver{driver}
+	}
+	events, err := (collector.Pipeline{}).CollectDriver(context.Background(), used, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return driver, events
+}
+
+func testNumbatReceipt(driver *numbatsource.NumbatSourceDriver, events []schemav1.Event) reconciliation.Receipt {
+	return numbatReceipt(driver, events, "tenant-1", "agent-1", "deploy-1",
+		"sha256:aa", "post-bind-egress-wire-v1", "batch-1", "", "sha256:bb", time.Now().UTC())
+}
+
+// Negative control: bind SourceCount to len(events) instead of
+// driver.SourceRecordCount() in numbatReceipt. Observed: "receipt must carry the
+// driver's count against the emitted count, got source=2 emitted=2" at
+// main_test.go:416. With that assertion also removed the failure moves to the guard
+// itself, "a record read off the spool and never emitted was written to the receipt
+// without complaint", which is the tautology this ticket exists to remove.
+func TestNumbatReceiptCatchesRecordDroppedInsideDriver(t *testing.T) {
+	driver, events := collectWithDriver(t, threeRecordSpool, true)
+	if driver.SourceRecordCount() != 3 {
+		t.Fatalf("driver read %d records off a three record spool", driver.SourceRecordCount())
+	}
+	if len(events) != 2 {
+		t.Fatalf("fixture is meant to drop exactly one record, emitted %d", len(events))
+	}
+	receipt := testNumbatReceipt(driver, events)
+	if receipt.SourceCount != 3 || receipt.EmittedCount != 2 {
+		t.Fatalf("receipt must carry the driver's count against the emitted count, got source=%d emitted=%d", receipt.SourceCount, receipt.EmittedCount)
+	}
+	_, _, err := reconciliation.Append(t.TempDir()+"/receipts.ndjson", receipt)
+	if err == nil {
+		t.Fatal("a record read off the spool and never emitted was written to the receipt without complaint; source_count is being derived from the events again")
+	}
+	if !strings.Contains(err.Error(), "source=3 emitted=2") {
+		t.Fatalf("expected the guard to name both sides of the equation, got %v", err)
+	}
+}
+
+// Negative control, two of them. Revert ReceiptVersion to v3: observed "receipt
+// version \"numbat-reconciliation-receipt-v3\", want numbat-reconciliation-receipt-v4"
+// at main_test.go:447. Count billable events as non-billable in numbatReceipt:
+// observed "got source=3 non_billable=2, want 3 and 1" at main_test.go:441.
+func TestNumbatReceiptReconcilesWhenNothingIsDropped(t *testing.T) {
+	driver, events := collectWithDriver(t, threeRecordSpool, false)
+	if driver.SourceRecordCount() != 3 || len(events) != 3 {
+		t.Fatalf("clean collection should read and emit three, got source=%d emitted=%d", driver.SourceRecordCount(), len(events))
+	}
+	receipt, replay, err := reconciliation.Append(t.TempDir()+"/receipts.ndjson", testNumbatReceipt(driver, events))
+	if err != nil || replay {
+		t.Fatalf("clean batch must reconcile: err=%v replay=%v", err, replay)
+	}
+	if receipt.SourceCount != 3 || receipt.NonBillableCount != 1 {
+		t.Fatalf("got source=%d non_billable=%d, want 3 and 1", receipt.SourceCount, receipt.NonBillableCount)
+	}
+	// The literal, not the constant: comparing reconciliation.ReceiptVersion to
+	// itself would agree with any value the code happens to hold. v4 is the
+	// version the CTO ruled on in BEAAA-24448, so the test pins it.
+	if receipt.ReceiptVersion != "numbat-reconciliation-receipt-v4" {
+		t.Fatalf("receipt version %q, want numbat-reconciliation-receipt-v4", receipt.ReceiptVersion)
+	}
+}
+
+// Negative control: move driver.recordsRead++ above the blank-line skip in
+// NewNumbatSourceDriver, so blank lines count as records. Observed: "blank lines are
+// not records, got 5" at main_test.go:461. This is the control that pins where the
+// counter sits, not merely that it exists.
+func TestNumbatSourceCountIgnoresBlankSpoolLines(t *testing.T) {
+	driver, err := numbatsource.NewNumbatSourceDriver(strings.NewReader("\n" + threeRecordSpool + "\n\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if driver.SourceRecordCount() != 3 {
+		t.Fatalf("blank lines are not records, got %d", driver.SourceRecordCount())
 	}
 }
