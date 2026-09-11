@@ -2,7 +2,9 @@
 
 BEAAA-5967 implementation slice for ADR-0035 / BEAAA-5966.
 
-This package is the customer-side collector runtime. It reads either JSON-lines fixtures (the `numbat` driver, used for local smoke) or a live observability source through the common adapter interface, keeps only Log Event Schema v1.0 event families, applies source-side redaction, and produces signed egress batches for the BackBond receiver. Datadog (Logs API v2) and Langfuse adapter wiring is enabled and live in this image, so a configured run egresses redacted agent telemetry from the real source. Splunk, CloudWatch, and OTEL wiring is intentionally not enabled.
+This package is the customer-side collector runtime. It has two input paths, selected by `-mode`. `-mode fixture-smoke` reads JSON-lines fixtures through the common adapter interface; the fixture kinds are `datadog`, `splunk`, `cloudwatch`, and `otel` (`adapter.AdapterFromFixture`). `-mode source-driver` pulls from a live source through the driver registry, which registers `datadog`, `langfuse`, and `numbat` — `numbat` is a source driver, not a fixture kind, and is the local-smoke path for coding-agent logs. Both paths keep only Log Event Schema v1.0 event families, apply source-side redaction, and produce signed egress batches for the BackBond receiver.
+
+Live source-driver wiring exists for Datadog (Logs API v2) and Langfuse, so a configured run egresses redacted agent telemetry from the real source. The Datadog path was exercised end to end from a credential-holding seat; Langfuse live acceptance is inherited from the BEAAA-30906 connector work and has not been re-run since. There is no live source driver for Splunk, CloudWatch, or OTEL: `-mode source-driver -source otel` fails closed with `unknown source driver "otel"`, pinned by `cmd/are-collector/main_test.go`. Fixture adapters for all three do ship in the binary, as does the OTLP gRPC receiver type in `internal/adapter/otel_grpc.go`; what is absent is the live acquisition wiring, not the code path. No part of this image is Founder-authorized for production release yet.
 
 Boundary invariants:
 
