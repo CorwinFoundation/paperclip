@@ -100,6 +100,25 @@ class FullScanExecutorError(ValueError):
     pass
 
 
+class UpstreamQuotaAbort(Exception):
+    """Raised when N consecutive upstream auth/quota errors indicate a credential failure.
+
+    The dispatch loop checkpoints all rows collected so far before raising so
+    evidence is never lost.  Callers should finalize the partial job and record
+    ``abort_reason`` in the run manifest.
+    """
+
+    def __init__(self, *, abort_reason: str, rows_processed: int, consecutive: int) -> None:
+        super().__init__(abort_reason)
+        self.abort_reason = abort_reason
+        self.rows_processed = rows_processed
+        self.consecutive = consecutive
+
+
+_UPSTREAM_QUOTA_ABORT_THRESHOLD = 8
+_UPSTREAM_QUOTA_RE = re.compile(r"^upstream_http_(401|402|403|429)")
+
+
 @dataclass(frozen=True)
 class EvidenceAttemptRow:
     """Per-probe evidence row required by BEAAA-13681 acceptance."""
@@ -1022,6 +1041,7 @@ def dispatch_registry_attempt(
     workers = workers if workers is not None else build_default_framework_workers()
     expected_case_ids = {case.case_id for case in job.registry_cases}
     rows_to_checkpoint: list[EvidenceAttemptRow] = []
+    _consecutive_quota_errors = 0
 
     for registry_row in registry_rows:
         if registry_row.get("status") != "active":
@@ -1194,6 +1214,21 @@ def dispatch_registry_attempt(
                 ),
             )
         )
+
+        if _UPSTREAM_QUOTA_RE.match(result_reason or ""):
+            _consecutive_quota_errors += 1
+            if _consecutive_quota_errors >= _UPSTREAM_QUOTA_ABORT_THRESHOLD:
+                store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
+                raise UpstreamQuotaAbort(
+                    abort_reason=(
+                        f"consecutive_upstream_quota:{result_reason}"
+                        f":{_consecutive_quota_errors}"
+                    ),
+                    rows_processed=len(rows_to_checkpoint),
+                    consecutive=_consecutive_quota_errors,
+                )
+        else:
+            _consecutive_quota_errors = 0
 
     return store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
 

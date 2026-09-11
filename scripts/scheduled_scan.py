@@ -29,6 +29,7 @@ if str(ROOT) not in sys.path:
 
 from api.full_scan_executor import (  # noqa: E402
     FullScanJobStore,
+    UpstreamQuotaAbort,
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
@@ -610,19 +611,24 @@ def _run_zoo_target(
     output_dir: Path,
     run_date: str,
     limiter: SharedRateLimiter,
-) -> tuple[Any, list[Mapping[str, Any]]]:
+) -> tuple[Any, list[Mapping[str, Any]], str | None]:
     """Submit and dispatch one job against a single controlled zoo surface.
 
     Each surface gets its own job because the capability manifest is what the
     executor gates family applicability on; one merged job would have to
     declare the union of every surface and would then run families against
     capabilities their assigned target does not have.
+
+    Returns (finished_job, evidence_rows, abort_reason_or_None).  When the
+    dispatch loop trips the upstream-quota fail-fast the partial rows are
+    checkpointed, the job is finalised, and the abort reason is returned so the
+    caller can record it in the manifest and stop iterating over targets.
     """
     from harness.controlled_zoo import build_zoo_runner, controlled_tau_session_factory
 
     rows = [row for decision in decisions for row in decision.rows]
     if not rows:
-        return None, []
+        return None, [], None
 
     request = SimpleNamespace(
         agent_endpoint="controlled-zoo://" + target.name,
@@ -663,16 +669,20 @@ def _run_zoo_target(
     )
     lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
     attempt_id = str(lease["attempt_id"])
-    dispatch_registry_attempt(
-        store,
-        job.job_id,
-        attempt_id=attempt_id,
-        registry_rows=rows,
-        workers=workers,
-    )
+    abort_reason = None
+    try:
+        dispatch_registry_attempt(
+            store,
+            job.job_id,
+            attempt_id=attempt_id,
+            registry_rows=rows,
+            workers=workers,
+        )
+    except UpstreamQuotaAbort as exc:
+        abort_reason = exc.abort_reason
     finished = store.finalize(job.job_id, attempt_id=attempt_id)
     final = dict(finished.final_manifest or {})
-    return finished, list(final.get("evidence_rows", []))
+    return finished, list(final.get("evidence_rows", [])), abort_reason
 
 
 def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
@@ -727,8 +737,9 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
     evidence_rows: list[Mapping[str, Any]] = []
     target_reports: dict[str, Any] = {}
     estimated_cost = 0.0
+    run_abort_reason: str | None = None
     for name in sorted(by_target):
-        finished, target_rows = _run_zoo_target(
+        finished, target_rows, target_abort = _run_zoo_target(
             targets[name],
             by_target[name],
             config=config,
@@ -750,7 +761,11 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             "families": sorted(d.family for d in by_target[name]),
             "rows": sum(len(d.rows) for d in by_target[name]),
             "target_calls": sum(int(r.get("target_calls") or 0) for r in target_rows),
+            "abort_reason": target_abort,
         }
+        if target_abort is not None:
+            run_abort_reason = target_abort
+            break
     finished_at = datetime.now(timezone.utc).isoformat()
 
     coverage_failures = _zoo_coverage_failures(decisions, evidence_rows)
@@ -777,6 +792,8 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         "estimated_cost_usd": round(estimated_cost, 6),
         "egress_preflight_result_path": str(preflight_path),
         "egress_preflight": dict(preflight_result),
+        "aborted": run_abort_reason is not None,
+        "abort_reason": run_abort_reason,
         "families": families,
         "routed_families": routed_families,
         "judge_calls": judge_calls,
@@ -887,14 +904,18 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
     )
     lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
     attempt_id = str(lease["attempt_id"])
-    dispatch_registry_attempt(
-        store,
-        job.job_id,
-        attempt_id=attempt_id,
-        registry_rows=rows,
-        workers=workers,
-        execution_flag=execution_flag,
-    )
+    vapi_abort_reason: str | None = None
+    try:
+        dispatch_registry_attempt(
+            store,
+            job.job_id,
+            attempt_id=attempt_id,
+            registry_rows=rows,
+            workers=workers,
+            execution_flag=execution_flag,
+        )
+    except UpstreamQuotaAbort as exc:
+        vapi_abort_reason = exc.abort_reason
     finished = store.finalize(job.job_id, attempt_id=attempt_id)
     finished_at = datetime.now(timezone.utc).isoformat()
     manifest = _operator_manifest(
@@ -908,6 +929,8 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         registry_rows=rows,
         preflight_result=preflight_result,
     )
+    manifest["aborted"] = vapi_abort_reason is not None
+    manifest["abort_reason"] = vapi_abort_reason
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(manifest_path)

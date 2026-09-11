@@ -338,7 +338,7 @@ def test_dispatch_records_real_target_calls_against_a_controlled_surface(
         timeout_seconds=600,
         judge_model="anthropic/claude-haiku-4.5",
     )
-    finished, rows = scheduled_scan._run_zoo_target(
+    finished, rows, _abort = scheduled_scan._run_zoo_target(
         zoo_targets()[target_name],
         trimmed,
         config=config,
@@ -400,7 +400,7 @@ def test_wrapped_provider_http_failure_keeps_diagnosis_and_error_evidence(
         type(d)(d.family, d.target, d.required_surfaces, d.reason, d.rows[:1])
         for d in chosen
     ]
-    _finished, rows = scheduled_scan._run_zoo_target(
+    _finished, rows, _abort = scheduled_scan._run_zoo_target(
         zoo_targets()["rag"],
         trimmed,
         config=config,
