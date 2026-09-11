@@ -2,7 +2,7 @@
 
 BEAAA-5967 implementation slice for ADR-0035 / BEAAA-5966.
 
-This package is the customer-side collector runtime. Build #3 is fixture/local-smoke only: it reads JSON-lines fixtures through the common adapter interface, keeps only Log Event Schema v1.0 event families, applies source-side redaction, and produces signed egress batches for the BackBond receiver. Real Datadog/Splunk/CloudWatch/OTEL adapter wiring is intentionally not enabled in this image.
+This package is the customer-side collector runtime. It reads either JSON-lines fixtures (the `numbat` driver, used for local smoke) or a live observability source through the common adapter interface, keeps only Log Event Schema v1.0 event families, applies source-side redaction, and produces signed egress batches for the BackBond receiver. Datadog (Logs API v2) and Langfuse adapter wiring is enabled and live in this image, so a configured run egresses redacted agent telemetry from the real source. Splunk, CloudWatch, and OTEL wiring is intentionally not enabled.
 
 Boundary invariants:
 

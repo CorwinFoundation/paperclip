@@ -35,7 +35,7 @@ To rotate, create a new scoped key pair, update both runtime secret values toget
 
 The Langfuse checkpoint separately tracks observation and score cursors plus completion flags. Restore the checkpoint file and rerun after a failure. Deleting the `langfuse` entry deliberately starts both streams from their API-defined beginning, so archive the original checkpoint and expect duplicates downstream.
 
-The observations request asks only for `core,basic,time`; the scores request asks only for `core,score`. Normalized output admits record kind, type, name, level, source, data type, trace ID, observation ID, session ID, timestamps, and scalar score values. Prompts, inputs, outputs, transcripts, metadata, comments, tool arguments, secrets, PII, and customer identifiers are excluded. There is no flag that enables them.
+The observations request asks only for `core,basic,time`; the scores request asks only for `core`. Normalized output admits record kind, type, name, level, source, data type, trace ID, observation ID, session ID, timestamps, and scalar score values. Prompts, inputs, outputs, transcripts, metadata, comments, tool arguments, secrets, PII, and customer identifiers are excluded. There is no flag that enables them.
 
 ## Source health
 
