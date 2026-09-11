@@ -53,4 +53,4 @@ def test_registration_is_evidenced_and_runnable_but_not_scored():
 def test_frozen_production_counts_unchanged():
     rows = build_registry(include_content_candidates=False)
     assert count_active_executable(rows) == 492
-    assert count_target_bound_runtime(rows) == 513
+    assert count_target_bound_runtime(rows) == 525

@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[1]
 # to clear the VAPI 403, moving that one row's runtime identity to
 # 41434ba0...103f. Row counts are unchanged (2,353 / 2,352); only the hash moves.
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "7da2a0b20435c98397360f210ae562879470425d282f0f0e8fc203e962b3d655"
+    "ca7127178545cbb3abdd7ce0bfeb192db7745d141c86febe69690688f0f69bf8"
 )
 
 
@@ -44,7 +44,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # this exclusion proof. The pii_attestation.evidence_pack row is now bound
     # through the production adapter. Binding the two demographic-parity rows
     # reduces the exclusion proof by two more.
-    assert len(marker["excluded_rows"]) == 125
+    assert len(marker["excluded_rows"]) == 137
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

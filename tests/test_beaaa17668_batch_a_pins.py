@@ -46,7 +46,7 @@ PINNED_FILES = {
     "rubric/probe_mappings/garak.yaml":
         "c432a404896c13d24145cfe8964cadd52f87073668860f80edc13d848eddfed0",
     "rubric/probe_mappings/garak_beaaa152.yaml":
-        "d74adf2fc5417b926b59c10f5554cb2a855528cd9e4c8b9b869397e70752278f",
+        "3ad46157342970f37c9274317c30e0cc6404b8f049f43328cd504d9392e1d702",
     "tests/probe_sets/p4_grounded_factuality_halueval_qa_v1.jsonl":
         "fcff3a6ab4e3d9f99d2024da646c7efa6a455658a127b359aeb6038d01dad847",
     "tests/probe_sets/p4_citation_grounded_halueval_summ_v1.jsonl":

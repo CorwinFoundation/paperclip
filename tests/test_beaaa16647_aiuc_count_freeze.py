@@ -31,8 +31,8 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
 
     assert count_active_executable(rows) == 492
     assert summary["active_executable_count"] == 492
-    assert count_target_bound_runtime(rows) == 513
-    assert summary["target_bound_runtime_count"] == 513
+    assert count_target_bound_runtime(rows) == 525
+    assert summary["target_bound_runtime_count"] == 525
     assert summary["published_active_test_count"] == 492
 
 

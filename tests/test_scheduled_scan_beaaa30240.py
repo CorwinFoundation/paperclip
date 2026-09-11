@@ -26,12 +26,26 @@ from scripts.scheduled_scan import (
 )
 
 
-def test_garak_live_dispatch_selects_exactly_27_target_bound_rows():
+def test_garak_live_dispatch_keeps_new_unscored_rows_out():
     rows = load_garak_dispatch_rows()
     assert len(rows) == 27
     assert {row["test_id"] for row in rows} == {"garak", "garak_beaaa152"}
     assert all(row["garak_live_dispatch"] is True for row in rows)
     assert len({row["runtime_case_identity"] for row in rows}) == 27
+    assert not {
+        "garak.encoding.InjectAscii85",
+        "garak.encoding.InjectAtbash",
+        "garak.encoding.InjectSneakyBits",
+        "garak.ansiescape.AnsiEscaped",
+        "garak.dra.DRA",
+        "garak.badchars.BadCharacters",
+        "garak.smuggling.FunctionMasking",
+        "garak.smuggling.HomoglyphObfuscation",
+        "garak.apikey.GetKey",
+        "garak.web_injection.MarkdownURIImageExfilExtended",
+        "garak.web_injection.MarkdownURINonImageExfilExtended",
+        "garak.sysprompt_extraction.SystemPromptExtraction",
+    } & {row["case_id"] for row in rows}
 
 
 def test_default_vapi_promotes_garak_into_the_live_worker_union():

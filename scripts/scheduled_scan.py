@@ -95,14 +95,32 @@ def map_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str
 
 
 def load_garak_dispatch_rows() -> list[dict[str, Any]]:
-    """Select all 27 mapped Garak rows without changing production countability."""
+    """Select the 27 previously live Garak rows.
+
+    BEAAA-31018 PR 1 registers twelve upstream rows for later evidence work.
+    Registration must not silently expand the live scheduled scan.
+    """
     from tools.active_test_registry import build_registry
 
+    undispatched = {
+        "garak.encoding.InjectAscii85",
+        "garak.encoding.InjectAtbash",
+        "garak.encoding.InjectSneakyBits",
+        "garak.ansiescape.AnsiEscaped",
+        "garak.dra.DRA",
+        "garak.badchars.BadCharacters",
+        "garak.smuggling.FunctionMasking",
+        "garak.smuggling.HomoglyphObfuscation",
+        "garak.apikey.GetKey",
+        "garak.web_injection.MarkdownURIImageExfilExtended",
+        "garak.web_injection.MarkdownURINonImageExfilExtended",
+        "garak.sysprompt_extraction.SystemPromptExtraction",
+    }
     selected = []
     for raw in build_registry():
         if raw.get("status") != "active" or raw.get("test_id") not in {
             "garak", "garak_beaaa152"
-        }:
+        } or raw.get("case_id") in undispatched:
             continue
         row = dict(raw)
         row["garak_live_dispatch"] = True

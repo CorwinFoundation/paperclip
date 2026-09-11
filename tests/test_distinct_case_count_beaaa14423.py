@@ -39,7 +39,7 @@ from tools.text_case_materializer import TextCaseSpec, text_case_identity
 # Every one is a ROBUSTNESS family; the double-count concentrates there.
 EXPECTED_COLLAPSES = {
     "garak": (9, 8),
-    "garak_beaaa152": (18, 15),
+    "garak_beaaa152": (30, 15),
     "jailbreakbench": (8, 7),
     "p3_2_indirect_injection_rob": (12, 8),
     "p3_3_secret_exfiltration_rob": (12, 7),
@@ -57,22 +57,22 @@ class DistinctCaseCountTests(unittest.TestCase):
         runnable = count_target_bound_runtime(self.rows)
         # BEAAA-24273 added 60 independently evidenced, non-text rows to the
         # no-content-candidate view. The collision set is unchanged.
-        self.assertEqual(runnable, 513)
+        self.assertEqual(runnable, 525)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 513)
+        self.assertEqual(counts["declared_total"], 525)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs follow the current registry
         # source of truth: 510 declared - 22 dupes plus the newly bound
         # eval-representation row = 487.
         self.assertEqual(counts["total"], 491)
-        self.assertEqual(counts["declared_total"] - counts["total"], 22)
+        self.assertEqual(counts["declared_total"] - counts["total"], 34)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
-        # 22 total dupes = 14 within-family + 9 shared across families.
+        # 34 total dupes = 26 within-family + 8 shared across families.
         counts = distinct_case_counts(self.rows)
         intra = sum(c["collapsed"] for c in distinct_case_collapses(self.rows))
-        self.assertEqual(intra, 14)
+        self.assertEqual(intra, 26)
         self.assertEqual(counts["cross_family_collapsed"], 8)
         self.assertEqual(
             sum(counts["by_family"].values()) - counts["total"],

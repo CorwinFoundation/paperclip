@@ -61,7 +61,7 @@ class ActiveTestRegistryTests(unittest.TestCase):
         # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
         # coverage while external evidence remains separate from the canonical
         # runtime-identity evidence gate.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2364)
+        self.assertEqual(count_target_bound_runtime(self.rows), 2376)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
         # The C10 zero-weight train turns 40 previously non-canonical content
@@ -70,7 +70,7 @@ class ActiveTestRegistryTests(unittest.TestCase):
         # identity count moves by 40 while executable/target-bound totals stay
         # unchanged.
         self.assertEqual(len(promoted), 2131)
-        self.assertEqual(len(aliases), 12)
+        self.assertEqual(len(aliases), 24)
 
     def test_summary_reports_count_delta_to_1180(self) -> None:
         summary = summarize(self.rows, published_count=load_published_count())

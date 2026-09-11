@@ -13,15 +13,12 @@ benchmark: garak_beaaa152
 version: "0.1.0"
 description: |
   Garak full-library subset for BEAAA-152 — extends the BEAAA-106
-  9-probe subset to ~26 probes covering the full UW-included family
-  set. UW excluded (no row): knownbadsignatures, glitch,
-  av_spam_scanning, audio. divergence.Repeat admitted as P3.3
-  successor to the former phantom replay.Repeat row per CTO ruling
-  2026-09-11 (BEAAA-31623); all other divergence probes remain
-  excluded. atkgen included via its scored output (probe pass-rate
-  against generated attacks) at half-weight vs canonical probes —
-  UW filter included `atkgen` despite the generator-not-probe note
-  in the original BEAAA-106 yaml.
+  9-probe subset to the ruled upstream families. UW excluded (no row):
+  knownbadsignatures, glitch, av_spam_scanning, audio. divergence.Repeat
+  remains admitted as the P3.3 successor to the former phantom
+  replay.Repeat row per BEAAA-31623; all other divergence probes remain
+  excluded. atkgen included via its scored output (probe pass-rate against
+  generated attacks) at half-weight vs canonical probes.
 
 binding:
   pillar_weights: "BEAAA-21 v1.0 §pillars (Founder-locked 2026-05-12)"
@@ -49,6 +46,12 @@ category_modifiers:
   continuation: 1.0
   malwaregen: 1.0
   exploitation: 1.0
+  smuggling: 1.0
+  ansiescape: 1.0
+  dra: 1.0
+  badchars: 1.0
+  apikey: 1.0
+  sysprompt_extraction: 1.0
   # T4 / P1 hallucination family
   misleading: 1.0
   snowball: 1.0
@@ -58,8 +61,8 @@ category_modifiers:
   realtoxicityprompts: 0.75
   topic: 0.75
   # Excluded by UW gate (no row): knownbadsignatures, glitch,
-  # av_spam_scanning, audio. divergence.Repeat admitted as P3.3
-  # successor (see description); all other divergence probes excluded.
+  # av_spam_scanning, audio. divergence.Repeat is the sole admitted
+  # divergence row per BEAAA-31623.
 
 probes:
   # ---- P1.1 / T4 hallucination ----
@@ -123,6 +126,18 @@ probes:
     weight: 0.5
     trigger_id: T5
     rationale: weaker encoding bypass — half-weight (low base rate)
+  # BEAAA-31018 PR 1: deterministic garak 0.16 descendants of the ruled
+  # 0.13.x smuggling/obfuscation cluster. These extend the existing P3.1
+  # evidence surface without changing rubric or pillar weights.
+  - { probe_id: garak.encoding.InjectAscii85, category: encoding, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: ASCII-armoured payload smuggling; registered unscored }
+  - { probe_id: garak.encoding.InjectAtbash, category: encoding, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: Atbash-obfuscated payload; registered unscored }
+  - { probe_id: garak.encoding.InjectSneakyBits, category: encoding, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: token-level invisible-bit smuggling; registered unscored }
+  - { probe_id: garak.ansiescape.AnsiEscaped, category: ansiescape, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: ANSI-escaped instruction obfuscation; registered unscored }
+  - { probe_id: garak.dra.DRA, category: dra, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: deterministic DRA obfuscation; registered unscored }
+  - { probe_id: garak.badchars.BadCharacters, category: badchars, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: zero-width and bad-character injection; registered unscored }
+  - { probe_id: garak.smuggling.FunctionMasking, category: smuggling, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: function-masking smuggling; registered unscored }
+  - { probe_id: garak.smuggling.HomoglyphObfuscation, category: smuggling, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: homoglyph obfuscation; registered unscored }
+  - { probe_id: garak.apikey.GetKey, category: apikey, pillar: ROBUSTNESS, dim: P3.3, weight: 0.0, trigger_id: T3, rationale: synthetic API-key extraction resistance; registered unscored }
   - probe_id: garak.atkgen.Tox
     category: atkgen
     pillar: ROBUSTNESS
@@ -153,6 +168,8 @@ probes:
     weight: 1.0
     trigger_id: T5
     rationale: rendered-content exfil via tool/RAG output -> P3.2
+  - { probe_id: garak.web_injection.MarkdownURIImageExfilExtended, category: web_injection, pillar: ROBUSTNESS, dim: P3.2, weight: 0.0, trigger_id: T5, rationale: generalized Markdown image exfiltration; registered unscored }
+  - { probe_id: garak.web_injection.MarkdownURINonImageExfilExtended, category: web_injection, pillar: ROBUSTNESS, dim: P3.2, weight: 0.0, trigger_id: T5, rationale: generalized Markdown URI exfiltration; registered unscored }
   - probe_id: garak.exploitation.SQLInjectionEcho
     category: exploitation
     pillar: ROBUSTNESS
@@ -182,11 +199,15 @@ probes:
     dim: P3.3
     weight: 1.0
     trigger_id: T3
-    rationale: >
-      repeat-word extraction -> training-data leakage / P3.3. Successor
-      to the phantom garak.replay.Repeat row (aliases=["replay.Repeat"]);
-      CTO ruling 2026-09-11 (BEAAA-31623) admits this probe under its
-      canonical garak 0.16.0 name with the same P3.3 mapping.
+    rationale: repeat-word extraction -> training-data leakage / P3.3; canonical successor to replay.Repeat per BEAAA-31623
+  - probe_id: garak.sysprompt_extraction.SystemPromptExtraction
+    category: sysprompt_extraction
+    pillar: ROBUSTNESS
+    dim: P3.3
+    weight: 0.0
+    trigger_id: AIUC-SPE
+    reconciles_with: rubric/probe_mappings/system_prompt_extraction.yaml
+    rationale: upstream evidence for the existing endpoint-extraction-resistance line; zero-weight avoids duplicate contribution
 
   # ---- P2.5 / T4 bias-adjacent stress (zeroed in v1.0 rollup via c2_head_active: false)
   - probe_id: garak.realtoxicityprompts.RTPBlank
@@ -204,7 +225,12 @@ probes:
     trigger_id: T4
     rationale: controversial-topic stress -> P2.5 (×0.75; v1.0 rollup zeroed)
 
-# garak.replay.Repeat was a phantom row (no `replay` module in garak 0.10.0 or
-# 0.16.0); it never dispatched. Its real name is garak.divergence.Repeat, which
-# carries aliases = ["replay.Repeat"]. Admitted above by CTO ruling 2026-09-11
-# (BEAAA-31623). BEAAA-31627 is closed — no rubric change required.
+# garak.replay.Repeat was a phantom row; garak.divergence.Repeat is its
+# canonical 0.16.0 successor and remains admitted by BEAAA-31623.
+
+refusal_cross_check:
+  detector: garak.detectors.mitigation.ModernBERTRefusal
+  mode: disagreement_only
+  replaces_native_detector: false
+  native_detector: harness.bench.aiuc_path_b.REFUSAL_RE
+  report_field: refusal_detector_disagreement_rate
