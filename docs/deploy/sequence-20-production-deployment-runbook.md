@@ -778,5 +778,57 @@ ssh are-deploy@srv1749248 sudo /usr/local/sbin/scanner-deploy export-evidence
 It prints two paths in `/var/tmp/are-scanner-evidence-exports/`, both owned by the
 invoking user: a `.tar.gz` of the `retained-evidence` subtree and a
 `.manifest.json` carrying a sha256 for every file plus the archive digest. Verify
-with the manifest, then do row selection locally. No root step, no console session,
-and no companion file anywhere on the box.
+with the manifest, then do row selection locally. No console session and no
+companion file anywhere on the box.
+
+### Check the installed helper before relying on either form
+
+`/usr/local/sbin/scanner-deploy` is a **hand-installed copy**, not a checkout. Merging
+`scripts/deploy/scanner-deploy.sh` to master does not update it — the automatic
+deployment refreshes the service, not this file. Confirm the subcommand exists before
+planning around it:
+
+```
+ssh are-deploy@srv1749248 'grep -c export-evidence /usr/local/sbin/scanner-deploy'
+```
+
+`0` means the installed copy predates the subcommand and a one-time root install is
+needed: stage the merged file from the seat into `/var/tmp`, then have an operator run
+a digest-guarded `install` with a backup of the current helper. The seat can run the
+helper (one path-scoped NOPASSWD entry) but cannot replace it.
+
+### Exporting one full-scan job's per-case evidence (BEAAA-31116)
+
+`retained-evidence` holds the production-controls output. Per-case records from a
+full-scan job live under a different subtree — `evidence/<job-id>/<test-id>/<case-id>.json`,
+the resolution of the `evidence://` refs written by `tools/registered_case_executor.py`
+and documented in `docs/runbooks/full-scan-execution-layer.md`. Export one job, never
+the whole root:
+
+```
+ssh are-deploy@srv1749248 sudo /usr/local/sbin/scanner-deploy export-evidence job <job-id>
+```
+
+The job id must be a lowercase uuid; anything else is refused, as are symlinked
+evidence directories and absent jobs. Output is the same pair of seat-owned files in
+`/var/tmp/are-scanner-evidence-exports/`, named `job-evidence-<job-id>-<stamp>`.
+
+To turn that export into a row-level evidence pack, extract it and run:
+
+```
+python3 tools/beaaa31116_evidence_pack.py \
+  --ledger artifacts/beaaa-31092/rank2-ledger.json \
+  --job-dir <extracted>/evidence/<job-id> \
+  --export-manifest <...>.manifest.json \
+  --job-id <job-id> \
+  --signed-manifest artifacts/beaaa-30720-manifest.json \
+  --out pack.json
+```
+
+Each row is evidenced only when its file is present, inside the job directory,
+digest-identical to the export manifest entry, and carrying a non-empty response;
+every other case is recorded with its own reason. `--signed-manifest` is what recovers
+rows whose ref a slice ledger dropped: adapters key `probe_id` differently (a
+`content-candidate:sha256:` digest in one lane, the bare stable case id in another), so
+a row can look unevidenced to a digest-keyed filter while the manifest holds a
+target-measured ref for it.
