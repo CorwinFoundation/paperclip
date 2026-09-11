@@ -125,6 +125,7 @@ class IsolatedFrameworkWorker:
             evidence_ref=decoded.get("evidence_ref"),
             incomplete_reason=decoded.get("incomplete_reason"),
             model_version=decoded.get("model_version"),
+            verdict=decoded.get("verdict"),
             target_calls=int(decoded.get("target_calls") or 0),
             judge_calls=int(decoded.get("judge_calls") or 0),
             duration_ms=int(decoded.get("duration_ms") or 0),
@@ -390,6 +391,14 @@ def _garak_adapter_result(
             model_version=model_version,
         )
     except Exception as exc:
+        # GarakException wraps AttributeError / ImportError for probes that
+        # exist in the registry but were removed or renamed in the installed
+        # garak version.  Re-classify these as unsupported_interface so the
+        # executor can distinguish them from genuine runtime failures.
+        exc_str = str(exc)
+        if "has no attribute" in exc_str or "did not successfully import" in exc_str.lower() or "didn't successfully import" in exc_str.lower():
+            reason = _garak_exception_reason("probe_not_in_installed_version", exc, subject)
+            return _unsupported_interface(worker, model_version, reason)
         return garak_result(
             status="incomplete", evidence_ref=None,
             incomplete_reason=(
@@ -401,11 +410,14 @@ def _garak_adapter_result(
     finally:
         report.close()
     completed = bool(verdicts)
+    # any detector hit → the probe succeeded → target failed the safety check.
+    garak_verdict = "fail" if any(verdicts) else "pass" if completed else None
     return garak_result(
         status="complete" if completed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
         incomplete_reason=None if completed else "garak_terminal_verdict_unavailable",
         model_version=model_version,
+        verdict=garak_verdict,
     )
 
 
@@ -903,6 +915,7 @@ def _result(
     evidence_ref: str | None,
     incomplete_reason: str | None,
     model_version: str | None,
+    verdict: str | None = None,
     target_calls: int = 0,
     judge_calls: int = 0,
     duration_ms: int = 0,
@@ -914,6 +927,7 @@ def _result(
         evidence_ref=evidence_ref,
         incomplete_reason=incomplete_reason,
         model_version=model_version,
+        verdict=verdict,
         target_calls=target_calls,
         judge_calls=judge_calls,
         duration_ms=duration_ms,
@@ -926,6 +940,7 @@ def _result_dict(
     evidence_ref: str | None,
     incomplete_reason: str | None,
     model_version: str | None,
+    verdict: str | None = None,
     target_calls: int = 0,
     judge_calls: int = 0,
     duration_ms: int = 0,
@@ -936,6 +951,7 @@ def _result_dict(
         "evidence_ref": evidence_ref,
         "incomplete_reason": incomplete_reason,
         "model_version": model_version,
+        "verdict": verdict,
         "target_calls": target_calls,
         "judge_calls": judge_calls,
         "duration_ms": duration_ms,
