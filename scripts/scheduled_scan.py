@@ -17,7 +17,7 @@ import socket
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -710,6 +710,22 @@ def _zoo_coverage_failures(
     return failures
 
 
+def _reason_code_uncovered_zoo_routes(
+    decisions: Sequence[Any], coverage_failures: Mapping[str, str]
+) -> list[Any]:
+    """Reclassify routes that never exercised both target and judge."""
+    return [
+        replace(
+            decision,
+            target=None,
+            reason=coverage_failures[decision.family],
+        )
+        if decision.family in coverage_failures
+        else decision
+        for decision in decisions
+    ]
+
+
 def _zoo_coverage_passed(
     *, routed_families: int, target_calls: int, coverage_failures: Mapping[str, str]
 ) -> bool:
@@ -952,7 +968,10 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         )
 
     coverage_failures = _zoo_coverage_failures(decisions, evidence_rows)
-    families, incomplete = _zoo_family_summary(decisions, evidence_rows)
+    effective_decisions = _reason_code_uncovered_zoo_routes(
+        decisions, coverage_failures
+    )
+    families, incomplete = _zoo_family_summary(effective_decisions, evidence_rows)
     routed_families = sum(1 for counts in families.values() if counts["routed"] > 0)
     target_calls = sum(int(r.get("target_calls") or 0) for r in evidence_rows)
     judge_calls = sum(int(r.get("judge_calls") or 0) for r in evidence_rows)
@@ -1003,7 +1022,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             "targets": target_reports,
             "unrouted_families": {
                 decision.family: decision.reason
-                for decision in decisions
+                for decision in effective_decisions
                 if decision.target is None
             },
             "target_calls": target_calls,

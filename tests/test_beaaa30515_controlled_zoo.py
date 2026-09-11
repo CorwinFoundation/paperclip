@@ -212,8 +212,8 @@ def test_family_summary_accounts_for_unrouted_rows_by_reason(decisions):
         assert counts["considered"] == counts["routed"] + counts["incomplete"]
 
 
-def test_zero_call_families_remain_routed_and_fail_coverage():
-    """Missing calls must fail coverage without emptying its denominator."""
+def test_zero_call_families_are_reason_coded_not_routed_and_fail_coverage():
+    """A route is valid only after both target and judge execution."""
     import scheduled_scan
     from harness.controlled_zoo import RoutingDecision
 
@@ -230,19 +230,20 @@ def test_zero_call_families_remain_routed_and_fail_coverage():
     ]
 
     failures = scheduled_scan._zoo_coverage_failures(decisions, evidence)
-    families, _ = scheduled_scan._zoo_family_summary(decisions, evidence)
+    effective = scheduled_scan._reason_code_uncovered_zoo_routes(decisions, failures)
+    families, _ = scheduled_scan._zoo_family_summary(effective, evidence)
 
     assert failures == {
         "no-target": "no_target_calls_observed",
         "no-judge": "no_judge_calls_observed",
     }
-    assert families["no-target"]["routed"] == 1
-    assert families["no-judge"]["routed"] == 1
+    assert families["no-target"]["routed"] == 0
+    assert families["no-judge"]["routed"] == 0
     assert families["covered"]["routed"] == 1
     assert families["covered"]["target_called"] == 1
     assert families["covered"]["judge_calls"] == 1
     assert not scheduled_scan._zoo_coverage_passed(
-        routed_families=3, target_calls=2, coverage_failures=failures
+        routed_families=1, target_calls=2, coverage_failures=failures
     )
     assert not scheduled_scan._zoo_coverage_passed(
         routed_families=0, target_calls=2, coverage_failures={}
