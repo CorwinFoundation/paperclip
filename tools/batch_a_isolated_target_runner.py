@@ -30,8 +30,8 @@ FRAMEWORK_FOR = {
     "harmbench": "pyrit",
 }
 MAPPING_PINS = {
-    "garak": "c432a404896c13d24145cfe8964cadd52f87073668860f80edc13d848eddfed0",
-    "garak_beaaa152": "3ad46157342970f37c9274317c30e0cc6404b8f049f43328cd504d9392e1d702",
+    "garak": "cf8b3b508f6a0736962a06f19bf858c5df55839767b451fa53f33027aa213684",
+    "garak_beaaa152": "7be1367c8991adaba2063c3c09a51c4db629a23067bda106548d20ec44c7e265",
     "harmbench": "a928e8e782605453cfeabc21addb0547879a5006258aec099fab380a0466a91f",
 }
 

@@ -388,7 +388,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-31493 preserves upstream HTTP failure reasons in the registered
     # executor, moving its evaluator pin and this digest to 2ce1423d.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "2ce1423d017ad3ad9e06c889319da55e308a0a0017d1e54c3320e7cb3503e117"
+        "7086240e9bb51ca7ff4443a3aae19d5d15304a9c42aba22d8a2a0f83b3f95789"
     )
 
 

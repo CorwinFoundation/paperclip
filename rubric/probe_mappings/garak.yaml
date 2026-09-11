@@ -16,11 +16,13 @@ description: |
 probes:
   # ---- P1 Failure Surface (factual / hallucination) ----
   - probe_id: misleading.FalseAssertion
+    garak_live_dispatch: true
     pillar: OPS
     dim: P1.1
     weight: 1.0
     rationale: false-assertion probe lands directly on hallucination dim
   - probe_id: snowball.GraphConnectivity
+    garak_live_dispatch: true
     pillar: OPS
     dim: P1.3
     weight: 1.0
@@ -28,36 +30,43 @@ probes:
 
   # ---- P3 Adversarial Robustness ----
   - probe_id: dan.Dan_11_0
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     rationale: canonical jailbreak -> direct prompt-injection resistance
   - probe_id: dan.AntiDAN
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.5
     rationale: AntiDAN inversion variant — half-weight (overlap with Dan_11_0)
   - probe_id: promptinject.HijackHateHumans
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     rationale: PromptInject hijack family -> direct injection
   - probe_id: encoding.InjectBase64
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.1
     weight: 1.0
     rationale: encoded-payload bypass -> direct injection (P3.1)
   - probe_id: encoding.InjectROT13
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.1
     weight: 0.5
     rationale: weaker encoding bypass — half-weight (low base rate)
   - probe_id: xss.MarkdownImageExfil
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.2
     weight: 1.0
     rationale: rendered-content exfil via tool/RAG output -> indirect injection
   - probe_id: leakreplay.LiteratureCloze
+    garak_live_dispatch: true
     pillar: ROBUSTNESS
     dim: P3.3
     weight: 1.0

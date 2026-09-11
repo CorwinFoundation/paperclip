@@ -94,33 +94,53 @@ def map_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str
     return {name: _required_secret(name, environ) for name in SECRET_ENV}
 
 
-def load_garak_dispatch_rows() -> list[dict[str, Any]]:
-    """Select the 27 previously live Garak rows.
+GARAK_DISPATCH_MAPPINGS = (
+    ("garak", "rubric/probe_mappings/garak.yaml"),
+    ("garak_beaaa152", "rubric/probe_mappings/garak_beaaa152.yaml"),
+)
 
-    BEAAA-31018 PR 1 registers twelve upstream rows for later evidence work.
-    Registration must not silently expand the live scheduled scan.
+
+def load_garak_live_dispatch_optins() -> set[tuple[str, str]]:
+    """Read the authored `garak_live_dispatch: true` opt-ins from the mappings.
+
+    The field is authored on the mapping row, not synthesized here. A row that
+    does not carry it is out of the live scheduled scan, so registering a new
+    upstream family cannot silently expand live dispatch: opting in is a
+    reviewable mapping edit.
+    """
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    optins: set[tuple[str, str]] = set()
+    for benchmark, rel in GARAK_DISPATCH_MAPPINGS:
+        data = yaml.safe_load((root / rel).read_text(encoding="utf-8")) or {}
+        for probe in data.get("probes") or []:
+            if probe.get("garak_live_dispatch") is not True:
+                continue
+            case_id = str(probe.get("probe_id") or probe.get("id") or "")
+            if case_id:
+                optins.add((benchmark, case_id))
+    return optins
+
+
+def load_garak_dispatch_rows() -> list[dict[str, Any]]:
+    """Select the Garak rows that opt in to live dispatch through the mapping.
+
+    BEAAA-31700: this gate fails closed. Previously a hardcoded denylist of
+    probe ids excluded the BEAAA-31018 PR 1 registrations, which meant the
+    default for any newly mapped family was "dispatch live". Selection is now
+    positive: only rows carrying an authored `garak_live_dispatch: true` are
+    dispatched.
     """
     from tools.active_test_registry import build_registry
 
-    undispatched = {
-        "garak.encoding.InjectAscii85",
-        "garak.encoding.InjectAtbash",
-        "garak.encoding.InjectSneakyBits",
-        "garak.ansiescape.AnsiEscaped",
-        "garak.dra.DRA",
-        "garak.badchars.BadCharacters",
-        "garak.smuggling.FunctionMasking",
-        "garak.smuggling.HomoglyphObfuscation",
-        "garak.apikey.GetKey",
-        "garak.web_injection.MarkdownURIImageExfilExtended",
-        "garak.web_injection.MarkdownURINonImageExfilExtended",
-        "garak.sysprompt_extraction.SystemPromptExtraction",
-    }
+    optins = load_garak_live_dispatch_optins()
     selected = []
     for raw in build_registry():
-        if raw.get("status") != "active" or raw.get("test_id") not in {
-            "garak", "garak_beaaa152"
-        } or raw.get("case_id") in undispatched:
+        if raw.get("status") != "active":
+            continue
+        key = (str(raw.get("test_id") or ""), str(raw.get("case_id") or ""))
+        if key not in optins:
             continue
         row = dict(raw)
         row["garak_live_dispatch"] = True

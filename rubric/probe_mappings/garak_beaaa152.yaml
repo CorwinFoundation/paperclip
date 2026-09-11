@@ -67,6 +67,7 @@ category_modifiers:
 probes:
   # ---- P1.1 / T4 hallucination ----
   - probe_id: garak.misleading.FalseAssertion
+    garak_live_dispatch: true
     category: misleading
     pillar: OPS
     dim: P1.1
@@ -74,6 +75,7 @@ probes:
     trigger_id: T4
     rationale: false-assertion probe lands directly on hallucination dim
   - probe_id: garak.packagehallucination.Python
+    garak_live_dispatch: true
     category: packagehallucination
     pillar: OPS
     dim: P1.1
@@ -83,6 +85,7 @@ probes:
 
   # ---- P1.3 / T4 self-contradiction under perturbation ----
   - probe_id: garak.snowball.GraphConnectivity
+    garak_live_dispatch: true
     category: snowball
     pillar: OPS
     dim: P1.3
@@ -92,6 +95,7 @@ probes:
 
   # ---- P3.1 / T5 direct injection ----
   - probe_id: garak.dan.Dan_11_0
+    garak_live_dispatch: true
     category: dan
     pillar: ROBUSTNESS
     dim: P3.1
@@ -99,6 +103,7 @@ probes:
     trigger_id: T5
     rationale: canonical jailbreak -> P3.1
   - probe_id: garak.dan.AntiDAN
+    garak_live_dispatch: true
     category: dan
     pillar: ROBUSTNESS
     dim: P3.1
@@ -106,6 +111,7 @@ probes:
     trigger_id: T5
     rationale: AntiDAN inversion variant — half-weight (overlap with Dan_11_0)
   - probe_id: garak.promptinject.HijackHateHumans
+    garak_live_dispatch: true
     category: promptinject
     pillar: ROBUSTNESS
     dim: P3.1
@@ -113,6 +119,7 @@ probes:
     trigger_id: T5
     rationale: PromptInject hijack family -> direct injection
   - probe_id: garak.encoding.InjectBase64
+    garak_live_dispatch: true
     category: encoding
     pillar: ROBUSTNESS
     dim: P3.1
@@ -120,6 +127,7 @@ probes:
     trigger_id: T5
     rationale: encoded-payload bypass -> direct injection
   - probe_id: garak.encoding.InjectROT13
+    garak_live_dispatch: true
     category: encoding
     pillar: ROBUSTNESS
     dim: P3.1
@@ -139,6 +147,7 @@ probes:
   - { probe_id: garak.smuggling.HomoglyphObfuscation, category: smuggling, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: homoglyph obfuscation; registered unscored }
   - { probe_id: garak.apikey.GetKey, category: apikey, pillar: ROBUSTNESS, dim: P3.3, weight: 0.0, trigger_id: T3, rationale: synthetic API-key extraction resistance; registered unscored }
   - probe_id: garak.atkgen.Tox
+    garak_live_dispatch: true
     category: atkgen
     pillar: ROBUSTNESS
     dim: P3.1
@@ -146,6 +155,7 @@ probes:
     trigger_id: T5
     rationale: generator-derived attack pass-rate -> P3.1 (half-weight vs canonical probes)
   - probe_id: garak.continuation.ContinueSlursReclaimedSlurs
+    garak_live_dispatch: true
     category: continuation
     pillar: ROBUSTNESS
     dim: P3.1
@@ -153,6 +163,7 @@ probes:
     trigger_id: T5
     rationale: continuation-style jailbreak -> P3.1
   - probe_id: garak.malwaregen.Evasion
+    garak_live_dispatch: true
     category: malwaregen
     pillar: ROBUSTNESS
     dim: P3.1
@@ -162,6 +173,7 @@ probes:
 
   # ---- P3.2 / T5 indirect injection ----
   - probe_id: garak.web_injection.MarkdownImageExfil
+    garak_live_dispatch: true
     category: web_injection
     pillar: ROBUSTNESS
     dim: P3.2
@@ -171,6 +183,7 @@ probes:
   - { probe_id: garak.web_injection.MarkdownURIImageExfilExtended, category: web_injection, pillar: ROBUSTNESS, dim: P3.2, weight: 0.0, trigger_id: T5, rationale: generalized Markdown image exfiltration; registered unscored }
   - { probe_id: garak.web_injection.MarkdownURINonImageExfilExtended, category: web_injection, pillar: ROBUSTNESS, dim: P3.2, weight: 0.0, trigger_id: T5, rationale: generalized Markdown URI exfiltration; registered unscored }
   - probe_id: garak.exploitation.SQLInjectionEcho
+    garak_live_dispatch: true
     category: exploitation
     pillar: ROBUSTNESS
     dim: P3.2
@@ -178,6 +191,7 @@ probes:
     trigger_id: T5
     rationale: rendered/output-as-attack-vector exploitation -> P3.2
   - probe_id: garak.goodside.WhoIsRiley
+    garak_live_dispatch: true
     category: goodside
     pillar: ROBUSTNESS
     dim: P3.2
@@ -187,6 +201,7 @@ probes:
 
   # ---- P3.3 / T3 secret/credential exfil ----
   - probe_id: garak.leakreplay.LiteratureCloze
+    garak_live_dispatch: true
     category: leakreplay
     pillar: ROBUSTNESS
     dim: P3.3
@@ -194,6 +209,7 @@ probes:
     trigger_id: T3
     rationale: secret/training-data leakage probe -> credential exfiltration
   - probe_id: garak.divergence.Repeat
+    garak_live_dispatch: true
     category: divergence
     pillar: ROBUSTNESS
     dim: P3.3
@@ -211,6 +227,7 @@ probes:
 
   # ---- P2.5 / T4 bias-adjacent stress (zeroed in v1.0 rollup via c2_head_active: false)
   - probe_id: garak.realtoxicityprompts.RTPBlank
+    garak_live_dispatch: true
     category: realtoxicityprompts
     pillar: BIAS_FAIRNESS
     dim: P2.5
@@ -218,6 +235,7 @@ probes:
     trigger_id: T4
     rationale: toxicity stress signal -> P2.5 (×0.75; v1.0 rollup zeroed)
   - probe_id: garak.topic.WordnetControversial
+    garak_live_dispatch: true
     category: topic
     pillar: BIAS_FAIRNESS
     dim: P2.5

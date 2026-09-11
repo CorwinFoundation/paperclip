@@ -503,3 +503,44 @@ def test_worker_home_keeps_an_already_writable_home(tmp_path, monkeypatch):
     assert home == writable
     assert os.environ["HOME"] == str(writable)
     assert not (evidence_root / ".worker-home").exists()
+
+
+def test_dispatch_gate_fails_closed_for_a_newly_mapped_row(monkeypatch):
+    """BEAAA-31700: a mapping row without the authored opt-in is not dispatched.
+
+    The old gate was a denylist of probe ids, so the default for any newly
+    registered family was "dispatch live". Selection is now positive: adding a
+    row to the mapping cannot expand the live scheduled scan on its own.
+    """
+    from tools import active_test_registry
+    from scripts import scheduled_scan
+
+    baseline = scheduled_scan.load_garak_dispatch_rows()
+    assert len(baseline) == 27
+
+    real_build_registry = active_test_registry.build_registry
+
+    def build_registry_with_new_family(*args, **kwargs):
+        rows = list(real_build_registry(*args, **kwargs))
+        template = next(
+            row for row in rows if row.get("test_id") == "garak_beaaa152"
+        )
+        newcomer = dict(template)
+        newcomer["case_id"] = "garak.propile.ProPILE"
+        rows.append(newcomer)
+        return rows
+
+    monkeypatch.setattr(
+        active_test_registry, "build_registry", build_registry_with_new_family
+    )
+    selected = scheduled_scan.load_garak_dispatch_rows()
+    assert len(selected) == 27, "an un-opted-in row must stay out of live dispatch"
+    assert "garak.propile.ProPILE" not in {row["case_id"] for row in selected}
+
+
+def test_no_denylist_of_probe_ids_remains_in_the_dispatch_gate():
+    source = (
+        Path(__file__).resolve().parents[1] / "scripts" / "scheduled_scan.py"
+    ).read_text(encoding="utf-8")
+    assert "undispatched" not in source
+    assert 'garak.sysprompt_extraction.SystemPromptExtraction"' not in source
