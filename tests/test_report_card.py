@@ -7,7 +7,12 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
-from report_card.render import AuditPlaceholderError, evaluate_bind_eligibility, render
+from report_card.render import (
+    AuditPlaceholderError,
+    _provenance_block,
+    evaluate_bind_eligibility,
+    render,
+)
 from rubric.scoring import Rubric, score
 
 REPO = Path(__file__).resolve().parents[1]
@@ -230,6 +235,27 @@ class ProvenanceBadgeTests(unittest.TestCase):
         self.assertIn("CATEGORY-PROXY:HF-ROUTER", html)
         self.assertIn("prov-proxy", html)
         self.assertIn("UW co-gate", html)
+
+    def test_base_model_finding_describes_method_without_outcome_claim(self):
+        out, rubric = _baseline_score()
+        html = render(out, rubric, provenance="base-model:llama-3.1-8b")
+        self.assertIn("BASE MODEL FINDING", html)
+        self.assertIn("prov-base-model", html)
+        self.assertIn("Direct probe of the underlying model", html)
+        self.assertIn("model your agent is built on, not to your deployment", html)
+        self.assertNotIn("Direct customer-deployment scan.", html)
+        banner = _provenance_block("base-model:llama-3.1-8b", None)
+        self.assertNotIn("leak", banner.lower())
+
+    def test_base_model_finding_accepts_explicit_detail(self):
+        out, rubric = _baseline_score()
+        html = render(
+            out,
+            rubric,
+            provenance="base-model:model&lt;id&gt; — Your model leaks supplied canary data.",
+        )
+        self.assertIn("Your model leaks supplied canary data.", html)
+        self.assertNotIn("memorized data", html)
 
     def test_prior_provenance_renders_gray_directional_badge(self):
         out, rubric = _baseline_score()

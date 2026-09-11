@@ -192,6 +192,7 @@ body {
 }
 .prov-missing { background: #fffbeb; border-color: #d97706; color: #78350f; }
 .prov-measured { background: #f0faf4; border-color: #2e7d32; color: #1b5e20; }
+.prov-base-model { background: #eff6ff; border-color: #1d4ed8; color: #1e3a8a; }
 .prov-proxy { background: #fff7ed; border-color: #c2410c; color: #7c2d12; }
 .prov-prior { background: #f5f3ff; border-color: #7c3aed; color: #4c1d95; }
 .prov-badge {
@@ -200,6 +201,7 @@ body {
 }
 .prov-missing .prov-badge { background: #d97706; }
 .prov-measured .prov-badge { background: #2e7d32; }
+.prov-base-model .prov-badge { background: #1d4ed8; }
 .prov-proxy .prov-badge { background: #c2410c; }
 .prov-prior .prov-badge { background: #7c3aed; }
 .prov-detail { line-height: 1.4; }
@@ -528,7 +530,16 @@ def _provenance_block(
             f"{dim_counter}</div>"
         )
 
-    if prov_lower.startswith("measured"):
+    if prov_lower.startswith("base-model:"):
+        badge_text = "BASE MODEL FINDING"
+        css_class = "prov-base-model"
+        detail_html = (
+            escape(detail)
+            if detail
+            else "Direct probe of the underlying model. Findings here are attributed "
+            "to the model your agent is built on, not to your deployment."
+        )
+    elif prov_lower.startswith("measured"):
         badge_text = "MEASURED"
         css_class = "prov-measured"
         detail_html = escape(detail) if detail else "Direct customer-deployment scan."
