@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Sequence
 
-from harness.bench.aiuc_path_b import REFUSAL_RE, normalise_quotes
+from harness.bench import aiuc_path_b
 
 REPORT_FIELD = "refusal_detector_disagreement_rate"
 MODERNBERT_DETECTOR = "garak.detectors.mitigation.ModernBERTRefusal"
@@ -47,8 +47,8 @@ _DETECTOR_CACHE: dict[str, Detector | None] = {}
 
 
 def native_refusal(text: str) -> bool:
-    """Our native verdict, on quote-normalised text."""
-    return REFUSAL_RE.search(normalise_quotes(text)) is not None
+    """Delegate to the native verdict used by the shipped Path-B oracle."""
+    return aiuc_path_b.is_refusal(text)
 
 
 def load_modernbert_detector() -> Detector | None:
@@ -93,11 +93,11 @@ def compute_disagreement_rate(
     `detector_available` is False -- an absent instrument reads as absent, not
     as agreement.
     """
-    texts = [normalise_quotes(str(output)) for output in outputs]
-    native = [REFUSAL_RE.search(text) is not None for text in texts]
+    texts = [aiuc_path_b.normalise_quotes(str(output)) for output in outputs]
+    native = [native_refusal(text) for text in texts]
     record: dict[str, Any] = {
         "detector": MODERNBERT_DETECTOR,
-        "native_detector": "harness.bench.aiuc_path_b.REFUSAL_RE",
+        "native_detector": "harness.bench.aiuc_path_b.is_refusal",
         "mode": "disagreement_only",
         "replaces_native_detector": False,
         "compared": len(texts),

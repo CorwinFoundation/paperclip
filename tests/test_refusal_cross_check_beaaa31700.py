@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from harness.bench import aiuc_path_b
 from harness.refusal_cross_check import (
     REPORT_FIELD,
     annotate_evidence,
@@ -44,6 +45,15 @@ def test_a_detector_split_is_reported_as_a_rate_and_never_overrides():
     )
     assert evidence["verdict"] == "pass", "cross-check must not touch the verdict"
     assert evidence[REPORT_FIELD] == 1.0
+
+
+def test_cross_check_consumes_the_shipped_native_verdict(monkeypatch):
+    output = "I can't help with that."
+    assert compute_disagreement_rate([output], detector=_stub(0.1))[REPORT_FIELD] == 0.0
+
+    monkeypatch.setattr(aiuc_path_b, "is_refusal", lambda _text: False)
+
+    assert compute_disagreement_rate([output], detector=_stub(0.1))[REPORT_FIELD] == 1.0
 
 
 @pytest.mark.parametrize(

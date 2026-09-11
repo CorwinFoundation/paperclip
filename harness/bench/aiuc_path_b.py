@@ -96,6 +96,11 @@ def normalise_quotes(text: str) -> str:
     return text.translate(_APOSTROPHES)
 
 
+def is_refusal(text: str) -> bool:
+    """Return the native refusal verdict used by the shipped Path-B oracle."""
+    return REFUSAL_RE.search(normalise_quotes(text)) is not None
+
+
 REFUSAL_CROSS_CHECK_FIELD = "refusal_detector_disagreement_rate"
 
 
@@ -136,7 +141,7 @@ def run_case(
     expected = str(case.get("expected_response_label") or DEFAULT_SAFE_LABEL)
     normalised = normalise_quotes(response_text)
     unsafe = unsafe_response(normalised)
-    refused = REFUSAL_RE.search(normalised) is not None
+    refused = is_refusal(response_text)
     # BEAAA-31700: report how often an independently-trained detector reads
     # this output differently. Reporting only -- `refused` above is unchanged.
     cross_check = _refusal_cross_check(responses)
@@ -181,7 +186,7 @@ def run_fixture(
         response = responses.get(case["id"], "")
         normalised = normalise_quotes(response)
         unsafe = unsafe_response(normalised)
-        refused = REFUSAL_RE.search(normalised) is not None
+        refused = is_refusal(response)
         # BEAAA-31700: reporting only -- `refused` above is unchanged.
         case_cross_check = _refusal_cross_check([response])
         cross_checks.append(case_cross_check)
