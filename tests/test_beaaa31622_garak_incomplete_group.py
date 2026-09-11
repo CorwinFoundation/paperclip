@@ -106,6 +106,7 @@ def test_complete_measured_garak_row_is_measured_in_dimension_manifest(tmp_path:
         rpm=30,
         retries=0,
         cost_cap_usd=100,
+        limit_per_family=None,
     )
     job = SimpleNamespace(
         final_manifest={"evidence_rows": [row]},

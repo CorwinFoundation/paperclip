@@ -239,6 +239,11 @@ class ScheduleConfig:
     execution_environment: str = field(
         default_factory=_default_execution_environment
     )
+    # Row cap per family. ``None`` is unlimited and is the only value the
+    # scheduled units ever produce, so the installed timers keep running the
+    # full corpus byte-identically. It is set from ``--limit-per-family`` for
+    # an operator-run acceptance slice.
+    limit_per_family: int | None = None
 
     @classmethod
     def from_environment(cls) -> "ScheduleConfig":
@@ -270,6 +275,8 @@ class ScheduleConfig:
             raise RuntimeError("scheduled scans require retries=0")
         if self.cost_cap_usd > 100:
             raise RuntimeError("scheduled scan cost cap exceeds USD 100")
+        if self.limit_per_family is not None and self.limit_per_family < 1:
+            raise RuntimeError("limit-per-family must be at least 1 when set")
 
 
 class SharedRateLimiter:
@@ -418,6 +425,46 @@ def _family_name(raw: Mapping[str, Any]) -> str:
         or raw.get("framework")
         or "unknown"
     )
+
+
+def _limit_rows_per_family(
+    rows: Sequence[Mapping[str, Any]],
+    limit: int | None,
+) -> list[Mapping[str, Any]]:
+    """Keep at most ``limit`` registry rows per family, in registry order.
+
+    ``None`` returns the rows unchanged, which is what keeps the scheduled
+    lanes identical to before the flag existed.
+    """
+    if limit is None:
+        return list(rows)
+    kept: list[Mapping[str, Any]] = []
+    seen: Counter[str] = Counter()
+    for raw in rows:
+        family = _family_name(raw)
+        if seen[family] >= limit:
+            continue
+        seen[family] += 1
+        kept.append(raw)
+    return kept
+
+
+def _limit_decisions_per_family(decisions: Sequence[Any], limit: int | None) -> list[Any]:
+    """Cap the rows a *routed* zoo family contributes to the run.
+
+    Unrouted decisions are returned untouched. Their rows never dispatch; they
+    land as reason-coded incompletes, and truncating them would understate the
+    unrouted surface in the manifest rather than shrink the run.
+    """
+    if limit is None:
+        return list(decisions)
+    limited = []
+    for decision in decisions:
+        if decision.target is None:
+            limited.append(decision)
+            continue
+        limited.append(replace(decision, rows=tuple(decision.rows)[:limit]))
+    return limited
 
 
 def _family_summary(
@@ -579,6 +626,7 @@ def _operator_manifest(
         "rate_limit_per_minute": config.rpm,
         "retries": config.retries,
         "cost_cap_usd": config.cost_cap_usd,
+        "limit_per_family": config.limit_per_family,
         "started_at": started_at,
         "finished_at": finished_at,
         "total_runtime_seconds": round(total_runtime_seconds, 3),
@@ -880,7 +928,11 @@ def _run_zoo_target(
     return finished, target_rows, abort_reason
 
 
-def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
+def run_scheduled_zoo_scan(
+    *,
+    config: ScheduleConfig | None = None,
+    limit_per_family: int | None = None,
+) -> Path:
     """Run the controlled target zoo established by BEAAA-29961.
 
     Vapi is excluded structurally: its secrets are never read, its host is not
@@ -897,6 +949,8 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
 
     map_zoo_secret_environment()
     config = config or ScheduleConfig.from_environment()
+    if limit_per_family is not None:
+        config = replace(config, limit_per_family=limit_per_family)
     config.validate()
     _ensure_writable_worker_home(config.evidence_root)
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
@@ -918,7 +972,9 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
 
     census = load_surface_census()
     rows = load_default_full_scan_registry_rows()
-    decisions = route_registry_rows(rows, census)
+    decisions = _limit_decisions_per_family(
+        route_registry_rows(rows, census), config.limit_per_family
+    )
 
     limiter = SharedRateLimiter(config.rpm)
     targets = zoo_targets()
@@ -991,6 +1047,7 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
         "rate_limit_per_minute": config.rpm,
         "retries": config.retries,
         "cost_cap_usd": config.cost_cap_usd,
+        "limit_per_family": config.limit_per_family,
         "started_at": started_at,
         "finished_at": finished_at,
         "total_runtime_seconds": round(time.monotonic() - runtime_started, 3),
@@ -1034,13 +1091,20 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
     return manifest_path
 
 
-def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -> Path:
+def run_scheduled_scan(
+    job_name: str,
+    *,
+    config: ScheduleConfig | None = None,
+    limit_per_family: int | None = None,
+) -> Path:
     if job_name not in {"vapi", "vapi-garak", "zoo"}:
         raise ValueError("job must be vapi, vapi-garak, or zoo")
     if job_name == "zoo":
-        return run_scheduled_zoo_scan(config=config)
+        return run_scheduled_zoo_scan(config=config, limit_per_family=limit_per_family)
     secrets = map_secret_environment()
     config = config or ScheduleConfig.from_environment()
+    if limit_per_family is not None:
+        config = replace(config, limit_per_family=limit_per_family)
     config.validate()
     _ensure_writable_worker_home(config.evidence_root)
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
@@ -1084,6 +1148,7 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
         judge_factory=judge_factory,
     )
     rows, execution_flag = _rows_for_job(job_name)
+    rows = _limit_rows_per_family(rows, config.limit_per_family)
     cases = registry_cases_from_rows(rows, execution_flag=execution_flag)
     model_versions = next(iter(workers.values())).manifest_metadata()
     model_versions["evidence_class"] = EVIDENCE_LABEL
@@ -1139,8 +1204,22 @@ def run_scheduled_scan(job_name: str, *, config: ScheduleConfig | None = None) -
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--job", choices=("vapi", "vapi-garak", "zoo"), required=True)
+    parser.add_argument(
+        "--limit-per-family",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "cap each routed family at N cases for this run; omitted means "
+            "unlimited, which is what the scheduled units run"
+        ),
+    )
     args = parser.parse_args(argv)
-    manifest_path = run_scheduled_scan(args.job)
+    if args.limit_per_family is not None and args.limit_per_family < 1:
+        parser.error("--limit-per-family must be at least 1")
+    manifest_path = run_scheduled_scan(
+        args.job, limit_per_family=args.limit_per_family
+    )
     if args.job == "zoo":
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("aborted") or not manifest.get("reconciliation", {}).get("equal", False):

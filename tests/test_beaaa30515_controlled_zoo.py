@@ -299,7 +299,9 @@ def test_zoo_cli_returns_nonzero_after_writing_aborted_manifest(tmp_path, monkey
         json.dumps({"aborted": True, "reconciliation": {"equal": True}}),
         encoding="utf-8",
     )
-    monkeypatch.setattr(scheduled_scan, "run_scheduled_scan", lambda _job: manifest_path)
+    monkeypatch.setattr(
+        scheduled_scan, "run_scheduled_scan", lambda _job, **_kwargs: manifest_path
+    )
     assert scheduled_scan.main(["--job", "zoo"]) == 1
 
 
