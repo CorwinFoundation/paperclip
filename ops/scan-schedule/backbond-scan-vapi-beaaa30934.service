@@ -1,0 +1,14 @@
+[Unit]
+Description=BackBond BEAAA-30934 remaining-row Vapi replay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=backbond-scan
+EnvironmentFile=/etc/backbond/scan-schedule.env
+EnvironmentFile=/etc/backbond/scan-schedule.conf
+WorkingDirectory=/opt/backbond/src
+ExecStartPre=+/usr/bin/env HOME=/root /usr/bin/git -C /opt/backbond/src fetch --quiet origin master
+ExecStartPre=+/usr/bin/env HOME=/root /usr/bin/git -C /opt/backbond/src merge --ff-only --quiet origin/master
+ExecStart=/opt/backbond/scan-venv/bin/python scripts/beaaa30934_replay_remaining.py
