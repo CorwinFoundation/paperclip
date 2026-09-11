@@ -50,7 +50,10 @@ chmod 0440 /etc/sudoers.d/backbond-scan-schedule
 visudo -cf /etc/sudoers.d/backbond-scan-schedule >/dev/null
 systemctl daemon-reload
 systemctl enable backbond-scan-vapi.timer
-# The zoo timer stays installed but disabled until a controlled-target runner
-# exists and a zoo manifest shows target_called > 0 (BEAAA-30240).
-systemctl disable backbond-scan-zoo.timer
-echo "Installed the weekly Vapi timer (enabled) and the nightly zoo timer (disabled). Root command: $here/install.sh"
+# The zoo lane's precondition is met: the controlled-target runner exists and
+# the 2026-09-10 manifest recorded target_called=2234 across 122 families
+# (BEAAA-30240, BEAAA-31590).  The lane still scores nothing until the judge
+# provider has credit; until then it records reason-coded transport
+# incompletes, which is the outcome BEAAA-31590 asks the nightly run to keep.
+systemctl enable backbond-scan-zoo.timer
+echo "Installed the weekly Vapi timer and the nightly zoo timer, both enabled. Root command: $here/install.sh"

@@ -290,6 +290,22 @@ def run_positive_egress_preflight(
     return record
 
 
+def _incomplete_reason_value(raw: Mapping[str, Any]) -> Any:
+    """The most specific reason a row failed to yield a verdict.
+
+    Runners that die inside the provider call never set ``incomplete_reason``;
+    they set ``error``/``error_detail`` and leave the verdict ``unresolved``.
+    Reading only the reason field made every one of those rows fall through to
+    ``format``, which tells an operator the target returned malformed output
+    when in fact the provider rejected the request before any output existed.
+    """
+    for key in ("incomplete_reason", "error_detail", "error"):
+        value = raw.get(key)
+        if value not in (None, ""):
+            return value
+    return raw.get("verdict")
+
+
 def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     value = str(reason or "").lower()
     # The deterministic applicability gate decides before dispatch, so its rows
@@ -410,7 +426,7 @@ def _family_summary(
             counts["incomplete"] += 1
             incomplete[
                 _incomplete_group(
-                    raw.get("incomplete_reason"),
+                    _incomplete_reason_value(raw),
                     target_calls=int(raw.get("target_calls") or 0),
                 )
             ] += 1
@@ -558,7 +574,7 @@ def _zoo_family_summary(
             counts["incomplete"] += 1
             incomplete[
                 _incomplete_group(
-                    raw.get("incomplete_reason") or raw.get("verdict"),
+                    _incomplete_reason_value(raw),
                     target_calls=target_calls,
                 )
             ] += 1

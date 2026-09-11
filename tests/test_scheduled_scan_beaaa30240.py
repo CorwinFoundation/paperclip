@@ -99,7 +99,7 @@ def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
         assert f"systemctl {action} backbond-scan-vapi.service" in text
         assert f"systemctl {action} backbond-scan-zoo.service" in text
     assert "systemctl enable backbond-scan-vapi.timer" in text
-    assert "systemctl disable backbond-scan-zoo.timer" in text
+    assert "systemctl enable backbond-scan-zoo.timer" in text
 
 
 def test_installer_materializes_isolated_garak_worker_venv():
@@ -381,13 +381,20 @@ def test_signed_attempt_manifest_binds_scheduled_evidence_class(monkeypatch):
     assert manifest["signed_manifest"] == sign_manifest(unsigned)
 
 
-def test_installer_never_enables_the_zoo_timer():
-    """BEAAA-30240: the zoo timer ships installed but disabled.
+def test_installer_enables_both_timers_and_never_uses_now():
+    """BEAAA-31590: the zoo timer is now enabled; `--now` stays banned.
 
-    PR #386 collapsed the enable/disable pair into a single
-    `systemctl enable --now ... backbond-scan-zoo.timer`, which silently
-    re-armed a nightly job that refuses to start. Both timer units carry
-    Persistent=true, so `--now` fires the refusing job at install time.
+    BEAAA-30240 held the zoo timer disabled for one stated reason - the
+    nightly job was a stub that refused to start, so arming it produced a
+    nightly refusal. BEAAA-30515 replaced that stub with a real
+    controlled-target run and the 2026-09-10 manifest recorded
+    target_called=2234 across 122 families, which is the precondition
+    BEAAA-30240 named. The timer is enabled here.
+
+    The other half of BEAAA-30240 is untouched and still load-bearing. PR #386
+    collapsed the enable/disable pair into `systemctl enable --now`; both timer
+    units carry Persistent=true, so `--now` fires a full scan at install time
+    on a host the operator is still provisioning. Enable, never `--now`.
     """
     installer = (
         Path(__file__).resolve().parents[1] / "ops" / "scan-schedule" / "install.sh"
@@ -397,8 +404,10 @@ def test_installer_never_enables_the_zoo_timer():
         for line in installer.splitlines()
         if line.strip().startswith("systemctl enable")
     ]
-    assert enable_lines == ["systemctl enable backbond-scan-vapi.timer"]
-    assert "systemctl disable backbond-scan-zoo.timer" in installer
+    assert enable_lines == [
+        "systemctl enable backbond-scan-vapi.timer",
+        "systemctl enable backbond-scan-zoo.timer",
+    ]
     assert "--now" not in installer
 
 
