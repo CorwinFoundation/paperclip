@@ -147,6 +147,7 @@ class IsolatedFrameworkWorker:
                 if decoded.get("sample_size") is not None
                 else None
             ),
+            seed_binding=str(decoded.get("seed_binding") or "unbound"),
         )
 
 
@@ -351,6 +352,7 @@ def _garak_adapter_result(
     def garak_result(**kwargs: Any) -> dict[str, Any]:
         return _result_dict(
             **kwargs,
+            seed_binding=_seed_binding_for_subject(subject, int(job.get("seed") or 0)),
             target_calls=target_calls,
             judge_calls=0,
             duration_ms=max(1, int((time.monotonic() - started) * 1000)),
@@ -715,6 +717,25 @@ def _complete_subject(subject: Mapping[str, Any], prompt: str) -> str:
     return f"LOCAL_TARGET_RESPONSE prompt_sha256={_sha256(prompt)[:16]} status=terminal"
 
 
+def _seed_binding_for_subject(subject: Mapping[str, Any], seed: int) -> str:
+    """Ask the selected runner whether the job seed reaches its transport."""
+    if subject.get("kind") == "customer_agent_http":
+        from harness.customer_runner import customer_agent_http_runner_factory
+
+        try:
+            runner = customer_agent_http_runner_factory(
+                str(subject.get("endpoint") or ""),
+                str(subject.get("secret") or ""),
+                str(subject.get("agent_id") or "") or None,
+            )
+        except Exception:
+            # Invalid/incomplete adapters cannot prove that a seed reached the
+            # target. Their evidence row must therefore fail closed as unbound.
+            return "unbound"
+        return runner.seed_binding(seed)
+    return "bound"
+
+
 def _prompt_for_case(registry_row: Mapping[str, Any]) -> str:
     for key in ("prompt_or_action", "prompt", "input", "objective"):
         value = registry_row.get(key)
@@ -948,6 +969,7 @@ def _result(
     numeric_result: float | None = None,
     hit_count: int | None = None,
     sample_size: int | None = None,
+    seed_binding: str = "unbound",
 ) -> Any:
     from api.full_scan_executor import WorkerAttemptResult
 
@@ -963,6 +985,7 @@ def _result(
         numeric_result=numeric_result,
         hit_count=hit_count,
         sample_size=sample_size,
+        seed_binding=seed_binding,
     )
 
 
@@ -979,6 +1002,7 @@ def _result_dict(
     numeric_result: float | None = None,
     hit_count: int | None = None,
     sample_size: int | None = None,
+    seed_binding: str = "unbound",
 ) -> dict[str, Any]:
     return {
         "schema": WORKER_RESULT_SCHEMA,
@@ -993,6 +1017,7 @@ def _result_dict(
         "numeric_result": numeric_result,
         "hit_count": hit_count,
         "sample_size": sample_size,
+        "seed_binding": seed_binding,
     }
 
 

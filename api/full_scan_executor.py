@@ -131,6 +131,7 @@ class EvidenceAttemptRow:
     model_version: str
     seed: int
     evidence_ref: str | None
+    seed_binding: str = "unbound"
     incomplete_reason: str | None = None
     test_id: str = ""
     verdict: str | None = None
@@ -163,6 +164,7 @@ class EvidenceAttemptRow:
             "corpus_version": self.corpus_version,
             "model_version": self.model_version,
             "seed": self.seed,
+            "seed_binding": self.seed_binding,
             "evidence_ref": self.evidence_ref,
             "incomplete_reason": self.incomplete_reason,
             "test_id": self.test_id,
@@ -207,6 +209,7 @@ class WorkerAttemptResult:
     numeric_result: float | None = None
     hit_count: int | None = None
     sample_size: int | None = None
+    seed_binding: str = "unbound"
     # Structured judge output.  Empty means the worker cannot prove which
     # criteria produced its verdict, so capability-based reclassification must
     # fail closed and preserve the verdict.
@@ -1170,6 +1173,7 @@ def dispatch_registry_attempt(
                 model_version=result.model_version or model_version,
                 seed=job.seed,
                 evidence_ref=_manifest_evidence_ref(result.evidence_ref, job_id=job.job_id),
+                seed_binding=result.seed_binding,
                 incomplete_reason=result_reason,
                 test_id=str(registry_row.get("test_id") or ""),
                 verdict=result_verdict,

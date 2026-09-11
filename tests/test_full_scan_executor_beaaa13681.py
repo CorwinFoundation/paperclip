@@ -62,6 +62,7 @@ def _row(
     evidence_ref: str = "scanner://evidence/job/P1.1.json",
     status: str = "complete",
     incomplete_reason: str | None = None,
+    seed_binding: str = "unbound",
 ) -> EvidenceAttemptRow:
     return EvidenceAttemptRow(
         probe_id=rubric_point_id,
@@ -71,6 +72,7 @@ def _row(
         corpus_version="1.3.0",
         model_version="fixture-agent-v0",
         seed=0,
+        seed_binding=seed_binding,
         evidence_ref=evidence_ref,
         incomplete_reason=incomplete_reason,
     )
@@ -228,6 +230,8 @@ def test_evidence_rows_require_status_framework_corpus_model_seed_and_reason(mon
     assert updated.evidence_rows[0].corpus_version == "1.3.0"
     assert updated.evidence_rows[0].model_version == "fixture-agent-v0"
     assert updated.evidence_rows[0].seed == 0
+    assert updated.evidence_rows[0].to_manifest_row()["seed_binding"] == "unbound"
+    assert _row("P2.1", seed_binding="bound").to_manifest_row()["seed_binding"] == "bound"
     assert updated.evidence_rows[0].incomplete_reason == "worker_timeout"
 
 

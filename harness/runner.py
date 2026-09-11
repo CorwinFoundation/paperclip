@@ -23,6 +23,10 @@ class RunnerError(RuntimeError):
 
 
 class ModelRunner(ABC):
+    def seed_binding(self, seed: int) -> str:
+        """Report whether ``seed`` is transmitted to the target transport."""
+        return "unbound"
+
     @abstractmethod
     def model_id(self) -> str: ...
 

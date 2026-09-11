@@ -11,6 +11,7 @@ from tools.framework_workers import (
     _agentdojo_adapter_result,
     _complete_subject,
     _garak_adapter_result,
+    _seed_binding_for_subject,
     build_live_framework_workers,
     _result_dict,
 )
@@ -123,6 +124,33 @@ def test_garak_subject_uses_production_vapi_transport(monkeypatch):
         ),
         ("complete", "native garak prompt"),
     ]
+
+
+def test_vapi_transport_reports_job_seed_unbound():
+    assert _seed_binding_for_subject(
+        {
+            "kind": "customer_agent_http",
+            "endpoint": "https://api.vapi.ai",
+            "secret": "test-secret",
+            "agent_id": "11111111-1111-4111-8111-111111111111",
+        },
+        7,
+    ) == "unbound"
+
+
+def test_seed_transmitting_runner_reports_job_seed_bound(monkeypatch):
+    class SeedTransmittingRunner:
+        def seed_binding(self, seed):
+            assert seed == 7
+            return "bound"
+
+    monkeypatch.setattr(
+        "harness.customer_runner.customer_agent_http_runner_factory",
+        lambda *_args: SeedTransmittingRunner(),
+    )
+    assert _seed_binding_for_subject(
+        {"kind": "customer_agent_http", "endpoint": "https://example.test"}, 7
+    ) == "bound"
 
 
 def test_live_worker_factory_replaces_garak_text_materializer(monkeypatch):
