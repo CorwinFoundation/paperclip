@@ -52,6 +52,9 @@ func TestLangfuseAcquireUsesBothAPIsAndKeepsStreamCompletion(t *testing.T) {
 			}
 		case LangfuseScoresPath:
 			scores++
+			if got := r.URL.Query().Get("fields"); got != "core" {
+				t.Errorf("score fields = %q; Langfuse 4.32.0 accepts core, details, subject, or annotation", got)
+			}
 			if r.URL.Query().Get("cursor") == "" {
 				_, _ = w.Write([]byte(`{"data":[{"id":"score-1","timestamp":"2026-09-09T00:00:02Z","name":"quality","value":0.75,"dataType":"NUMERIC","source":"EVAL"}],"meta":{"limit":1,"cursor":"score-next"}}`))
 			} else {
@@ -70,6 +73,10 @@ func TestLangfuseAcquireUsesBothAPIsAndKeepsStreamCompletion(t *testing.T) {
 	first, checkpoint, err := driver.Acquire(context.Background(), "", 2)
 	if err != nil || len(first) != 2 {
 		t.Fatalf("first acquire: records=%+v checkpoint=%q err=%v", first, checkpoint, err)
+	}
+	score, err := driver.Normalize(first[1])
+	if err != nil || score.Attributes["langfuse.value"] != 0.75 || score.Attributes["langfuse.dataType"] != "NUMERIC" {
+		t.Fatalf("fields=core score normalization: score=%+v err=%v", score, err)
 	}
 	cursor, err := decodeLangfuseCursor(checkpoint)
 	if err != nil || cursor.Observation != "obs-next" || cursor.ObservationDone || cursor.ScoreCursor != "score-next" || cursor.ScoreDone {

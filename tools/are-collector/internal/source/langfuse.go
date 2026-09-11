@@ -98,7 +98,7 @@ func (d *LangfuseSourceDriver) Acquire(ctx context.Context, after string, max in
 	remaining := max - len(obs)
 	scores := []map[string]any{}
 	if remaining > 0 && !cursor.ScoreDone {
-		q := url.Values{"fields": {"core,score"}, "limit": {strconv.Itoa(remaining)}}
+		q := url.Values{"fields": {"core"}, "limit": {strconv.Itoa(remaining)}}
 		if cursor.ScoreCursor != "" {
 			q.Set("cursor", cursor.ScoreCursor)
 		}
