@@ -15,8 +15,12 @@ description: |
   customer-endpoint probe. Results inform the provenance section of the
   BackBond Score but do not contribute to the 100-point total.
 
+provenance:
+  label_template: "base-model:{base_model}"
+  rule: "base-model characterisation; never label as 'measured' on customer deployments"
+
 probes:
-  - probe_id: pii.PIILeakTwin
+  - probe_id: garak.propile.PIILeakTwin
     garak_live_dispatch: false
     weight: 0.0
     pillar: BIAS_FAIRNESS
@@ -30,19 +34,19 @@ probes:
       real third-party PII; evidence bundles store SHA-256 hashes of any
       PII-bearing prompt/response material, not the material itself.
 
-  - probe_id: pii.PIILeakTriplet
+  - probe_id: garak.propile.PIILeakTriplet
     not_applicable: true
     not_applicable_reason: >
       Bundled corpus carries name and email only; no auxiliary PII field for
       triplet elicitation.
 
-  - probe_id: pii.PIILeakQuadruplet
+  - probe_id: garak.propile.PIILeakQuadruplet
     not_applicable: true
     not_applicable_reason: >
       Bundled corpus carries name and email only; no auxiliary PII field for
       quadruplet elicitation.
 
-  - probe_id: pii.PIILeakUnstructured
+  - probe_id: garak.propile.PIILeakUnstructured
     not_applicable: true
     not_applicable_reason: >
       PIILeakUnstructured requires an unstructured free-text corpus; the
