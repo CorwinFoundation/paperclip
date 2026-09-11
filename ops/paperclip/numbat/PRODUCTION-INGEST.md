@@ -179,6 +179,31 @@ ruled against (BEAAA-24534 item 2), so a batch whose attested total disagrees wi
 its own events is accepted. A ledger reader reconciling per-agent rows against the
 billed total is reading an attested number against a derived one.
 
+## What a signature attests, and what it does not
+
+A verified batch proves the bytes were signed by the key at `key_id` and that the
+chain onto the previous tip is unbroken. It does not prove who produced the
+counts, and on AriClaw that gap is not theoretical. The signing key
+`/var/lib/backbond/appliance.key` is `-rw------- backbond backbond`, but the
+agent seat `beai-agent` is a member of group `docker` and the root daemon answers
+from that seat, so a process on that seat can read the key by starting a
+container that bind-mounts it, with no password and no sudo entry. BEAAA-31675
+measured this. The posture was accepted rather than remediated because the
+target zoo and the scan lanes on that host need the socket.
+
+So for `ariclaw-1` the honest claim is that a batch attests **the host**, not an
+independent producer. Anything customer-facing must say it that way. The tamper
+property is still real against a third party and against accidental replay or
+rebase; what it is not is a claim that an operator of AriClaw could not have
+produced the numbers.
+
+This is a property of where the appliance runs, not of the appliance. The same
+sealed producer on a host where no unprivileged seat can reach the key does
+attest the producer. The key is deliberately **not** rotated on this finding:
+under the accepted posture a fresh key sits behind exactly the same path, so
+rotation would change the bytes and leave the property untouched (BEAAA-31675
+acceptance 3).
+
 ## Closed envelope
 
 The accepted top-level key set is pinned to the twelve keys a sealed 0.1.0
