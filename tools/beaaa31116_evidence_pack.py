@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 PACK_SCHEMA = "beaaa-31116-evidence-pack/v1"
+CONTENT_CANDIDATE_PREFIX = "content-candidate:sha256:"
 EVIDENCE_SCHEME = "evidence://"
 ACQUISITION_BASIS = "target-measured"
 
@@ -41,11 +42,76 @@ def _split_ref(evidence_ref: str) -> tuple[str, str]:
     return job_id, relative
 
 
+def _capability_support(record: dict[str, Any]) -> tuple[bool | None, str]:
+    """Read capability support off the record's own gate, never off a guess.
+
+    ``tools/registered_case_executor.py`` records a deterministic applicability gate
+    (``judge.applicable`` plus ``judge.applicability`` from
+    ``evals.aiuc_path_b.applicability.resolve``) and, for judged cases, an
+    ``unmet_criteria`` list restricted to ``behavior`` and ``capability_manifest``.
+    A gated-out row carries an ``applicability`` block too, so the presence of that
+    block says the gate ran, not that the capability is supported.
+    """
+    judge = record.get("judge") if isinstance(record.get("judge"), dict) else {}
+    unmet = record.get("unmet_criteria")
+    unmet = list(unmet) if isinstance(unmet, (list, tuple)) else []
+
+    if judge.get("applicable") is False or record.get("verdict") == "not_applicable":
+        reason = judge.get("applicability_reason") or "deterministic applicability gate: not applicable"
+        return False, str(reason)
+    if "capability_manifest" in unmet:
+        return False, "judge reported capability_manifest unmet"
+    if judge.get("applicable") is True:
+        return True, "deterministic applicability gate: applicable"
+    if record.get("capability_manifest"):
+        return True, "capability manifest present on the executed row"
+    return None, "no applicability gate or capability manifest in the record"
+
+
 def _response_turns(record: dict[str, Any]) -> list[str]:
     responses = record.get("responses")
     if not isinstance(responses, list):
         return []
     return [turn for turn in (str(value or "").strip() for value in responses) if turn]
+
+
+def _manifest_index(signed_manifest: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
+    """Index the signed run manifest across every framework.
+
+    Adapters key ``probe_id`` differently: the content-candidate lane writes
+    ``content-candidate:sha256:<dedupe digest>``, the promptfoo lane writes the bare
+    stable case id.  Indexing the stripped value covers both, and lookup tries the
+    ledger row's digest first and then its stable case id.
+    """
+    index: dict[str, list[dict[str, Any]]] = {}
+    for row in (signed_manifest or {}).get("evidence_rows", []):
+        probe_id = str(row.get("probe_id") or "")
+        digest = probe_id.removeprefix(CONTENT_CANDIDATE_PREFIX)
+        if digest:
+            index.setdefault(digest, []).append(row)
+    return index
+
+
+def _recover_ref(manifest_rows: list[dict[str, Any]]) -> tuple[str | None, str | None, str | None]:
+    """Return (evidence_ref, source, refusal) for a ledger row the slice filter dropped.
+
+    The BEAAA-31092 slice keeps only ``content_candidate@beaaa-18720-1.0.0`` rows, so a case
+    executed under another adapter reads as unevidenced even though the signed manifest holds a
+    target-measured ref for it.  Recovery is allowed only when the manifest itself says the row
+    was target-measured and names exactly one ref.
+    """
+    measured = [
+        row
+        for row in manifest_rows
+        if row.get("evidence_ref") and row.get("acquisition_basis") == "target-measured"
+    ]
+    if not measured:
+        return None, None, None
+    refs = {str(row["evidence_ref"]) for row in measured}
+    if len(refs) > 1:
+        return None, None, "signed manifest names more than one evidence ref for this digest"
+    row = measured[0]
+    return str(row["evidence_ref"]), f"signed-manifest:{row.get('framework')}", None
 
 
 def build_pack(
@@ -54,6 +120,7 @@ def build_pack(
     export_manifest: dict[str, Any],
     *,
     job_id: str,
+    signed_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     digests = {
         entry["path"]: entry["sha256"]
@@ -61,6 +128,7 @@ def build_pack(
         if entry.get("type") == "file"
     }
     root = job_dir.resolve(strict=True)
+    manifest_index = _manifest_index(signed_manifest)
     rows: list[dict[str, Any]] = []
 
     for ledger_row in ledger["rows"]:
@@ -70,21 +138,34 @@ def build_pack(
             "rubric_point_id": ledger_row["rubric_point_id"],
             "dedupe_sha256": ledger_row["dedupe_sha256"],
             "evidence_ref": ledger_row.get("evidence_ref"),
+            "evidence_ref_source": "slice-ledger" if ledger_row.get("evidence_ref") else None,
             "ledger_verdict": ledger_row.get("verdict"),
             "ledger_hold_reasons": list(ledger_row.get("hold_reasons") or []),
             "recorded_target_response": None,
             "recorded_target_response_turns": None,
             "verdict": None,
             "supported_capability": None,
+            "capability_basis": None,
             "provenance": None,
             "evidenced": False,
             "unevidenced_reason": None,
         }
         ref = ledger_row.get("evidence_ref")
         if not ref:
-            row["unevidenced_reason"] = "missing_manifest_evidence"
-            rows.append(row)
-            continue
+            candidates = manifest_index.get(ledger_row["dedupe_sha256"]) or manifest_index.get(
+                ledger_row["stable_case_id"], []
+            )
+            ref, source, refusal = _recover_ref(candidates)
+            if refusal:
+                row["unevidenced_reason"] = refusal
+                rows.append(row)
+                continue
+            if not ref:
+                row["unevidenced_reason"] = "missing_manifest_evidence"
+                rows.append(row)
+                continue
+            row["evidence_ref"] = ref
+            row["evidence_ref_source"] = source
         try:
             ref_job, relative = _split_ref(ref)
         except ValueError as error:
@@ -125,13 +206,14 @@ def build_pack(
             rows.append(row)
             continue
 
-        applicability = record.get("judge", {}).get("applicability") if isinstance(record.get("judge"), dict) else None
+        supported, capability_basis = _capability_support(record)
         row.update(
             {
                 "recorded_target_response": "\n\n".join(turns),
                 "recorded_target_response_turns": turns,
                 "verdict": record.get("verdict"),
-                "supported_capability": bool(record.get("capability_manifest") or applicability),
+                "supported_capability": supported,
+                "capability_basis": capability_basis,
                 "evidenced": True,
                 "provenance": {
                     "acquisition_basis": ACQUISITION_BASIS,
@@ -153,10 +235,12 @@ def build_pack(
         rows.append(row)
 
     evidenced = [row for row in rows if row["evidenced"]]
+    recovered = [row for row in evidenced if row["evidence_ref_source"] != "slice-ledger"]
     verdict_disagreements = [
         row["stable_case_id"]
         for row in evidenced
-        if row["ledger_verdict"] is not None and row["verdict"] != row["ledger_verdict"]
+        if row["ledger_verdict"] is not None
+        and str(row["verdict"]).casefold() != str(row["ledger_verdict"]).casefold()
     ]
     return {
         "schema_version": PACK_SCHEMA,
@@ -170,6 +254,7 @@ def build_pack(
             "rows": len(rows),
             "evidenced": len(evidenced),
             "unevidenced": len(rows) - len(evidenced),
+            "recovered_from_signed_manifest": len(recovered),
             "verdict_disagreements": len(verdict_disagreements),
         },
         "verdict_disagreements": sorted(verdict_disagreements),
@@ -183,6 +268,12 @@ def main() -> int:
     parser.add_argument("--job-dir", type=Path, required=True, help="extracted evidence/<job-id> directory")
     parser.add_argument("--export-manifest", type=Path, required=True)
     parser.add_argument("--job-id", required=True)
+    parser.add_argument(
+        "--signed-manifest",
+        type=Path,
+        default=None,
+        help="BEAAA-30720 run manifest, used to recover refs the slice framework filter dropped",
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument(
         "--require-evidenced",
@@ -197,6 +288,11 @@ def main() -> int:
         args.job_dir,
         json.loads(args.export_manifest.read_text(encoding="utf-8")),
         job_id=args.job_id,
+        signed_manifest=(
+            json.loads(args.signed_manifest.read_text(encoding="utf-8"))
+            if args.signed_manifest is not None
+            else None
+        ),
     )
     if args.require_evidenced is not None and pack["counts"]["evidenced"] < args.require_evidenced:
         raise SystemExit(
