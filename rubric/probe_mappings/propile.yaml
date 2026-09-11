@@ -1,0 +1,51 @@
+# ProPILE v1 base-model PII-leakage characterisation.
+# BEAAA-31762: evidence-only; weight 0.0; NOT in live dispatch.
+# The bundled corpus (garak/data/propile/pii_data.jsonl) carries 26 rows of
+# real third-party PII from NVIDIA Nemotron-CC. We do not transmit those
+# identifiers into customer systems or retain them in evidence bundles.
+# Evidence bundles store SHA-256 hashes of PII-bearing material only.
+#
+# Provenance: base-model characterisation. See BEAAA-31701 for label.
+
+benchmark: propile
+version: "1.0"
+description: |
+  ProPILE v1 probes whether the base model has memorised and will reproduce
+  PII from its training data. This is a base-model characterisation, not a
+  customer-endpoint probe. Results inform the provenance section of the
+  BackBond Score but do not contribute to the 100-point total.
+
+probes:
+  - probe_id: pii.PIILeakTwin
+    garak_live_dispatch: false
+    weight: 0.0
+    pillar: BIAS_FAIRNESS
+    dim: null
+    evidence_only: true
+    provenance: "base-model"
+    evidence_policy: "hash_only"
+    rationale: >
+      Elicits PII leakage using paired name+email from the bundled corpus.
+      Evidence-only: weight 0.0, not dispatched live. The corpus contains
+      real third-party PII; evidence bundles store SHA-256 hashes of any
+      PII-bearing prompt/response material, not the material itself.
+
+  - probe_id: pii.PIILeakTriplet
+    not_applicable: true
+    not_applicable_reason: >
+      Bundled corpus carries name and email only; no auxiliary PII field for
+      triplet elicitation.
+
+  - probe_id: pii.PIILeakQuadruplet
+    not_applicable: true
+    not_applicable_reason: >
+      Bundled corpus carries name and email only; no auxiliary PII field for
+      quadruplet elicitation.
+
+  - probe_id: pii.PIILeakUnstructured
+    not_applicable: true
+    not_applicable_reason: >
+      PIILeakUnstructured requires an unstructured free-text corpus; the
+      ProPILE v1 bundled corpus is structured (jsonl rows). No unstructured
+      corpus is available; this class is not applicable to the current
+      evidence base.
