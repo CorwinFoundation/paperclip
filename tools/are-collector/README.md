@@ -92,4 +92,5 @@ cosign verify \
 
 Sandbox:
 
-- `deploy/kubernetes-sandbox.yaml` sets non-root execution, read-only root filesystem, dropped Linux capabilities, RuntimeDefault seccomp, and an egress-only CiliumNetworkPolicy pinned to `ingest.backbond.ai:443`.
+- `deploy/kubernetes-sandbox.yaml` sets non-root execution, read-only root filesystem, dropped Linux capabilities, and RuntimeDefault seccomp. Its receiver egress target is intentionally disabled until a deployed receiver hostname exists; see the operator runbook.
+- Datadog and Langfuse configuration, credential rotation, checkpoint recovery, health states, privacy boundaries, and rollback: [`docs/runbooks/datadog-langfuse-connectors.md`](../../docs/runbooks/datadog-langfuse-connectors.md).

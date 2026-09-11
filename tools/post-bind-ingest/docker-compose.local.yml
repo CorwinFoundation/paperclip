@@ -13,7 +13,10 @@ services:
       - ./customer-output:/output:rw
     command:
       - /input/receiver_payload.json
-      - --jwt-public-key
-      - ${BACKBOND_MONITOR_JWT_PUBLIC_KEY:?set BACKBOND_MONITOR_JWT_PUBLIC_KEY}
+      - --mode
+      - receiver
+      - --verify-signature
+      - --jwt-keyring-json
+      - ${BACKBOND_MONITOR_JWT_KEYRING_JSON:?set BACKBOND_MONITOR_JWT_KEYRING_JSON}
       - --output-path
       - /output/normalized-events.jsonl
