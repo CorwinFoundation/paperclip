@@ -109,3 +109,82 @@ def test_activation_usage_is_unchanged(tmp_path: Path) -> None:
     result = _run(tmp_path / "state", tmp_path / "exports", "deadbeef")
     assert result.returncode != 0
     assert "usage: scanner-deploy <commit-sha>" in result.stderr
+
+
+JOB_ID = "a935915a-ddc0-473f-ba46-ebd3593cc38b"
+
+
+@pytest.fixture()
+def job_state(tmp_path: Path) -> Path:
+    """BEAAA-31116: the rank-2 roster resolves to evidence/<job-id>, not retained-evidence."""
+    state = tmp_path / "state"
+    job = state / "evidence" / JOB_ID
+    (job / "tool_misuse_scope_escape").mkdir(parents=True)
+    (job / "manifest.json").write_text('{"job_id": "%s"}' % JOB_ID, encoding="utf-8")
+    (job / "tool_misuse_scope_escape" / "TOOL_MISUSE_SE-01.json").write_text(
+        json.dumps({"recorded_target_response": "hello", "verdict": "fail"}), encoding="utf-8"
+    )
+    (state / "evidence" / "other-job").mkdir()
+    (state / "evidence" / "other-job" / "leak.json").write_text("{}", encoding="utf-8")
+    return state
+
+
+def test_job_export_archives_only_the_requested_job(job_state: Path, tmp_path: Path) -> None:
+    export_dir = tmp_path / "exports"
+    result = _run(job_state, export_dir, "export-evidence", "job", JOB_ID)
+    assert result.returncode == 0, result.stderr
+
+    archive_path, manifest_path = (Path(line) for line in result.stdout.split())
+    assert archive_path.name.startswith(f"job-evidence-{JOB_ID}-")
+
+    with tarfile.open(archive_path) as tar:
+        names = set(tar.getnames())
+    case = f"evidence/{JOB_ID}/tool_misuse_scope_escape/TOOL_MISUSE_SE-01.json"
+    assert case in names
+    assert f"evidence/{JOB_ID}/manifest.json" in names
+    assert not any(name.startswith("evidence/other-job") for name in names)
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["file_count"] == 2
+    by_path = {entry["path"]: entry for entry in manifest["entries"]}
+    source = job_state / "evidence" / JOB_ID / "tool_misuse_scope_escape" / "TOOL_MISUSE_SE-01.json"
+    assert by_path["tool_misuse_scope_escape/TOOL_MISUSE_SE-01.json"]["sha256"] == hashlib.sha256(
+        source.read_bytes()
+    ).hexdigest()
+
+
+def test_job_export_rejects_a_job_id_that_is_not_a_uuid(job_state: Path, tmp_path: Path) -> None:
+    for bad in ("../../etc", "A935915A-DDC0-473F-BA46-EBD3593CC38B", f"{JOB_ID}/x", ""):
+        result = _run(job_state, tmp_path / "exports", "export-evidence", "job", bad)
+        assert result.returncode != 0, bad
+        assert "job id must be a lowercase uuid" in result.stderr, bad
+
+
+def test_job_export_requires_exactly_one_job_id(job_state: Path, tmp_path: Path) -> None:
+    result = _run(job_state, tmp_path / "exports", "export-evidence", "job")
+    assert result.returncode != 0
+    assert "usage: scanner-deploy export-evidence job <job-id>" in result.stderr
+
+
+def test_job_export_fails_closed_when_the_job_is_absent(job_state: Path, tmp_path: Path) -> None:
+    absent = "00000000-0000-0000-0000-000000000000"
+    result = _run(job_state, tmp_path / "exports", "export-evidence", "job", absent)
+    assert result.returncode != 0
+    assert "job evidence directory missing" in result.stderr
+
+
+def test_job_export_refuses_a_symlinked_evidence_directory(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    (tmp_path / "elsewhere" / JOB_ID).mkdir(parents=True)
+    (state / "evidence").symlink_to(tmp_path / "elsewhere", target_is_directory=True)
+    result = _run(state, tmp_path / "exports", "export-evidence", "job", JOB_ID)
+    assert result.returncode != 0
+    assert "evidence directory is a symlink" in result.stderr
+
+
+def test_retained_export_is_unchanged_by_the_job_form(populated_state: Path, tmp_path: Path) -> None:
+    result = _run(populated_state, tmp_path / "exports", "export-evidence")
+    assert result.returncode == 0, result.stderr
+    archive_path = Path(result.stdout.split()[0])
+    assert archive_path.name.startswith("retained-evidence-")

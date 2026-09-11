@@ -76,24 +76,46 @@ wait_200() {
 # sha256 manifest. Self-contained on purpose: the 2026-09-10 07:00Z run failed
 # on a companion file in /tmp, so this depends on nothing outside the helper.
 export_evidence() {
-  [ "$#" = 0 ] || die 'usage: scanner-deploy export-evidence'
+  # BEAAA-31116: the rank-2 roster's evidence refs are evidence://<job-id>/<test>/<case>.json,
+  # which resolve under $EVIDENCE_STATE_DIR/evidence/<job-id> (tools/registered_case_executor.py
+  # and docs/runbooks/full-scan-execution-layer.md), a different subtree from retained-evidence.
+  case "${1:-}" in
+    '')
+      subtree='retained-evidence'
+      base_kind='retained-evidence'
+      missing_message='retained-evidence directory missing'
+      ;;
+    job)
+      [ "$#" = 2 ] || die 'usage: scanner-deploy export-evidence job <job-id>'
+      job_id="$2"
+      [[ "$job_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] \
+        || die 'job id must be a lowercase uuid'
+      [ ! -L "$EVIDENCE_STATE_DIR/evidence" ] || die 'evidence directory is a symlink'
+      subtree="evidence/$job_id"
+      base_kind="job-evidence-$job_id"
+      missing_message='job evidence directory missing'
+      ;;
+    *)
+      die 'usage: scanner-deploy export-evidence [job <job-id>]'
+      ;;
+  esac
   [ ! -L "$EVIDENCE_STATE_DIR" ] || die 'evidence state directory is a symlink'
-  src="$EVIDENCE_STATE_DIR/retained-evidence"
-  [ ! -L "$src" ] || die 'retained-evidence directory is a symlink'
-  [ -d "$src" ] || die "retained-evidence directory missing: $src"
+  src="$EVIDENCE_STATE_DIR/$subtree"
+  [ ! -L "$src" ] || die "$subtree is a symlink"
+  [ -d "$src" ] || die "$missing_message: $src"
   out_uid="${SUDO_UID:-$(id -u)}"
   out_gid="${SUDO_GID:-$(id -g)}"
   [[ "$out_uid" =~ ^[0-9]+$ ]] || die 'SUDO_UID is not numeric'
   [[ "$out_gid" =~ ^[0-9]+$ ]] || die 'SUDO_GID is not numeric'
   install -d -m 0755 "$EVIDENCE_EXPORT_DIR"
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-  base="retained-evidence-$stamp"
+  base="$base_kind-$stamp"
   work="$(mktemp -d)" || die 'cannot create export staging directory'
   trap 'rm -rf -- "$work"' EXIT INT TERM
   # No --dereference: a symlink inside the evidence tree is archived as a
   # symlink, never followed out of the tree by a root-owned tar.
   tar --numeric-owner --owner=0 --group=0 -czf "$work/$base.tar.gz" \
-    -C "$EVIDENCE_STATE_DIR" retained-evidence || die 'cannot archive retained evidence'
+    -C "$EVIDENCE_STATE_DIR" "$subtree" || die 'cannot archive retained evidence'
   python3 - "$src" "$work/$base.tar.gz" "$work/$base.manifest.json" "$stamp" <<'PY'
 import hashlib, json, os, sys
 src, archive, out, stamp = sys.argv[1:5]
@@ -140,7 +162,7 @@ PY
     install -m 0640 "$work/$base.tar.gz" "$EVIDENCE_EXPORT_DIR/$base.tar.gz"
     install -m 0640 "$work/$base.manifest.json" "$EVIDENCE_EXPORT_DIR/$base.manifest.json"
   fi
-  log "OK: exported retained evidence for uid $out_uid"
+  log "OK: exported $subtree for uid $out_uid"
   printf '%s\n%s\n' "$EVIDENCE_EXPORT_DIR/$base.tar.gz" "$EVIDENCE_EXPORT_DIR/$base.manifest.json"
 }
 
@@ -150,7 +172,7 @@ if [ "${1:-}" = export-evidence ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>]'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
