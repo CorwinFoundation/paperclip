@@ -1,0 +1,6 @@
+{
+  "actions": {},
+  "seed_note": "Rebuilt under BEAAA-31940. At seed time all 14 in_review issues were <24h old, so no 24-72h band member existed to suppress; actions is empty by measurement, not by omission. Do not delete this file - it is the 24h ping dedup ledger.",
+  "seeded_at": "2026-09-11T22:42:49Z",
+  "version": 1
+}
