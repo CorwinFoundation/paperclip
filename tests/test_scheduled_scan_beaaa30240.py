@@ -305,6 +305,7 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         "not_applicable": 0,
     }
     assert manifest["incomplete_by_reason"] == {
+        "aborted_upstream": 0,
         "dispatch_failure": 2,
         "transport": 0,
         "format": 1,

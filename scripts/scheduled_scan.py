@@ -70,6 +70,7 @@ ZOO_PREFLIGHT_TARGETS = {
 }
 INCOMPLETE_GROUPS = (
     "dispatch_failure",
+    "aborted_upstream",
     "upstream_http",
     "transport",
     "format",
@@ -308,6 +309,8 @@ def _incomplete_reason_value(raw: Mapping[str, Any]) -> Any:
 
 def _incomplete_group(reason: Any, *, target_calls: int) -> str:
     value = str(reason or "").lower()
+    if value.startswith("aborted_upstream"):
+        return "aborted_upstream"
     # The deterministic applicability gate decides before dispatch, so its rows
     # always carry ``target_calls == 0``.  Reporting that as a dispatch failure
     # sends a reader looking for a crash that never happened; it is a
@@ -619,6 +622,63 @@ def _zoo_coverage_passed(
     return not coverage_failures and not (target_calls > 0 and routed_families == 0)
 
 
+def _reason_code_aborted_zoo_rows(
+    decisions: Sequence[Any],
+    evidence_rows: Sequence[Mapping[str, Any]],
+    abort_reason: str,
+) -> list[Mapping[str, Any]]:
+    """Materialize every routed row omitted by an upstream fail-fast."""
+    evidenced: set[tuple[str, str]] = set()
+    for row in evidence_rows:
+        if not isinstance(row, Mapping):
+            continue
+        test_id = str(row.get("test_id") or "")
+        for key in ("probe_id", "case_id", "case_id_or_probe_id"):
+            value = row.get(key)
+            if value not in (None, ""):
+                evidenced.add((test_id, str(value)))
+    residual: list[Mapping[str, Any]] = []
+    for decision in decisions:
+        if decision.target is None:
+            continue
+        for row in decision.rows:
+            test_id = str(row.get("test_id") or "")
+            case_ids = {
+                str(row.get(key))
+                for key in ("runtime_case_identity", "case_id", "case_id_or_probe_id")
+                if row.get(key) not in (None, "")
+            }
+            if any((test_id, case_id) in evidenced for case_id in case_ids):
+                continue
+            case_id = next(
+                (
+                    str(row.get(key))
+                    for key in ("runtime_case_identity", "case_id", "case_id_or_probe_id")
+                    if row.get(key) not in (None, "")
+                ),
+                "",
+            )
+            residual.append(
+                {
+                    "probe_id": case_id,
+                    "case_id": case_id,
+                    "test_id": test_id or decision.family,
+                    "family": decision.family,
+                    "rubric_point_id": str(
+                        row.get("risk_or_rubric_id") or row.get("rubric_point_id") or ""
+                    ),
+                    "status": "incomplete",
+                    "verdict": None,
+                    "incomplete_reason": f"aborted_upstream:{abort_reason}",
+                    "target_calls": 0,
+                    "judge_calls": 0,
+                    "score_contribution": False,
+                    "disposition": "report-only",
+                }
+            )
+    return residual
+
+
 def _run_zoo_target(
     target: Any,
     decisions: Sequence[Any],
@@ -698,7 +758,15 @@ def _run_zoo_target(
         abort_reason = exc.abort_reason
     finished = store.finalize(job.job_id, attempt_id=attempt_id)
     final = dict(finished.final_manifest or {})
-    return finished, list(final.get("evidence_rows", [])), abort_reason
+    target_rows = list(final.get("evidence_rows", []))
+    if abort_reason is not None:
+        # Keep this target's output terminally reconciled even when callers use
+        # the per-target helper directly; the aggregate zoo path remains
+        # idempotent because it only fills rows absent from evidence_rows.
+        target_rows.extend(
+            _reason_code_aborted_zoo_rows(decisions, target_rows, abort_reason)
+        )
+    return finished, target_rows, abort_reason
 
 
 def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
@@ -779,16 +847,23 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             "target_calls": sum(int(r.get("target_calls") or 0) for r in target_rows),
             "abort_reason": target_abort,
         }
-        if target_abort is not None:
+        if target_abort is not None and run_abort_reason is None:
             run_abort_reason = target_abort
-            break
     finished_at = datetime.now(timezone.utc).isoformat()
+
+    if run_abort_reason is not None:
+        evidence_rows.extend(
+            _reason_code_aborted_zoo_rows(decisions, evidence_rows, run_abort_reason)
+        )
 
     coverage_failures = _zoo_coverage_failures(decisions, evidence_rows)
     families, incomplete = _zoo_family_summary(decisions, evidence_rows)
     routed_families = sum(1 for counts in families.values() if counts["routed"] > 0)
     target_calls = sum(int(r.get("target_calls") or 0) for r in evidence_rows)
     judge_calls = sum(int(r.get("judge_calls") or 0) for r in evidence_rows)
+    routed_rows = sum(len(decision.rows) for decision in decisions if decision.target is not None)
+    terminal_routed_rows = len(evidence_rows)
+    routed_reconciled = routed_rows == terminal_routed_rows
     manifest = {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": "zoo",
@@ -819,6 +894,11 @@ def run_scheduled_zoo_scan(*, config: ScheduleConfig | None = None) -> Path:
             target_calls=target_calls,
             coverage_failures=coverage_failures,
         ),
+        "reconciliation": {
+            "routed": routed_rows,
+            "terminal": terminal_routed_rows,
+            "equal": routed_reconciled,
+        },
         "incomplete_by_reason": incomplete,
         "evidence_rows": len(evidence_rows),
         "executor": "api.full_scan_executor.dispatch_registry_attempt",
@@ -957,7 +1037,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--job", choices=("vapi", "vapi-garak", "zoo"), required=True)
     args = parser.parse_args(argv)
-    run_scheduled_scan(args.job)
+    manifest_path = run_scheduled_scan(args.job)
+    if args.job == "zoo":
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("aborted") or not manifest.get("reconciliation", {}).get("equal", False):
+            return 1
     return 0
 
 

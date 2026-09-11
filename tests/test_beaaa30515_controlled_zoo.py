@@ -260,6 +260,48 @@ def test_upstream_http_failure_is_not_reported_as_format():
     ) == "format"
 
 
+def test_aborted_zoo_rows_are_reason_coded_and_reconcile(decisions):
+    import scheduled_scan
+
+    routed = [decision for decision in decisions if decision.target is not None]
+    first = routed[0]
+    first_row = first.rows[0]
+    evidenced = [{
+        "test_id": first_row["test_id"],
+        "probe_id": first_row["case_id"],
+        "family": first.family,
+        "status": "incomplete",
+        "incomplete_reason": "upstream_http_403",
+        "target_calls": 1,
+        "judge_calls": 0,
+    }]
+
+    residual = scheduled_scan._reason_code_aborted_zoo_rows(
+        decisions, evidenced, "consecutive_upstream_quota:upstream_http_403:8"
+    )
+    expected = sum(len(decision.rows) for decision in routed)
+    assert len(evidenced) + len(residual) == expected
+    assert all(row["status"] == "incomplete" for row in residual)
+    assert all(row["incomplete_reason"].startswith("aborted_upstream:") for row in residual)
+    _families, incomplete = scheduled_scan._zoo_family_summary(
+        decisions, evidenced + residual
+    )
+    assert incomplete["upstream_http"] == 1
+    assert incomplete["aborted_upstream"] == expected - 1
+
+
+def test_zoo_cli_returns_nonzero_after_writing_aborted_manifest(tmp_path, monkeypatch):
+    import scheduled_scan
+
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps({"aborted": True, "reconciliation": {"equal": True}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(scheduled_scan, "run_scheduled_scan", lambda _job: manifest_path)
+    assert scheduled_scan.main(["--job", "zoo"]) == 1
+
+
 def test_zoo_job_no_longer_raises_the_disabled_stub():
     import scheduled_scan
 
@@ -413,6 +455,70 @@ def test_wrapped_provider_http_failure_keeps_diagnosis_and_error_evidence(
     payload = json.loads(evidence.read_text())
     assert "openrouter HTTP 403" in payload["error_detail"]
     assert payload["error_traceback"]
+
+
+def test_quota_abort_reason_codes_every_undispatched_row(
+    tmp_path, monkeypatch, decisions
+):
+    """Fail-fast preserves the routed denominator instead of dropping its tail."""
+    import scheduled_scan
+    from harness.runner import ModelRunner
+
+    class _Failing(ModelRunner):
+        def model_id(self) -> str:
+            return "controlled-zoo:failing"
+
+        def complete(self, prompt: str) -> str:
+            raise RuntimeError("openrouter HTTP 403: quota exhausted")
+
+    monkeypatch.setattr(
+        "harness.controlled_zoo.build_zoo_runner", lambda target, **kw: _Failing()
+    )
+    monkeypatch.setattr(scheduled_scan, "default_judge_runner", _Failing)
+    config = scheduled_scan.ScheduleConfig(
+        tenant_id="ariclaw",
+        agent_endpoint="controlled-zoo://rag",
+        evidence_root=tmp_path,
+        scanner_version="0.5.0",
+        corpus_version="0.2.0",
+        seed=0,
+        concurrency=1,
+        rpm=30,
+        retries=0,
+        cost_cap_usd=100.0,
+        timeout_seconds=600,
+        judge_model="anthropic/claude-haiku-4.5",
+    )
+    chosen = [d for d in decisions if d.target == "rag"]
+    source_rows = [row for decision in chosen for row in decision.rows][:10]
+    trimmed = [
+        type(chosen[0])(
+            chosen[0].family,
+            chosen[0].target,
+            chosen[0].required_surfaces,
+            chosen[0].reason,
+            tuple(source_rows),
+        )
+    ]
+
+    _finished, rows, abort = scheduled_scan._run_zoo_target(
+        zoo_targets()["rag"],
+        trimmed,
+        config=config,
+        output_dir=tmp_path,
+        run_date="2026-09-11",
+        limiter=scheduled_scan.SharedRateLimiter(600),
+    )
+
+    assert abort == "consecutive_upstream_quota:upstream_http_403:8"
+    assert len(rows) == len(source_rows)
+    assert all(row.get("incomplete_reason") for row in rows)
+    assert sum(
+        str(row["incomplete_reason"]).startswith(
+            "aborted_upstream:consecutive_upstream_quota:upstream_http_403"
+        )
+        for row in rows
+    ) == 2
 
 
 def test_the_whole_dispatch_path_never_constructs_the_vapi_transport(
