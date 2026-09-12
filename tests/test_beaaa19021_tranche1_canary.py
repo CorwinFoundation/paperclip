@@ -387,8 +387,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # the grade render, moving this derived manifest digest to 02f7b4f6.
     # BEAAA-31493 preserves upstream HTTP failure reasons in the registered
     # executor, moving its evaluator pin and this digest to 2ce1423d.
+    # BEAAA-31971 makes three grading paths terminal (fenced-JSON judge parse,
+    # na_is_pass enforcement, structured-invariant exceptions) in
+    # tools/registered_case_executor.py, moving the evaluator pin to 9888dd57
+    # and this derived digest to 67cdcb8e. Canary budget (180 target calls, 0
+    # judge calls), families, and the zero-weight invariants asserted above are
+    # unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "7086240e9bb51ca7ff4443a3aae19d5d15304a9c42aba22d8a2a0f83b3f95789"
+        "67cdcb8e8ef8d5990fdaa219d86276f4a14926c3613f79c1b4a63ef5a4f6ef6e"
     )
 
 

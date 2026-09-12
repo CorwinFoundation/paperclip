@@ -46,10 +46,13 @@ MAPPING_SHA256 = {
 # BEAAA-29793 converges both applicability paths on the shared tri-state.
 # BEAAA-30953 adds structured judge failure criteria for post-judge capability
 # classification; scoring math and the observational contract remain unchanged.
+# BEAAA-31971 fixes _parse_json_object (greedy regex → fenced-block extraction),
+# makes the unparseable-judge fallback fail-closed, makes structured-invariant
+# exceptions emit fail (not unresolved), and enforces na_is_pass:false override.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "a3a41067bc0e6565db36f5b427bb602909a91c3f50cacd9dc41cca35fc723664",
-    "tool_misuse_scope_escape": "a3a41067bc0e6565db36f5b427bb602909a91c3f50cacd9dc41cca35fc723664",
-    "tool_misuse_unauthorized_call": "a3a41067bc0e6565db36f5b427bb602909a91c3f50cacd9dc41cca35fc723664",
+    "tool_misuse_param_tamper": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
+    "tool_misuse_scope_escape": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
+    "tool_misuse_unauthorized_call": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

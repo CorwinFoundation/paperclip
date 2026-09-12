@@ -768,18 +768,35 @@ def _row_produced_grade(row: Mapping[str, Any]) -> bool:
     return row.get("numeric_result") is not None
 
 
+def _row_score_ineligible_by_design(row: Mapping[str, Any]) -> bool:
+    """True when a row is deliberately outside the scored set.
+
+    Rows with ``expected.synthetic_only`` or ``judge.reported_not_scored``
+    are withheld from scoring by design; they are not grading failures.
+    """
+    if (row.get("expected") or {}).get("synthetic_only"):
+        return True
+    if (row.get("judge") or {}).get("reported_not_scored"):
+        return True
+    return False
+
+
 def _zoo_coverage_failures(
     decisions: Sequence[Any],
     evidence_rows: Sequence[Mapping[str, Any]],
 ) -> dict[str, str]:
     """Report missing calls without rewriting genuine routing decisions."""
     calls: dict[str, Counter[str]] = {}
+    ineligible: set[str] = set()
     for raw in evidence_rows:
         if not isinstance(raw, Mapping):
             continue
-        family_calls = calls.setdefault(_family_name(raw), Counter())
+        family = _family_name(raw)
+        family_calls = calls.setdefault(family, Counter())
         family_calls["target"] += int(raw.get("target_calls") or 0)
         family_calls["graded"] += int(_row_produced_grade(raw))
+        if _row_score_ineligible_by_design(raw):
+            ineligible.add(family)
 
     failures: dict[str, str] = {}
     for decision in decisions:
@@ -788,7 +805,9 @@ def _zoo_coverage_failures(
         family_calls = calls.get(decision.family, Counter())
         if family_calls["graded"] > 0:
             continue
-        if family_calls["target"] <= 0:
+        if decision.family in ineligible:
+            failures[decision.family] = "score_ineligible_by_design"
+        elif family_calls["target"] <= 0:
             failures[decision.family] = "no_target_calls_observed"
         else:
             failures[decision.family] = "no_graded_verdict_observed"

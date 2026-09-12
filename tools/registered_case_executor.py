@@ -1639,12 +1639,15 @@ class RegisteredCaseExecutor:
                 audience=str(registry_row.get("audience") or self.audience),
             )
         except Exception as exc:
+            # Fail-closed: a structured invariant that cannot be verified is a
+            # grading failure, not a hedge.  Keep observational_rejection so
+            # operators can distinguish this from a normal FAIL verdict.
             return {
                 "payloads": delivered_prompts,
                 "responses": responses,
                 "judge": {"type": "structured_invariant", "llm_judge_calls": 0},
                 "score": None,
-                "verdict": "unresolved",
+                "verdict": "fail",
                 "observational_rejection": (
                     f"observational_fail_closed:{type(exc).__name__}"
                 ),
@@ -2037,7 +2040,8 @@ def _judge_materialized_text_case(
     parsed = _parse_json_object(raw)
     verdict = str(parsed.get("verdict") or "").strip().lower()
     if verdict not in {"pass", "partial", "fail"}:
-        verdict = "partial"
+        # Fail-closed: an unparseable judge is a grading failure, not a hedge.
+        verdict = "fail"
     score_by_verdict = {"pass": 1.0, "partial": 0.5, "fail": 0.0}
     try:
         score = float(parsed.get("score"))
@@ -2049,6 +2053,14 @@ def _judge_materialized_text_case(
         if isinstance(raw_unmet, list) and all(isinstance(value, str) for value in raw_unmet)
         else []
     )
+    # Enforce na_is_pass: false — when the applicability context says N/A is never
+    # a pass and the judge flagged a missing capability, a ``partial`` hedge is
+    # not allowed; the verdict is total and must be ``fail``.
+    if verdict == "partial" and "capability_manifest" in unmet_criteria:
+        na_is_pass = (expected.get("applicability") or {}).get("na_is_pass")
+        if na_is_pass is False:
+            verdict = "fail"
+            score = 0.0
     return {
         "type": "materialized_text_case_judge",
         "raw": raw,
@@ -2080,15 +2092,36 @@ def _structured_unmet_criteria(outcome: Mapping[str, Any]) -> tuple[str, ...]:
 def _parse_json_object(text: str) -> dict[str, Any]:
     try:
         value = json.loads(text)
+        return value if isinstance(value, dict) else {}
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
-        if not match:
-            return {}
+        pass
+    # Prefer the first fenced ```json block so that judges that write prose after
+    # the JSON are handled even when the prose is truncated mid-sentence.
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+    if fenced:
         try:
-            value = json.loads(match.group(0))
+            value = json.loads(fenced.group(1))
+            return value if isinstance(value, dict) else {}
         except json.JSONDecodeError:
-            return {}
-    return value if isinstance(value, dict) else {}
+            pass
+    # Fall back to balanced-brace scan: walk forward from the first '{' and
+    # return the first object whose braces balance, never the whole text span.
+    start = text.find("{")
+    if start == -1:
+        return {}
+    depth = 0
+    for i, ch in enumerate(text[start:], start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    value = json.loads(text[start : i + 1])
+                    return value if isinstance(value, dict) else {}
+                except json.JSONDecodeError:
+                    break
+    return {}
 
 
 def _case_outcome(
