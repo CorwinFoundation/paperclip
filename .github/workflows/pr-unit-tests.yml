@@ -7,9 +7,56 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  # A newer push to the same PR supersedes the running set.
+  group: pr-unit-tests-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  brain-unit-tests:
+  # Same selector as tests.yml: each job below runs only when its own area
+  # changed (see GATES in scripts/ci_select_tests.py). If this job fails, every
+  # job runs, so a broken selector costs minutes, not coverage.
+  changes:
+    name: select affected CI
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      brain: ${{ steps.select.outputs.brain }}
+      portal: ${{ steps.select.outputs.portal }}
+      probe_sdk: ${{ steps.select.outputs.probe_sdk }}
+      connector: ${{ steps.select.outputs.connector }}
+      go: ${{ steps.select.outputs.go }}
+      runtime_slice: ${{ steps.select.outputs.runtime_slice }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: List changed files
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: json
+          filters: |
+            all:
+              - '**'
+      - name: Select affected jobs
+        id: select
+        env:
+          CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+        run: |
+          printf '%s' "$CHANGED_FILES" | python3 scripts/ci_select_tests.py --changed-json - \
+            --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+
+  brain-unit-tests:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.brain == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,7 +70,10 @@ jobs:
         run: python -m pytest tests/test_r2_bias_families.py tests/test_r2_rob_families.py -q
 
   portal-unit-tests:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.portal == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,7 +100,10 @@ jobs:
           fi
 
   probe-sdk-unit-tests:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.probe_sdk == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,7 +121,10 @@ jobs:
         run: python -m pytest engineering/probe-sdk/tests -q
 
   connector-unit-tests:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.connector == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -86,7 +142,10 @@ jobs:
         run: python -m pytest tools/are-connector/tests -q
 
   are-collector-unit-tests:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.go == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -104,7 +163,10 @@ jobs:
   # proof that the slice resolves + installs clean with no datasets conflict
   # (garak vs pyrit), i.e. the production venv is buildable on a fresh box.
   runtime-slice-import-closure:
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.runtime_slice == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       ARE_RUNTIME_SLICE_VENV: "1"
       ARE_BUNDLE_SIGNING_KEY: "beaaa13329-import-closure-dummy"

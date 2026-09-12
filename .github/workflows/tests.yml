@@ -5,7 +5,16 @@ on:
     branches:
       - master
   pull_request:
+  schedule:
+    # Nightly full run (03:23 UTC). The safety net for anything the
+    # affected-test selection below misses on a PR or a master push.
+    - cron: "23 3 * * *"
   workflow_dispatch:
+    inputs:
+      full:
+        description: "Run everything regardless of what changed"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -18,9 +27,64 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # What did this push/PR change, and which jobs can that affect?
+  # scripts/ci_select_tests.py is fail-closed: when in doubt it answers ALL,
+  # and every job below treats a missing answer (this job failed) as ALL too.
+  # Docs/evidence-only changes therefore run nothing; a rubric change runs the
+  # scoring lint + the tests that import it; a lock change runs everything.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: select affected CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      selection_mode: ${{ steps.select.outputs.selection_mode }}
+      tests: ${{ steps.select.outputs.tests }}
+      code: ${{ steps.select.outputs.code }}
+      scoring: ${{ steps.select.outputs.scoring }}
+      evalvenv: ${{ steps.select.outputs.evalvenv }}
+      aiuc1: ${{ steps.select.outputs.aiuc1 }}
+      registry: ${{ steps.select.outputs.registry }}
+      regression: ${{ steps.select.outputs.regression }}
+      reason: ${{ steps.select.outputs.reason }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: List changed files
+        id: filter
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: json
+          filters: |
+            all:
+              - '**'
+
+      - name: Select affected tests and jobs
+        id: select
+        env:
+          CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          FULL_RUN: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.full }}
+        run: |
+          if [ "$FULL_RUN" = "true" ]; then
+            python3 scripts/ci_select_tests.py --full \
+              --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+          else
+            printf '%s' "$CHANGED_FILES" | python3 scripts/ci_select_tests.py --changed-json - \
+              --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+          fi
+
   min-python-cli-render:
     name: python 3.11 CLI render smoke
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       PYTHONHASHSEED: "0"
       TZ: UTC
@@ -76,10 +140,19 @@ jobs:
 
   pytest:
     name: python pytest
+    needs: changes
+    # Required check. A skipped job counts as passed for branch protection,
+    # so it is only skipped when the selector positively said "no Python
+    # test can be affected"; if the selector itself failed, run everything.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       PYTHONHASHSEED: "0"
       TZ: UTC
+      SELECTION_MODE: ${{ needs.changes.outputs.selection_mode }}
+      SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
+      SCORING_CHANGED: ${{ needs.changes.result != 'success' || needs.changes.outputs.scoring == 'true' }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -102,15 +175,19 @@ jobs:
           python -m pip check
 
       - name: Ruff critical scoring module
+        if: env.SCORING_CHANGED == 'true'
         run: python -m ruff check rubric/scoring.py
 
       - name: Type-check critical scoring module
+        if: env.SCORING_CHANGED == 'true'
         run: python -m mypy --ignore-missing-imports rubric/scoring.py
 
       - name: Report high-confidence dead code
+        if: env.SCORING_CHANGED == 'true'
         run: python -m vulture rubric/scoring.py --min-confidence 90
 
       - name: Enforce critical scoring coverage
+        if: env.SCORING_CHANGED == 'true'
         run: |
           python -m coverage run --source=rubric.scoring -m pytest -q \
             tests/test_scoring.py \
@@ -119,6 +196,8 @@ jobs:
           python -m coverage report --fail-under=80
 
       - name: Prove pytest discovers integration regressions
+        # Discovery config only changes with files that force a full run.
+        if: env.SELECTION_MODE != 'SOME'
         run: |
           python -m pytest --collect-only -q tests \
             --ignore=tests/test_inspect_runner.py \
@@ -129,12 +208,21 @@ jobs:
           grep -F "tests/integration/test_walker_customer_agent_v0_3.py::TestAGB1WalkerRoundTrip::test_walker_yields_rows_against_echo_server" pytest-collection.txt
 
       - name: Run tests
+        # Targets come from the changes job (scripts/ci_select_tests.py):
+        # the whole tree (ALL, also when that job failed) or only the test
+        # files whose import closure the diff touches (SOME).
         # pytest-xdist: one worker per runner core (-n auto), whole files kept
         # on a single worker (--dist loadfile) so module-level fixtures and
         # monkeypatched state never straddle workers. --durations surfaces the
         # slowest tests in the log so the next speed-up is data-driven.
         run: |
-          python -m pytest -v -ra tests \
+          mapfile -t TARGETS < <(python scripts/ci_select_tests.py --expand)
+          echo "selection=$SELECTION_MODE targets=${#TARGETS[@]}"
+          if [ "${#TARGETS[@]}" -eq 0 ]; then
+            echo "selector reported NONE: no Python test can be affected by this diff"
+            exit 0
+          fi
+          python -m pytest -v -ra "${TARGETS[@]}" \
             -n auto --dist loadfile \
             --durations=25 \
             --ignore=tests/test_inspect_runner.py \
@@ -142,7 +230,10 @@ jobs:
 
   eval-framework-venvs:
     name: eval venv (${{ matrix.framework }})
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.evalvenv == 'true') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -274,3 +365,138 @@ jobs:
           python -m pytest --noconftest -v -ra \
             tests/test_native_worker_venvs_beaaa16616.py::test_real_garak_0160_probe_generator_detector_and_seed \
             tests/test_garak_registry_resolution_beaaa31623.py
+
+  # ---------------------------------------------------------------------------
+  # Formerly separate workflows (aiuc1-direct-families.yml,
+  # authoritative-probe-registry.yml, scanner-regression.yml). Folded in here
+  # so they share the one `changes` job instead of each running unconditionally
+  # on every push. Steps are unchanged.
+  # ---------------------------------------------------------------------------
+  aiuc1-production-binding:
+    name: AIUC-1 production binding and report-only invariants
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.aiuc1 == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            locks/core-py312.lock
+            locks/ci-test-py312.lock
+
+      - name: Install strict-resolvable test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes \
+            -r locks/core-py312.lock \
+            -r locks/ci-test-py312.lock
+          python -m pip check
+
+      - name: Verify source-built production binding
+        run: python scripts/verify_aiuc1_direct_families_release.py
+
+      - name: Run direct-family and observation-ingestion regressions
+        run: |
+          python -m pytest -v -ra \
+            tests/test_authentication_bypass_resistance_beaaa26755.py \
+            tests/test_beaaa26756_sensitive_data_disclosure.py \
+            tests/test_day1_report_only_beaaa26757.py \
+            tests/test_aiuc1_direct_families_production_wiring.py
+
+      - name: Verify registry artifacts are current
+        run: python -m tools.probe_registry --repo . --check
+
+      - name: Compile release surface
+        run: |
+          python -m compileall -q \
+            api/day1_report_only.py \
+            harness/direct_family_adapter.py \
+            scripts/verify_aiuc1_direct_families_canary.py \
+            scripts/verify_aiuc1_direct_families_release.py \
+            tools/active_test_registry.py \
+            tools/framework_worker_registry.py \
+            tools/registered_case_executor.py
+
+  authoritative-probe-registry:
+    name: authoritative probe registry drift
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.registry == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 1}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - name: Install focused registry-gate dependencies
+        run: |
+          python -m pip install --require-hashes -r requirements-scanner-regression.txt
+          python -m pip install pytest==9.0.3 jsonschema==4.26.0
+      - run: scripts/authoritative_probe_registry_integration_gate.sh
+
+  golden-regression:
+    name: golden scanner regression
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.regression == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-scanner-regression.txt
+
+      - name: Install pinned scanner-regression dependencies
+        run: |
+          python -m pip install --require-hashes -r requirements-scanner-regression.txt
+
+      - name: Run deterministic golden regression tests
+        run: |
+          python -m pytest \
+            tests/test_golden_agents.py \
+            tests/test_beaaa23968_corpus_pin.py \
+            tests/test_beaaa24002_corpus_pin_p13_p15.py \
+            tests/test_cli_runner_beaaa464.py \
+            tests/test_p1_1_factuality_golden.py \
+            tests/test_p1_3_consistency_golden.py \
+            tests/test_p1_4_refusal_golden.py \
+            tests/test_p1_5_calibration_golden.py \
+            tests/test_scanner_tamper_red_team.py \
+            -q
+
+      - name: Run BEAAA-6190 v0.5 RC N=5 gate
+        run: |
+          python scripts/beaaa6190_v05_rc_n5.py
+
+      - name: Enforce release N=5 and Phase-3 vanish gates
+        env:
+          ARE_BUNDLE_SIGNING_KEY: ci-phase3-reference-gate-nonproduction
+        run: |
+          python -m pytest tests/test_release_gate_beaaa10189.py tests/test_full_scan_reference_agents_beaaa13803.py -q
+          python -m tools.full_scan_reference_agents --check --json-out artifacts/phase3-reference-agent-gate.json
+
+      - name: Upload N=5 calibration evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: beaaa6190-v05-rc-n5
+          path: tools/calibration-deltas/2026-06-22-beaaa6190-v05-rc-n5.md
+          if-no-files-found: error
+          retention-days: 90

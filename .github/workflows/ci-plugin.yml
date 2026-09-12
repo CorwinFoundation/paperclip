@@ -13,11 +13,19 @@ on:
       - ".github/workflows/ci-plugin.yml"
   push:
     branches: [master]
+    paths:
+      - "ci_plugin/**"
+      - "api/ci_scan_ext.py"
+      - "api/jcs.py"
+      - "tests/test_ci_plugin_beaaa11729.py"
+      - ".github/workflows/ci-plugin.yml"
+  workflow_dispatch:
 
 jobs:
   acceptance-matrix:
     name: ci-plugin acceptance matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
