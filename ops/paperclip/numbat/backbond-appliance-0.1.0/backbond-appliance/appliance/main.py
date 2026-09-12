@@ -46,9 +46,15 @@ def _ship_http(batch, cfg):
     ship = cfg["ship"]
     url = ship["url"]
     token = os.environ.get("BACKBOND_SHIP_TOKEN", "")
+    tenant_id = os.environ.get("BACKBOND_TENANT_ID", ship.get("tenant_id", ""))
+    source_id = os.environ.get("BACKBOND_SOURCE_ID", ship.get("source_id", ""))
+    if not tenant_id or not source_id:
+        raise ValueError("HTTP shipping requires tenant_id and source_id")
     raw = json.dumps(batch).encode()
     body, headers = raw, {"Content-Type": "application/json",
-                          "Authorization": f"Bearer {token}"}
+                          "Authorization": f"Bearer {token}",
+                          "X-BackBond-Tenant": tenant_id,
+                          "X-BackBond-Source": source_id}
     if ship.get("gzip", True):
         body = gzip.compress(raw); headers["Content-Encoding"] = "gzip"
     retries = int(ship.get("retries", 4))

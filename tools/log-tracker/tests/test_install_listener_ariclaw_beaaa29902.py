@@ -46,6 +46,12 @@ def test_two_sandbox_installs_converge(tmp_path):
     config = first["etc/backbond/config.yaml"][0].decode()
     assert 'name: "codex_rollout"' in config
     assert 'url: "http://127.0.0.1:8787/ingest"' in config
+    assert 'tenant_id: "backbond"' in config
+    assert 'source_id: "paperclip-codex-rollouts"' in config
+
+    enrollment = json.loads(first["etc/backbond/appliance-enrollment.json"][0])
+    assert enrollment[0]["tenant_id"] == "backbond"
+    assert enrollment[0]["source_id"] == "paperclip-codex-rollouts"
 
 
 def test_root_install_sets_runtime_ownership_and_enroll_pythonpath():

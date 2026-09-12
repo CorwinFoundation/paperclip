@@ -72,7 +72,8 @@ def main():
             "rules": {"pack": "growth_agent_pack.yaml"},
             "signing": {"key_path": key_path, "key_id": "loop-key"},
             "state_dir": os.path.join(work, "state"),
-            "ship": {"mode": "http", "url": f"{base}/ingest"},
+            "ship": {"mode": "http", "url": f"{base}/ingest",
+                     "tenant_id": "backbond", "source_id": "loop-test"},
         }
         cfg_path = os.path.join(work, "config.yaml")
         import yaml; yaml.safe_dump(cfg, open(cfg_path, "w"))
