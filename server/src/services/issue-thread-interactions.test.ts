@@ -212,4 +212,32 @@ describe("issueThreadInteractionService", () => {
     expect(state.interactionUpdates).toHaveLength(1);
     expect(state.issueTouches).toHaveLength(1);
   });
+
+  it("cancels a pending request_confirmation", async () => {
+    const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+    const state = createFakeDb({
+      interactionRow: {
+        id: "confirmation-1",
+        companyId: "company-1",
+        issueId: "11111111-1111-4111-8111-111111111111",
+        kind: "request_confirmation",
+        status: "pending",
+        createdByAgentId: "agent-1",
+        payload: { version: 1, prompt: "Run the old command?" },
+        result: null,
+      },
+    });
+
+    const cancelled = await issueThreadInteractionService(state.db as never).cancelInteraction({
+      id: "11111111-1111-4111-8111-111111111111",
+      companyId: "company-1",
+    }, "confirmation-1", { reason: "Superseded by corrected command" }, { agentId: "agent-1" });
+
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.result).toEqual({
+      version: 1,
+      outcome: "cancelled",
+      reason: "Superseded by corrected command",
+    });
+  });
 });
