@@ -41,6 +41,7 @@ and additive defense-in-depth when it is not.
 from __future__ import annotations
 
 import json as _json
+import gzip
 import os
 import re
 from typing import Any
@@ -133,6 +134,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
     def _request_payload(self, prompt: str) -> dict[str, Any]:
         return {"prompt": prompt}
 
+    def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
+        return _json.dumps(self._request_payload(prompt)).encode("utf-8"), {}
+
     def _parse_response(self, text: str) -> str:
         try:
             parsed: Any = _json.loads(text)
@@ -152,7 +156,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         """
         import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
 
-        body_bytes = _json.dumps(self._request_payload(prompt)).encode("utf-8")
+        body_bytes, transport_headers = self._request_body(prompt)
         # BEAAA-5532: pin ``Accept-Encoding: identity`` so a well-behaved
         # customer endpoint returns uncompressed bytes. httpx's default
         # is ``gzip, deflate, br, zstd``; under that default a small
@@ -166,6 +170,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
             "Authorization": self._auth_header,
             "User-Agent": "BackBond-Scanner/0.5",
             "Accept-Encoding": "identity",
+            **transport_headers,
         }
         # BEAAA-5528: stream the response and early-abort the moment
         # accumulated length exceeds ``_MAX_RESPONSE_BYTES``. The prior
@@ -315,6 +320,16 @@ class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
             "input": prompt,
             "stream": False,
         }
+
+    def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
+        """Compress Vapi JSON so edge XSS inspection cannot consume the probe.
+
+        Vapi decompresses the HTTP entity before JSON parsing, so the assistant
+        receives the exact markup-bearing prompt. ``mtime=0`` keeps identical
+        probe requests byte-reproducible.
+        """
+        raw = _json.dumps(self._request_payload(prompt)).encode("utf-8")
+        return gzip.compress(raw, mtime=0), {"Content-Encoding": "gzip"}
 
     def _parse_response(self, text: str) -> str:
         try:

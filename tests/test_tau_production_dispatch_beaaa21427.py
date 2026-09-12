@@ -195,25 +195,25 @@ def test_default_vapi_tau_worker_posts_chat_with_assistant_identity(
 
     assert turn.assistant_text == "safe response"
     assert session.model_id() == f"vapi:{ASSISTANT_ID}@api.vapi.ai"
-    assert calls == [
-        {
-            "method": "POST",
-            "url": "https://api.vapi.ai/chat",
-            "json": {
-                "assistantId": ASSISTANT_ID,
-                "input": "first TAU turn",
-                "stream": False,
-            },
-            "headers": {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer vapi-key-fixture",
-                "User-Agent": "BackBond-Scanner/0.5",
-                "Accept-Encoding": "identity",
-            },
-            "timeout": 30.0,
-            "follow_redirects": False,
-        }
-    ]
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["method"] == "POST"
+    assert call["url"] == "https://api.vapi.ai/chat"
+    assert call["json"] == {
+        "assistantId": ASSISTANT_ID,
+        "input": "first TAU turn",
+        "stream": False,
+    }
+    assert call["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer vapi-key-fixture",
+        "User-Agent": "BackBond-Scanner/0.5",
+        "Accept-Encoding": "identity",
+        "Content-Encoding": "gzip",
+    }
+    assert call["content"][:2] == b"\x1f\x8b"
+    assert call["timeout"] == 30.0
+    assert call["follow_redirects"] is False
 
 
 def test_runnable_tau_declarations_are_required_in_both_generated_registries(

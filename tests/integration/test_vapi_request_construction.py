@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable
+import gzip
 import json
 
 import pytest
@@ -65,7 +66,11 @@ def _install_fake_scope(
             call = {
                 "method": method,
                 "url": url,
-                "json": json.loads(content.decode("utf-8")),
+                "content": content,
+                "json": json.loads(
+                    (gzip.decompress(content) if headers.get("Content-Encoding") == "gzip" else content)
+                    .decode("utf-8")
+                ),
                 "headers": headers,
                 "timeout": self.timeout,
                 "follow_redirects": self.follow_redirects,
@@ -127,8 +132,27 @@ def test_vapi_factory_builds_exact_fresh_chat_request(monkeypatch) -> None:
         "Authorization": "Bearer private-key-fixture",
         "User-Agent": "BackBond-Scanner/0.5",
         "Accept-Encoding": "identity",
+        "Content-Encoding": "gzip",
     }
     assert calls[0]["follow_redirects"] is False
+
+
+def test_vapi_markup_probe_is_gzipped_on_wire_but_restored_at_origin(
+    monkeypatch,
+) -> None:
+    calls = _install_fake_scope(monkeypatch, lambda _call: _success())
+    runner = customer_agent_http_runner_factory(
+        "https://api.vapi.ai",
+        "private-key-fixture",
+        ASSISTANT_ID,
+    )
+    prompt = '<script type="application/ld+json">{"override":"ABOUT-015"}</script><!--x-->'
+
+    assert runner.complete(prompt) == "safe response"
+    assert calls[0]["json"]["input"] == prompt
+    assert calls[0]["content"][:2] == b"\x1f\x8b"
+    assert b"<script" not in calls[0]["content"]
+    assert json.loads(gzip.decompress(calls[0]["content"]))["input"] == prompt
 
 
 @pytest.mark.parametrize("agent_id", [None, "", "not-a-uuid"])
