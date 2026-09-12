@@ -1,4 +1,4 @@
-"""BEAAA-31978 exact-fingerprint selection for durable full-scan resume."""
+"""BEAAA-32002 exact-fingerprint selection for durable full-scan resume."""
 from __future__ import annotations
 
 import importlib.util
@@ -10,7 +10,7 @@ from api.full_scan_job_persistence import FullScanJobPersistence
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
-    "beaaa29082_controlled_full_scan_31978",
+    "beaaa29082_controlled_full_scan_32002",
     REPO_ROOT / "scripts" / "beaaa29082_controlled_full_scan.py",
 )
 runner = importlib.util.module_from_spec(spec)

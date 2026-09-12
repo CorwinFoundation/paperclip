@@ -217,6 +217,7 @@ def run_scan(
     job_store_path: Path | None = None,
     job_id: str | None = None,
     resume: bool = False,
+    fresh: bool = False,
 ) -> int:
     started = time.time()
     rows = load_registry_rows()
@@ -240,7 +241,10 @@ def run_scan(
         "registry_cases": cases,
     }
 
-    if job_id is None:
+    if fresh:
+        job_id = None
+        print("[run] --fresh requested; starting a new job", flush=True)
+    elif job_id is None:
         job_id = newest_resumable_job_id(store, **fingerprint)
         if job_id is None:
             print(
@@ -379,6 +383,11 @@ def main() -> int:
         action="store_true",
         help="deprecated; exact-fingerprint resume is automatic",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="start a new job even when an exact-fingerprint checkpoint exists",
+    )
     args = parser.parse_args()
 
     if args.preflight:
@@ -392,6 +401,7 @@ def main() -> int:
             job_store_path=args.job_store,
             job_id=args.job_id,
             resume=args.resume,
+            fresh=args.fresh,
         )
     parser.error("choose --preflight or --run")
     return 2
