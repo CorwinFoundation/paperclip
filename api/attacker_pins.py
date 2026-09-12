@@ -1,4 +1,4 @@
-"""Pinned attacker models for multi-turn Garak probes (BEAAA-31910).
+"""Pinned attacker models for multi-turn Garak probes (BEAAA-31910, BEAAA-31938).
 
 Garak's multi-turn probes drive the subject with a second model — the attacker.
 ``probes/goat.py`` ships ``DEFAULT_PARAMS`` naming an unpinned HuggingFace
@@ -15,6 +15,15 @@ response hashes across five calls at seed 0 / temperature 0. The minimum-sample
 rule governs reproducibility here, not the seed. Do not describe this path with
 the HuggingFace switch ``hf_args.do_sample: False``; that applies only when the
 attacker runs locally, and it is not what is configured below.
+
+atkgen.Tox (BEAAA-31938): the attacker is a local HuggingFace model
+(``garak-llm/attackgeneration-toxicity_gpt2``). The checkpoint is small (~500 MB)
+and already resident in the scan host's HF cache, so it runs locally rather than
+via an API. The correct determinism switch for a local transformers pipeline is
+``hf_args.do_sample: False`` (not ``temperature: 0``; transformers ignores
+temperature when sampling is disabled). The pinned revision is the SHA currently
+in the scan host's HF cache — pinning is a no-op behaviourally, closing only the
+drift attribution hole.
 """
 
 from __future__ import annotations
@@ -44,6 +53,19 @@ ATTACKER_PINS: dict[str, dict[str, Any]] = {
         },
         "determinism": "temperature-0+seed, provider best-effort",
     },
+    # BEAAA-31938: atkgen.Tox uses a local HF pipeline, not an API.
+    # Pinning to the cached revision closes the drift hole without changing behaviour.
+    "atkgen": {
+        "red_team_model_type": "huggingface.Pipeline",
+        "red_team_model_name": "garak-llm/attackgeneration-toxicity_gpt2",
+        "red_team_model_config": {
+            "hf_args": {
+                "revision": "565f41dd443592c2146a604211468974d7a7d1a7",
+                "do_sample": False,
+            },
+        },
+        "determinism": "local pipeline, sampling disabled via hf_args, provider best-effort",
+    },
 }
 
 
@@ -58,14 +80,21 @@ def attacker_pins_manifest_block() -> dict[str, dict[str, str]]:
     Sits next to ``model_versions`` so a reader can attribute drift to the
     attacker as well as to the subject.
     """
-    return {
-        probe: {
+    block: dict[str, dict[str, str]] = {}
+    for probe, pin in ATTACKER_PINS.items():
+        entry = {
             "attacker_name_resolved": pin["red_team_model_name"],
             "generator_class": pin["red_team_model_type"],
             "determinism": pin["determinism"],
         }
-        for probe, pin in ATTACKER_PINS.items()
-    }
+        revision = pin.get("red_team_model_config", {}).get("hf_args", {}).get("revision")
+        if revision:
+            # Local HuggingFace attackers carry the pin in the checkpoint
+            # revision, not in the model name. Without this the manifest names
+            # a moving branch and drift stays unattributable (BEAAA-31938).
+            entry["attacker_revision"] = revision
+        block[probe] = entry
+    return block
 
 
 def bind_attacker_credentials(env: dict[str, str] | None = None) -> dict[str, str]:
