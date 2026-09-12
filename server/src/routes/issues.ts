@@ -6339,10 +6339,14 @@ export function issueRoutes(
         return;
       }
       assertCompanyAccess(req, issue.companyId);
-      assertBoard(req);
+      if (req.actor.type === "agent") {
+        if (!(await assertAgentIssueMutationAllowed(req, res, issue))) return;
+      } else {
+        assertBoard(req);
+      }
 
       const actor = getActorInfo(req);
-      const interaction = await issueThreadInteractionService(db).cancelQuestions(issue, interactionId, req.body, {
+      const interaction = await issueThreadInteractionService(db).cancelInteraction(issue, interactionId, req.body, {
         agentId: actor.agentId,
         userId: actor.actorType === "user" ? actor.actorId : null,
       });
@@ -6360,9 +6364,10 @@ export function issueRoutes(
           interactionId: interaction.id,
           interactionKind: interaction.kind,
           interactionStatus: interaction.status,
-          cancellationReason:
-            interaction.kind === "ask_user_questions"
-              ? (interaction.result?.cancellationReason ?? null)
+          cancellationReason: interaction.kind === "ask_user_questions"
+            ? (interaction.result?.cancellationReason ?? null)
+            : interaction.kind === "request_confirmation"
+              ? (interaction.result?.reason ?? null)
               : null,
         },
       });

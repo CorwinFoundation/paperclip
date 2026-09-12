@@ -18,7 +18,7 @@ const mockInteractionService = vi.hoisted(() => ({
   rejectSuggestedTasks: vi.fn(),
   expireRequestConfirmationsSupersededByHistoricalComments: vi.fn(),
   answerQuestions: vi.fn(),
-  cancelQuestions: vi.fn(),
+  cancelInteraction: vi.fn(),
 }));
 
 const mockHeartbeatService = vi.hoisted(() => ({
@@ -56,7 +56,7 @@ function registerModuleMocks() {
     accessService: () => ({
       canUser: vi.fn(async () => true),
       decide: vi.fn(async (input: { action?: string }) => ({
-        allowed: true,
+        allowed: input.action !== "tasks:manage_active_checkouts",
         action: input.action,
         reason: "allow_explicit_grant",
         explanation: "Allowed by test grant.",
@@ -276,7 +276,7 @@ describe.sequential("issue thread interaction routes", () => {
       updatedAt: "2026-04-20T12:06:00.000Z",
       resolvedAt: "2026-04-20T12:06:00.000Z",
     });
-    mockInteractionService.cancelQuestions.mockResolvedValue({
+    mockInteractionService.cancelInteraction.mockResolvedValue({
       id: "interaction-2",
       companyId: "company-1",
       issueId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -468,7 +468,7 @@ describe.sequential("issue thread interaction routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("cancelled");
-    expect(mockInteractionService.cancelQuestions).toHaveBeenCalledWith(
+    expect(mockInteractionService.cancelInteraction).toHaveBeenCalledWith(
       expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
       "interaction-2",
       {},
@@ -493,6 +493,57 @@ describe.sequential("issue thread interaction routes", () => {
         action: "issue.thread_interaction_cancelled",
       }),
     );
+  });
+
+  it("allows the assigned agent to cancel an interaction", async () => {
+    mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
+    const app = await createApp({
+      type: "agent",
+      agentId: ASSIGNEE_AGENT_ID,
+      companyId: "company-1",
+      runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(mockInteractionService.cancelInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
+      "interaction-2",
+      {},
+      { agentId: ASSIGNEE_AGENT_ID, userId: null },
+    );
+  });
+
+  it("denies an unassigned agent cancelling an interaction", async () => {
+    mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
+    const app = await createApp({
+      type: "agent",
+      agentId: CREATED_AGENT_ID,
+      companyId: "company-1",
+      runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("Agent cannot mutate another agent's issue");
+    expect(mockInteractionService.cancelInteraction).not.toHaveBeenCalled();
+  });
+
+  it("denies a non-board user cancelling an interaction", async () => {
+    const app = await createApp({ type: "none" });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
+      .send({});
+
+    expect(res.status).toBe(401);
+    expect(mockInteractionService.cancelInteraction).not.toHaveBeenCalled();
   });
 
   it("accepts request confirmations and wakes the current assignee when configured for accept-only wakeups", async () => {
@@ -870,6 +921,10 @@ describe.sequential("issue thread interaction routes", () => {
   });
 
   it("allows agent-authored interaction creation and stamps the active run id", async () => {
+    mockIssueService.getById.mockResolvedValueOnce(createIssue({
+      assigneeAgentId: CREATED_AGENT_ID,
+      status: "todo",
+    }));
     const app = await createApp({
       type: "agent",
       agentId: CREATED_AGENT_ID,
