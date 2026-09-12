@@ -33,9 +33,11 @@ if str(REPO_ROOT) not in sys.path:
 from api.full_scan_executor import (  # noqa: E402
     FullScanJobStore,
     build_attempt_manifest,
+    case_id_from_registry_row,
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from api.full_scan_job_persistence import FullScanJobPersistence  # noqa: E402
 from tools.registered_case_executor import (  # noqa: E402
     ScanBudget,
     build_registered_case_workers,
@@ -45,6 +47,12 @@ from tools.registered_case_executor import (  # noqa: E402
 VAPI_ASSISTANT_ID = "09aea361-04b3-4a62-bcb0-2f2582f11ec8"
 DEFAULT_ENDPOINT = "https://api.vapi.ai/chat"
 EXECUTION_FLAG = "production_runner_executable"
+DEFAULT_JOB_STORE = Path(
+    os.environ.get(
+        "ARE_FULL_SCAN_JOB_STORE",
+        REPO_ROOT / "artifacts" / "BEAAA-29082" / "full_scan_jobs.sqlite3",
+    )
+)
 
 
 @dataclass
@@ -135,7 +143,65 @@ def preflight(endpoint: str, evidence_root: Path) -> int:
     return 0
 
 
-def run_scan(endpoint: str, evidence_root: Path, seed: int, out: Path) -> int:
+def open_job_store(job_store_path: Path) -> FullScanJobStore:
+    """Open the durable job store and run the documented startup recovery sweep.
+
+    Without persistence every invocation started from an empty in-memory store,
+    so an interrupted scan was unrecoverable by construction. ``recover()``
+    clears the dead lease a killed process left behind and re-queues the job.
+    """
+    job_store_path = Path(job_store_path)
+    job_store_path.parent.mkdir(parents=True, exist_ok=True)
+    store = FullScanJobStore(persistence=FullScanJobPersistence(job_store_path))
+    recovery = store.recover()
+    if recovery.get("resumed") or recovery.get("failed"):
+        print(
+            f"[store] startup recovery: resumed={recovery.get('resumed')} "
+            f"failed={recovery.get('failed')}",
+            flush=True,
+        )
+    return store
+
+
+def completed_case_ids(store: FullScanJobStore, job_id: str) -> set[str]:
+    """Case ids whose checkpointed evidence is complete and reusable.
+
+    Keyed on ``probe_id``, which ``dispatch_registry_attempt`` sets from
+    ``case_id_from_registry_row`` — the same function used to filter pending
+    registry rows, so both sides stay in one identity namespace.
+    """
+    snapshot = store.resume(job_id)
+    return {
+        str(row.get("probe_id"))
+        for row in snapshot.get("evidence_rows", [])
+        if row.get("status") == "complete" and row.get("evidence_ref")
+    }
+
+
+def newest_resumable_job_id(
+    store: FullScanJobStore, *, agent_id: str, corpus_version: str
+) -> str | None:
+    """Newest non-terminal job for this agent/corpus, or None."""
+    for job_id in reversed(store.queued_job_ids()):
+        job = store.status(job_id)
+        if (
+            getattr(job, "agent_id", None) == agent_id
+            and getattr(job, "corpus_version", None) == corpus_version
+        ):
+            return job_id
+    return None
+
+
+def run_scan(
+    endpoint: str,
+    evidence_root: Path,
+    seed: int,
+    out: Path,
+    *,
+    job_store_path: Path | None = None,
+    job_id: str | None = None,
+    resume: bool = False,
+) -> int:
     started = time.time()
     rows = load_registry_rows()
     active = executable_rows(rows)
@@ -146,26 +212,67 @@ def run_scan(endpoint: str, evidence_root: Path, seed: int, out: Path) -> int:
     sample = next(iter(workers.values()))
     model_versions = sample.manifest_metadata()
 
-    store = FullScanJobStore()
-    job = store.submit(
-        agent_id=VAPI_ASSISTANT_ID,
-        scanner_version=os.environ.get("ARE_SCANNER_VERSION", "1.3.0"),
-        corpus_version=os.environ.get("ARE_CORPUS_VERSION", "1.3.0"),
-        model_versions=model_versions,
-        seed=seed,
-        registry_cases=cases,
-    )
+    store = open_job_store(job_store_path or DEFAULT_JOB_STORE)
+    corpus_version = os.environ.get("ARE_CORPUS_VERSION", "1.3.0")
+
+    if job_id is None and resume:
+        job_id = newest_resumable_job_id(
+            store, agent_id=VAPI_ASSISTANT_ID, corpus_version=corpus_version
+        )
+        if job_id is None:
+            print(
+                "[run] --resume: no resumable job for this agent/corpus; "
+                "starting a new job",
+                flush=True,
+            )
+
+    if job_id is not None:
+        job = store.status(job_id)
+        print(f"[run] resuming existing job {job.job_id} (status={job.status})", flush=True)
+    else:
+        job = store.submit(
+            agent_id=VAPI_ASSISTANT_ID,
+            scanner_version=os.environ.get("ARE_SCANNER_VERSION", "1.3.0"),
+            corpus_version=corpus_version,
+            model_versions=model_versions,
+            seed=seed,
+            registry_cases=cases,
+        )
+
+    print("=" * 72, flush=True)
     print(f"[run] job_id: {job.job_id}", flush=True)
+    print(f"[run] job store: {job_store_path or DEFAULT_JOB_STORE}", flush=True)
+    print(
+        f"[run] if this run is killed, resume with: --run --job-id {job.job_id}",
+        flush=True,
+    )
+    print("=" * 72, flush=True)
 
     lease = store.lease(job.job_id, ttl_seconds=6 * 3600)
+    if not lease.get("leased"):
+        print(
+            f"[run] job {job.job_id} already leased by attempt "
+            f"{lease.get('active_attempt_id')} until {lease.get('lease_expires_at')}; "
+            "refusing to double-dispatch",
+            flush=True,
+        )
+        return 3
     attempt_id = lease["attempt_id"]
     print(f"[run] attempt_id: {attempt_id}", flush=True)
+
+    completed = completed_case_ids(store, job.job_id)
+    pending = [row for row in active if case_id_from_registry_row(row) not in completed]
+    print(
+        f"[run] reusing {len(completed)} checkpointed case(s); "
+        f"dispatching {len(pending)}",
+        flush=True,
+    )
 
     job = dispatch_registry_attempt(
         store,
         job.job_id,
         attempt_id=attempt_id,
-        registry_rows=active,
+        registry_rows=pending,
         workers=workers,
         execution_flag=EXECUTION_FLAG,
     )
@@ -226,12 +333,36 @@ def main() -> int:
         type=Path,
         default=REPO_ROOT / "artifacts" / "BEAAA-29082" / "manifest.json",
     )
+    parser.add_argument(
+        "--job-store",
+        type=Path,
+        default=DEFAULT_JOB_STORE,
+        help="sqlite job store backing resumable full-scan jobs",
+    )
+    parser.add_argument(
+        "--job-id",
+        default=None,
+        help="resume this job id instead of submitting a new job",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume the newest resumable job for this agent/corpus",
+    )
     args = parser.parse_args()
 
     if args.preflight:
         return preflight(args.endpoint, args.evidence_root)
     if args.run:
-        return run_scan(args.endpoint, args.evidence_root, args.seed, args.out)
+        return run_scan(
+            args.endpoint,
+            args.evidence_root,
+            args.seed,
+            args.out,
+            job_store_path=args.job_store,
+            job_id=args.job_id,
+            resume=args.resume,
+        )
     parser.error("choose --preflight or --run")
     return 2
 

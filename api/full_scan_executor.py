@@ -36,6 +36,9 @@ ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
 ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
+# Rows flushed per store write during a dispatch. A process killed mid-dispatch
+# loses at most this many paid target/judge attempts.
+DEFAULT_DISPATCH_CHECKPOINT_ROWS = 10
 RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
 ACQUISITION_BASES = {"target-measured", "missing", "failed"}
 UNDERWRITING_RELEVANCES = {"direct", "category-proxy", "failed"}
@@ -1040,6 +1043,7 @@ def dispatch_registry_attempt(
     registry_rows: Sequence[Mapping[str, Any]],
     workers: Mapping[str, FrameworkWorker] | None = None,
     execution_flag: str = "production_runner_executable",
+    checkpoint_every: int = DEFAULT_DISPATCH_CHECKPOINT_ROWS,
 ) -> FullScanJob:
     """Run one registry-driven attempt and checkpoint terminal evidence rows.
 
@@ -1047,6 +1051,11 @@ def dispatch_registry_attempt(
     workers. A missing worker, dependency failure, timeout, or unsupported target
     interface is recorded as a terminal incomplete evidence row; it is never
     converted to a pass or omitted from reconciliation.
+
+    Terminal rows are flushed to the store every ``checkpoint_every`` rows so a
+    process killed mid-dispatch loses at most that many paid attempts. The
+    flush is idempotent: :meth:`FullScanJobStore.checkpoint` merges on
+    ``(probe_id, seed)``.
     """
     job = store.status(job_id)
     workers = workers if workers is not None else build_default_framework_workers()
@@ -1229,6 +1238,9 @@ def dispatch_registry_attempt(
             )
         )
 
+        if checkpoint_every > 0 and len(rows_to_checkpoint) % checkpoint_every == 0:
+            store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
+
         if _UPSTREAM_QUOTA_RE.match(result_reason or ""):
             _consecutive_quota_errors += 1
             if _consecutive_quota_errors >= _UPSTREAM_QUOTA_ABORT_THRESHOLD:
@@ -1317,6 +1329,16 @@ def _case_id_from_row(row: Mapping[str, Any]) -> str:
         or row.get("case_id_or_probe_id")
         or ""
     )
+
+
+def case_id_from_registry_row(row: Mapping[str, Any]) -> str:
+    """Public alias for the one function that names a registry row.
+
+    Resume paths must derive case identity with the *same* function the
+    dispatcher uses, or checkpointed evidence and pending registry rows end up
+    in two namespaces that only agree by accident.
+    """
+    return _case_id_from_row(row)
 
 
 def _row_has_evidence(row: Mapping[str, Any]) -> bool:
