@@ -6339,6 +6339,11 @@ export function issueRoutes(
         return;
       }
       assertCompanyAccess(req, issue.companyId);
+      if (req.actor.type === "agent") {
+        if (!(await assertAgentIssueMutationAllowed(req, res, issue))) return;
+      } else {
+        assertBoard(req);
+      }
 
       const actor = getActorInfo(req);
       const interaction = await issueThreadInteractionService(db).cancelInteraction(issue, interactionId, req.body, {
