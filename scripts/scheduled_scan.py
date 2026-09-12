@@ -733,6 +733,13 @@ def _zoo_family_summary(
     )
 
 
+#: The verdicts that decide a case.  ``_zoo_family_summary`` already scores a
+#: row against exactly this set before bucketing anything else as
+#: ``incomplete``; the coverage predicate reads the same set so the manifest's
+#: incomplete count and its coverage failures cannot disagree about a row.
+TERMINAL_VERDICTS = frozenset({"PASS", "FAIL", "NOT_APPLICABLE"})
+
+
 def _row_produced_grade(row: Mapping[str, Any]) -> bool:
     """Report whether a row reached a terminal grade.
 
@@ -742,12 +749,23 @@ def _row_produced_grade(row: Mapping[str, Any]) -> bool:
     invoking an LLM.  Applicability gates grade ``not_applicable`` without
     calling the target at all.  The verdict, or a numeric measurement for the
     families that report one instead, is what says the row was graded.
+
+    Having *a* verdict string is not the same as having a decision.  A runner
+    that dies inside the provider call still writes ``unresolved`` (see
+    ``_incomplete_reason_value``), and ``partial`` records a case the grader
+    could not call either way - ``harness.bench.scored_lane_common`` names both
+    as the outcomes a well-formed case never produces.  Those are the exact
+    state this predicate exists to surface, so gradedness is an allowlist:
+    a blacklist would have to grow every time a runner invents a sentinel.
+    Reading the allowlist case-insensitively also keeps the mixed ``PASS``/
+    ``pass`` spellings in the evidence rows from mattering here.
     """
     if str(row.get("status") or "") != "complete":
         return False
-    return bool(str(row.get("verdict") or "").strip()) or (
-        row.get("numeric_result") is not None
-    )
+    verdict = str(row.get("verdict") or "").strip().upper()
+    if verdict:
+        return verdict in TERMINAL_VERDICTS
+    return row.get("numeric_result") is not None
 
 
 def _zoo_coverage_failures(

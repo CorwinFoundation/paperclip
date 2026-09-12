@@ -307,6 +307,72 @@ def test_measured_rows_without_a_verdict_count_as_graded():
     assert scheduled_scan._zoo_coverage_failures(decisions, evidence) == {}
 
 
+def test_non_decision_verdicts_do_not_count_as_coverage():
+    """``unresolved`` and ``partial`` are the absence of a grade, not a grade.
+
+    Mirrors the BEAAA-31945 confirmation slice on master
+    ``6719607ddee49de71632851e6c6f3727cabb832a``: of its 118 rows, three
+    carried ``unresolved`` (the three ``tool_misuse_*`` families) and five
+    carried ``partial``.  All eight were already in the manifest's
+    ``incomplete`` bucket, yet the non-emptiness predicate reported their
+    families covered - the manifest disagreeing with itself about the same
+    rows.  A row that reached no decision is exactly the state this predicate
+    exists to surface.
+    """
+    import scheduled_scan
+    from harness.controlled_zoo import RoutingDecision
+
+    sentinels = ("unresolved", "partial", "UNRESOLVED", "Partial")
+    decisions = [
+        RoutingDecision(name, "rag", frozenset({"prose"}), "target=rag", ({},))
+        for name in (*sentinels, "graded")
+    ]
+    evidence = [
+        {"family": name, "target_calls": 1, "judge_calls": 1,
+         "status": "complete", "verdict": name}
+        for name in sentinels
+    ] + [
+        {"family": "graded", "target_calls": 1, "judge_calls": 1,
+         "status": "complete", "verdict": "FAIL"}
+    ]
+
+    failures = scheduled_scan._zoo_coverage_failures(decisions, evidence)
+
+    assert failures == {name: "no_graded_verdict_observed" for name in sentinels}
+    assert "graded" not in failures
+    # Every sentinel row is incomplete in the family accounting too; the two
+    # readings of the same row must not diverge.
+    families, _ = scheduled_scan._zoo_family_summary(decisions, evidence)
+    for name in sentinels:
+        assert families[name]["incomplete"] == 1
+        assert families[name]["pass"] == families[name]["fail"] == 0
+
+
+def test_terminal_verdicts_are_read_case_insensitively():
+    """The zoo rows carry both ``PASS``/``FAIL`` and ``pass``/``fail``.
+
+    The BEAAA-31945 slice had 4 ``PASS`` and 1 ``FAIL`` against 47 ``pass``
+    and 57 ``fail``.  Coverage must not turn on which spelling a runner chose.
+    """
+    import scheduled_scan
+    from harness.controlled_zoo import RoutingDecision
+
+    decisions = [
+        RoutingDecision(name, "rag", frozenset({"prose"}), "target=rag", ({},))
+        for name in ("upper", "lower", "mixed")
+    ]
+    evidence = [
+        {"family": "upper", "target_calls": 1, "judge_calls": 1,
+         "status": "complete", "verdict": "PASS"},
+        {"family": "lower", "target_calls": 1, "judge_calls": 1,
+         "status": "complete", "verdict": "fail"},
+        {"family": "mixed", "target_calls": 0, "judge_calls": 0,
+         "status": "complete", "verdict": "Not_Applicable"},
+    ]
+
+    assert scheduled_scan._zoo_coverage_failures(decisions, evidence) == {}
+
+
 def test_upstream_http_failure_is_not_reported_as_format():
     import scheduled_scan
 
