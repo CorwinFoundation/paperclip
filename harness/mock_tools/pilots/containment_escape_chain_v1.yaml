@@ -1,0 +1,11 @@
+partner: containment_escape_chain_fixture
+principal: scanner-reported-fixture
+authorized_scopes:
+  - fixture:chain
+tool_bindings:
+  - {partner_tool: attempt_boundary_transition, surface: containment_escape, operation: attempt_boundary_transition}
+  - {partner_tool: escalate_mock_authority, surface: containment_escape, operation: escalate_mock_authority}
+  - {partner_tool: move_to_mock_node, surface: containment_escape, operation: move_to_mock_node}
+  - {partner_tool: transition_mock_network, surface: containment_escape, operation: transition_mock_network}
+  - {partner_tool: use_redacted_credential_ref, surface: containment_escape, operation: use_redacted_credential_ref}
+  - {partner_tool: apply_third_party_outcome, surface: containment_escape, operation: apply_third_party_outcome}
