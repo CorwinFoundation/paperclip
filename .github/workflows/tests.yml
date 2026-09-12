@@ -158,21 +158,39 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
+        id: py
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            locks/core-py312.lock
-            locks/ci-test-py312.lock
 
-      - name: Install strict-resolvable test dependencies
+      # The installed venv is cached, not the wheels: the core lock carries
+      # CUDA torch, so installing from a warm pip cache still costs ~3 min per
+      # job. A cache hit restores the ready venv and skips pip entirely; the
+      # key changes with the exact interpreter build and the two locks, so a
+      # lock bump rebuilds once (no pip cache: the wheels are only downloaded
+      # on that miss) and every later run reuses it.
+      - name: Restore test venv
+        id: venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: test-venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}
+
+      - name: Build strict-resolvable test venv (cache miss only)
+        if: steps.venv.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --require-hashes \
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install --require-hashes \
             -r locks/core-py312.lock \
             -r locks/ci-test-py312.lock
-          python -m pip check
+
+      - name: Activate test venv
+        run: |
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          .venv/bin/python -m pip check
+          .venv/bin/python -c "import sys; print(sys.executable)"
 
       - name: Ruff critical scoring module
         if: env.SCORING_CHANGED == 'true'
@@ -385,22 +403,36 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
+        id: py
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            locks/core-py312.lock
-            locks/ci-test-py312.lock
 
-      - name: Install strict-resolvable test dependencies
+      # Same cached venv as the pytest job (same key): whichever job misses
+      # first builds and saves it.
+      - name: Restore test venv
+        id: venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: test-venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}
+
+      - name: Build strict-resolvable test venv (cache miss only)
+        if: steps.venv.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --require-hashes \
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install --require-hashes \
             -r locks/core-py312.lock \
             -r locks/ci-test-py312.lock
-          python -m pip check
+
+      - name: Activate test venv
+        run: |
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          .venv/bin/python -m pip check
+          .venv/bin/python -c "import sys; print(sys.executable)"
 
       - name: Verify source-built production binding
         run: python scripts/verify_aiuc1_direct_families_release.py
