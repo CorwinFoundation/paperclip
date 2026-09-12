@@ -18,7 +18,7 @@ const mockInteractionService = vi.hoisted(() => ({
   rejectSuggestedTasks: vi.fn(),
   expireRequestConfirmationsSupersededByHistoricalComments: vi.fn(),
   answerQuestions: vi.fn(),
-  cancelQuestions: vi.fn(),
+  cancelInteraction: vi.fn(),
 }));
 
 const mockHeartbeatService = vi.hoisted(() => ({
@@ -276,7 +276,7 @@ describe.sequential("issue thread interaction routes", () => {
       updatedAt: "2026-04-20T12:06:00.000Z",
       resolvedAt: "2026-04-20T12:06:00.000Z",
     });
-    mockInteractionService.cancelQuestions.mockResolvedValue({
+    mockInteractionService.cancelInteraction.mockResolvedValue({
       id: "interaction-2",
       companyId: "company-1",
       issueId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -468,7 +468,7 @@ describe.sequential("issue thread interaction routes", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("cancelled");
-    expect(mockInteractionService.cancelQuestions).toHaveBeenCalledWith(
+    expect(mockInteractionService.cancelInteraction).toHaveBeenCalledWith(
       expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
       "interaction-2",
       {},

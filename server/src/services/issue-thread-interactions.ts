@@ -38,7 +38,7 @@ import {
   suggestTasksPayloadSchema,
   suggestTasksResultSchema,
 } from "@paperclipai/shared";
-import { conflict, notFound, unprocessable } from "../errors.js";
+import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { issueService, listUnfinalizedExecutionWorkspaceIds } from "./issues.js";
 
 type InteractionActor = {
@@ -1395,7 +1395,7 @@ export function issueThreadInteractionService(db: Db) {
       return hydrateInteraction(updated);
     },
 
-    cancelQuestions: async (
+    cancelInteraction: async (
       issue: { id: string; companyId: string },
       interactionId: string,
       input: CancelIssueThreadInteraction,
@@ -1412,25 +1412,31 @@ export function issueThreadInteractionService(db: Db) {
       if (current.companyId !== issue.companyId || current.issueId !== issue.id) {
         throw notFound("Interaction not found");
       }
-      if (current.kind !== "ask_user_questions") {
-        throw unprocessable("Only ask_user_questions interactions can be cancelled");
+      if (actor.agentId && current.createdByAgentId !== actor.agentId) {
+        throw forbidden("Agents may only cancel interactions they created");
+      }
+      if (current.kind !== "ask_user_questions" && current.kind !== "request_confirmation") {
+        throw unprocessable("Only ask_user_questions and request_confirmation interactions can be cancelled");
       }
       if (current.status !== "pending") {
         throw conflict("Interaction has already been resolved");
       }
 
       const reason = data.reason?.trim() || null;
+      const result = current.kind === "request_confirmation"
+        ? { version: 1 as const, outcome: "cancelled" as const, reason }
+        : {
+            version: 1 as const,
+            answers: [],
+            cancelled: true as const,
+            cancellationReason: reason,
+            summaryMarkdown: null,
+          };
       const [updated] = await db
         .update(issueThreadInteractions)
         .set({
           status: "cancelled",
-          result: {
-            version: 1,
-            answers: [],
-            cancelled: true,
-            cancellationReason: reason,
-            summaryMarkdown: null,
-          },
+          result,
           resolvedByAgentId: actor.agentId ?? null,
           resolvedByUserId: actor.userId ?? null,
           resolvedAt: new Date(),

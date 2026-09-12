@@ -538,7 +538,7 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
       userId: "local-board",
     });
 
-    const cancelled = await interactionsSvc.cancelQuestions({
+    const cancelled = await interactionsSvc.cancelInteraction({
       id: issueId,
       companyId,
     }, created.id, {
