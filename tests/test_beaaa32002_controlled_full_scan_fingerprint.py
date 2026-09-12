@@ -35,7 +35,11 @@ def _fingerprint(**changes):
         "agent_id": runner.VAPI_ASSISTANT_ID,
         "scanner_version": "1.3.0",
         "corpus_version": "1.3.0",
-        "model_versions": {"primary": "target-v1", "judge": "judge-v1"},
+        "model_versions": {
+            "primary": "target-v1",
+            "judge": "judge-v1",
+            "runner_candidate_sha": "a" * 40,
+        },
         "seed": 42,
         "registry_cases": _cases(),
     }

@@ -1233,7 +1233,9 @@ def dispatch_registry_attempt(
                     else None
                 ),
                 derived_result_id=(
-                    f"{job.job_id}:{case_id}:{job.seed}"
+                    f"{job.job_id}:"
+                    f"{job.model_versions.get('runner_candidate_sha', 'unbound')}:"
+                    f"{case_id}:{job.seed}"
                 ),
             )
         )

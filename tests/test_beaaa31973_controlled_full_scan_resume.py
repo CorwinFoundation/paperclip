@@ -65,7 +65,7 @@ class _RecordingWorker:
         self.calls.append(case_id)
         return WorkerAttemptResult(
             status="complete",
-            evidence_ref=f"evidence://{case_id}",
+            evidence_ref=f"evidence://{job.job_id}/{case_id}.json",
             model_version="test-model",
             verdict="pass",
             target_calls=1,
@@ -83,7 +83,10 @@ def _submit(store, rows):
         agent_id=RUNNER.VAPI_ASSISTANT_ID,
         scanner_version="1.3.0",
         corpus_version="1.3.0",
-        model_versions={"primary": "test-model"},
+        model_versions={
+            "primary": "test-model",
+            "runner_candidate_sha": "a" * 40,
+        },
         seed=42,
         registry_cases=registry_cases_from_rows(rows, execution_flag=RUNNER.EXECUTION_FLAG),
     )
@@ -150,8 +153,16 @@ def test_interrupted_run_resumes_without_repeating_paid_calls(tmp_path, registry
 
     # The identity assertion this test exists for: evidence rows written by the
     # dispatcher resolve back to the same case ids the registry rows carry.
-    completed = RUNNER.completed_case_ids(resumed_store, job.job_id)
+    completed = RUNNER.completed_case_ids(
+        resumed_store, job.job_id, expected_candidate_sha="a" * 40
+    )
     assert completed == set(first_calls)
+
+    # Neither a different candidate nor a row whose explicit binding was
+    # tampered with may suppress a paid call on restart.
+    assert RUNNER.completed_case_ids(
+        resumed_store, job.job_id, expected_candidate_sha="b" * 40
+    ) == set()
 
     pending = [row for row in registry_rows if case_id_from_registry_row(row) not in completed]
     assert len(pending) == len(registry_rows) - INTERRUPT_AFTER

@@ -20,6 +20,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -53,6 +55,7 @@ DEFAULT_JOB_STORE = Path(
         REPO_ROOT / "artifacts" / "BEAAA-29082" / "full_scan_jobs.sqlite3",
     )
 )
+_GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 @dataclass
@@ -163,18 +166,40 @@ def open_job_store(job_store_path: Path) -> FullScanJobStore:
     return store
 
 
-def completed_case_ids(store: FullScanJobStore, job_id: str) -> set[str]:
+def candidate_sha() -> str:
+    """Return the exact commit whose runner/probe bytes will execute."""
+    sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if not _GIT_SHA_RE.fullmatch(sha):
+        raise SystemExit(f"invalid candidate SHA from git: {sha!r}")
+    return sha
+
+
+def completed_case_ids(
+    store: FullScanJobStore, job_id: str, *, expected_candidate_sha: str
+) -> set[str]:
     """Case ids whose checkpointed evidence is complete and reusable.
 
     Keyed on ``probe_id``, which ``dispatch_registry_attempt`` sets from
     ``case_id_from_registry_row`` — the same function used to filter pending
     registry rows, so both sides stay in one identity namespace.
     """
+    job = store.status(job_id)
+    if job.model_versions.get("runner_candidate_sha") != expected_candidate_sha:
+        return set()
     snapshot = store.resume(job_id)
     return {
         str(row.get("probe_id"))
         for row in snapshot.get("evidence_rows", [])
-        if row.get("status") == "complete" and row.get("evidence_ref")
+        if row.get("status") == "complete"
+        and str(row.get("evidence_ref") or "").startswith(f"evidence://{job_id}/")
+        and row.get("derived_result_id")
+        == f"{job_id}:{expected_candidate_sha}:{row.get('probe_id')}:{job.seed}"
     }
 
 
@@ -227,7 +252,11 @@ def run_scan(
 
     workers = build_workers(endpoint, evidence_root)
     sample = next(iter(workers.values()))
-    model_versions = sample.manifest_metadata()
+    run_candidate_sha = candidate_sha()
+    model_versions = {
+        **sample.manifest_metadata(),
+        "runner_candidate_sha": run_candidate_sha,
+    }
 
     store = open_job_store(job_store_path or DEFAULT_JOB_STORE)
     scanner_version = os.environ.get("ARE_SCANNER_VERSION", "1.3.0")
@@ -294,7 +323,9 @@ def run_scan(
     attempt_id = lease["attempt_id"]
     print(f"[run] attempt_id: {attempt_id}", flush=True)
 
-    completed = completed_case_ids(store, job.job_id)
+    completed = completed_case_ids(
+        store, job.job_id, expected_candidate_sha=run_candidate_sha
+    )
     pending = [row for row in active if case_id_from_registry_row(row) not in completed]
     print(
         f"[run] reusing {len(completed)} checkpointed case(s); "
