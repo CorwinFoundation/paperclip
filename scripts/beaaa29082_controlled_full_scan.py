@@ -178,16 +178,32 @@ def completed_case_ids(store: FullScanJobStore, job_id: str) -> set[str]:
     }
 
 
-def newest_resumable_job_id(
-    store: FullScanJobStore, *, agent_id: str, corpus_version: str
-) -> str | None:
-    """Newest non-terminal job for this agent/corpus, or None."""
+def job_matches_fingerprint(
+    job: Any,
+    *,
+    agent_id: str,
+    scanner_version: str,
+    corpus_version: str,
+    model_versions: dict[str, Any],
+    seed: int,
+    registry_cases: Any,
+) -> bool:
+    """Return true only when persisted evidence belongs to this exact run."""
+    return (
+        job.agent_id == agent_id
+        and job.scanner_version == scanner_version
+        and job.corpus_version == corpus_version
+        and dict(job.model_versions) == dict(model_versions)
+        and job.seed == seed
+        and tuple(job.registry_cases) == tuple(registry_cases)
+    )
+
+
+def newest_resumable_job_id(store: FullScanJobStore, **fingerprint: Any) -> str | None:
+    """Newest non-terminal job with an exact six-field fingerprint, or None."""
     for job_id in reversed(store.queued_job_ids()):
         job = store.status(job_id)
-        if (
-            getattr(job, "agent_id", None) == agent_id
-            and getattr(job, "corpus_version", None) == corpus_version
-        ):
+        if job_matches_fingerprint(job, **fingerprint):
             return job_id
     return None
 
@@ -213,26 +229,40 @@ def run_scan(
     model_versions = sample.manifest_metadata()
 
     store = open_job_store(job_store_path or DEFAULT_JOB_STORE)
+    scanner_version = os.environ.get("ARE_SCANNER_VERSION", "1.3.0")
     corpus_version = os.environ.get("ARE_CORPUS_VERSION", "1.3.0")
+    fingerprint = {
+        "agent_id": VAPI_ASSISTANT_ID,
+        "scanner_version": scanner_version,
+        "corpus_version": corpus_version,
+        "model_versions": dict(model_versions),
+        "seed": seed,
+        "registry_cases": cases,
+    }
 
-    if job_id is None and resume:
-        job_id = newest_resumable_job_id(
-            store, agent_id=VAPI_ASSISTANT_ID, corpus_version=corpus_version
-        )
+    if job_id is None:
+        job_id = newest_resumable_job_id(store, **fingerprint)
         if job_id is None:
             print(
-                "[run] --resume: no resumable job for this agent/corpus; "
-                "starting a new job",
+                "[run] no exact fingerprint match; starting a new job",
                 flush=True,
             )
 
     if job_id is not None:
-        job = store.status(job_id)
-        print(f"[run] resuming existing job {job.job_id} (status={job.status})", flush=True)
-    else:
+        candidate = store.status(job_id)
+        if job_matches_fingerprint(candidate, **fingerprint):
+            job = candidate
+            print(f"[run] resuming existing job {job.job_id} (status={job.status})", flush=True)
+        else:
+            print(
+                f"[run] job {job_id} fingerprint mismatch; starting a new job",
+                flush=True,
+            )
+            job_id = None
+    if job_id is None:
         job = store.submit(
             agent_id=VAPI_ASSISTANT_ID,
-            scanner_version=os.environ.get("ARE_SCANNER_VERSION", "1.3.0"),
+            scanner_version=scanner_version,
             corpus_version=corpus_version,
             model_versions=model_versions,
             seed=seed,
@@ -347,7 +377,7 @@ def main() -> int:
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="resume the newest resumable job for this agent/corpus",
+        help="deprecated; exact-fingerprint resume is automatic",
     )
     args = parser.parse_args()
 
