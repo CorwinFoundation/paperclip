@@ -1,3 +1,8 @@
+> **Do not follow these instructions.** This 0.1.3 tree is not deployed and predates
+> the BEAAA-29930 checkpoint fix; its reader is unbounded. See `README.md` in this
+> directory. The installable line is `../backbond-appliance-0.1.0/` via
+> `../install-listener-ariclaw.sh`.
+
 # Install and operate the BackBond Passive Monitor appliance
 
 ## Compatibility

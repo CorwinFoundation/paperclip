@@ -63,13 +63,13 @@ def _ship_http(batch, cfg):
         except urllib.error.HTTPError as e:
             # 4xx (except 429) are terminal — do not retry a rejected batch forever.
             if e.code != 429 and 400 <= e.code < 500:
-                return f"http {e.code} (rejected) seq{batch['batch_seq']}"
+                raise RuntimeError(f"receiver rejected batch: http {e.code} seq{batch['batch_seq']}")
             last = f"http {e.code}"
         except (urllib.error.URLError, OSError) as e:
             last = str(e)
         if attempt < retries:
             time.sleep(delay); delay *= 2
-    return f"FAILED after {retries} retries: {last} seq{batch['batch_seq']}"
+    raise RuntimeError(f"shipping failed after {retries} retries: {last} seq{batch['batch_seq']}")
 
 
 def cmd_enroll(cfg):
@@ -118,10 +118,18 @@ def cmd_run(cfg, dry=False):
     builder = BatchBuilder(cfg["appliance_id"], signer,
                            os.path.expanduser(cfg["state_dir"]), cfg["producer"])
 
+    max_events = int(cfg.get("ship", {}).get("max_events_per_batch", 5000))
+    checkpoint = None
+    if hasattr(reader, "read_window"):
+        reader.configure_checkpoint(os.path.expanduser(cfg["state_dir"]))
+        raw_events, checkpoint = reader.read_window(max_events)
+    else:
+        raw_events = reader.read()
+
     emit_events, determinations = [], []
     total, leaks, suppressed = 0, 0, 0
     suppressed_by_rule: dict = {}
-    for raw in reader.read():
+    for raw in raw_events:
         total += 1
         norm = normalize(raw)
         for det in rules.determinations(norm):              # rules see content, locally
@@ -136,12 +144,15 @@ def cmd_run(cfg, dry=False):
             leaks += 1
             sys.stderr.write(f"DROPPED (fail-closed): {e}\n")
     window = {"start": _now(), "end": _now()}
-    max_events = int(cfg.get("ship", {}).get("max_events_per_batch", 5000))
-    batches = builder.build(emit_events, determinations, window, max_events=max_events)
+    batches = builder.build(emit_events, determinations, window, max_events=max_events,
+                            persist=checkpoint is None)
     shipped = []
     if not dry:
         for b in batches:
             shipped.append(_ship(b, cfg))
+        if checkpoint is not None:
+            builder.commit()
+            reader.commit(checkpoint)
     summary = {"read": total, "emitted_events": len(emit_events),
                "net_determinations": len(determinations),
                "suppressed_by_allowlist": suppressed,

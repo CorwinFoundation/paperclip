@@ -1,3 +1,16 @@
+> **Status: not deployed. Do not install this tree.**
+>
+> The maintained appliance line is
+> `ops/paperclip/numbat/backbond-appliance-0.1.0/backbond-appliance/`, which is what
+> `ops/paperclip/numbat/install-listener-ariclaw.sh` ships. This 0.1.3 tree carries a
+> higher version number but is a separate lineage and is not part of the live install
+> path.
+>
+> The tree is kept, not abandoned — it holds the only copies of
+> `appliance/rules/exposure_agent_pack.yaml`, `appliance/readers/synthetic_engine.py`,
+> `tests/test_shared_exposure_pack.py` (BEAAA-29962, 2026-09-06) and the sealed 0.1.3
+> `release/` bundle.
+
 # BackBond Passive Monitor appliance
 
 Run the sealed appliance in your environment to evaluate supported agent activity
