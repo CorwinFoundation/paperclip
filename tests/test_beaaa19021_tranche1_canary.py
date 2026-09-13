@@ -392,9 +392,10 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # tools/registered_case_executor.py, moving the evaluator pin to 9888dd57
     # and this derived digest to 67cdcb8e. Canary budget (180 target calls, 0
     # judge calls), families, and the zero-weight invariants asserted above are
-    # unchanged.
+    # unchanged. BEAAA-30935 adds direct-Anthropic provider identity and usage
+    # accounting; the canary still executes zero judge calls.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "67cdcb8e8ef8d5990fdaa219d86276f4a14926c3613f79c1b4a63ef5a4f6ef6e"
+        "71eccaffdf5317819619c9aa1e9001e744d635d2b0d8b86bb028959b888f6c2d"
     )
 
 

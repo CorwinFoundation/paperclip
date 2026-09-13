@@ -56,16 +56,41 @@ class AnthropicRunner(ModelRunner):
     """
 
     def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0,
-                 system_prompt: str | None = None):
+                 system_prompt: str | None = None, cache_prompt: bool = False,
+                 batch: bool = False, batch_poll_seconds: float = 5.0):
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = float(temperature)
         self._system_prompt = system_prompt
+        self._cache_prompt = cache_prompt
+        self._batch = batch
+        self._batch_poll_seconds = batch_poll_seconds
+        self.last_usage: dict[str, int] = {}
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RunnerError("ANTHROPIC_API_KEY not set")
 
     def model_id(self) -> str:
         return f"anthropic:{self._model}"
+
+    def _message_content(self, prompt: str) -> list[dict[str, Any]]:
+        if not self._cache_prompt or self._system_prompt:
+            return [{"type": "text", "text": prompt}]
+        # Judge prompts put the stable rubric before the transcript/response.
+        # Mark only that stable prefix so different rows can share the cache.
+        markers = (
+            "\nRESPONSE:", "\nRESPONSES:", "\nResponses JSON:",
+            "\nAGENT_RESPONSE:", "\nTRANSCRIPT:", "\nOUTPUT:",
+        )
+        offsets = [prompt.find(marker) for marker in markers if marker in prompt]
+        split_at = min(offsets) if offsets else len(prompt)
+        prefix, variable = prompt[:split_at], prompt[split_at:]
+        blocks = [{
+            "type": "text", "text": prefix,
+            "cache_control": {"type": "ephemeral"},
+        }]
+        if variable:
+            blocks.append({"type": "text", "text": variable})
+        return blocks
 
     def complete(self, prompt: str) -> str:
         try:
@@ -76,14 +101,31 @@ class AnthropicRunner(ModelRunner):
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": self._max_tokens,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": self._message_content(prompt)}],
         }
         if self._system_prompt:
-            kwargs["system"] = self._system_prompt
+            kwargs["system"] = [{
+                "type": "text",
+                "text": self._system_prompt,
+                **({"cache_control": {"type": "ephemeral"}} if self._cache_prompt else {}),
+            }]
         if self._temperature is not None:
             kwargs["temperature"] = self._temperature
         try:
-            msg = client.messages.create(**kwargs)
+            if self._batch:
+                batch = client.messages.batches.create(requests=[{
+                    "custom_id": secrets.token_hex(16),
+                    "params": kwargs,
+                }])
+                while batch.processing_status == "in_progress":
+                    time.sleep(self._batch_poll_seconds)
+                    batch = client.messages.batches.retrieve(batch.id)
+                result = next(iter(client.messages.batches.results(batch.id)))
+                if getattr(result.result, "type", "") != "succeeded":
+                    raise RunnerError(f"anthropic batch result: {result.result.type}")
+                msg = result.result.message
+            else:
+                msg = client.messages.create(**kwargs)
         except anthropic.BadRequestError as exc:
             # Newer reasoning-class models (e.g. claude-opus-4-7) reject the
             # temperature kwarg outright. Retry without it.
@@ -92,6 +134,13 @@ class AnthropicRunner(ModelRunner):
                 msg = client.messages.create(**kwargs)
             else:
                 raise
+        usage = getattr(msg, "usage", None)
+        self.last_usage = {
+            "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+            "cache_creation_input_tokens": int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
+            "cache_read_input_tokens": int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+            "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+        }
         return "".join(block.text for block in msg.content if getattr(block, "type", "") == "text")
 
 

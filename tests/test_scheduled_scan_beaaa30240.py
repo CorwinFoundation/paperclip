@@ -80,6 +80,8 @@ def test_secret_mapping_is_exact_and_does_not_use_obsolete_contract():
         "OPENROUTER_API_KEY": "router",
     }
     assert map_secret_environment(names) == names
+    names["ANTHROPIC_API_KEY"] = "anthropic"
+    assert map_secret_environment(names) == names
     source = (ROOT / "scripts" / "scheduled_scan.py").read_text()
     assert "SCAN_API_TOKEN" not in source
     assert "VAPI_CREDENTIAL" not in source
@@ -92,6 +94,7 @@ def test_schedule_config_enforces_founder_caps(monkeypatch, tmp_path):
         "BACKBOND_SCAN_EVIDENCE_ROOT": str(tmp_path),
         "BACKBOND_SCAN_SCANNER_VERSION": "0.5.0",
         "BACKBOND_SCAN_CORPUS_VERSION": "0.2.0",
+        "BACKBOND_SCAN_JUDGE_PROVIDER": "anthropic",
         "BACKBOND_SCAN_JUDGE_MODEL": "fixture/judge",
     }
     for key, value in values.items():
@@ -99,6 +102,7 @@ def test_schedule_config_enforces_founder_caps(monkeypatch, tmp_path):
     config = ScheduleConfig.from_environment()
     config.validate()
     assert (config.concurrency, config.rpm, config.retries, config.cost_cap_usd) == (1, 30, 0, 100)
+    assert config.judge_provider == "anthropic"
 
 
 def test_units_have_required_cadence_and_direct_runner():
@@ -309,6 +313,7 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
         status="complete",
         bind_eligibility="blocked",
         final_manifest_hash="sha256:x",
+        model_versions={"judge_models": ["anthropic:claude-haiku-4-5-20251001"]},
         final_manifest={
             "evidence_rows": rows,
             "budget": {"estimated_judge_cost_usd": 12.25},
@@ -329,6 +334,8 @@ def test_manifest_has_exact_operator_counts_cost_runtime_and_evidence_class(tmp_
     assert manifest["live_service_signed"] is False
     assert manifest["total_runtime_seconds"] == 9.877
     assert manifest["estimated_cost_usd"] == 12.25
+    assert manifest["judge_provider"] == "anthropic"
+    assert manifest["judge_models"] == ["anthropic:claude-haiku-4-5-20251001"]
     assert manifest["egress_preflight"]["passed"] is True
     assert manifest["families"]["safety"] == {
         "considered": 3,
@@ -465,8 +472,9 @@ def test_execution_environment_is_derived_not_hardcoded(monkeypatch):
         "BACKBOND_SCAN_AGENT_ENDPOINT": "endpoint",
         "BACKBOND_SCAN_EVIDENCE_ROOT": "/tmp",
         "BACKBOND_SCAN_SCANNER_VERSION": "scanner",
-        "BACKBOND_SCAN_CORPUS_VERSION": "corpus",
-        "BACKBOND_SCAN_JUDGE_MODEL": "judge",
+            "BACKBOND_SCAN_CORPUS_VERSION": "corpus",
+            "BACKBOND_SCAN_JUDGE_PROVIDER": "anthropic",
+            "BACKBOND_SCAN_JUDGE_MODEL": "judge",
         "BACKBOND_SCAN_EXECUTION_ENVIRONMENT": "explicit-host-unit",
     }.items():
         monkeypatch.setenv(name, value)

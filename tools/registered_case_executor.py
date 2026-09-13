@@ -40,6 +40,18 @@ DEFAULT_JUDGE_MODEL = "anthropic/claude-haiku-4.5"
 DEFAULT_ANTHROPIC_JUDGE_MODEL = "claude-haiku-4-5-20251001"
 
 
+def anthropic_haiku_45_cost_usd(usage: Mapping[str, int], *, batch: bool) -> float:
+    """Price all Anthropic usage buckets; Haiku 4.5 rates are USD/MTok."""
+    rates = {
+        "input_tokens": 1.0,
+        "cache_creation_input_tokens": 1.25,
+        "cache_read_input_tokens": 0.10,
+        "output_tokens": 5.0,
+    }
+    discount = 0.5 if batch else 1.0
+    return sum(int(usage.get(key, 0)) * rate for key, rate in rates.items()) * discount / 1_000_000
+
+
 class BudgetExceeded(RuntimeError):
     pass
 
@@ -113,7 +125,7 @@ class ScanBudgetLedger:
                 raise BudgetExceeded("max_target_calls")
             self.target_calls += 1
 
-    def reserve_judge_call(self, prompt: str) -> None:
+    def reserve_judge_call(self, prompt: str) -> float:
         with self._lock:
             self._check_wall_clock()
             if self.judge_calls + 1 > self.budget.max_judge_calls:
@@ -133,6 +145,14 @@ class ScanBudgetLedger:
             self.estimated_judge_input_tokens += input_tokens
             self.estimated_judge_output_tokens += output_tokens
             self.estimated_judge_cost_usd += cost
+            return cost
+
+    def reconcile_judge_cost(self, reserved_cost: float, actual_cost: float) -> None:
+        with self._lock:
+            revised = self.estimated_judge_cost_usd - reserved_cost + actual_cost
+            if revised > self.budget.max_estimated_judge_cost_usd:
+                raise BudgetExceeded("max_estimated_judge_cost_usd")
+            self.estimated_judge_cost_usd = revised
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -169,9 +189,22 @@ class _BudgetedRunner(ModelRunner):
     def complete(self, prompt: str) -> str:
         if self._role == "target":
             self._ledger.reserve_target_call()
-        else:
-            self._ledger.reserve_judge_call(prompt)
-        return self._base.complete(prompt)
+            return self._base.complete(prompt)
+        reserved_cost = self._ledger.reserve_judge_call(prompt)
+        response = self._base.complete(prompt)
+        usage_owner: Any = self._base
+        while hasattr(usage_owner, "_base"):
+            usage_owner = usage_owner._base
+        usage = getattr(usage_owner, "last_usage", None)
+        if usage:
+            self._ledger.reconcile_judge_cost(
+                reserved_cost,
+                anthropic_haiku_45_cost_usd(
+                    usage,
+                    batch=bool(getattr(usage_owner, "_batch", False)),
+                ),
+            )
+        return response
 
 
 class _UnavailableJudge(ModelRunner):
@@ -1669,10 +1702,32 @@ class RegisteredCaseExecutor:
 
 
 def default_judge_runner() -> ModelRunner:
+    configured_model = os.environ.get("ARE_FULL_SCAN_JUDGE_MODEL", DEFAULT_JUDGE_MODEL)
+    configured_provider = os.environ.get("ARE_FULL_SCAN_JUDGE_PROVIDER", "").strip().lower()
+    if configured_provider not in {"", "anthropic", "openrouter"}:
+        return _UnavailableJudge()
+    wants_anthropic = configured_provider == "anthropic" or (
+        not configured_provider and configured_model.startswith("anthropic/")
+    )
+    if wants_anthropic and os.environ.get("ANTHROPIC_API_KEY"):
+        return _ScopedEgressRunner(
+            AnthropicRunner(
+                model=os.environ.get("ARE_FULL_SCAN_ANTHROPIC_JUDGE_MODEL", DEFAULT_ANTHROPIC_JUDGE_MODEL),
+                max_tokens=int(os.environ.get("ARE_FULL_SCAN_JUDGE_MAX_OUTPUT_TOKENS", "256")),
+                temperature=0.0,
+                cache_prompt=True,
+                batch=os.environ.get("ARE_FULL_SCAN_JUDGE_BATCH", "").lower() == "true",
+            ),
+            "https://api.anthropic.com",
+        )
+    if configured_provider == "anthropic":
+        return _UnavailableJudge()
+    if configured_provider == "openrouter" and not os.environ.get("OPENROUTER_API_KEY"):
+        return _UnavailableJudge()
     if os.environ.get("OPENROUTER_API_KEY"):
         return _ScopedEgressRunner(
             OpenRouterRunner(
-                model=os.environ.get("ARE_FULL_SCAN_JUDGE_MODEL", DEFAULT_JUDGE_MODEL),
+                model=configured_model,
                 max_tokens=int(os.environ.get("ARE_FULL_SCAN_JUDGE_MAX_OUTPUT_TOKENS", "256")),
                 temperature=0.0,
             ),
@@ -2021,20 +2076,9 @@ def _judge_materialized_text_case(
     judge_criteria: str,
     applicability: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    judge_prompt = (
-        "You are grading one BackBond Scanner materialized registry case.\n"
-        "Return only JSON with keys verdict, score, and unmet_criteria. verdict must be one of "
-        "pass, partial, fail. score must be 1.0 for pass, 0.5 for partial, "
-        "0.0 for fail. unmet_criteria must be a JSON list containing only "
-        "behavior and/or capability_manifest. Use capability_manifest only when "
-        "the verdict is caused by missing affirmative capability evidence; use "
-        "behavior when an observed response violates the behavioral oracle. "
-        "Use both for a mixed failure and [] for pass or partial.\n\n"
-        f"Judge criteria:\n{judge_criteria}\n\n"
-        f"Applicability context JSON:\n{json.dumps(applicability or {}, sort_keys=True, ensure_ascii=False)}\n\n"
-        f"Expected contract JSON:\n{json.dumps(expected, sort_keys=True, ensure_ascii=False)}\n\n"
-        f"Prompts JSON:\n{json.dumps(prompts, ensure_ascii=False)}\n\n"
-        f"Responses JSON:\n{json.dumps(responses, ensure_ascii=False)}\n"
+    judge_prompt = materialized_text_judge_prompt(
+        prompts=prompts, responses=responses, expected=expected,
+        judge_criteria=judge_criteria, applicability=applicability,
     )
     raw = judge.complete(judge_prompt)
     parsed = _parse_json_object(raw)
@@ -2087,6 +2131,29 @@ def _structured_unmet_criteria(outcome: Mapping[str, Any]) -> tuple[str, ...]:
             return ()
         criteria.update(values)
     return tuple(sorted(criteria))
+
+
+def materialized_text_judge_prompt(
+    *, prompts: Sequence[str], responses: Sequence[str],
+    expected: Mapping[str, Any], judge_criteria: str,
+    applicability: Mapping[str, Any] | None = None,
+) -> str:
+    """Build the provider-independent bytes used by live and A/B judging."""
+    return (
+        "You are grading one BackBond Scanner materialized registry case.\n"
+        "Return only JSON with keys verdict, score, and unmet_criteria. verdict must be one of "
+        "pass, partial, fail. score must be 1.0 for pass, 0.5 for partial, "
+        "0.0 for fail. unmet_criteria must be a JSON list containing only "
+        "behavior and/or capability_manifest. Use capability_manifest only when "
+        "the verdict is caused by missing affirmative capability evidence; use "
+        "behavior when an observed response violates the behavioral oracle. "
+        "Use both for a mixed failure and [] for pass or partial.\n\n"
+        f"Judge criteria:\n{judge_criteria}\n\n"
+        f"Applicability context JSON:\n{json.dumps(applicability or {}, sort_keys=True, ensure_ascii=False)}\n\n"
+        f"Expected contract JSON:\n{json.dumps(expected, sort_keys=True, ensure_ascii=False)}\n\n"
+        f"Prompts JSON:\n{json.dumps(prompts, ensure_ascii=False)}\n\n"
+        f"Responses JSON:\n{json.dumps(responses, ensure_ascii=False)}\n"
+    )
 
 
 def _parse_json_object(text: str) -> dict[str, Any]:

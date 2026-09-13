@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -21,6 +22,7 @@ from tools.registered_case_executor import (
     RegisteredCaseExecutor,
     ScanBudget,
     build_registered_case_workers,
+    anthropic_haiku_45_cost_usd,
 )
 from tools.active_test_registry import build_registry
 
@@ -303,6 +305,124 @@ def test_default_judge_opens_only_the_provider_scope(monkeypatch):
     assert judge.complete("reply OK") == "OK"
     assert seen[0][0] == "https://openrouter.ai"
     assert seen[0][1].startswith("full-scan-judge-")
+
+
+def test_anthropic_prefix_selects_direct_provider_and_cache(monkeypatch):
+    seen, captured = [], {}
+    class Scope:
+        def __init__(self, endpoint, *, live_bind_scope_id): seen.append(endpoint)
+        def __enter__(self): return self
+        def __exit__(self, *_exc): return None
+    monkeypatch.setenv("ARE_FULL_SCAN_JUDGE_MODEL", "anthropic/claude-haiku-4.5")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fallback-key")
+    monkeypatch.setattr(execution, "AnthropicRunner", lambda **kwargs: captured.update(kwargs) or MockRunner("direct", lambda _p: "OK"))
+    monkeypatch.setattr(egress, "ScopedEgressAllowlist", Scope)
+    assert execution.default_judge_runner().complete("judge") == "OK"
+    assert seen == ["https://api.anthropic.com"]
+    assert captured == {"model": "claude-haiku-4-5-20251001", "max_tokens": 256, "temperature": 0.0, "cache_prompt": True, "batch": False}
+
+
+def test_explicit_anthropic_provider_never_falls_through_to_openrouter(monkeypatch):
+    monkeypatch.setenv("ARE_FULL_SCAN_JUDGE_PROVIDER", "anthropic")
+    monkeypatch.setenv("ARE_FULL_SCAN_JUDGE_MODEL", "anthropic/claude-haiku-4.5")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "must-not-win")
+    monkeypatch.setattr(
+        execution,
+        "OpenRouterRunner",
+        lambda **_kwargs: pytest.fail("explicit Anthropic must not fall through"),
+    )
+
+    assert execution.default_judge_runner().model_id() == "judge:unavailable"
+
+
+def test_anthropic_cost_uses_all_usage_buckets_and_batch_discount():
+    usage = {
+        "input_tokens": 1_000_000,
+        "cache_creation_input_tokens": 1_000_000,
+        "cache_read_input_tokens": 1_000_000,
+        "output_tokens": 1_000_000,
+    }
+    assert anthropic_haiku_45_cost_usd(usage, batch=False) == 7.35
+    assert anthropic_haiku_45_cost_usd(usage, batch=True) == 3.675
+
+
+def test_budget_ledger_reconciles_to_anthropic_usage(tmp_path):
+    class UsageRunner(MockRunner):
+        _batch = True
+        last_usage = {
+            "input_tokens": 100,
+            "cache_creation_input_tokens": 200,
+            "cache_read_input_tokens": 300,
+            "output_tokens": 40,
+        }
+    runner = UsageRunner("usage", lambda _prompt: "OK")
+    ledger = execution.ScanBudgetLedger(ScanBudget(max_estimated_judge_cost_usd=1))
+    budgeted = execution._BudgetedRunner(runner, ledger, role="judge")
+    assert budgeted.complete("rubric") == "OK"
+    assert ledger.snapshot()["estimated_judge_cost_usd"] == round(
+        anthropic_haiku_45_cost_usd(runner.last_usage, batch=True), 6
+    )
+
+
+def test_anthropic_batch_sends_cached_block_and_captures_usage(monkeypatch):
+    captured = {}
+    usage = SimpleNamespace(
+        input_tokens=1, cache_creation_input_tokens=2,
+        cache_read_input_tokens=3, output_tokens=4,
+    )
+    message = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text="PASS")], usage=usage
+    )
+    result = SimpleNamespace(result=SimpleNamespace(type="succeeded", message=message))
+    batches = SimpleNamespace(
+        create=lambda **kwargs: captured.update(kwargs) or SimpleNamespace(id="b1", processing_status="ended"),
+        results=lambda _id: iter([result]),
+    )
+    fake = SimpleNamespace(
+        Anthropic=lambda: SimpleNamespace(messages=SimpleNamespace(batches=batches)),
+        BadRequestError=type("BadRequestError", (Exception,), {}),
+    )
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    runner = execution.AnthropicRunner(
+        "claude-haiku-4-5-20251001", cache_prompt=True, batch=True,
+        batch_poll_seconds=0,
+    )
+    assert runner.complete("rubric bytes\nRESPONSE: row bytes") == "PASS"
+    params = captured["requests"][0]["params"]
+    blocks = params["messages"][0]["content"]
+    assert blocks[0] == {
+        "type": "text", "text": "rubric bytes",
+        "cache_control": {"type": "ephemeral"},
+    }
+    assert blocks[1] == {"type": "text", "text": "\nRESPONSE: row bytes"}
+    assert runner.last_usage == {
+        "input_tokens": 1, "cache_creation_input_tokens": 2,
+        "cache_read_input_tokens": 3, "output_tokens": 4,
+    }
+
+
+def test_anthropic_cache_breakpoint_precedes_materialized_responses(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    runner = execution.AnthropicRunner("claude-haiku-4-5-20251001", cache_prompt=True)
+    blocks = runner._message_content("rubric and contract\nResponses JSON:\n[\"row\"]\n")
+    assert blocks[0] == {
+        "type": "text", "text": "rubric and contract",
+        "cache_control": {"type": "ephemeral"},
+    }
+    assert blocks[1]["text"].startswith("\nResponses JSON:")
+
+
+def test_missing_anthropic_key_falls_back_to_openrouter(monkeypatch):
+    captured = {}
+    monkeypatch.setenv("ARE_FULL_SCAN_JUDGE_MODEL", "anthropic/claude-haiku-4.5")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fallback-key")
+    monkeypatch.setattr(execution, "OpenRouterRunner", lambda **kwargs: captured.update(kwargs) or MockRunner("fallback", lambda _p: "OK"))
+    assert execution.default_judge_runner().complete("judge") == "OK"
+    assert captured["model"] == "anthropic/claude-haiku-4.5"
 
 
 def test_worker_factory_preserves_legacy_request_without_tenant(tmp_path):

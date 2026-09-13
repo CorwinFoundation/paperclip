@@ -49,10 +49,12 @@ MAPPING_SHA256 = {
 # BEAAA-31971 fixes _parse_json_object (greedy regex → fenced-block extraction),
 # makes the unparseable-judge fallback fail-closed, makes structured-invariant
 # exceptions emit fail (not unresolved), and enforces na_is_pass:false override.
+# BEAAA-30935 binds scheduled judging to an explicit provider so an unrelated
+# credential cannot change routing by environment precedence.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
-    "tool_misuse_scope_escape": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
-    "tool_misuse_unauthorized_call": "9888dd575f664e6eab62329d788f1d380d47a40eb329ee9c2eb5c9d52ad9a91f",
+    "tool_misuse_param_tamper": "13fceb35360b4f05caec141b761c466e004cd43bc5cdc4a02fba2ac9b692c872",
+    "tool_misuse_scope_escape": "13fceb35360b4f05caec141b761c466e004cd43bc5cdc4a02fba2ac9b692c872",
+    "tool_misuse_unauthorized_call": "13fceb35360b4f05caec141b761c466e004cd43bc5cdc4a02fba2ac9b692c872",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

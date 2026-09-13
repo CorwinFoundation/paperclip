@@ -49,6 +49,7 @@ SECRET_ENV = (
     "VAPI_API_KEY",
     "VAPI_ASSISTANT_ID",
     "OPENROUTER_API_KEY",
+    "ANTHROPIC_API_KEY",
 )
 # The zoo lane runs against BackBond-operated controlled targets, so it needs
 # neither Vapi credential. Listing its secrets separately is what makes
@@ -57,6 +58,7 @@ ZOO_SECRET_ENV = (
     "ARE_BUNDLE_SIGNING_KEY",
     "ARE_EVAL_PROVENANCE_KEY",
     "OPENROUTER_API_KEY",
+    "ANTHROPIC_API_KEY",
 )
 EVIDENCE_LABEL = "scheduled-controlled-evidence"
 PREFLIGHT_TARGETS = {
@@ -90,8 +92,17 @@ def _required_secret(name: str, environ: Mapping[str, str] | None = None) -> str
 
 
 def map_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Validate and return the five explicitly ruled secret bindings."""
-    return {name: _required_secret(name, environ) for name in SECRET_ENV}
+    """Return the six-variable contract, allowing Anthropic fallback absence."""
+    source = os.environ if environ is None else environ
+    mapped = {
+        name: _required_secret(name, source)
+        for name in SECRET_ENV
+        if name != "ANTHROPIC_API_KEY"
+    }
+    anthropic_key = source.get("ANTHROPIC_API_KEY", "").strip()
+    if anthropic_key:
+        mapped["ANTHROPIC_API_KEY"] = anthropic_key
+    return mapped
 
 
 GARAK_DISPATCH_MAPPINGS = (
@@ -236,6 +247,7 @@ class ScheduleConfig:
     cost_cap_usd: float
     timeout_seconds: int
     judge_model: str
+    judge_provider: str = "anthropic"
     execution_environment: str = field(
         default_factory=_default_execution_environment
     )
@@ -259,6 +271,7 @@ class ScheduleConfig:
             retries=int(_config("BACKBOND_SCAN_RETRIES", "0")),
             cost_cap_usd=float(_config("BACKBOND_SCAN_COST_CAP_USD", "100")),
             timeout_seconds=int(_config("BACKBOND_SCAN_TIMEOUT_SECONDS", "21600")),
+            judge_provider=_config("BACKBOND_SCAN_JUDGE_PROVIDER", "anthropic"),
             judge_model=_config("BACKBOND_SCAN_JUDGE_MODEL"),
             execution_environment=_config(
                 "BACKBOND_SCAN_EXECUTION_ENVIRONMENT",
@@ -277,6 +290,8 @@ class ScheduleConfig:
             raise RuntimeError("scheduled scan cost cap exceeds USD 100")
         if self.limit_per_family is not None and self.limit_per_family < 1:
             raise RuntimeError("limit-per-family must be at least 1 when set")
+        if self.judge_provider not in {"anthropic", "openrouter"}:
+            raise RuntimeError("scheduled judge provider must be anthropic or openrouter")
 
 
 class SharedRateLimiter:
@@ -610,6 +625,15 @@ def _operator_manifest(
             else:
                 counts["incomplete"] += 1
     budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
+    model_versions = getattr(job, "model_versions", {}) or {}
+    judge_models = list(model_versions.get("judge_models") or [])
+    judge_provider = (
+        "anthropic"
+        if judge_models and str(judge_models[0]).startswith("anthropic:")
+        else "openrouter"
+        if judge_models and str(judge_models[0]).startswith("openrouter:")
+        else "unknown"
+    )
     return {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": job_name,
@@ -633,6 +657,8 @@ def _operator_manifest(
         "estimated_cost_usd": round(
             float(budget.get("estimated_judge_cost_usd") or 0), 6
         ),
+        "judge_provider": judge_provider,
+        "judge_models": judge_models,
         "egress_preflight_result_path": str(preflight_path),
         "egress_preflight": dict(preflight_result or {}),
         "families": families,
@@ -646,8 +672,17 @@ def _operator_manifest(
 
 
 def map_zoo_secret_environment(environ: Mapping[str, str] | None = None) -> dict[str, str]:
-    """The three secrets the controlled zoo lane needs. No Vapi credential."""
-    return {name: _required_secret(name, environ) for name in ZOO_SECRET_ENV}
+    """Return zoo secrets; direct Anthropic remains optional for fallback."""
+    source = os.environ if environ is None else environ
+    mapped = {
+        name: _required_secret(name, source)
+        for name in ZOO_SECRET_ENV
+        if name != "ANTHROPIC_API_KEY"
+    }
+    anthropic_key = source.get("ANTHROPIC_API_KEY", "").strip()
+    if anthropic_key:
+        mapped["ANTHROPIC_API_KEY"] = anthropic_key
+    return mapped
 
 
 def _zoo_family_summary(
@@ -1009,7 +1044,9 @@ def run_scheduled_zoo_scan(
         config = replace(config, limit_per_family=limit_per_family)
     config.validate()
     _ensure_writable_worker_home(config.evidence_root)
+    os.environ["ARE_FULL_SCAN_JUDGE_PROVIDER"] = config.judge_provider
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
+    os.environ["ARE_FULL_SCAN_JUDGE_BATCH"] = "true"
 
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / "zoo"
@@ -1163,7 +1200,9 @@ def run_scheduled_scan(
         config = replace(config, limit_per_family=limit_per_family)
     config.validate()
     _ensure_writable_worker_home(config.evidence_root)
+    os.environ["ARE_FULL_SCAN_JUDGE_PROVIDER"] = config.judge_provider
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
+    os.environ["ARE_FULL_SCAN_JUDGE_BATCH"] = "true"
 
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / job_name
