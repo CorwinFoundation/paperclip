@@ -41,9 +41,12 @@ from log_tracker import appliance_ingest_server as server_module
 from log_tracker.appliance_ingest_server import make_handler
 
 from test_appliance_ingest_beaaa20231 import (  # noqa: F401  (fixtures)
-    CONTENT_FIELDS, MIGRATIONS, Appliance, appliance, ingest, resign, store,
+    CONTENT_FIELDS, MIGRATIONS, PRODUCER_PINS, WINDOW, Appliance, appliance, ingest, resign, store,
     verify_batch,
 )
+from appliance import pipeline
+from appliance.batch import BatchBuilder
+from appliance.readers.codex_rollout import CodexRolloutReader
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +502,29 @@ def receiver(tmp_path):
         yield instance
     finally:
         instance.close()
+
+
+def test_codex_rollout_uses_enrolled_tenant_over_company_directory(receiver, tmp_path):
+    company = tmp_path / "companies" / "59f8876e-e729-4dda-98f9-1317c2b50492"
+    agent = company / "agents" / "d8bbc3b5-185f-43ed-bff0-d00323ddbfa3"
+    rollout = agent / "codex-home" / "sessions" / "rollout-1.jsonl"
+    rollout.parent.mkdir(parents=True)
+    rollout.write_text(json.dumps({"timestamp": "2026-09-13T00:00:00Z",
+                                   "command": "python -m pytest"}) + "\n")
+
+    reader = CodexRolloutReader({"path": str(tmp_path / "companies"),
+                                 "tenant_id": "tenantA"})
+    raw = list(reader.read())
+    assert raw[0]["tenant_id"] == "tenantA"
+    assert raw[0]["agent_id"] == "d8bbc3b5-185"
+    events = [pipeline.redact(pipeline.normalize(event)) for event in raw]
+    builder = BatchBuilder("a1", receiver.appliance_a.signer,
+                           receiver.appliance_a.state_dir, PRODUCER_PINS)
+    batch, = builder.build(events, [], WINDOW)
+
+    status, response = receiver.post(batch, tenant="tenantA")
+    assert status == 200
+    assert response["accepted"] is True
 
 
 def test_each_request_outcome_writes_exactly_one_line(receiver):

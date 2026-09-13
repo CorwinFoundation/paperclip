@@ -45,6 +45,7 @@ def test_two_sandbox_installs_converge(tmp_path):
     assert migrations == sorted(p.name for p in (REPO / "tools/log-tracker/migrations").glob("*.sql"))
     config = first["etc/backbond/config.yaml"][0].decode()
     assert 'name: "codex_rollout"' in config
+    assert 'reader: {name: "codex_rollout", path: "/mnt/paperclipdata/dot-paperclip/instances/default/companies", tenant_id: "backbond"}' in config
     assert 'url: "http://127.0.0.1:8787/ingest"' in config
     assert 'tenant_id: "backbond"' in config
     assert 'source_id: "paperclip-codex-rollouts"' in config

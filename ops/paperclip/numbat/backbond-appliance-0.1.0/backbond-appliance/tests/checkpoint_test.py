@@ -14,13 +14,14 @@ def test_checkpoint_resume_rotation_truncation_and_partial_line():
         first = os.path.join(root, "rollout-001.jsonl")
         second = os.path.join(root, "rollout-002.jsonl")
         with open(first, "wb") as fh: fh.write(line("one") + line("two") + b'{"command":"partial')
-        reader = CodexRolloutReader({"path": root}); reader.configure_checkpoint(state)
+        reader = CodexRolloutReader({"path": root, "tenant_id": "backbond"}); reader.configure_checkpoint(state)
         events, cp = reader.read_window(1)
         assert [e["command"] for e in events] == ["one"]
+        assert events[0]["tenant_id"] == "backbond"
         assert not os.path.exists(reader._checkpoint_path)
         reader.commit(cp)
 
-        reader = CodexRolloutReader({"path": root}); reader.configure_checkpoint(state)
+        reader = CodexRolloutReader({"path": root, "tenant_id": "backbond"}); reader.configure_checkpoint(state)
         events, cp = reader.read_window(5)
         assert [e["command"] for e in events] == ["two"]
         reader.commit(cp)

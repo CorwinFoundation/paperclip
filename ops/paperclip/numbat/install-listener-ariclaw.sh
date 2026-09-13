@@ -5,7 +5,7 @@ REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 ROOT="${BACKBOND_INSTALL_ROOT:-}"
 DRY_RUN="${DRY_RUN:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
-EXPECTED_SHA=100edff4909042296d1763011a52a245e60c31e9cc3cc1da47e32aab5d9e4567
+EXPECTED_SHA=b514f100658be5a0006cd24483d0918acf5616e1dc6b5cd9a3afb675787e338e
 OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"
@@ -75,7 +75,7 @@ fi
 put "$ETC/config.yaml" 0640 root:backbond <<EOF
 appliance_id: "$APPLIANCE_ID"
 evidence_tier: "log-inferred"
-reader: {name: "codex_rollout", path: "/mnt/paperclipdata/dot-paperclip/instances/default/companies"}
+reader: {name: "codex_rollout", path: "/mnt/paperclipdata/dot-paperclip/instances/default/companies", tenant_id: "$TENANT_ID"}
 rules: {pack: "coding_agent.cel.yaml", allowlist: "paperclip_allowlist.cel.yaml"}
 signing: {key_path: "/var/lib/backbond/appliance.key", key_id: "$APPLIANCE_ID-key-1"}
 state_dir: "/var/lib/backbond/appliance-state"

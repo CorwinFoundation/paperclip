@@ -64,6 +64,9 @@ class CodexRolloutReader(Reader):
     def _root(self) -> str:
         return os.path.expanduser(self.config.get("path", ""))
 
+    def _tenant_id(self, path: str) -> str:
+        return str(self.config.get("tenant_id") or _tenant_from_path(path))
+
     def discover(self) -> bool:
         root = self._root()
         if not root or not os.path.isdir(root):
@@ -138,11 +141,10 @@ class CodexRolloutReader(Reader):
             start = max(0, offset - 64); fh.seek(start)
             return hashlib.sha256(fh.read(offset - start)).hexdigest()
 
-    @staticmethod
-    def _event(fp: str, position: int, obj: Dict[str, Any], cmd: str) -> Dict[str, Any]:
+    def _event(self, fp: str, position: int, obj: Dict[str, Any], cmd: str) -> Dict[str, Any]:
         eid = "codex-" + hashlib.sha256(f"{fp}:{position}".encode()).hexdigest()[:16]
         return {"type": "tool_call", "event_type": "command.exec", "id": eid,
-                "tenant_id": _tenant_from_path(fp), "agent_id": _agent_from_path(fp),
+                "tenant_id": self._tenant_id(fp), "agent_id": _agent_from_path(fp),
                 "ts": obj.get("timestamp") or obj.get("ts") or "", "command": cmd}
 
     def read(self) -> Iterator[Dict[str, Any]]:
