@@ -540,6 +540,26 @@ def create_app(
         except ReleaseIdentityError as exc:
             raise _http_error(503, exc.code) from exc
 
+    @app.post("/internal/ops/controlled-zoo/run", include_in_schema=False)
+    def run_controlled_zoo(request: Request) -> Any:
+        """Run one packaged controlled-zoo scan from an on-box SSH session.
+
+        The live container port is host-loopback-only and the public nginx
+        allowlist does not expose this route. Reject forwarded requests as a
+        second boundary. A synchronous response makes command success mean the
+        returned manifest is already durable on the host-mounted state volume.
+        """
+        if request.headers.get("x-forwarded-for"):
+            raise _http_error(404, "not_found")
+        from scripts.scheduled_scan import run_scheduled_zoo_scan
+
+        manifest_path = run_scheduled_zoo_scan()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return {
+            "manifest_path": str(manifest_path),
+            "manifest": manifest,
+        }
+
     @app.get("/scan/{scan_id}")
     async def get_scan(request: Request, scan_id: str, audience: str = "customer") -> Any:
         # BEAAA-11858 — capture (do not discard) the authenticated tenant so
