@@ -17,6 +17,7 @@ import socket
 import sys
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -256,6 +257,7 @@ class ScheduleConfig:
     # full corpus byte-identically. It is set from ``--limit-per-family`` for
     # an operator-run acceptance slice.
     limit_per_family: int | None = None
+    conversation_retention_days: int = 14
 
     @classmethod
     def from_environment(cls) -> "ScheduleConfig":
@@ -277,6 +279,9 @@ class ScheduleConfig:
                 "BACKBOND_SCAN_EXECUTION_ENVIRONMENT",
                 _default_execution_environment(),
             ),
+            conversation_retention_days=int(
+                _config("BACKBOND_SCAN_CONVERSATION_RETENTION_DAYS", "14")
+            ),
         )
 
     def validate(self) -> None:
@@ -292,6 +297,56 @@ class ScheduleConfig:
             raise RuntimeError("limit-per-family must be at least 1 when set")
         if self.judge_provider not in {"anthropic", "openrouter"}:
             raise RuntimeError("scheduled judge provider must be anthropic or openrouter")
+        if self.conversation_retention_days < 1:
+            raise RuntimeError("conversation retention must be at least 1 day")
+
+
+def _prepare_conversation_log(config: ScheduleConfig, output_dir: Path) -> Path:
+    """Create a private scan-time log and expire older conversation logs."""
+    cutoff = time.time() - config.conversation_retention_days * 86400
+    for path in config.evidence_root.glob("*/*/private-conversations.jsonl"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+        except FileNotFoundError:
+            pass
+    output_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(output_dir, 0o700)
+    path = output_dir / "private-conversations.jsonl"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    os.close(fd)
+    os.chmod(path, 0o600)
+    return path
+
+
+class ConversationRecordingRunner:
+    """Record every target exchange immediately in generic conversation JSONL."""
+
+    def __init__(self, base: Any, path: Path, *, target: str) -> None:
+        self._base = base
+        self._path = path
+        self._target = target
+
+    def model_id(self) -> str:
+        return self._base.model_id()
+
+    def complete(self, prompt: str) -> str:
+        started = datetime.now(timezone.utc).isoformat()
+        response = self._base.complete(prompt)
+        record = {
+            "internal_conversation_key": f"{self._target}:{uuid.uuid4().hex}",
+            "messages": [
+                {"role": "user", "content": prompt, "ts": started},
+                {"role": "assistant", "content": response, "ts": datetime.now(timezone.utc).isoformat()},
+            ],
+        }
+        payload = (json.dumps(record, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
+        fd = os.open(self._path, os.O_WRONLY | os.O_APPEND)
+        try:
+            os.write(fd, payload)
+        finally:
+            os.close(fd)
+        return response
 
 
 class SharedRateLimiter:
@@ -937,6 +992,7 @@ def _run_zoo_target(
     output_dir: Path,
     run_date: str,
     limiter: SharedRateLimiter,
+    conversation_log: Path,
 ) -> tuple[Any, list[Mapping[str, Any]], str | None]:
     """Submit and dispatch one job against a single controlled zoo surface.
 
@@ -962,7 +1018,11 @@ def _run_zoo_target(
         tenant_id=config.tenant_id,
         invocation_context={"target_capabilities": target.capability_manifest},
     )
-    subject = RateLimitedRunner(build_zoo_runner(target), limiter)
+    subject = ConversationRecordingRunner(
+        RateLimitedRunner(build_zoo_runner(target), limiter),
+        conversation_log,
+        target=target.name,
+    )
     workers = build_registered_case_workers(
         request,
         "",
@@ -1051,6 +1111,7 @@ def run_scheduled_zoo_scan(
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / "zoo"
     output_dir.mkdir(parents=True, exist_ok=True)
+    conversation_log = _prepare_conversation_log(config, output_dir)
     preflight_path = output_dir / "egress-preflight.json"
     preflight_result = run_positive_egress_preflight(
         preflight_path, targets=ZOO_PREFLIGHT_TARGETS
@@ -1090,6 +1151,7 @@ def run_scheduled_zoo_scan(
             output_dir=output_dir,
             run_date=run_date,
             limiter=limiter,
+            conversation_log=conversation_log,
         )
         evidence_rows.extend(target_rows)
         final = dict(getattr(finished, "final_manifest", None) or {})
@@ -1207,6 +1269,7 @@ def run_scheduled_scan(
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / job_name
     output_dir.mkdir(parents=True, exist_ok=True)
+    conversation_log = _prepare_conversation_log(config, output_dir)
     preflight_path = output_dir / "egress-preflight.json"
     negative_control_path = output_dir / "egress-negative-control.json"
     preflight_result = run_positive_egress_preflight(preflight_path)
@@ -1224,9 +1287,13 @@ def run_scheduled_scan(
         tenant_id=config.tenant_id,
     )
     shared_limiter = SharedRateLimiter(config.rpm)
-    target_factory = lambda endpoint, secret: RateLimitedRunner(  # noqa: E731
-        customer_agent_http_runner_factory(endpoint, secret, secrets["VAPI_ASSISTANT_ID"]),
-        shared_limiter,
+    target_factory = lambda endpoint, secret: ConversationRecordingRunner(  # noqa: E731
+        RateLimitedRunner(
+            customer_agent_http_runner_factory(endpoint, secret, secrets["VAPI_ASSISTANT_ID"]),
+            shared_limiter,
+        ),
+        conversation_log,
+        target="own-account",
     )
     judge_factory = lambda: RateLimitedRunner(default_judge_runner(), shared_limiter)  # noqa: E731
     budget = ScanBudget(
