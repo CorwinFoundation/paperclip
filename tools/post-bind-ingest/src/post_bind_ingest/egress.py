@@ -4,6 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 import json
 import os
+import re
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
@@ -11,6 +12,7 @@ from .invariants import utc_now_iso
 from .normalizer import EMAIL_RE, REDACTED_TOKEN_RE, SECRET_KEY_RE
 
 MONITOR_DATA_CONTRACT_VERSION = "monitor-data-contract-v0.1"
+VENDOR_COUNT_CONTRACT_VERSION = "vendor-count-v0.1"
 TRANSMIT_ENV = "POST_BIND_INGEST_TRANSMIT"
 ENDPOINT_ENV = "POST_BIND_INGEST_EGRESS_ENDPOINT"
 ALLOWED_HOSTS_ENV = "POST_BIND_INGEST_EGRESS_ALLOWED_HOSTS"
@@ -126,6 +128,9 @@ def transmit_monitor_artifact(
 def validate_monitor_artifact(artifact: Mapping[str, Any], *, max_excerpt_chars: int = MAX_EXCERPT_CHARS) -> None:
     if not isinstance(artifact, Mapping):
         raise EgressGateError("monitor artifact must be an object")
+    if artifact.get("schema_version") == VENDOR_COUNT_CONTRACT_VERSION:
+        _validate_vendor_count_artifact(artifact)
+        return
     if artifact.get("schema_version") != MONITOR_DATA_CONTRACT_VERSION:
         raise EgressGateError("monitor artifact schema_version mismatch")
 
@@ -153,6 +158,23 @@ def validate_monitor_artifact(artifact: Mapping[str, Any], *, max_excerpt_chars:
             continue
         if EMAIL_RE.search(value) or SECRET_KEY_RE.search(value):
             raise EgressGateError(f"raw sensitive value cannot egress at {path}")
+
+def _validate_vendor_count_artifact(artifact: Mapping[str, Any]) -> None:
+    allowed={"schema_version","pack_version","pack_sha256","pattern_set","pattern_set_sha256","judge","review_window","agent_version_label","sampled","excluded","eligible_conversations","rows","fixture_check","generated_at","run_id","signature"}
+    if set(artifact)!=allowed:raise EgressGateError("vendor count fields mismatch")
+    if artifact.get("pack_version")!="0.1.0" or artifact.get("pattern_set")!="anomaly-spec-v1.0":raise EgressGateError("vendor count version mismatch")
+    for f in ("pack_sha256","pattern_set_sha256"):
+        if not isinstance(artifact.get(f),str) or not re.fullmatch(r"[0-9a-f]{64}",artifact[f]):raise EgressGateError(f"{f} must be sha256")
+    if any(not isinstance(artifact.get(f),int) or artifact[f]<0 for f in ("sampled","excluded","eligible_conversations")):raise EgressGateError("invalid denominators")
+    if artifact["sampled"]!=artifact["excluded"]+artifact["eligible_conversations"]:raise EgressGateError("denominators do not reconcile")
+    rows=artifact.get("rows")
+    if not isinstance(rows,list) or [r.get("code") for r in rows if isinstance(r,Mapping)]!=["A1","A2","A3","A4","A5"]:raise EgressGateError("rows must be A1-A5")
+    for r in rows:
+        if set(r)-{"code","count","rate_per_100","method","reason"} or r.get("method") not in {"deterministic","lexical","judge","not_measurable"}:raise EgressGateError("invalid vendor count row")
+        if r.get("method")=="not_measurable" and (r.get("count") is not None or r.get("rate_per_100") is not None):raise EgressGateError("not_measurable must be null")
+    for path,value in _walk_strings(artifact):
+        if len(value)>(240 if path=="agent_version_label" or path.endswith(".reason") else 80):raise EgressGateError(f"text exceeds cap at {path}")
+        if any(x in path.lower() for x in ("conversation_id","transcript","excerpt")) or EMAIL_RE.search(value) or SECRET_KEY_RE.search(value):raise EgressGateError(f"sensitive vendor output at {path}")
 
 
 def _build_redacted_excerpts(
