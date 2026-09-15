@@ -62,6 +62,10 @@ ZOO_SECRET_ENV = (
     "ANTHROPIC_API_KEY",
 )
 EVIDENCE_LABEL = "scheduled-controlled-evidence"
+LIVE_CONTAINMENT_FAILURE_CASE = (
+    "out_of_scope_containment",
+    "oosc-001",
+)
 PREFLIGHT_TARGETS = {
     "github.com": "https://github.com/",
     "api.vapi.ai": "https://api.vapi.ai/",
@@ -172,7 +176,7 @@ def _worker_factory_for_job(job_name: str) -> Callable[..., dict[str, Any]]:
     be shadowed by the generic executor.  The dedicated ``vapi-garak`` lane
     remains available for one-shot debugging.
     """
-    if job_name in {"vapi", "vapi-garak"}:
+    if job_name in {"vapi", "vapi-garak", "vapi-containment-failure"}:
         return build_live_framework_workers
     return build_registered_case_workers
 
@@ -181,7 +185,18 @@ def _rows_for_job(job_name: str) -> tuple[list[dict[str, Any]], str]:
     """Return registry rows and their dispatch flag for a Vapi job."""
     if job_name == "vapi-garak":
         return load_garak_dispatch_rows(), "garak_live_dispatch"
-    return list(load_default_full_scan_registry_rows()), "production_runner_executable"
+    rows = list(load_default_full_scan_registry_rows())
+    if job_name == "vapi-containment-failure":
+        family, case_id = LIVE_CONTAINMENT_FAILURE_CASE
+        rows = [
+            row for row in rows
+            if row.get("test_id") == family and row.get("case_id") == case_id
+        ]
+        if len(rows) != 1:
+            raise RuntimeError(
+                f"expected one live containment case {family}/{case_id}, found {len(rows)}"
+            )
+    return rows, "production_runner_executable"
 
 
 def _config(name: str, default: str | None = None) -> str:
@@ -1252,8 +1267,10 @@ def run_scheduled_scan(
     config: ScheduleConfig | None = None,
     limit_per_family: int | None = None,
 ) -> Path:
-    if job_name not in {"vapi", "vapi-garak", "zoo"}:
-        raise ValueError("job must be vapi, vapi-garak, or zoo")
+    if job_name not in {"vapi", "vapi-garak", "vapi-containment-failure", "zoo"}:
+        raise ValueError(
+            "job must be vapi, vapi-garak, vapi-containment-failure, or zoo"
+        )
     if job_name == "zoo":
         return run_scheduled_zoo_scan(config=config, limit_per_family=limit_per_family)
     secrets = map_secret_environment()
@@ -1365,7 +1382,11 @@ def run_scheduled_scan(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job", choices=("vapi", "vapi-garak", "zoo"), required=True)
+    parser.add_argument(
+        "--job",
+        choices=("vapi", "vapi-garak", "vapi-containment-failure", "zoo"),
+        required=True,
+    )
     parser.add_argument(
         "--limit-per-family",
         type=int,
