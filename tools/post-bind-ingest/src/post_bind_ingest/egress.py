@@ -56,7 +56,8 @@ class EgressConfig:
             if host.strip()
         )
         return cls(
-            transmit_enabled=os.environ.get(TRANSMIT_ENV, "").strip().lower() in {"1", "true", "yes", "on"},
+            transmit_enabled=os.environ.get(TRANSMIT_ENV, "").strip().lower()
+            in {"1", "true", "yes", "on"},
             endpoint=endpoint,
             allowed_hosts=allowed_hosts,
         )
@@ -96,7 +97,9 @@ def build_monitor_artifact(
             "event_type_counts": dict(sorted(event_types.items())),
             "redaction_count": redaction_count,
         },
-        "excerpts": _build_redacted_excerpts(events_tuple, max_excerpt_chars=max_excerpt_chars),
+        "excerpts": _build_redacted_excerpts(
+            events_tuple, max_excerpt_chars=max_excerpt_chars
+        ),
     }
     validate_monitor_artifact(artifact, max_excerpt_chars=max_excerpt_chars)
     return artifact
@@ -110,10 +113,14 @@ def transmit_monitor_artifact(
 ) -> EgressResult:
     config = config or EgressConfig.from_env()
     validate_monitor_artifact(artifact, max_excerpt_chars=config.max_excerpt_chars)
-    payload = json.dumps(artifact, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(
+        artifact, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
 
     if not config.transmit_enabled:
-        return EgressResult(transmitted=False, endpoint=None, bytes_prepared=len(payload))
+        return EgressResult(
+            transmitted=False, endpoint=None, bytes_prepared=len(payload)
+        )
     if not config.endpoint:
         raise EgressGateError("egress endpoint is required when transmit is enabled")
     _validate_endpoint(config.endpoint, config.allowed_hosts)
@@ -122,10 +129,14 @@ def transmit_monitor_artifact(
     final_endpoint = transport(config.endpoint, payload)
     if final_endpoint is not None:
         _validate_endpoint(final_endpoint, config.allowed_hosts)
-    return EgressResult(transmitted=True, endpoint=config.endpoint, bytes_prepared=len(payload))
+    return EgressResult(
+        transmitted=True, endpoint=config.endpoint, bytes_prepared=len(payload)
+    )
 
 
-def validate_monitor_artifact(artifact: Mapping[str, Any], *, max_excerpt_chars: int = MAX_EXCERPT_CHARS) -> None:
+def validate_monitor_artifact(
+    artifact: Mapping[str, Any], *, max_excerpt_chars: int = MAX_EXCERPT_CHARS
+) -> None:
     if not isinstance(artifact, Mapping):
         raise EgressGateError("monitor artifact must be an object")
     if artifact.get("schema_version") == VENDOR_COUNT_CONTRACT_VERSION:
@@ -159,22 +170,70 @@ def validate_monitor_artifact(artifact: Mapping[str, Any], *, max_excerpt_chars:
         if EMAIL_RE.search(value) or SECRET_KEY_RE.search(value):
             raise EgressGateError(f"raw sensitive value cannot egress at {path}")
 
+
 def _validate_vendor_count_artifact(artifact: Mapping[str, Any]) -> None:
-    allowed={"schema_version","pack_version","pack_sha256","pattern_set","pattern_set_sha256","judge","review_window","agent_version_label","sampled","excluded","eligible_conversations","rows","fixture_check","generated_at","run_id","signature"}
-    if set(artifact)!=allowed:raise EgressGateError("vendor count fields mismatch")
-    if artifact.get("pack_version")!="0.1.0" or artifact.get("pattern_set")!="anomaly-spec-v1.0":raise EgressGateError("vendor count version mismatch")
-    for f in ("pack_sha256","pattern_set_sha256"):
-        if not isinstance(artifact.get(f),str) or not re.fullmatch(r"[0-9a-f]{64}",artifact[f]):raise EgressGateError(f"{f} must be sha256")
-    if any(not isinstance(artifact.get(f),int) or artifact[f]<0 for f in ("sampled","excluded","eligible_conversations")):raise EgressGateError("invalid denominators")
-    if artifact["sampled"]!=artifact["excluded"]+artifact["eligible_conversations"]:raise EgressGateError("denominators do not reconcile")
-    rows=artifact.get("rows")
-    if not isinstance(rows,list) or [r.get("code") for r in rows if isinstance(r,Mapping)]!=["A1","A2","A3","A4","A5"]:raise EgressGateError("rows must be A1-A5")
+    allowed = {
+        "schema_version",
+        "pack_version",
+        "pack_sha256",
+        "pattern_set",
+        "pattern_set_sha256",
+        "judge",
+        "review_window",
+        "agent_version_label",
+        "sampled",
+        "excluded",
+        "eligible_conversations",
+        "rows",
+        "fixture_check",
+        "generated_at",
+        "run_id",
+        "signature",
+    }
+    if set(artifact) != allowed:
+        raise EgressGateError("vendor count fields mismatch")
+    if (
+        artifact.get("pack_version") not in {"0.1.0", "0.1.1"}
+        or artifact.get("pattern_set") != "anomaly-spec-v1.0"
+    ):
+        raise EgressGateError("vendor count version mismatch")
+    for f in ("pack_sha256", "pattern_set_sha256"):
+        if not isinstance(artifact.get(f), str) or not re.fullmatch(
+            r"[0-9a-f]{64}", artifact[f]
+        ):
+            raise EgressGateError(f"{f} must be sha256")
+    if any(
+        not isinstance(artifact.get(f), int) or artifact[f] < 0
+        for f in ("sampled", "excluded", "eligible_conversations")
+    ):
+        raise EgressGateError("invalid denominators")
+    if artifact["sampled"] != artifact["excluded"] + artifact["eligible_conversations"]:
+        raise EgressGateError("denominators do not reconcile")
+    rows = artifact.get("rows")
+    if not isinstance(rows, list) or [
+        r.get("code") for r in rows if isinstance(r, Mapping)
+    ] != ["A1", "A2", "A3", "A4", "A5"]:
+        raise EgressGateError("rows must be A1-A5")
     for r in rows:
-        if set(r)-{"code","count","rate_per_100","method","reason"} or r.get("method") not in {"deterministic","lexical","judge","not_measurable"}:raise EgressGateError("invalid vendor count row")
-        if r.get("method")=="not_measurable" and (r.get("count") is not None or r.get("rate_per_100") is not None):raise EgressGateError("not_measurable must be null")
-    for path,value in _walk_strings(artifact):
-        if len(value)>(240 if path=="agent_version_label" or path.endswith(".reason") else 80):raise EgressGateError(f"text exceeds cap at {path}")
-        if any(x in path.lower() for x in ("conversation_id","transcript","excerpt")) or EMAIL_RE.search(value) or SECRET_KEY_RE.search(value):raise EgressGateError(f"sensitive vendor output at {path}")
+        if set(r) - {"code", "count", "rate_per_100", "method", "reason"} or r.get(
+            "method"
+        ) not in {"deterministic", "lexical", "judge", "not_measurable"}:
+            raise EgressGateError("invalid vendor count row")
+        if r.get("method") == "not_measurable" and (
+            r.get("count") is not None or r.get("rate_per_100") is not None
+        ):
+            raise EgressGateError("not_measurable must be null")
+    for path, value in _walk_strings(artifact):
+        if len(value) > (
+            240 if path == "agent_version_label" or path.endswith(".reason") else 80
+        ):
+            raise EgressGateError(f"text exceeds cap at {path}")
+        if (
+            any(x in path.lower() for x in ("conversation_id", "transcript", "excerpt"))
+            or EMAIL_RE.search(value)
+            or SECRET_KEY_RE.search(value)
+        ):
+            raise EgressGateError(f"sensitive vendor output at {path}")
 
 
 def _build_redacted_excerpts(
@@ -186,7 +245,11 @@ def _build_redacted_excerpts(
     for event in events:
         event_type = str(event.get("event_type", ""))
         event_id = str(event.get("event_id", ""))
-        redacted_paths = {str(item.get("path")) for item in (event.get("redactions") or ()) if isinstance(item, Mapping)}
+        redacted_paths = {
+            str(item.get("path"))
+            for item in (event.get("redactions") or ())
+            if isinstance(item, Mapping)
+        }
         for path, value in _walk_strings(event.get("payload", {})):
             if path not in redacted_paths:
                 continue
@@ -220,7 +283,9 @@ def _validate_aggregates(aggregates: Mapping[str, Any]) -> None:
             raise EgressGateError("event type counts must be non-negative integers")
     redaction_count = aggregates.get("redaction_count")
     if not isinstance(redaction_count, int) or redaction_count < 0:
-        raise EgressGateError("aggregates.redaction_count must be a non-negative integer")
+        raise EgressGateError(
+            "aggregates.redaction_count must be a non-negative integer"
+        )
 
 
 def _validate_excerpt(excerpt: Any, *, idx: int, max_excerpt_chars: int) -> None:
@@ -239,7 +304,9 @@ def _validate_excerpt(excerpt: Any, *, idx: int, max_excerpt_chars: int) -> None
     if not REDACTED_TOKEN_RE.search(text):
         raise EgressGateError(f"excerpts[{idx}].text must be a redacted excerpt")
     if EMAIL_RE.search(text) or SECRET_KEY_RE.search(text):
-        raise EgressGateError(f"raw sensitive value cannot egress at excerpts[{idx}].text")
+        raise EgressGateError(
+            f"raw sensitive value cannot egress at excerpts[{idx}].text"
+        )
 
 
 def _validate_manifest_ref(value: str) -> None:

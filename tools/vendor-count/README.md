@@ -1,4 +1,4 @@
-# backbond-count 0.1
+# backbond-count 0.1.1
 
 **What to export:** generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, or the VAPI-shape stub. Real VAPI support follows when Ari supplies the dump.
 
