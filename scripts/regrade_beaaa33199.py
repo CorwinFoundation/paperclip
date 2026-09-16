@@ -11,8 +11,15 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import sys
 from collections import Counter
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from api.full_scan_executor import seal_manifest
 
 
 def capability_manifest(census_path: Path) -> dict[str, bool]:
@@ -128,6 +135,7 @@ def regrade(source: Path, destination: Path, census_path: Path) -> tuple[int, in
         "converted_declared_false_rows": changed,
         "residual_incomplete_rows": len(missing),
     }
+    output = seal_manifest(output)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return changed, len(missing)

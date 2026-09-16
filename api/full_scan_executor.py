@@ -819,10 +819,7 @@ def build_attempt_manifest(
     if evidence_class:
         manifest["evidence_class"] = str(evidence_class)
         manifest["live_service_signed"] = False
-    signed = dict(manifest)
-    signed["signed_manifest"] = sign_manifest(manifest)
-    signed["manifest_hash"] = manifest_content_hash(signed)
-    return signed
+    return seal_manifest(manifest)
 
 
 def build_controlled_validation_report(
@@ -1016,6 +1013,25 @@ def manifest_content_hash(manifest: Mapping[str, Any]) -> str:
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def seal_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a self-consistent hash and signature over the exact content.
+
+    Existing integrity fields are always discarded first. This makes the
+    helper safe for derived manifests: callers cannot accidentally retain a
+    signature from the source document after changing acceptance or evidence
+    fields.
+    """
+    unsigned = {
+        key: value
+        for key, value in manifest.items()
+        if key not in {"signed_manifest", "manifest_hash"}
+    }
+    sealed = dict(unsigned)
+    sealed["signed_manifest"] = sign_manifest(unsigned)
+    sealed["manifest_hash"] = manifest_content_hash(unsigned)
+    return sealed
 
 
 def registry_cases_from_rows(
