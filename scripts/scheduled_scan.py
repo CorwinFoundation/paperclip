@@ -1009,7 +1009,7 @@ def _run_zoo_target(
     output_dir: Path,
     run_date: str,
     limiter: SharedRateLimiter,
-    conversation_log: Path,
+    conversation_log: Path | None = None,
 ) -> tuple[Any, list[Mapping[str, Any]], str | None]:
     """Submit and dispatch one job against a single controlled zoo surface.
 
@@ -1033,6 +1033,8 @@ def _run_zoo_target(
     # helper is also exercised directly.  Ensure SQLite's parent exists before
     # constructing the durable job store in either path.
     output_dir.mkdir(parents=True, exist_ok=True)
+    if conversation_log is None:
+        conversation_log = _prepare_conversation_log(config, output_dir)
 
     request = SimpleNamespace(
         agent_endpoint="controlled-zoo://" + target.name,

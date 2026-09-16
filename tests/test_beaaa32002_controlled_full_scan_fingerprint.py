@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from api.full_scan_executor import FullScanJobStore, registry_cases_from_rows
@@ -54,6 +55,18 @@ def test_exact_fingerprint_reuses_same_job_after_restart(tmp_path):
     job = store.submit(**expected)
 
     reopened = runner.open_job_store(db)
+    assert runner.newest_resumable_job_id(reopened, **expected) == job.job_id
+
+
+def test_exact_fingerprint_finds_completed_job_for_idempotent_reemit(tmp_path):
+    db = tmp_path / "jobs.sqlite3"
+    store = FullScanJobStore(persistence=FullScanJobPersistence(db))
+    expected = _fingerprint()
+    job = store.submit(**expected)
+    store._persist(replace(job, status="complete", final_manifest={"acceptance_gate": {"passed": True}}))
+
+    reopened = runner.open_job_store(db)
+    assert reopened.status(job.job_id).status == "complete"
     assert runner.newest_resumable_job_id(reopened, **expected) == job.job_id
 
 

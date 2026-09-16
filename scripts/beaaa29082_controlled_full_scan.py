@@ -225,8 +225,8 @@ def job_matches_fingerprint(
 
 
 def newest_resumable_job_id(store: FullScanJobStore, **fingerprint: Any) -> str | None:
-    """Newest non-terminal job with an exact six-field fingerprint, or None."""
-    for job_id in reversed(store.queued_job_ids()):
+    """Newest job with an exact six-field fingerprint, including completed jobs."""
+    for job_id in reversed(store.job_ids()):
         job = store.status(job_id)
         if job_matches_fingerprint(job, **fingerprint):
             return job_id
@@ -301,6 +301,14 @@ def run_scan(
             seed=seed,
             registry_cases=cases,
         )
+
+    if job.status == "complete" and job.final_manifest is not None:
+        manifest = dict(job.final_manifest)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+        print(f"[run] exact completed job {job.job_id}; manifest re-emitted: {out}", flush=True)
+        verify(manifest)
+        return 0 if manifest.get("acceptance_gate", {}).get("passed") else 1
 
     print("=" * 72, flush=True)
     print(f"[run] job_id: {job.job_id}", flush=True)

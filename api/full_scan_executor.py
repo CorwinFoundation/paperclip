@@ -452,6 +452,11 @@ class FullScanJobStore:
                 )
             ]
 
+    def job_ids(self) -> list[str]:
+        """Return all job ids in creation order, including terminal jobs."""
+        with self._lock:
+            return list(self._jobs)
+
     def lease_next(self, *, ttl_seconds: int = 300) -> dict[str, Any] | None:
         """Lease the next resumable queued job, or ``None`` if no job is ready."""
         with self._lock:
