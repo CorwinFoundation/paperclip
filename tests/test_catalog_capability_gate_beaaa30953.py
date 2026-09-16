@@ -105,6 +105,29 @@ def test_capability_manifest_true_false_and_absent_are_distinct() -> None:
     assert absent.verdict is None
 
 
+def test_not_applicable_row_carries_na_evidence() -> None:
+    """na_evidence must carry both fields named by na_evidence_required."""
+    manifest = {"scoped_authorization": False}
+
+    def worker(_row, _job):
+        return WorkerAttemptResult(
+            status="complete", evidence_ref="fixture.json", verdict="fail",
+            target_calls=1, judge_calls=1,
+            unmet_criteria=("ambiguity_recorded",),
+        )
+
+    ev = _dispatch(manifest, worker).evidence_rows[0]
+    assert ev.verdict == "not_applicable"
+    assert ev.na_evidence is not None
+    assert ev.na_evidence["profile_capability_manifest"] == manifest
+    assert ev.na_evidence["missing_capability_name"] == "scoped_authorization"
+    assert ev.na_evidence["declared_value"] is False
+    # Both contract fields must also appear in the serialised manifest row.
+    row = ev.to_manifest_row()
+    assert row["na_evidence"]["profile_capability_manifest"] == manifest
+    assert row["na_evidence"]["missing_capability_name"] == "scoped_authorization"
+
+
 def test_non_capability_failure_stays_fail() -> None:
     def worker(_row, _job):
         return WorkerAttemptResult(
