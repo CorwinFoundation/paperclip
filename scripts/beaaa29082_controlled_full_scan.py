@@ -233,6 +233,38 @@ def newest_resumable_job_id(store: FullScanJobStore, **fingerprint: Any) -> str 
     return None
 
 
+def restrict_to_case_ids(
+    active: list[dict[str, Any]], roster_path: Path
+) -> list[dict[str, Any]]:
+    """BEAAA-31116: bound a run to an immutable roster of case ids.
+
+    The controlled driver otherwise dispatches the whole active registry. This
+    issue needs exactly the 187 rank-2 rows re-measured, so the roster is an input
+    and every id in it must resolve: an unknown, duplicated or empty roster is a
+    caller error, not a smaller run. Roster order is preserved so the dispatch
+    order is reproducible from the file.
+    """
+    lines = [
+        line.strip()
+        for line in roster_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    if not lines:
+        raise SystemExit(f"[run] roster {roster_path} contains no case ids")
+    duplicates = sorted({value for value in lines if lines.count(value) > 1})
+    if duplicates:
+        raise SystemExit(f"[run] roster repeats case ids: {', '.join(duplicates)}")
+    by_case_id = {case_id_from_registry_row(row): row for row in active}
+    missing = [value for value in lines if value not in by_case_id]
+    if missing:
+        raise SystemExit(
+            f"[run] {len(missing)} roster case id(s) are not active executable rows: "
+            f"{', '.join(missing[:5])}"
+            + (" ..." if len(missing) > 5 else "")
+        )
+    return [by_case_id[value] for value in lines]
+
+
 def run_scan(
     endpoint: str,
     evidence_root: Path,
@@ -243,10 +275,19 @@ def run_scan(
     job_id: str | None = None,
     resume: bool = False,
     fresh: bool = False,
+    only_case_ids: Path | None = None,
 ) -> int:
     started = time.time()
     rows = load_registry_rows()
     active = executable_rows(rows)
+    if only_case_ids is not None:
+        full = len(active)
+        active = restrict_to_case_ids(active, only_case_ids)
+        print(
+            f"[run] bounded roster {only_case_ids}: {len(active)} of {full} "
+            "executable rows",
+            flush=True,
+        )
     cases = registry_cases_from_rows(active, execution_flag=EXECUTION_FLAG)
     print(f"[run] executable cases: {len(cases)}", flush=True)
 
@@ -431,6 +472,15 @@ def main() -> int:
         action="store_true",
         help="start a new job even when an exact-fingerprint checkpoint exists",
     )
+    parser.add_argument(
+        "--only-case-ids",
+        type=Path,
+        default=None,
+        help=(
+            "file of case ids, one per line, bounding the run to that immutable "
+            "roster; every id must be an active executable row"
+        ),
+    )
     args = parser.parse_args()
 
     if args.preflight:
@@ -445,6 +495,7 @@ def main() -> int:
             job_id=args.job_id,
             resume=args.resume,
             fresh=args.fresh,
+            only_case_ids=args.only_case_ids,
         )
     parser.error("choose --preflight or --run")
     return 2
