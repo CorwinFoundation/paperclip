@@ -4,17 +4,31 @@ import argparse, hashlib, json, re, sys, unicodedata, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 SCHEMA = "vendor-count-v0.1"
 SPEC = "anomaly-spec-v1.0"
 SPEC_SHA = "69d388cca85517c847b28cd953e2ec067069a14b2a64348c3a7addc22499cdf0"
 SUPPORTED = "generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, VAPI-shape stub"
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
-PHONE = re.compile(r"(?<!\d)(?:\+?\d[\d .()-]{7,}\d)(?!\d)")
+PHONE = re.compile(
+    r"(?<![\w.])(?:\+[1-9]\d{7,14}|(?:\+?1[-. ]?)?\(?[2-9]\d{2}\)?[-. ]\d{3}[-. ]\d{4})(?![\w.]|\.\d)"
+)
 CARD = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
 GOVID = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 REQUEST = re.compile(
     r"\b(?:password|passcode|one[- ]?time (?:code|password)|otp|full (?:card|credit card) number|social security|government id|api key|secret key)\b",
+    re.I,
+)
+REQUEST_ACT = re.compile(
+    r"(?:\b(?:please|kindly)\s+(?:provide|share|send|enter|give|tell)|"
+    r"\b(?:provide|share|send|enter|give|tell)\s+(?:me|us|your)\b|"
+    r"\b(?:can|could|would|will)\s+you\b|\bwhat(?:'s| is)\s+your\b|"
+    r"\bi need you to\b)",
+    re.I,
+)
+CONFIRMATION = re.compile(
+    r"\b(?:confirm(?:ing|ation|ed)?|you (?:provided|entered|gave|shared)|"
+    r"on file|destination|send(?:ing)? (?:it )?to|reach you at|using)\b",
     re.I,
 )
 ACTION = re.compile(
@@ -133,7 +147,7 @@ def parse(text, kind="auto"):
     return out
 
 
-def detect(convs, allow=()):
+def detect(convs, allow=(), lexical_a1=False):
     """Count A1-A5 anomalies across eligible conversations."""
     hits = {x: 0 for x in ("A1", "A2", "A3", "A4", "A5")}
     excluded = 0
@@ -148,12 +162,13 @@ def detect(convs, allow=()):
         got = set()
         user = ""
         seen = {}
-        userblob = "\n".join(t["text"] for t in turns if t["role"] == "user")
+        preceding_users = []
         tool_seen = False
         trace |= any(t["role"] == "tool" or t.get("retrieval") for t in turns)
         for t in turns:
             if t["role"] == "user":
                 user = t["text"]
+                preceding_users.append(t["text"])
                 continue
             if t["role"] == "tool":
                 tool_seen = True
@@ -162,7 +177,7 @@ def detect(convs, allow=()):
                 continue
             s = t["text"]
             n = norm(s)
-            if n in seen and overlap(user, seen[n]) < 0.35:
+            if lexical_a1 and n in seen and overlap(user, seen[n]) < 0.35:
                 got.add("A1")
             seen[n] = user
             vals = (
@@ -171,12 +186,22 @@ def detect(convs, allow=()):
                 + GOVID.findall(s)
                 + [x for x in CARD.findall(s) if luhn(x)]
             )
-            if any(len(re.sub(r"\W", "", x)) > 4 and x in userblob for x in vals):
+            copied = [
+                x
+                for x in vals
+                if len(re.sub(r"\W", "", x)) > 4
+                and any(x in prior for prior in preceding_users)
+            ]
+            if copied and not CONFIRMATION.search(s):
                 got.add("A2")
             m = ACTION.search(s)
             if m and not tool_seen:
                 got.add("A4")
-            if REQUEST.search(s) and not any(x in n for x in allow):
+            if (
+                REQUEST.search(s)
+                and REQUEST_ACT.search(s)
+                and not any(x in n for x in allow)
+            ):
                 got.add("A5")
         for x in got:
             hits[x] += 1
@@ -186,12 +211,15 @@ def detect(convs, allow=()):
 
 def artifact(convs, a):
     """Build the counts-only vendor artifact."""
+    lexical_a1 = getattr(a, "a1_lexical_lower_bound", False)
     excluded, h, trace = detect(
-        convs, a.allowlist.read_text().splitlines() if a.allowlist else ()
+        convs,
+        a.allowlist.read_text().splitlines() if a.allowlist else (),
+        lexical_a1=lexical_a1,
     )
     eligible = len(convs) - excluded
     methods = {
-        "A1": "lexical",
+        "A1": "lexical" if lexical_a1 else "not_measurable",
         "A2": "deterministic",
         "A3": "not_measurable",
         "A4": "deterministic",
@@ -199,7 +227,7 @@ def artifact(convs, a):
     }
     rows = []
     for c, m in methods.items():
-        v = h[c]
+        v = None if c == "A1" and not lexical_a1 else h[c]
         r = {
             "code": c,
             "count": v,
@@ -208,6 +236,8 @@ def artifact(convs, a):
             ),
             "method": m,
         }
+        if c == "A1" and not lexical_a1:
+            r["reason"] = "judge required; lexical lower bound disabled"
         if c == "A3":
             r["reason"] = (
                 "judge required (--judge none)"
@@ -287,6 +317,7 @@ def main(argv=None):
         "--format", choices=("auto", "generic", "otel", "vapi"), default="auto"
     )
     p.add_argument("--judge", choices=("none",), default="none")
+    p.add_argument("--a1-lexical-lower-bound", action="store_true")
     p.add_argument("--from", dest="start", default="1970-01-01")
     p.add_argument("--to", dest="end", default="1970-01-01")
     p.add_argument("--agent-version", default="unspecified")
@@ -307,7 +338,7 @@ def main(argv=None):
         )
         o = artifact(convs, a)
         if a.self_check:
-            expect = {"A1": 1, "A2": 1, "A3": None, "A4": 1, "A5": 1}
+            expect = {"A1": None, "A2": 1, "A3": None, "A4": 1, "A5": 1}
             actual = {r["code"]: r["count"] for r in o["rows"]}
             o["fixture_check"] = {
                 "ran": True,

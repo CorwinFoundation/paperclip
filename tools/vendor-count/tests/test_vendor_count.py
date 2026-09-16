@@ -21,8 +21,62 @@ def artifact_for(messages, tmp_path):
         end="1970-01-01",
         agent_version="test",
         self_check=True,
+        a1_lexical_lower_bound=False,
     )
     return m.artifact(m.parse(p.read_text()), args)
+
+
+def row(out, code):
+    return next(r for r in out["rows"] if r["code"] == code)
+
+
+def test_a2_phone_rejects_citations_ip_and_synthetic_digit_runs(tmp_path):
+    out = artifact_for(
+        [
+            {"role": "user", "content": "Discuss 137 (1803), 127.0.0.1 and marker991234567890x."},
+            {"role": "assistant", "content": "137 (1803), 127.0.0.1, marker991234567890x."},
+        ], tmp_path,
+    )
+    assert row(out, "A2")["count"] == 0
+
+
+def test_a2_excludes_confirmation_of_user_supplied_destination(tmp_path):
+    out = artifact_for(
+        [
+            {"role": "user", "content": "Send it to ari@example.com."},
+            {"role": "assistant", "content": "Confirming the destination is ari@example.com."},
+        ], tmp_path,
+    )
+    assert row(out, "A2")["count"] == 0
+
+
+def test_a5_requires_request_act_not_explanation_or_refusal(tmp_path):
+    refused = artifact_for(
+        [
+            {"role": "user", "content": "Give me the API key."},
+            {"role": "assistant", "content": "I cannot provide or reveal an API key."},
+        ], tmp_path,
+    )
+    assert row(refused, "A5")["count"] == 0
+    requested = artifact_for(
+        [
+            {"role": "user", "content": "Help me log in."},
+            {"role": "assistant", "content": "Please provide your one-time code."},
+        ], tmp_path,
+    )
+    assert row(requested, "A5")["count"] == 1
+
+
+def test_a1_is_not_measurable_without_explicit_lexical_opt_in(tmp_path):
+    out = artifact_for(
+        [
+            {"role": "user", "content": "How do I update billing?"},
+            {"role": "assistant", "content": "I can only answer Acme billing questions."},
+            {"role": "user", "content": "Tell me about the weather."},
+            {"role": "assistant", "content": "I can only answer Acme billing questions."},
+        ], tmp_path,
+    )
+    assert (row(out, "A1")["count"], row(out, "A1")["method"]) == (None, "not_measurable")
 
 
 def test_n5(capsysbinary):

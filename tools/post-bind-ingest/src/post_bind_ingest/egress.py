@@ -193,7 +193,7 @@ def _validate_vendor_count_artifact(artifact: Mapping[str, Any]) -> None:
     if set(artifact) != allowed:
         raise EgressGateError("vendor count fields mismatch")
     if (
-        artifact.get("pack_version") not in {"0.1.0", "0.1.1"}
+        artifact.get("pack_version") not in {"0.1.0", "0.1.1", "0.1.2"}
         or artifact.get("pattern_set") != "anomaly-spec-v1.0"
     ):
         raise EgressGateError("vendor count version mismatch")
