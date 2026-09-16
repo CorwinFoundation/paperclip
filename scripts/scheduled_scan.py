@@ -30,10 +30,12 @@ if str(ROOT) not in sys.path:
 
 from api.full_scan_executor import (  # noqa: E402
     FullScanJobStore,
+    TERMINAL_JOB_STATUSES,
     UpstreamQuotaAbort,
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from api.full_scan_job_persistence import FullScanJobPersistence  # noqa: E402
 from api.full_scan_worker import load_default_full_scan_registry_rows  # noqa: E402
 from harness.customer_runner import customer_agent_http_runner_factory  # noqa: E402
 from harness.egress import get as egress_get, verify_live_egress_fail_closed  # noqa: E402
@@ -1027,6 +1029,11 @@ def _run_zoo_target(
     if not rows:
         return None, [], None
 
+    # Callers normally create the aggregate zoo directory, but the per-target
+    # helper is also exercised directly.  Ensure SQLite's parent exists before
+    # constructing the durable job store in either path.
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     request = SimpleNamespace(
         agent_endpoint="controlled-zoo://" + target.name,
         agent_id=f"controlled-zoo-{target.name}",
@@ -1055,7 +1062,13 @@ def _run_zoo_target(
     model_versions["zoo_target"] = target.name
     model_versions["adapter_proof"] = target.adapter_proof
 
-    store = FullScanJobStore()
+    # One durable database per scheduled zoo run keeps accepted work and each
+    # case checkpoint across unit/process restarts.  The stable idempotency key
+    # makes a restarted invocation reopen this target's original job instead of
+    # creating a second job (and paying for its target/judge calls again).
+    store = FullScanJobStore(
+        persistence=FullScanJobPersistence(output_dir / "full_scan_jobs.sqlite3")
+    )
     job = store.submit(
         agent_id=request.agent_id,
         scanner_version=config.scanner_version,
@@ -1064,10 +1077,43 @@ def _run_zoo_target(
         seed=config.seed,
         registry_cases=registry_cases_from_rows(rows),
         scan_id=f"scheduled-zoo-{target.name}-{run_date}",
+        idempotency_key=(
+            f"scheduled-zoo:{run_date}:{target.name}:"
+            f"{config.scanner_version}:{config.corpus_version}:{config.seed}"
+        ),
         wall_clock_budget_seconds=config.timeout_seconds,
         rate_limit_per_minute=config.rpm,
         capability_manifest=target.capability_manifest,
     )
+    if job.status in TERMINAL_JOB_STATUSES:
+        final = dict(job.final_manifest or {})
+        return job, list(final.get("evidence_rows", [])), None
+
+    # A fresh process owns no live attempt, even if the persisted lease has not
+    # reached its wall-clock expiry. Recover clears that orphaned attempt and
+    # retains every checkpoint already written by the prior process.
+    if job.active_attempt_id is not None:
+        store.recover()
+        job = store.status(job.job_id)
+
+    resume = store.resume(job.job_id)
+    terminal_case_ids = {
+        str(row.get("probe_id") or "")
+        for row in resume["evidence_rows"]
+        if isinstance(row, Mapping)
+        and row.get("status") in {"complete", "incomplete", "failed", "skipped"}
+    }
+    pending_rows = [
+        row
+        for row in rows
+        if str(
+            row.get("runtime_case_identity")
+            or row.get("case_id")
+            or row.get("case_id_or_probe_id")
+            or ""
+        )
+        not in terminal_case_ids
+    ]
     lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
     attempt_id = str(lease["attempt_id"])
     abort_reason = None
@@ -1076,7 +1122,7 @@ def _run_zoo_target(
             store,
             job.job_id,
             attempt_id=attempt_id,
-            registry_rows=rows,
+            registry_rows=pending_rows,
             workers=workers,
         )
     except UpstreamQuotaAbort as exc:
