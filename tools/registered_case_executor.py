@@ -595,6 +595,11 @@ class RegisteredCaseExecutor:
                 if verdict == "edge_refusal" and isinstance(evidence.get("judge"), dict)
                 else None
             ),
+            observational_rejection=(
+                str(evidence["observational_rejection"])
+                if evidence.get("observational_rejection") is not None
+                else None
+            ),
         )
 
     def _execute_case(

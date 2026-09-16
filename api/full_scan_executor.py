@@ -230,6 +230,10 @@ class WorkerAttemptResult:
     # fail closed and preserve the verdict.
     unmet_criteria: tuple[str, ...] = ()
     refusal: dict[str, Any] | None = None
+    # Set by the worker when an observational contract error fired before any
+    # dispatch.  The verdict may still read "fail" (fail-closed semantics), but
+    # the basis is a precondition failure, not a structured invariant result.
+    observational_rejection: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1289,6 +1293,13 @@ def dispatch_registry_attempt(
                     "unavailable_capability:"
                     f"{required_capability}={declared_capability!r}"
                 )
+        elif result.observational_rejection is not None:
+            # A precondition failure: the observational contract could not be
+            # satisfied before any dispatch.  The verdict may be "fail"
+            # (fail-closed semantics) but the row is not a structured invariant
+            # result.  Surface the rejection as na_evidence so the row is
+            # distinguishable from an unjustified missing-acquisition row.
+            na_evidence = {"observational_rejection": result.observational_rejection}
 
         rows_to_checkpoint.append(
             # These axes describe evidence provenance independently. A completed,
@@ -1323,6 +1334,7 @@ def dispatch_registry_attempt(
                     verdict=result_verdict,
                     target_calls=0 if declared_not_applicable else result.target_calls,
                     judge_calls=0 if declared_not_applicable else result.judge_calls,
+                    observational_rejection=result.observational_rejection,
                 ),
                 underwriting_relevance=(
                     "category-proxy"
@@ -1457,12 +1469,44 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
         )
 
 
+NON_ACQUISITION_BASES = frozenset({"missing", "not-applicable"})
+
+
+def unjustified_non_acquisition_rows(
+    rows: Iterable[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    """Return terminal rows that never contacted the target and never said why.
+
+    BEAAA-33228: the acceptance gate measures terminality, not acquisition.  A
+    row that completes with a verdict never enters ``missing_required``, so a
+    row carrying ``acquisition_basis: missing`` (or ``not-applicable``) with
+    ``na_evidence: null`` is invisible to every published count while asserting
+    a result the scan never measured.  ``invariant-derived`` rows are excluded:
+    they legitimately carry no target call and state their basis in the
+    enum itself.
+    """
+
+    flagged: list[Mapping[str, Any]] = []
+    for row in rows:
+        if row.get("status") != "complete":
+            continue
+        if int(row.get("target_calls") or 0) > 0:
+            continue
+        if str(row.get("acquisition_basis") or "") not in NON_ACQUISITION_BASES:
+            continue
+        if row.get("na_evidence"):
+            continue
+        flagged.append(row)
+    return flagged
+
+
 def _acquisition_basis(
     *,
     status: str,
     verdict: str | None,
     target_calls: int,
     judge_calls: int,
+    observational_rejection: str | None = None,
 ) -> str:
     """Classify how a terminal row's evidence was acquired.
 
@@ -1476,6 +1520,12 @@ def _acquisition_basis(
     * ``invariant-derived`` - a structured invariant produced the verdict from
       declared state, with no target and no judge call to attribute.
 
+    A row with an ``observational_rejection`` carries a precondition failure,
+    not a structured invariant result: it must not be classified as
+    ``invariant-derived`` even when the verdict reads ``fail`` and both call
+    counts are zero.  It stays ``missing`` so ``unjustified_non_acquisition_rows``
+    can detect it unless ``na_evidence`` is also populated.
+
     Anything else that completes without an attributable target call stays
     ``missing``; classification fails closed.
     """
@@ -1484,7 +1534,7 @@ def _acquisition_basis(
             return "target-measured"
         if verdict == "not_applicable":
             return "not-applicable"
-        if judge_calls == 0 and verdict in {"pass", "fail"}:
+        if judge_calls == 0 and verdict in {"pass", "fail"} and not observational_rejection:
             return "invariant-derived"
         return "missing"
     if status == "failed":

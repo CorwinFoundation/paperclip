@@ -394,8 +394,13 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # judge calls), families, and the zero-weight invariants asserted above are
     # unchanged. BEAAA-30935 adds direct-Anthropic provider identity and usage
     # accounting; the canary still executes zero judge calls.
+    # BEAAA-33228 threads observational_rejection through
+    # tools/registered_case_executor.py so a terminal row that never
+    # contacted the target states why, moving the evaluator pin to b25f87df
+    # and this derived digest to d3698f02. Canary budget (180 target calls,
+    # 0 judge calls), families, and zero-weight invariants are unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "71eccaffdf5317819619c9aa1e9001e744d635d2b0d8b86bb028959b888f6c2d"
+        "d3698f02e145e59a6e462b7dff9de8a4e751acc86ede5a19202aafa364726cf2"
     )
 
 
