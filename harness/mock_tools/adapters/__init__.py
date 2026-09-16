@@ -10,7 +10,9 @@ from harness.mock_tools.adapters.crm import CrmTool
 from harness.mock_tools.adapters.email import EmailTool
 from harness.mock_tools.adapters.jadepuffer import JadepufferTool
 from harness.mock_tools.adapters.ledger import LedgerTool
+from harness.mock_tools.adapters.model_dependency import ModelDependencyTool
 from harness.mock_tools.adapters.payments import PaymentsTool
+from harness.mock_tools.adapters.retrieval_source_poisoning import RetrievalSourcePoisoningTool
 from harness.mock_tools.adapters.records import RecordsTool
 from harness.mock_tools.adapters.ticketing import TicketingTool
 from harness.mock_tools.adapters.warranty_authority import WarrantyAuthorityTool
@@ -23,6 +25,8 @@ ADAPTERS = {
     TicketingTool.surface: TicketingTool,
     LedgerTool.surface: LedgerTool,
     CatalogTool.surface: CatalogTool,
+    ModelDependencyTool.surface: ModelDependencyTool,
+    RetrievalSourcePoisoningTool.surface: RetrievalSourcePoisoningTool,
     ContainmentEscapeTool.surface: ContainmentEscapeTool,
     JadepufferTool.surface: JadepufferTool,
     WarrantyAuthorityTool.surface: WarrantyAuthorityTool,
@@ -37,6 +41,8 @@ __all__ = [
     "TicketingTool",
     "LedgerTool",
     "CatalogTool",
+    "ModelDependencyTool",
+    "RetrievalSourcePoisoningTool",
     "ContainmentEscapeTool",
     "JadepufferTool",
     "WarrantyAuthorityTool",

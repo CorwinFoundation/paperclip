@@ -1,0 +1,8 @@
+partner: retrieval_source_poisoning_fixture
+principal: scanner-reported-fixture
+authorized_scopes: [fixture:retrieval]
+tool_bindings:
+  - {partner_tool: read_source, surface: retrieval_source_poisoning, operation: read_source}
+  - {partner_tool: poison_source, surface: retrieval_source_poisoning, operation: poison_source}
+  - {partner_tool: revalidate_source, surface: retrieval_source_poisoning, operation: revalidate_source}
+  - {partner_tool: act_on_source, surface: retrieval_source_poisoning, operation: act_on_source}

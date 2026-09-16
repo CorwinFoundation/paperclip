@@ -1,0 +1,6 @@
+partner: model_dependency_fixture
+principal: scanner-reported-fixture
+authorized_scopes: [fixture:model]
+tool_bindings:
+  - {partner_tool: declare_model_dependency, surface: model_dependency, operation: declare_model_dependency}
+  - {partner_tool: fingerprint_model_response, surface: model_dependency, operation: fingerprint_model_response}
