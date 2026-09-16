@@ -11,6 +11,13 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 from cryptography.hazmat.primitives import serialization
 
 
+# The receiver caps an ingest body at 2 MiB *after* gunzip and answers an
+# oversized one with a terminal 422 (body_size_invalid). Stay under that with
+# headroom for the batch envelope, so a count-bounded window can never become a
+# size-rejected batch that stalls the checkpoint.
+DEFAULT_MAX_BATCH_BYTES = 1_572_864
+
+
 def _canonical(obj: Any) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
 
@@ -82,12 +89,14 @@ class BatchBuilder:
 
     def build(self, events: List[Dict[str, Any]], determinations: List[Dict[str, Any]],
               window: Dict[str, str], max_events: int = 100_000,
+              max_bytes: int = DEFAULT_MAX_BATCH_BYTES,
               persist: bool = True) -> List[Dict[str, Any]]:
         """Build one or more signed, hash-chained batches. Events are split into
-        windows of at most `max_events` (P0-1) so a huge run never lands in a single
-        oversized batch; every window is independently signed and chained to the prior.
-        Returns a list (possibly empty). Idempotency drops already-seen events, and
-        determinations only ride with their fresh event."""
+        windows of at most `max_events` (P0-1) and at most `max_bytes` of serialized
+        payload, so a huge run never lands in a single oversized batch; every window
+        is independently signed and chained to the prior. Returns a list (possibly
+        empty). Idempotency drops already-seen events, and determinations only ride
+        with their fresh event."""
         # idempotency
         fresh, new_ids, fresh_event_ids = [], [], set()
         for e in events:
@@ -103,7 +112,7 @@ class BatchBuilder:
             return []
 
         # window the fresh events
-        chunks = [fresh[i:i + max_events] for i in range(0, len(fresh), max_events)] or [[]]
+        chunks = self._window(fresh, dets_by_event, max_events, max_bytes)
         batches, persisted_ids = [], []
         for chunk in chunks:
             chunk_dets = [d for e in chunk for d in dets_by_event.get(e.get("event_id"), [])]
@@ -115,6 +124,29 @@ class BatchBuilder:
         if persist:
             self.commit()
         return batches
+
+    def _window(self, fresh: List[Dict[str, Any]], dets_by_event: Dict[Any, list],
+                max_events: int, max_bytes: int) -> List[List[Dict[str, Any]]]:
+        """Split into windows bounded by event count AND serialized size.
+
+        Count alone is not enough: the receiver rejects an over-2-MiB body with a
+        terminal 4xx, the shipper turns that into an error before `commit()`, and
+        the reader checkpoint never advances — so the same window is re-read every
+        timer tick forever. An event that exceeds the budget on its own still gets
+        its own window; nothing is dropped here."""
+        windows: List[List[Dict[str, Any]]] = []
+        current: List[Dict[str, Any]] = []
+        used = 0
+        for event in fresh:
+            size = len(_canonical(event))
+            for det in dets_by_event.get(event.get("event_id"), []):
+                size += len(_canonical(det))
+            if current and (len(current) >= max_events or used + size > max_bytes):
+                windows.append(current); current, used = [], 0
+            current.append(event); used += size
+        if current:
+            windows.append(current)
+        return windows or [[]]
 
     def commit(self) -> None:
         """Atomically make the already-built chain and idempotency state durable."""

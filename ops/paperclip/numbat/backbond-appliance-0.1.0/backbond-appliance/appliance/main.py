@@ -18,7 +18,7 @@ from appliance.readers import get_reader, available as readers_available
 from appliance.pipeline import normalize, redact, ContentLeak
 from appliance.rules.engine import RuleSet, Allowlist
 from appliance.rules.cel_engine import CelRuleSet, CelAllowlist, is_cel_pack
-from appliance.batch import BatchBuilder, Signer
+from appliance.batch import DEFAULT_MAX_BATCH_BYTES, BatchBuilder, Signer
 
 
 def _now() -> str:
@@ -124,6 +124,7 @@ def cmd_run(cfg, dry=False):
                            os.path.expanduser(cfg["state_dir"]), cfg["producer"])
 
     max_events = int(cfg.get("ship", {}).get("max_events_per_batch", 5000))
+    max_bytes = int(cfg.get("ship", {}).get("max_batch_bytes", DEFAULT_MAX_BATCH_BYTES))
     checkpoint = None
     if hasattr(reader, "read_window"):
         reader.configure_checkpoint(os.path.expanduser(cfg["state_dir"]))
@@ -150,7 +151,7 @@ def cmd_run(cfg, dry=False):
             sys.stderr.write(f"DROPPED (fail-closed): {e}\n")
     window = {"start": _now(), "end": _now()}
     batches = builder.build(emit_events, determinations, window, max_events=max_events,
-                            persist=checkpoint is None)
+                            max_bytes=max_bytes, persist=checkpoint is None)
     shipped = []
     if not dry:
         for b in batches:

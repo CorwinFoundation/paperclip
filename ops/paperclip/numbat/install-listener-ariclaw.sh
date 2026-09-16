@@ -5,7 +5,7 @@ REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 ROOT="${BACKBOND_INSTALL_ROOT:-}"
 DRY_RUN="${DRY_RUN:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
-EXPECTED_SHA=b514f100658be5a0006cd24483d0918acf5616e1dc6b5cd9a3afb675787e338e
+EXPECTED_SHA=2f82a4601eb9c95bcef5e4ab3f6f2438834b92e7d5d471eaa91ba25761b55029
 OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"
@@ -79,7 +79,7 @@ reader: {name: "codex_rollout", path: "/mnt/paperclipdata/dot-paperclip/instance
 rules: {pack: "coding_agent.cel.yaml", allowlist: "paperclip_allowlist.cel.yaml"}
 signing: {key_path: "/var/lib/backbond/appliance.key", key_id: "$APPLIANCE_ID-key-1"}
 state_dir: "/var/lib/backbond/appliance-state"
-ship: {mode: "http", url: "http://127.0.0.1:8787/ingest", tenant_id: "$TENANT_ID", source_id: "$SOURCE_ID", max_events_per_batch: 5000, gzip: true, retries: 4, backoff_base_sec: 0.5, timeout_sec: 30}
+ship: {mode: "http", url: "http://127.0.0.1:8787/ingest", tenant_id: "$TENANT_ID", source_id: "$SOURCE_ID", max_events_per_batch: 1000, max_batch_bytes: 1572864, gzip: true, retries: 4, backoff_base_sec: 0.5, timeout_sec: 30}
 producer: {collector_version: "appliance-0.1.0", evidence_profile_version: "1.0", scanner_version: "na-appliance", corpus_version: "na-appliance", rule_pack_version: "0.1", seed: 0}
 EOF
 put "$ETC/appliance-ingest.env" 0600 root:root <<EOF
