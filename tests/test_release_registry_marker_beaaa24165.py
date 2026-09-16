@@ -14,11 +14,14 @@ from tools.release_registry_marker import (
 
 
 REPO = Path(__file__).resolve().parents[1]
-# Re-pinned for BEAAA-31091: the ii-015 indirect-injection fixture prompt changed
-# to clear the VAPI 403, moving that one row's runtime identity to
-# 41434ba0...103f. Row counts are unchanged (2,353 / 2,352); only the hash moves.
+# Re-pinned for BEAAA-31092: the 67 evidenced rank-2 rows opt in to development-mode
+# scoring through `attestation_tier=founder_dev_mode` + `dev_scoring_active`, which
+# changes those rows' normalized bytes. The row census does not move -- counts stay
+# 2,353 / 2,353 / 2,352 and the exclusion proof stays at 137 rows -- so only the
+# digest is re-pinned. Previous pin ca712717...69bf8 came from BEAAA-31091 (ii-015
+# indirect-injection fixture prompt).
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    "ca7127178545cbb3abdd7ce0bfeb192db7745d141c86febe69690688f0f69bf8"
+    "7d416f7dfa7fac8dd7412dfbcec535fa7c7aad9b20ed53ecaa6e7800a4fc2ef4"
 )
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+from functools import lru_cache
 import re
 import sys
 from collections import Counter
@@ -905,6 +906,28 @@ def _merge_authorized_tau_support_crm(
     return rows
 
 
+@lru_cache(maxsize=1)
+def _beaaa31092_dev_scored_digests() -> frozenset[str]:
+    """Dedupe digests the BEAAA-31092 rank-2 ledger resolved to ``scored``.
+
+    The ledger is the only place that carries the fail-closed evidence decision
+    (bound response, terminal verdict, target-measured provenance, supported
+    capability) and the CEO's verdict-spread tier gate. Reading it here keeps the
+    registry from re-deciding eligibility with a weaker rule. A missing or
+    unreadable ledger promotes nothing.
+    """
+    path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-ledger.json"
+    try:
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(
+        str(row["dedupe_sha256"])
+        for row in ledger.get("rows", [])
+        if row.get("disposition") == "scored"
+    )
+
+
 def _merge_content_candidate_inventory(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -946,6 +969,18 @@ def _merge_content_candidate_inventory(
             "candidate_registration_status": "registered_reported_not_scored",
             "candidate_rubric_mapping_status": "unmapped_reported_not_scored",
         }
+        if str(candidate["dedupe_sha256"]) in _beaaa31092_dev_scored_digests():
+            # BEAAA-31092: dev-mode scoring only. ``_scoring_active`` resolves this
+            # to scored when BACKBOND_FOUNDER_DEV_MODE=on and reported-not-scored
+            # otherwise, and a content-candidate row is non-countable while it is
+            # reported-not-scored, so the flag-off production count never moves.
+            candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
+            candidate_metadata["dev_scoring_active"] = True
+            # The registration literal below hardcodes scoring_active=False, so the
+            # dev resolution has to be written in rather than left to the mapping
+            # resolver that never sees these rows.
+            candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
+            candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
         current = existing.get(key)
         if current is not None and (
             current.get("production_runner_executable") is True
