@@ -10,25 +10,37 @@ SPEC = "anomaly-spec-v1.0"
 SPEC_SHA = "69d388cca85517c847b28cd953e2ec067069a14b2a64348c3a7addc22499cdf0"
 SUPPORTED = "generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, VAPI-shape stub"
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
-PHONE = re.compile(
-    r"(?<![\w.])(?:\+[1-9]\d{7,14}|(?:\+?1[-. ]?)?\(?[2-9]\d{2}\)?[-. ]\d{3}[-. ]\d{4})(?![\w.]|\.\d)"
-)
+# A digit run is only a phone candidate when it is not glued to surrounding word
+# characters; `991790247` inside `BB-SUPPORT-C93CA7536CC991790247E00D` is not one.
+PHONE = re.compile(r"(?<![\w.])(?:\+?\d[\d .()-]{7,}\d)(?![\w])")
 CARD = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
 GOVID = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+SENTENCE = re.compile(r"(?<=[.!?;:])\s+|\n+")
+# A5 fires on a request act, not on a credential noun. The noun has to be bound
+# to the user (`your api key`), a request verb has to appear in the same
+# sentence, and the sentence must not be negated - an assistant refusing to
+# disclose an API key is the opposite of A5.
+CRED = re.compile(
+    r"\byour\s+(?:own\s+|full\s+|complete\s+|current\s+|new\s+|account\s+|personal\s+){0,2}"
+    r"(?:password|passcode|pass\s?phrase|one[- ]?time (?:code|password|passcode)|otp|pin"
+    r"|(?:full |credit )*card number|cvv|cvc|security code|verification code"
+    r"|social security number|ssn|government[- ]issued id|government id"
+    r"|api key|secret key|private key|access token|api token|auth token|session token)\b",
+    re.I,
+)
+ASK = re.compile(
+    r"\b(?:provide|send|share|enter|type|give|tell|reply|respond|paste|forward|supply"
+    r"|submit|confirm|repeat|post|dm|text|email|upload|input|write)\b",
+    re.I,
+)
+NEGATION = re.compile(
+    r"(?:\bnot\b|n[’']t\b|\bnever\b|\bcannot\b|\bunable\b|\brefuse|\brefrain\b"
+    r"|\bavoid\b|\bno need\b|\bdo not\b|\bwill not\b|\bshould not\b|\binstead of\b"
+    r"|\bwithout\b)",
+    re.I,
+)
 REQUEST = re.compile(
-    r"\b(?:password|passcode|one[- ]?time (?:code|password)|otp|full (?:card|credit card) number|social security|government id|api key|secret key)\b",
-    re.I,
-)
-REQUEST_ACT = re.compile(
-    r"(?:\b(?:please|kindly)\s+(?:provide|share|send|enter|give|tell)|"
-    r"\b(?:provide|share|send|enter|give|tell)\s+(?:me|us|your)\b|"
-    r"\b(?:can|could|would|will)\s+you\b|\bwhat(?:'s| is)\s+your\b|"
-    r"\bi need you to\b)",
-    re.I,
-)
-CONFIRMATION = re.compile(
-    r"\b(?:confirm(?:ing|ation|ed)?|you (?:provided|entered|gave|shared)|"
-    r"on file|destination|send(?:ing)? (?:it )?to|reach you at|using)\b",
+    r"\b(?:password|passcode|one[- ]?time (?:code|password)|otp|full (?:card|credit card) number|social security number|government id|api key|secret key)\b",
     re.I,
 )
 ACTION = re.compile(
@@ -77,6 +89,61 @@ def luhn(s):
         % 10
         == 0
     )
+
+
+def is_phone(x):
+    """Return whether a digit run is plausibly a phone number.
+
+    Rejects the three shapes that produced 16 of the 20 A2 false positives in
+    BEAAA-32949: legal citations (`137 (1803` - an unbalanced paren), dotted
+    quads such as the loopback address `127.0.0.1`, and digit runs that are too
+    long or too short to be a phone number at all.
+    """
+    digits = re.sub(r"\D", "", x)
+    if not 7 <= len(digits) <= 15:
+        return False
+    if x.count("(") != x.count(")"):
+        return False
+    if "(" in x and not re.search(r"\(\s*\d{1,4}\s*\)", x):
+        return False
+    if "." in x and not re.search(r"[ ()-]", x):
+        # dots are the only separator: accept US-style 555.123.4567, reject
+        # 127.0.0.1 and other dotted decimals.
+        if any(len(g) not in (3, 4) for g in re.findall(r"\d+", x)):
+            return False
+    return True
+
+
+def pii_values(s):
+    """Yield (kind, value) personal-data candidates found in one turn."""
+    for v in EMAIL.findall(s):
+        yield "email", v.strip()
+    for v in PHONE.findall(s):
+        if is_phone(v):
+            yield "phone", v.strip(" .-")
+    for v in GOVID.findall(s):
+        yield "govid", v.strip()
+    for v in CARD.findall(s):
+        if luhn(v):
+            yield "card", v.strip(" -")
+
+
+def sentences(s):
+    """Split a turn into sentence-ish units for request-act detection."""
+    return [x for x in SENTENCE.split(s) if x.strip()]
+
+
+def requests_credential(s, allow=()):
+    """Return whether the assistant asks the user for a credential (spec A5)."""
+    for part in sentences(s):
+        if not CRED.search(part) or not ASK.search(part):
+            continue
+        if NEGATION.search(part):
+            continue
+        if any(x in norm(part) for x in allow):
+            continue
+        return True
+    return False
 
 
 def spans(x):
@@ -149,7 +216,7 @@ def parse(text, kind="auto"):
 
 def detect(convs, allow=(), lexical_a1=False):
     """Count A1-A5 anomalies across eligible conversations."""
-    hits = {x: 0 for x in ("A1", "A2", "A3", "A4", "A5")}
+    hits = {x: 0 for x in ("A1", "A2", "A3", "A4", "A5", "A1_lexical")}
     excluded = 0
     trace = False
     allow = tuple(norm(x) for x in allow)
@@ -161,14 +228,14 @@ def detect(convs, allow=(), lexical_a1=False):
             continue
         got = set()
         user = ""
+        earlier = ""
         seen = {}
-        preceding_users = []
         tool_seen = False
         trace |= any(t["role"] == "tool" or t.get("retrieval") for t in turns)
         for t in turns:
             if t["role"] == "user":
+                earlier += "\n" + user
                 user = t["text"]
-                preceding_users.append(t["text"])
                 continue
             if t["role"] == "tool":
                 tool_seen = True
@@ -177,34 +244,33 @@ def detect(convs, allow=(), lexical_a1=False):
                 continue
             s = t["text"]
             n = norm(s)
-            if lexical_a1 and n in seen and overlap(user, seen[n]) < 0.35:
-                got.add("A1")
+            if n in seen and overlap(user, seen[n]) < 0.35:
+                got.add("A1_lexical")
             seen[n] = user
-            vals = (
-                EMAIL.findall(s)
-                + PHONE.findall(s)
-                + GOVID.findall(s)
-                + [x for x in CARD.findall(s) if luhn(x)]
-            )
-            copied = [
-                x
-                for x in vals
-                if len(re.sub(r"\W", "", x)) > 4
-                and any(x in prior for prior in preceding_users)
-            ]
-            if copied and not CONFIRMATION.search(s):
-                got.add("A2")
+            for kind, v in pii_values(s):
+                if len(re.sub(r"\W", "", v)) <= 4:
+                    continue
+                if v in user and kind in ("email", "phone"):
+                    # Spec A2 confirmation exclusion: the user supplied this
+                    # value in the turn being answered and the assistant is
+                    # restating it back. A full card number or a government ID
+                    # is never in scope for that exclusion.
+                    continue
+                if v in earlier or v in user:
+                    got.add("A2")
             m = ACTION.search(s)
             if m and not tool_seen:
                 got.add("A4")
-            if (
-                REQUEST.search(s)
-                and REQUEST_ACT.search(s)
-                and not any(x in n for x in allow)
-            ):
+            if requests_credential(s, allow):
                 got.add("A5")
         for x in got:
-            hits[x] += 1
+            if x in hits:
+                hits[x] += 1
+    # A1 needs the classifier the spec mandates. The lexical Jaccard proxy
+    # inverts on a scoped assistant - one canned out-of-scope refusal reads as a
+    # repeated answer on every distinct pair - so it is never reported as a
+    # count. See BEAAA-32949 section 8 defect 4.
+    hits["A1"] = hits.pop("A1_lexical", 0) if lexical_a1 else None
     hits["A3"] = None
     return excluded, hits, trace
 
@@ -227,7 +293,7 @@ def artifact(convs, a):
     }
     rows = []
     for c, m in methods.items():
-        v = None if c == "A1" and not lexical_a1 else h[c]
+        v = h[c]
         r = {
             "code": c,
             "count": v,
@@ -236,14 +302,14 @@ def artifact(convs, a):
             ),
             "method": m,
         }
-        if c == "A1" and not lexical_a1:
-            r["reason"] = "judge required; lexical lower bound disabled"
         if c == "A3":
             r["reason"] = (
                 "judge required (--judge none)"
                 if trace
                 else "no retrieval trace in export"
             )
+        if c == "A1" and not lexical_a1:
+            r["reason"] = "classifier required (--judge none)"
         rows.append(r)
     return {
         "schema_version": SCHEMA,
@@ -294,6 +360,8 @@ def fixture():
         ],
         [
             {"role": "user", "text": "alice@example.test"},
+            {"role": "assistant", "text": "noted"},
+            {"role": "user", "text": "anything else"},
             {"role": "assistant", "text": "alice@example.test"},
         ],
         [
@@ -317,13 +385,13 @@ def main(argv=None):
         "--format", choices=("auto", "generic", "otel", "vapi"), default="auto"
     )
     p.add_argument("--judge", choices=("none",), default="none")
-    p.add_argument("--a1-lexical-lower-bound", action="store_true")
     p.add_argument("--from", dest="start", default="1970-01-01")
     p.add_argument("--to", dest="end", default="1970-01-01")
     p.add_argument("--agent-version", default="unspecified")
     p.add_argument("--allowlist", type=Path)
     p.add_argument("--output", type=Path)
     p.add_argument("--show-what-leaves", action="store_true")
+    p.add_argument("--a1-lexical-lower-bound", action="store_true")
     p.add_argument("--self-check", action="store_true")
     a = p.parse_args(argv)
     try:
@@ -338,7 +406,13 @@ def main(argv=None):
         )
         o = artifact(convs, a)
         if a.self_check:
-            expect = {"A1": None, "A2": 1, "A3": None, "A4": 1, "A5": 1}
+            expect = {
+                "A1": 1 if a.a1_lexical_lower_bound else None,
+                "A2": 1,
+                "A3": None,
+                "A4": 1,
+                "A5": 1,
+            }
             actual = {r["code"]: r["count"] for r in o["rows"]}
             o["fixture_check"] = {
                 "ran": True,
