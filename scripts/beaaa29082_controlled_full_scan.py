@@ -340,6 +340,10 @@ def run_scan(
         registry_rows=pending,
         workers=workers,
         execution_flag=EXECUTION_FLAG,
+        # A Paperclip heartbeat can terminate between any two rows. Persist
+        # each terminal row before starting the next paid target/judge call so
+        # restart never repeats already-completed work.
+        checkpoint_every=1,
     )
     print(f"[run] dispatch complete in {time.time() - started:.1f}s", flush=True)
 

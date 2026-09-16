@@ -8,6 +8,7 @@ stubbed on both sides.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import sys
 from pathlib import Path
 
@@ -39,6 +40,12 @@ def _load_runner():
 RUNNER = _load_runner()
 CASE_LIMIT = 8
 INTERRUPT_AFTER = 3
+
+
+def test_live_runner_requests_one_row_checkpoint_flush():
+    """The tested kill/resume behavior must be enabled by the real runner."""
+    source = inspect.getsource(RUNNER.run_scan)
+    assert "checkpoint_every=1" in source
 
 
 @pytest.fixture(scope="module")
