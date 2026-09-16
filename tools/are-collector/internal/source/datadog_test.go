@@ -49,6 +49,65 @@ func TestDatadogDriverPaginationAndFieldMinimization(t *testing.T) {
 	}
 }
 
+func TestDatadogLLMObsSpansSearchAndMinimization(t *testing.T) {
+	d, err := NewDatadogSourceDriver(DatadogConfig{Site: "datadoghq.com", APIKey: "api", ApplicationKey: "app", Dataset: "spans", Query: "@ml_app:backbond-acceptance", Client: roundTrip(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/api/v2/llm-obs/v1/spans/events/search" {
+			t.Fatalf("path=%s", r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		data := body["data"].(map[string]any)
+		if data["type"] != "spans" {
+			t.Fatalf("search type=%v", data["type"])
+		}
+		return response(200, `{"data":[{"id":"6379385944832246036","type":"span","attributes":{"timestamp":"2026-09-16T11:00:00Z","trace_id":"7955474002576861981","span_id":"6379385944832246036","name":"backbond-acceptance-run","kind":"agent","ml_app":"backbond-acceptance","input":"SECRET","evaluation":{"outcome_confirmed":{"eval_metric_type":"categorical","value":"confirmed","comment":"SECRET"}}}}],"meta":{}}`, r), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _, err := d.Acquire(context.Background(), "", 50)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("rows=%v err=%v", rows, err)
+	}
+	n, err := d.Normalize(rows[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.MappingVersion != DatadogSpansMappingVersion || n.Attributes["input"] != nil || n.Attributes["trace_id"] != "7955474002576861981" {
+		t.Fatalf("normalized=%+v", n)
+	}
+	eval := n.Attributes["evaluation"].(map[string]any)["outcome_confirmed"].(map[string]any)
+	if eval["value"] != "confirmed" || eval["comment"] != nil {
+		t.Fatalf("evaluation=%v", eval)
+	}
+}
+
+func TestDatadogLLMObsAgentSpanShapeUsesNanosecondsAndSpanKind(t *testing.T) {
+	d, err := NewDatadogSourceDriver(DatadogConfig{Site: "datadoghq.com", APIKey: "api", ApplicationKey: "app", Dataset: "spans", Client: roundTrip(func(r *http.Request) (*http.Response, error) {
+		return response(200, `{"data":[{"id":"span-1","type":"span","attributes":{"start_ns":1789556400000000000,"trace_id":"trace-1","span_id":"span-1","parent_id":"root-1","name":"lookup_order_status","span_kind":"tool","evaluation":{"tool_action_evidenced":{"eval_metric_type":"score","value":1,"tags":["env:controlled"]}}}}],"meta":{}}`, r), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _, err := d.Acquire(context.Background(), "", 10)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("rows=%v err=%v", rows, err)
+	}
+	n, err := d.Normalize(rows[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.ObservedAt != "2026-09-16T11:00:00Z" || n.Attributes["kind"] != "tool" || n.Attributes["start_ns"] != nil {
+		t.Fatalf("normalized=%+v", n)
+	}
+	eval := n.Attributes["evaluation"].(map[string]any)["tool_action_evidenced"].(map[string]any)
+	if eval["value"] != json.Number("1") || eval["tags"] != nil {
+		t.Fatalf("evaluation=%v", eval)
+	}
+}
+
 func TestDatadogDriverCursorAdvancement(t *testing.T) {
 	// When Datadog returns no page.after, the window is complete and the cursor must
 	// advance AfterTS to the latest event timestamp seen.
@@ -75,6 +134,27 @@ func TestDatadogDriverCursorAdvancement(t *testing.T) {
 	}
 	if c.PageCursor != "" {
 		t.Fatalf("PageCursor must be empty after window completion, got %q", c.PageCursor)
+	}
+}
+
+func TestDatadogSpanCursorOrdersFractionalTimestampAfterWholeSecond(t *testing.T) {
+	d, err := NewDatadogSourceDriver(DatadogConfig{Site: "datadoghq.com", APIKey: "api", ApplicationKey: "app", Dataset: "spans", Client: roundTrip(func(r *http.Request) (*http.Response, error) {
+		return response(200, `{"data":[
+			{"id":"agent","type":"span","attributes":{"start_timestamp":"2026-09-16T12:22:44Z"}},
+			{"id":"llm","type":"span","attributes":{"start_timestamp":"2026-09-16T12:22:44.01Z"}},
+			{"id":"tool","type":"span","attributes":{"start_timestamp":"2026-09-16T12:22:44.32Z"}}
+		],"meta":{}}`, r), nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, nextCursor, err := d.Acquire(context.Background(), "", 10)
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("rows=%d err=%v", len(rows), err)
+	}
+	c := decodeCursorOrFail(t, nextCursor)
+	if c.AfterTS != "2026-09-16T12:22:44.32Z" || len(c.AfterIDs) != 1 || c.AfterIDs[0] != "tool" {
+		t.Fatalf("cursor=%+v", c)
 	}
 }
 

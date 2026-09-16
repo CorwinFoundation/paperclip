@@ -52,7 +52,8 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	datadogSite := flags.String("datadog-site", os.Getenv("DATADOG_SITE"), "Datadog site (or DATADOG_SITE)")
 	datadogAPIKey := flags.String("datadog-api-key", os.Getenv("DD_API_KEY"), "Datadog API key (or DD_API_KEY)")
 	datadogAppKey := flags.String("datadog-app-key", os.Getenv("DD_APP_KEY"), "Datadog application key (or DD_APP_KEY)")
-	datadogQuery := flags.String("datadog-query", os.Getenv("DATADOG_QUERY"), "Datadog Logs v2 query (or DATADOG_QUERY)")
+	datadogDataset := flags.String("datadog-dataset", os.Getenv("DATADOG_DATASET"), "Datadog dataset: logs (default) or spans (or DATADOG_DATASET)")
+	datadogQuery := flags.String("datadog-query", os.Getenv("DATADOG_QUERY"), "Datadog query (or DATADOG_QUERY)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -77,7 +78,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	events, sourceCounter, err := collectEvents(*mode, *source, stdin, policy, *receiptPath, *deploymentID, *numbatCommit, *numbatSchema, *checkpointPath, numbatsource.RegistryConfig{
 		NumbatCommit: *numbatCommit, NumbatSchema: *numbatSchema,
 		Langfuse: numbatsource.LangfuseConfig{BaseURL: *langfuseBaseURL, PublicKey: *langfusePublicKey, SecretKey: *langfuseSecretKey, Version: *langfuseVersion},
-		Datadog:  numbatsource.DatadogConfig{Site: *datadogSite, APIKey: *datadogAPIKey, ApplicationKey: *datadogAppKey, Query: *datadogQuery},
+		Datadog:  numbatsource.DatadogConfig{Site: *datadogSite, APIKey: *datadogAPIKey, ApplicationKey: *datadogAppKey, Dataset: *datadogDataset, Query: *datadogQuery},
 	})
 	if err != nil {
 		return err

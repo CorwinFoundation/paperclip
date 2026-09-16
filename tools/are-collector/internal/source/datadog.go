@@ -11,9 +11,14 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"backbond/are-collector/internal/schemav1"
 )
 
-const DatadogMappingVersion = "datadog-logs-v2-map-v0.1"
+const (
+	DatadogMappingVersion      = "datadog-logs-v2-map-v0.1"
+	DatadogSpansMappingVersion = "datadog-llmobs-spans-v0.1"
+)
 
 type HTTPDoer interface {
 	Do(*http.Request) (*http.Response, error)
@@ -21,6 +26,7 @@ type HTTPDoer interface {
 
 type DatadogConfig struct {
 	Site, APIKey, ApplicationKey, Query string
+	Dataset                             string // "logs" (default) or "spans"
 	Client                              HTTPDoer
 }
 
@@ -28,6 +34,7 @@ type DatadogSourceDriver struct {
 	endpoint                          *url.URL
 	apiKey, appKey, query, checkpoint string
 	client                            HTTPDoer
+	dataset                           string
 }
 
 // datadogCursor is the durable high-water mark persisted across collection windows.
@@ -91,15 +98,29 @@ func NewDatadogSourceDriver(config DatadogConfig) (*DatadogSourceDriver, error) 
 		return nil, fmt.Errorf("datadog API and application keys are required")
 	}
 	ep := *u
-	ep.Path = "/api/v2/logs/events/search"
+	dataset := strings.ToLower(strings.TrimSpace(config.Dataset))
+	if dataset == "" {
+		dataset = "logs"
+	}
+	switch dataset {
+	case "logs":
+		ep.Path = "/api/v2/logs/events/search"
+	case "spans":
+		ep.Path = "/api/v2/llm-obs/v1/spans/events/search"
+	default:
+		return nil, fmt.Errorf("datadog dataset must be logs or spans")
+	}
 	client := config.Client
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	}
-	return &DatadogSourceDriver{endpoint: &ep, apiKey: config.APIKey, appKey: config.ApplicationKey, query: config.Query, client: client}, nil
+	return &DatadogSourceDriver{endpoint: &ep, apiKey: config.APIKey, appKey: config.ApplicationKey, query: config.Query, dataset: dataset, client: client}, nil
 }
 
 func (d *DatadogSourceDriver) Descriptor() Descriptor {
+	if d.dataset == "spans" {
+		return Descriptor{DriverID: "datadog", DriverVersion: InterfaceVersion, SourceClass: "llm_observability_spans", SourcePin: "datadog-llmobs-spans-search-v1", EvidenceQuality: EvidenceGateway}
+	}
 	return Descriptor{DriverID: "datadog", DriverVersion: InterfaceVersion, SourceClass: "logs_api_v2", SourcePin: "datadog-logs-api-v2", EvidenceQuality: EvidenceGateway}
 }
 func (d *DatadogSourceDriver) Checkpoint(context.Context) (string, error) { return d.checkpoint, nil }
@@ -129,13 +150,19 @@ func (d *DatadogSourceDriver) Acquire(ctx context.Context, after string, max int
 		to = cursor.WindowTo
 	}
 
-	body := map[string]any{
+	attrs := map[string]any{
 		"filter": map[string]any{"query": d.query, "from": from, "to": to},
 		"page":   map[string]any{"limit": max},
-		"sort":   "timestamp",
 	}
 	if cursor.PageCursor != "" {
-		body["page"].(map[string]any)["cursor"] = cursor.PageCursor
+		attrs["page"].(map[string]any)["cursor"] = cursor.PageCursor
+	}
+	var body map[string]any
+	if d.dataset == "spans" {
+		body = map[string]any{"data": map[string]any{"type": "spans", "attributes": attrs}}
+	} else {
+		attrs["sort"] = "timestamp"
+		body = attrs
 	}
 	raw, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.endpoint.String(), bytes.NewReader(raw))
@@ -176,6 +203,7 @@ func (d *DatadogSourceDriver) Acquire(ctx context.Context, after string, max int
 		} `json:"meta"`
 	}
 	dec := json.NewDecoder(io.LimitReader(resp.Body, 16<<20))
+	dec.UseNumber()
 	if err := dec.Decode(&payload); err != nil {
 		return nil, after, &Error{Kind: FailureSchema, Err: fmt.Errorf("datadog response schema: %w", err)}
 	}
@@ -192,13 +220,23 @@ func (d *DatadogSourceDriver) Acquire(ctx context.Context, after string, max int
 
 	out := make([]RawEnvelope, 0, len(payload.Data))
 	for _, item := range payload.Data {
-		if item.ID == "" || item.Type != "log" || item.Attributes == nil {
-			return nil, after, &Error{Kind: FailureSchema, Err: fmt.Errorf("datadog log resource missing id, type, or attributes")}
+		expectedType := "log"
+		if d.dataset == "spans" {
+			expectedType = "span"
 		}
-		ts := stringValue(item.Attributes["timestamp"])
+		if item.ID == "" || item.Type != expectedType || item.Attributes == nil {
+			return nil, after, &Error{Kind: FailureSchema, Err: fmt.Errorf("datadog %s resource missing id, type, or attributes", expectedType)}
+		}
+		ts := datadogObservedAt(item.Attributes)
+		if ts == "" {
+			return nil, after, &Error{Kind: FailureSchema, Err: fmt.Errorf("datadog %s resource missing timestamp", expectedType)}
+		}
 
-		// Advance the running max.
-		if ts > runMaxTS {
+		// Advance the running max using time order, not RFC3339 string order.
+		// A whole-second value ends in "Z", which sorts after the fractional
+		// separator in a later value from the same second (for example,
+		// 12:22:44Z versus 12:22:44.32Z).
+		if datadogTimestampAfter(ts, runMaxTS) {
 			runMaxTS = ts
 			runMaxIDs = []string{item.ID}
 		} else if ts == runMaxTS && !contains(runMaxIDs, item.ID) {
@@ -222,9 +260,35 @@ func (d *DatadogSourceDriver) Acquire(ctx context.Context, after string, max int
 }
 
 func (d *DatadogSourceDriver) Normalize(raw RawEnvelope) (NormalizedEvent, error) {
-	ts := stringValue(raw.Payload["timestamp"])
+	ts := datadogObservedAt(raw.Payload)
 	if raw.Offset == "" || ts == "" {
-		return NormalizedEvent{}, fmt.Errorf("datadog log requires id and timestamp")
+		return NormalizedEvent{}, fmt.Errorf("datadog %s requires id and timestamp", d.dataset)
+	}
+	if d.dataset == "spans" {
+		attrs := map[string]any{"schema_event_type": datadogSpanEventType(raw.Payload), "datadog.coverage": "llm_observability_spans", "datadog.trajectory_coverage": true}
+		for _, k := range []string{"trace_id", "span_id", "parent_id", "name", "kind", "ml_app", "agent_id", "deployment_id", "action_class", "outcome_status", "model_name", "model_version", "status", "start_timestamp", "end_timestamp"} {
+			if v, ok := raw.Payload[k]; ok {
+				attrs[k] = v
+			}
+		}
+		if _, ok := attrs["kind"]; !ok {
+			if v, ok := raw.Payload["span_kind"]; ok {
+				attrs["kind"] = v
+			}
+		}
+		if _, ok := attrs["start_timestamp"]; !ok {
+			attrs["start_timestamp"] = ts
+		}
+		if evaluation, ok := raw.Payload["evaluation"].(map[string]any); ok {
+			safe := map[string]any{}
+			for label, value := range evaluation {
+				if m, ok := value.(map[string]any); ok {
+					safe[label] = safeDatadogEvaluation(label, m)
+				}
+			}
+			attrs["evaluation"] = safe
+		}
+		return NormalizedEvent{SourceEventID: raw.Offset, ObservedAt: ts, AgentID: stringValue(attrs["agent_id"]), DeploymentID: stringValue(attrs["deployment_id"]), OperationName: stringValue(attrs["name"]), ActionClass: stringValue(attrs["action_class"]), OutcomeStatus: stringValue(attrs["outcome_status"]), Attributes: attrs, SourceIntegrity: map[string]any{"api": "llm_observability_spans_search_v1", "coverage": "collection coverage incomplete", "sampling": "unknown"}, MappingVersion: DatadogSpansMappingVersion}, nil
 	}
 	attrs := map[string]any{"schema_event_type": "agent_invocation", "datadog.coverage": "logs_v2_only", "datadog.trajectory_coverage": false}
 	for _, k := range []string{"service", "status", "host"} {
@@ -245,8 +309,77 @@ func (d *DatadogSourceDriver) Normalize(raw RawEnvelope) (NormalizedEvent, error
 	return NormalizedEvent{SourceEventID: raw.Offset, ObservedAt: ts, SessionID: stringValue(attrs["session_id"]), AgentID: stringValue(attrs["agent_id"]), DeploymentID: stringValue(attrs["deployment_id"]), OperationName: stringValue(attrs["operation_name"]), ActionClass: stringValue(attrs["action_class"]), OutcomeStatus: stringValue(attrs["outcome_status"]), Attributes: attrs, SourceIntegrity: map[string]any{"api": "logs_v2", "coverage": "collection coverage incomplete"}, MappingVersion: DatadogMappingVersion}, nil
 }
 
+func safeDatadogEvaluation(label string, value map[string]any) map[string]any {
+	safe := map[string]any{}
+	for _, key := range []string{"eval_metric_type", "value", "evaluator_id", "evaluator_version", "scope", "timestamp", "evaluation_time", "judgment_type", "outcome_type"} {
+		if v, ok := value[key]; ok {
+			safe[key] = v
+		}
+	}
+	kind := "automated_judgment"
+	if strings.Contains(strings.ToLower(label), "confirmed") || strings.EqualFold(stringValue(value["judgment_type"]), "confirmed_outcome") || strings.EqualFold(stringValue(value["outcome_type"]), "confirmed") {
+		kind = "confirmed_outcome"
+	}
+	safe["judgment_kind"] = kind
+	return safe
+}
+
+func datadogSpanEventType(payload map[string]any) string {
+	kind := stringValue(payload["kind"])
+	if kind == "" {
+		kind = stringValue(payload["span_kind"])
+	}
+	if kind == "tool" {
+		return string(schemav1.EventToolCall)
+	}
+	return string(schemav1.EventAgentInvocation)
+}
+
 func sameOrigin(a, b *url.URL) bool {
 	return a != nil && b != nil && a.Scheme == b.Scheme && a.Host == b.Host
+}
+
+// datadogObservedAt accepts both the preview export's RFC3339 timestamp fields
+// and the current Agent span shape, which reports start_ns as a JSON number.
+// UseNumber above is required so a nanosecond epoch does not round through a
+// float64 before conversion.
+func datadogObservedAt(payload map[string]any) string {
+	for _, key := range []string{"timestamp", "start_timestamp"} {
+		if value := stringValue(payload[key]); value != "" {
+			return value
+		}
+	}
+	if value, ok := payload["start_ns"]; ok {
+		var ns int64
+		switch number := value.(type) {
+		case json.Number:
+			ns, _ = number.Int64()
+		case int64:
+			ns = number
+		case int:
+			ns = int64(number)
+		case float64:
+			if number == float64(int64(number)) {
+				ns = int64(number)
+			}
+		}
+		if ns > 0 {
+			return time.Unix(0, ns).UTC().Format(time.RFC3339Nano)
+		}
+	}
+	return ""
+}
+
+func datadogTimestampAfter(candidate, current string) bool {
+	if current == "" {
+		return candidate != ""
+	}
+	candidateTime, candidateErr := time.Parse(time.RFC3339Nano, candidate)
+	currentTime, currentErr := time.Parse(time.RFC3339Nano, current)
+	if candidateErr != nil || currentErr != nil {
+		return candidate > current
+	}
+	return candidateTime.After(currentTime)
 }
 
 func contains(ss []string, s string) bool {

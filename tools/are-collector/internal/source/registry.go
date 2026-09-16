@@ -55,6 +55,7 @@ func DefaultRegistry() *Registry {
 		APIKey:         os.Getenv("DD_API_KEY"),
 		ApplicationKey: os.Getenv("DD_APP_KEY"),
 		Query:          os.Getenv("DATADOG_QUERY"),
+		Dataset:        os.Getenv("DATADOG_DATASET"),
 	})
 	return r
 }
@@ -84,6 +85,7 @@ func datadogConfigFromEnvironment() DatadogConfig {
 		APIKey:         os.Getenv("DD_API_KEY"),
 		ApplicationKey: os.Getenv("DD_APP_KEY"),
 		Query:          os.Getenv("DATADOG_QUERY"),
+		Dataset:        os.Getenv("DATADOG_DATASET"),
 	}
 }
 

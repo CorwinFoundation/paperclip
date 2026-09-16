@@ -56,6 +56,22 @@ func TestCLIDatadogSourceDriverFailsClosedBeforeFixtureRead(t *testing.T) {
 	}
 }
 
+func TestCLIDatadogDatasetFlagReachesSourceDriver(t *testing.T) {
+	args := []string{
+		"-mode", "source-driver", "-source", "datadog",
+		"-customer-id", "tenant-1", "-agent-id", "agent-1", "-batch-id", "batch-1",
+		"-key-id", "key-1", "-ed25519-private-key-b64", testPrivateKeyB64(t),
+		"-checkpoint-path", t.TempDir() + "/checkpoint.json",
+		"-datadog-site", "https://api.datadoghq.com",
+		"-datadog-api-key", "api", "-datadog-app-key", "app",
+		"-datadog-dataset", "unsupported",
+	}
+	err := run(args, strings.NewReader(`{"fixture":true}`), &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "datadog dataset must be logs or spans") {
+		t.Fatalf("dataset flag was not passed to Datadog driver: %v", err)
+	}
+}
+
 // Negative control: make Append never match a prior row (`for false && scanner.Scan()`).
 // Observed: "replay duplicated output" at main_test.go:46, the replay re-emitting a full batch.
 func TestCLINumbatReconcilesAndReplayIsIdempotent(t *testing.T) {
