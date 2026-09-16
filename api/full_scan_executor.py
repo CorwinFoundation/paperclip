@@ -40,7 +40,13 @@ TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 # loses at most this many paid target/judge attempts.
 DEFAULT_DISPATCH_CHECKPOINT_ROWS = 10
 RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
-ACQUISITION_BASES = {"target-measured", "missing", "failed"}
+ACQUISITION_BASES = {
+    "target-measured",
+    "not-applicable",
+    "invariant-derived",
+    "missing",
+    "failed",
+}
 UNDERWRITING_RELEVANCES = {"direct", "category-proxy", "failed"}
 EVIDENCE_DISPOSITIONS = {"report-only"}
 _MAX_MANIFEST_EVIDENCE_REF_LENGTH = 512
@@ -158,6 +164,10 @@ class EvidenceAttemptRow:
     derived_result_id: str | None = None
     derived_result_version: str = "registered-case-result/v1"
     refusal: dict[str, Any] | None = None
+    # Populated only for ``applicable_when_capability_declared`` rows that
+    # terminate ``not_applicable``: carries the two fields named by the
+    # contract's ``na_evidence_required`` list.
+    na_evidence: dict[str, Any] | None = None
 
     def to_manifest_row(self) -> dict[str, Any]:
         return {
@@ -192,6 +202,7 @@ class EvidenceAttemptRow:
             "derived_result_id": self.derived_result_id,
             "derived_result_version": self.derived_result_version,
             "refusal": self.refusal,
+            "na_evidence": self.na_evidence,
         }
 
 
@@ -1145,14 +1156,18 @@ def dispatch_registry_attempt(
             )
         }
         unmet_criteria = {str(value) for value in result.unmet_criteria}
+        declared_capability = (
+            job.capability_manifest.get(required_capability)
+            if isinstance(job.capability_manifest, Mapping)
+            else None
+        )
         capability_unmet = bool(
             isinstance(applicability, Mapping)
             and applicability.get("status") == "applicable_when_capability_declared"
             and applicability.get("na_evidence_required")
             and required_capability
             and (
-                not isinstance(job.capability_manifest, Mapping)
-                or job.capability_manifest.get(required_capability) is not True
+                declared_capability is not True
             )
         )
         capability_only_failure = bool(
@@ -1162,19 +1177,36 @@ def dispatch_registry_attempt(
             and unmet_criteria
             and unmet_criteria <= capability_criteria
         )
-        result_status = "incomplete" if capability_only_failure else result.status
-        result_verdict = None if capability_only_failure else result.verdict
+        # An explicit False declaration is a deterministic applicability
+        # result. An absent key (or absent profile) remains an unknown gap and
+        # must stay incomplete. An explicit True declaration executes normally.
+        declared_not_applicable = capability_only_failure and declared_capability is False
+        result_status = "complete" if declared_not_applicable else (
+            "incomplete" if capability_only_failure else result.status
+        )
+        result_verdict = "not_applicable" if declared_not_applicable else (
+            None if capability_only_failure else result.verdict
+        )
         result_reason = result.incomplete_reason
+        na_evidence: dict[str, Any] | None = None
         if capability_only_failure:
-            declared = (
-                job.capability_manifest.get(required_capability)
-                if isinstance(job.capability_manifest, Mapping)
-                else None
-            )
-            result_reason = (
-                "unavailable_capability:"
-                f"{required_capability}={declared!r}"
-            )
+            if declared_not_applicable:
+                result_reason = None
+                na_evidence = {
+                    "profile_capability_manifest": dict(job.capability_manifest),  # type: ignore[arg-type]
+                    "missing_capability_name": required_capability,
+                    "declared_value": declared_capability,
+                    "capability_gate": (
+                        applicability.get("capability_gate")
+                        if isinstance(applicability, Mapping)
+                        else None
+                    ),
+                }
+            else:
+                result_reason = (
+                    "unavailable_capability:"
+                    f"{required_capability}={declared_capability!r}"
+                )
 
         rows_to_checkpoint.append(
             # These axes describe evidence provenance independently. A completed,
@@ -1193,8 +1225,8 @@ def dispatch_registry_attempt(
                 incomplete_reason=result_reason,
                 test_id=str(registry_row.get("test_id") or ""),
                 verdict=result_verdict,
-                target_calls=result.target_calls,
-                judge_calls=result.judge_calls,
+                target_calls=0 if declared_not_applicable else result.target_calls,
+                judge_calls=0 if declared_not_applicable else result.judge_calls,
                 estimated_judge_input_tokens=result.estimated_judge_input_tokens,
                 estimated_judge_output_tokens=result.estimated_judge_output_tokens,
                 estimated_judge_cost_usd=result.estimated_judge_cost_usd,
@@ -1203,14 +1235,12 @@ def dispatch_registry_attempt(
                 hit_count=result.hit_count,
                 sample_size=result.sample_size,
                 refusal=result.refusal,
-                acquisition_basis=(
-                    "target-measured"
-                    if result_status == "complete" and result.target_calls > 0
-                    else "missing"
-                    if result_status == "complete"
-                    else "failed"
-                    if result_status == "failed"
-                    else "missing"
+                na_evidence=na_evidence,
+                acquisition_basis=_acquisition_basis(
+                    status=result_status,
+                    verdict=result_verdict,
+                    target_calls=0 if declared_not_applicable else result.target_calls,
+                    judge_calls=0 if declared_not_applicable else result.judge_calls,
                 ),
                 underwriting_relevance=(
                     "category-proxy"
@@ -1327,6 +1357,57 @@ def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
         raise FullScanExecutorError(
             "target-measured evidence requires a complete attributable target call"
         )
+    if row.acquisition_basis == "not-applicable" and (
+        row.status != "complete"
+        or row.target_calls != 0
+        or row.verdict != "not_applicable"
+    ):
+        raise FullScanExecutorError(
+            "not-applicable evidence requires a complete, unmeasured, "
+            "not_applicable row"
+        )
+    if row.acquisition_basis == "invariant-derived" and (
+        row.status != "complete" or row.target_calls != 0 or row.judge_calls != 0
+    ):
+        raise FullScanExecutorError(
+            "invariant-derived evidence requires a complete row with no target "
+            "or judge call"
+        )
+
+
+def _acquisition_basis(
+    *,
+    status: str,
+    verdict: str | None,
+    target_calls: int,
+    judge_calls: int,
+) -> str:
+    """Classify how a terminal row's evidence was acquired.
+
+    ``missing`` means a genuine gap: the row should have carried an
+    attributable measurement and does not.  Rows that were correctly never
+    measured get their own basis so a "zero missing acquisition basis"
+    acceptance clause stays satisfiable by a correct scan:
+
+    * ``not-applicable`` - a deterministic applicability gate returned
+      ``not_applicable`` without dispatching the target.
+    * ``invariant-derived`` - a structured invariant produced the verdict from
+      declared state, with no target and no judge call to attribute.
+
+    Anything else that completes without an attributable target call stays
+    ``missing``; classification fails closed.
+    """
+    if status == "complete":
+        if target_calls > 0:
+            return "target-measured"
+        if verdict == "not_applicable":
+            return "not-applicable"
+        if judge_calls == 0 and verdict in {"pass", "fail"}:
+            return "invariant-derived"
+        return "missing"
+    if status == "failed":
+        return "failed"
+    return "missing"
 
 
 def _case_id_from_row(row: Mapping[str, Any]) -> str:

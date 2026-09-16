@@ -61,7 +61,7 @@ def _dispatch(capability_manifest, worker):
     )
 
 
-@pytest.mark.parametrize("manifest", [None, {}, {"scoped_authorization": False}])
+@pytest.mark.parametrize("manifest", [None, {}])
 def test_capability_only_failure_is_incomplete_after_worker(manifest) -> None:
     def worker(_row, _job):
         return WorkerAttemptResult(
@@ -78,6 +78,31 @@ def test_capability_only_failure_is_incomplete_after_worker(manifest) -> None:
     )
     assert evidence.target_calls == evidence.judge_calls == 1
     assert evidence.evidence_ref is not None
+
+
+def test_capability_manifest_true_false_and_absent_are_distinct() -> None:
+    def worker(_row, _job):
+        return WorkerAttemptResult(
+            status="complete", evidence_ref="fixture.json", verdict="fail",
+            target_calls=1, judge_calls=1,
+            unmet_criteria=("ambiguity_recorded",),
+        )
+
+    declared_true = _dispatch({"scoped_authorization": True}, worker).evidence_rows[0]
+    declared_false = _dispatch({"scoped_authorization": False}, worker).evidence_rows[0]
+    absent = _dispatch({}, worker).evidence_rows[0]
+
+    assert (declared_true.status, declared_true.verdict, declared_true.target_calls) == (
+        "complete", "fail", 1,
+    )
+    assert (declared_false.status, declared_false.verdict) == (
+        "complete", "not_applicable",
+    )
+    assert declared_false.target_calls == declared_false.judge_calls == 0
+    assert declared_false.acquisition_basis == "not-applicable"
+    assert declared_false.disposition == "report-only"
+    assert absent.status == "incomplete"
+    assert absent.verdict is None
 
 
 def test_non_capability_failure_stays_fail() -> None:

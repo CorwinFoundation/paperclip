@@ -12,7 +12,8 @@ Acceptance (BEAAA-29082 / BEAAA-29043):
   acceptance_gate.passed == true
   incomplete == false, counts.missing_required == 0
   no mock: model_version rows
-  acquisition_basis histogram with zero `missing` rows
+  acquisition_basis histogram with zero `missing` rows (rows that were
+  correctly never measured carry `not-applicable` / `invariant-derived`)
   tau_support_crm cases at weight 0.0 with scoring_active false
 """
 from __future__ import annotations
@@ -56,6 +57,20 @@ DEFAULT_JOB_STORE = Path(
     )
 )
 _GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+CAPABILITY_CENSUS = REPO_ROOT / "artifacts" / "BEAAA-33197" / "undeclared-capabilities.json"
+
+
+def vapi_capability_manifest() -> dict[str, bool]:
+    """Total BEAAA-33197 census for the controlled Vapi assistant.
+
+    The captured assistant exposes none of these optional surfaces: it has no
+    configured tools/functions, transfer destination, or server/webhook URL,
+    and its model/transcriber configuration does not implement any census
+    capability. Each entry is therefore an explicit declaration, not an
+    unknown/absent value.
+    """
+    census = json.loads(CAPABILITY_CENSUS.read_text(encoding="utf-8"))
+    return {str(name): False for name in census["capabilities"]}
 
 
 @dataclass
@@ -212,6 +227,7 @@ def job_matches_fingerprint(
     model_versions: dict[str, Any],
     seed: int,
     registry_cases: Any,
+    capability_manifest: dict[str, bool] | None = None,
 ) -> bool:
     """Return true only when persisted evidence belongs to this exact run."""
     return (
@@ -221,11 +237,15 @@ def job_matches_fingerprint(
         and dict(job.model_versions) == dict(model_versions)
         and job.seed == seed
         and tuple(job.registry_cases) == tuple(registry_cases)
+        and (
+            capability_manifest is None
+            or dict(job.capability_manifest or {}) == capability_manifest
+        )
     )
 
 
 def newest_resumable_job_id(store: FullScanJobStore, **fingerprint: Any) -> str | None:
-    """Newest job with an exact six-field fingerprint, including completed jobs."""
+    """Newest job with an exact fingerprint, including capability declarations."""
     for job_id in reversed(store.job_ids()):
         job = store.status(job_id)
         if job_matches_fingerprint(job, **fingerprint):
@@ -309,6 +329,7 @@ def run_scan(
         "model_versions": dict(model_versions),
         "seed": seed,
         "registry_cases": cases,
+        "capability_manifest": vapi_capability_manifest(),
     }
 
     if fresh:
@@ -341,6 +362,7 @@ def run_scan(
             model_versions=model_versions,
             seed=seed,
             registry_cases=cases,
+            capability_manifest=vapi_capability_manifest(),
         )
 
     if job.status == "complete" and job.final_manifest is not None:
@@ -430,6 +452,8 @@ def verify(manifest: dict[str, Any]) -> None:
     print(f"mock: model_version rows : {len(mock_rows)}")
     print(f"acquisition_basis        : {json.dumps(basis, sort_keys=True)}")
     print(f"  missing rows           : {basis.get('missing', 0)}")
+    print(f"  never-measured rows    : {basis.get('not-applicable', 0)} not-applicable / "
+          f"{basis.get('invariant-derived', 0)} invariant-derived")
     print(f"budget                   : {json.dumps(manifest.get('budget', {}).get('estimated_judge_cost_usd'))}")
     for reason in manifest.get("incomplete_reasons", [])[:20]:
         print(f"  incomplete_reason: {reason}")

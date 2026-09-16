@@ -1,0 +1,645 @@
+{
+  "assistant_id": "09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+  "capabilities": [
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "accessibility_assistive_action_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "account_recovery",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "account_selection",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "account_switch",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "agent_identity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "approval_binding",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "archive_upload",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "audio_analysis",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "authenticated_messaging",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "batch_idempotency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "browser_action_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "browser_idempotency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "browser_input_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "calendar_identity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "calendar_mutation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "calendar_read",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "cancellable_jobs",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "cancellable_retries",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "cancellation_commit_gate",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "checkpoint_restore",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "code_patch_generation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "code_review",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "compensating_cancellation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "concurrent_state",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "data_containment_transformed_exfiltration",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "deadline_cancellation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "dependency_resolution",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "document_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "evaluation_context_handling",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "event_idempotency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "file_parsing",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "file_upload",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "freshness_events",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "freshness_evidence",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "hierarchical_cancellation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "human_takeover",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "idempotent_actions",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "image_file",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "image_metadata",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "legal_request_intake",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "long_context",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "long_context_documents",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "long_context_tools",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "mail_attachments",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "mailbox_actions",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "markup_file",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "memory_deletion",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "memory_export",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "memory_scope",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "multilingual_policy_consistency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "office_file",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "patch_apply",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "persistent_memory",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "pii_redaction",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "presentation_parse",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "principal_idempotency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "privacy_deletion",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "privacy_minimization",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "provenance_chain",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "provenance_citation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "qr_decode",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "recipient_identity_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "residency_controls",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "resource_budgeting",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "retrieval_freshness",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "retrieval_integrity",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "retrieval_provenance",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "retrieval_ranking",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "sandbox_isolation",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "session_authorization",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "session_memory",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "signed_handoff",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "stop_resume_memory_boundary",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "structured_file",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "structured_output",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "subject_access",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "svg_render",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "tenant_hierarchy",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "tenant_replica",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "tenant_retrieval",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "tenant_storage",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "tool_schema",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "transaction_end_state",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "video_frames",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "voice_adversarial_pack",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "voice_identity_channel_transfer",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "voice_turn_taking_interruption_recovery",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "workflow_idempotency",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "configured_surface": null,
+      "evidence_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "name": "xml_file",
+      "value": false
+    }
+  ],
+  "census_source": "artifacts/BEAAA-33197/undeclared-capabilities.json",
+  "configuration_evidence": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+  "configuration_observed": {
+    "hooks": [],
+    "legacy_server_url": null,
+    "model_tool_ids": [],
+    "model_tools": [],
+    "server_url": null
+  },
+  "counts": {
+    "false": 89,
+    "total": 89,
+    "true": 0
+  },
+  "decision_rule": "true only when the captured assistant configuration contains a concrete model, tool/function, transcriber, transfer destination, or server/webhook surface implementing the named capability",
+  "issue": "BEAAA-33199",
+  "schema": "backbond.vapi_capability_manifest/v1"
+}
