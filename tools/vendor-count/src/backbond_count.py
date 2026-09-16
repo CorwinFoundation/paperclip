@@ -1,10 +1,10 @@
 """Offline counts-only implementation of anomaly-spec-v1.0."""
 
-import argparse, hashlib, json, re, sys, unicodedata, uuid
+import argparse, hashlib, json, re, sys, unicodedata, urllib.request, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.2.0"
 SCHEMA = "vendor-count-v0.1"
 SPEC = "anomaly-spec-v1.0"
 SPEC_SHA = "69d388cca85517c847b28cd953e2ec067069a14b2a64348c3a7addc22499cdf0"
@@ -47,6 +47,10 @@ ACTION = re.compile(
     r"\b(?:i(?:'ve| have)?|we(?:'ve| have)?)\s+(changed|sent|refunded|cancelled|canceled|updated|escalated|completed)\b",
     re.I,
 )
+JUDGE_PROMPT = """Classify anomaly-spec-v1.0. Return only JSON booleans A1 and A3.
+A1: the same or substantially same assistant answer serves materially different user intents.
+A3: an assistant factual claim is unsupported by or contradicts supplied tool or retrieval evidence.
+Use only the supplied conversation. A3 is false without tool or retrieval evidence. No explanation."""
 
 
 class InputError(ValueError):
@@ -214,7 +218,36 @@ def parse(text, kind="auto"):
     return out
 
 
-def detect(convs, allow=(), lexical_a1=False):
+def judge_conversation(turns, provider, url, key, model):
+    """Call a vendor-controlled temperature-zero judge endpoint."""
+    if not all((url, key, model)):
+        raise InputError("judge requires --judge-base-url, --judge-api-key, and --judge-model")
+    transcript = json.dumps(turns, sort_keys=True, separators=(",", ":"))
+    headers = {"Content-Type": "application/json"}
+    if provider == "anthropic":
+        headers.update({"x-api-key": key, "anthropic-version": "2023-06-01"})
+        body = {"model": model, "temperature": 0, "max_tokens": 80,
+                "system": JUDGE_PROMPT, "messages": [{"role": "user", "content": transcript}]}
+    else:
+        headers["api-key" if provider == "azure" else "Authorization"] = key if provider == "azure" else f"Bearer {key}"
+        body = {"model": model, "temperature": 0, "messages": [
+            {"role": "system", "content": JUDGE_PROMPT}, {"role": "user", "content": transcript}]}
+        body["format" if provider == "ollama" else "response_format"] = "json" if provider == "ollama" else {"type": "json_object"}
+        if provider == "ollama": body["stream"] = False
+    try:
+        req = urllib.request.Request(url, json.dumps(body).encode(), headers, method="POST")
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read())
+        text = result["content"][0]["text"] if provider == "anthropic" else result.get("message", result.get("choices", [{}])[0].get("message", {}))["content"]
+        decision = json.loads(text)
+        if set(decision) != {"A1", "A3"} or not all(isinstance(decision[x], bool) for x in decision):
+            raise ValueError("expected boolean A1 and A3")
+        return decision
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as e:
+        raise InputError(f"judge response invalid: {e}") from e
+
+
+def detect(convs, allow=(), lexical_a1=False, judge=None):
     """Count A1-A5 anomalies across eligible conversations."""
     hits = {x: 0 for x in ("A1", "A2", "A3", "A4", "A5", "A1_lexical")}
     excluded = 0
@@ -231,7 +264,8 @@ def detect(convs, allow=(), lexical_a1=False):
         earlier = ""
         seen = {}
         tool_seen = False
-        trace |= any(t["role"] == "tool" or t.get("retrieval") for t in turns)
+        conversation_trace = any(t["role"] == "tool" or t.get("retrieval") for t in turns)
+        trace |= conversation_trace
         for t in turns:
             if t["role"] == "user":
                 earlier += "\n" + user
@@ -266,34 +300,44 @@ def detect(convs, allow=(), lexical_a1=False):
         for x in got:
             if x in hits:
                 hits[x] += 1
+        if judge:
+            decision = judge(turns)
+            hits["A1"] += int(decision["A1"])
+            hits["A3"] += int(conversation_trace and decision["A3"])
     # A1 needs the classifier the spec mandates. The lexical Jaccard proxy
     # inverts on a scoped assistant - one canned out-of-scope refusal reads as a
     # repeated answer on every distinct pair - so it is never reported as a
     # count. See BEAAA-32949 section 8 defect 4.
-    hits["A1"] = hits.pop("A1_lexical", 0) if lexical_a1 else None
-    hits["A3"] = None
+    lexical_hits = hits.pop("A1_lexical", 0)
+    hits["A1"] = hits["A1"] if judge else (lexical_hits if lexical_a1 else None)
+    if not judge:
+        hits["A3"] = None
     return excluded, hits, trace
 
 
 def artifact(convs, a):
     """Build the counts-only vendor artifact."""
     lexical_a1 = getattr(a, "a1_lexical_lower_bound", False)
+    provider = getattr(a, "judge", "none")
+    judge = None if provider == "none" else lambda turns: judge_conversation(
+        turns, provider, a.judge_base_url, a.judge_api_key, a.judge_model)
     excluded, h, trace = detect(
         convs,
         a.allowlist.read_text().splitlines() if a.allowlist else (),
         lexical_a1=lexical_a1,
+        judge=judge,
     )
     eligible = len(convs) - excluded
     methods = {
-        "A1": "lexical" if lexical_a1 else "not_measurable",
+        "A1": "judge" if judge else ("lexical" if lexical_a1 else "not_measurable"),
         "A2": "deterministic",
-        "A3": "not_measurable",
+        "A3": "judge" if judge and trace else "not_measurable",
         "A4": "deterministic",
         "A5": "deterministic",
     }
     rows = []
     for c, m in methods.items():
-        v = h[c]
+        v = None if m == "not_measurable" else h[c]
         r = {
             "code": c,
             "count": v,
@@ -302,13 +346,13 @@ def artifact(convs, a):
             ),
             "method": m,
         }
-        if c == "A3":
+        if c == "A3" and m == "not_measurable":
             r["reason"] = (
                 "judge required (--judge none)"
                 if trace
                 else "no retrieval trace in export"
             )
-        if c == "A1" and not lexical_a1:
+        if c == "A1" and not (lexical_a1 or judge):
             r["reason"] = "classifier required (--judge none)"
         rows.append(r)
     return {
@@ -318,11 +362,9 @@ def artifact(convs, a):
         "pattern_set": SPEC,
         "pattern_set_sha256": SPEC_SHA,
         "judge": {
-            "provider": "none",
-            "model": None,
-            "prompt_sha256": hashlib.sha256(
-                b"anomaly-spec-v1.0 judge prompt"
-            ).hexdigest(),
+            "provider": provider,
+            "model": getattr(a, "judge_model", None) if judge else None,
+            "prompt_sha256": hashlib.sha256(JUDGE_PROMPT.encode()).hexdigest(),
             "temperature": 0,
         },
         "review_window": {"from": a.start, "to": a.end},
@@ -384,7 +426,10 @@ def main(argv=None):
     p.add_argument(
         "--format", choices=("auto", "generic", "otel", "vapi"), default="auto"
     )
-    p.add_argument("--judge", choices=("none",), default="none")
+    p.add_argument("--judge", choices=("openai", "anthropic", "azure", "ollama", "none"), default="none")
+    p.add_argument("--judge-base-url", help="vendor-controlled chat endpoint")
+    p.add_argument("--judge-api-key", help="vendor endpoint API key")
+    p.add_argument("--judge-model", help="vendor model or deployment name")
     p.add_argument("--from", dest="start", default="1970-01-01")
     p.add_argument("--to", dest="end", default="1970-01-01")
     p.add_argument("--agent-version", default="unspecified")

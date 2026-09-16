@@ -148,6 +148,44 @@ def test_a3_with_trace_is_null_and_passes_egress_gate(tmp_path):
     validate_monitor_artifact(out)
 
 
+def test_judge_counts_a1_and_only_trace_backed_a3(tmp_path, monkeypatch):
+    monkeypatch.setattr(m, "judge_conversation", lambda *args: {"A1": True, "A3": True})
+    args = m.argparse.Namespace(
+        allowlist=None, start="1970-01-01", end="1970-01-01", agent_version="test",
+        self_check=False, a1_lexical_lower_bound=False, judge="openai",
+        judge_base_url="https://vendor.invalid/chat", judge_api_key="stub", judge_model="pinned",
+    )
+    traced = [[
+        {"role": "user", "text": "refund", "retrieval": None},
+        {"role": "tool", "text": "not found", "retrieval": None},
+        {"role": "assistant", "text": "done", "retrieval": None},
+    ]]
+    out = m.artifact(traced, args)
+    assert (row(out, "A1")["count"], row(out, "A1")["method"]) == (1, "judge")
+    assert (row(out, "A3")["count"], row(out, "A3")["method"]) == (1, "judge")
+    validate_monitor_artifact(out)
+
+    untraced = [[
+        {"role": "user", "text": "refund", "retrieval": None},
+        {"role": "assistant", "text": "done", "retrieval": None},
+    ]]
+    out = m.artifact(untraced, args)
+    assert (row(out, "A3")["count"], row(out, "A3")["reason"]) == (
+        None, "no retrieval trace in export")
+
+
+def test_prompt_hash_is_of_shipped_prompt_and_changes_with_prompt(monkeypatch, tmp_path):
+    out = artifact_for(
+        [{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}], tmp_path)
+    assert out["judge"]["prompt_sha256"] == m.hashlib.sha256(m.JUDGE_PROMPT.encode()).hexdigest()
+    assert out["judge"]["prompt_sha256"] != m.hashlib.sha256((m.JUDGE_PROMPT + " changed").encode()).hexdigest()
+
+
+def test_judge_none_never_calls_network(monkeypatch):
+    monkeypatch.setattr(m.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(AssertionError("network")))
+    assert m.main(["--self-check", "--judge", "none"]) == 0
+
+
 def test_a4_ignores_claims_after_any_tool_result(tmp_path):
     for tool, claim in [
         ('{"status":"ok","action":"refund"}', "I have refunded 20 dollars"),

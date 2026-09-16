@@ -1,8 +1,10 @@
-# backbond-count 0.1.2
+# backbond-count 0.2.0
 
 **What to export:** generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, or the VAPI-shape stub. Real VAPI support follows when Ari supplies the dump.
 
 **Command:** `backbond-count export.jsonl --judge none --from 2026-09-01 --to 2026-09-14 --agent-version "prompt v14" --show-what-leaves`. Run `backbond-count --self-check` first.
+
+To count A1 and trace-backed A3, choose `--judge openai|anthropic|azure|ollama` and supply `--judge-base-url`, `--judge-api-key`, and `--judge-model`. The endpoint and key belong to the vendor; the pack has no BackBond endpoint. The temperature-zero prompt is the readable `JUDGE_PROMPT` constant and its exact hash is emitted in `prompt_sha256`. Pin a model version where possible; judge outcomes may vary if the provider changes a model behind a stable name. `--judge none` remains byte-deterministic and performs no network operation.
 
 **What leaves:** one `vendor-count-v0.1` aggregate JSON document. No transcript, identifier, excerpt, per-conversation row, or content hash. The pack has no upload or network path.
 
