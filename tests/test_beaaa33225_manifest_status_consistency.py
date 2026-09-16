@@ -21,7 +21,16 @@ def _source_manifest(incomplete_rows: int, complete_rows: int) -> dict:
         for index in range(incomplete_rows)
     ]
     rows += [
-        {"probe_id": f"ok-{index}", "status": "complete", "incomplete_reason": None}
+        {
+            "probe_id": f"ok-{index}",
+            "status": "complete",
+            "incomplete_reason": None,
+            # BEAAA-33252: these rows stand for measured passes, so they carry
+            # the acquisition basis a measured row carries.  Without it the
+            # evidenced leg of the acceptance gate cannot see them.
+            "target_calls": 1,
+            "acquisition_basis": "target-measured",
+        }
         for index in range(complete_rows)
     ]
     total = len(rows)

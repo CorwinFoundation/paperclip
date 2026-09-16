@@ -36,8 +36,14 @@ def test_regrade_emits_a_self_consistent_signed_manifest(tmp_path, monkeypatch):
             "probe_id": "p1",
             "status": "incomplete",
             "incomplete_reason": "unavailable_capability:tool_calling=false",
+            # BEAAA-33252: the row measured the target, so the regraded manifest
+            # can pass the evidenced leg of the acceptance gate; and `expected`
+            # is declared, because the gate no longer infers it from the row
+            # count.
+            "target_calls": 1,
+            "acquisition_basis": "target-measured",
         }],
-        "counts": {"missing_required": 1},
+        "counts": {"expected": 1, "missing_required": 1},
         "signed_manifest": "stale",
         "manifest_hash": "stale",
     }))

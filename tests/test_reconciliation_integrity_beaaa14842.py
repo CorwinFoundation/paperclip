@@ -24,7 +24,15 @@ def _job():
     )
 
 
-def _row(*, probe_id=CASE.case_id, status="complete", evidence_ref="evidence://scan/case_001.json", incomplete_reason=None):
+def _row(
+    *,
+    probe_id=CASE.case_id,
+    status="complete",
+    evidence_ref="evidence://scan/case_001.json",
+    incomplete_reason=None,
+    target_calls=0,
+    acquisition_basis="missing",
+):
     return EvidenceAttemptRow(
         probe_id=probe_id,
         rubric_point_id=CASE.rubric_point_id,
@@ -35,6 +43,8 @@ def _row(*, probe_id=CASE.case_id, status="complete", evidence_ref="evidence://s
         seed=0,
         evidence_ref=evidence_ref,
         incomplete_reason=incomplete_reason,
+        target_calls=target_calls,
+        acquisition_basis=acquisition_basis,
     )
 
 
@@ -65,25 +75,28 @@ def test_invalid_attempt_rows_do_not_satisfy_required_case(monkeypatch, row):
     assert manifest["counts"]["missing_required"] == 1
     assert f"required_case_not_attempted:{CASE.case_id}" in manifest["incomplete_reasons"]
     assert manifest["bind_eligibility"] == "blocked_base_suite_incomplete"
-    assert manifest["acceptance_gate"] == {
-        "canonical_reconciliation_equal": True,
-        "incomplete_false": False,
-        "zero_unapproved_missing_required": False,
-        "passed": False,
-    }
+    gate = manifest["acceptance_gate"]
+    assert gate["canonical_reconciliation_equal"] is True
+    assert gate["incomplete_false"] is False
+    assert gate["zero_unapproved_missing_required"] is False
+    assert gate["passed"] is False
     assert manifest["signed_manifest"].startswith("hmac-sha256:")
 
 
 def test_exact_complete_evidenced_row_satisfies_required_case(monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-14842-test-key")
 
-    manifest = _manifest(_row())
+    # BEAAA-33252: a row is evidenced only when it actually acquired something
+    # from the target, so the fixture carries the measurement it claims.
+    manifest = _manifest(_row(target_calls=1, acquisition_basis="target-measured"))
 
     assert manifest["counts"]["missing_required"] == 0
     assert manifest["incomplete_reasons"] == []
     assert manifest["bind_eligibility"] == "eligible"
     assert manifest["acceptance_gate"] == {
         "canonical_reconciliation_equal": True,
+        # BEAAA-33252: the fourth term of exit criterion 2's equality.
+        "expected_attempted_terminal_evidenced_equal": True,
         "incomplete_false": True,
         "zero_unapproved_missing_required": True,
         "passed": True,

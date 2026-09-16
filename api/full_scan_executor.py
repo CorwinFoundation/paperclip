@@ -762,8 +762,18 @@ def build_attempt_manifest(
         == reconciliation_terminal
         == len(rows)
     )
-    acceptance_passed = (
+    # BEAAA-33252: the fourth term of exit criterion 2.  `attempted` and
+    # `terminal` only observe that a row reached an end state; neither can see
+    # whether the row acquired anything from the target, so the three-way
+    # equality cannot fail on a row that completed without ever contacting it.
+    reconciliation_evidenced = len(evidenced_rows(rows))
+    reconciliation_unjustified = len(unjustified_non_acquisition_rows(rows))
+    four_way_reconciliation_equal = (
         canonical_reconciliation_equal
+        and reconciliation_evidenced == reconciliation_terminal
+    )
+    acceptance_passed = (
+        four_way_reconciliation_equal
         and not incomplete_reasons
         and not missing_required
     )
@@ -792,10 +802,17 @@ def build_attempt_manifest(
         "reconciliation": {
             "attempted": reconciliation_attempted,
             "terminal": reconciliation_terminal,
+            "evidenced": reconciliation_evidenced,
+            "unjustified_non_acquisition": reconciliation_unjustified,
             "by_status": dict(sorted(status_counts.items())),
         },
         "acceptance_gate": {
+            # Compares expected/attempted/terminal/len(rows) only -- kept under
+            # its historical name so existing readers keep their meaning.
             "canonical_reconciliation_equal": canonical_reconciliation_equal,
+            # BEAAA-21446 exit criterion 2 in full, including the only term
+            # that can observe acquisition (BEAAA-33252).
+            "expected_attempted_terminal_evidenced_equal": four_way_reconciliation_equal,
             "incomplete_false": not incomplete_reasons,
             "zero_unapproved_missing_required": not missing_required,
             "passed": acceptance_passed,
@@ -1498,6 +1515,49 @@ def unjustified_non_acquisition_rows(
             continue
         flagged.append(row)
     return flagged
+
+
+EVIDENCED_ACQUISITION_BASES = frozenset({"target-measured", "invariant-derived"})
+FAILED_ACQUISITION_BASES = frozenset({"failed"})
+
+
+def evidenced_rows(
+    rows: Iterable[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    """Return terminal rows whose evidence was actually acquired or justified.
+
+    BEAAA-33252: exit criterion 2 of BEAAA-21446 is a FOUR-way equality --
+    ``expected = attempted = terminal = evidenced`` -- and ``evidenced`` is the
+    only one of the four that is not satisfied by construction.  ``attempted``
+    and ``terminal`` count rows that reached an end state; neither can observe
+    whether the row acquired anything from the target.
+
+    A row is evidenced when it measured the target, when it derives from a
+    stated invariant, or when its non-acquisition is justified under the
+    BEAAA-33228 contract (``na_evidence`` present).  A row whose acquisition
+    ``failed`` is not evidenced: the attempt is terminal, the evidence is not
+    there.  A row that states no basis at all is evidenced only if it actually
+    called the target -- absence of a basis is not a claim of one.
+    """
+
+    rows = list(rows)
+    unjustified = {id(row) for row in unjustified_non_acquisition_rows(rows)}
+    out: list[Mapping[str, Any]] = []
+    for row in rows:
+        if row.get("status") != "complete":
+            continue
+        basis = str(row.get("acquisition_basis") or "")
+        target_calls = int(row.get("target_calls") or 0)
+        if basis in FAILED_ACQUISITION_BASES:
+            continue
+        if basis in EVIDENCED_ACQUISITION_BASES:
+            out.append(row)
+        elif basis in NON_ACQUISITION_BASES:
+            if id(row) not in unjustified:
+                out.append(row)
+        elif target_calls > 0:
+            out.append(row)
+    return out
 
 
 def _acquisition_basis(

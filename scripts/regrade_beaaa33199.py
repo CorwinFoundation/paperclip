@@ -21,7 +21,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from api.full_scan_executor import (
     RECONCILED_TERMINAL_PROBE_STATUSES,
+    evidenced_rows,
     seal_manifest,
+    unjustified_non_acquisition_rows,
 )
 
 
@@ -134,17 +136,40 @@ def regrade(source: Path, destination: Path, census_path: Path) -> tuple[int, in
         for status, count in statuses.items()
         if status in RECONCILED_TERMINAL_PROBE_STATUSES
     )
-    expected = int(output.get("counts", {}).get("expected", attempted))
+    evidenced = len(evidenced_rows(output["evidence_rows"]))
+    unjustified = len(unjustified_non_acquisition_rows(output["evidence_rows"]))
+    # BEAAA-33252: `expected` used to default to `attempted`, which is
+    # `len(evidence_rows)`.  An equality between a number and itself proves
+    # nothing, so an undeclared `counts.expected` is a gate failure rather than
+    # a value to infer.
+    declared_expected = output.get("counts", {}).get("expected")
+    expected_declared = declared_expected is not None
+    expected = int(declared_expected) if expected_declared else attempted
+    output["counts"]["evidenced"] = evidenced
+    output["counts"]["unjustified_non_acquisition"] = unjustified
     output["reconciliation"] = {
         "attempted": attempted,
         "terminal": terminal,
+        "evidenced": evidenced,
+        "unjustified_non_acquisition": unjustified,
         "by_status": dict(sorted(statuses.items())),
     }
+    four_way_equal = (
+        expected_declared and expected == attempted == terminal == evidenced
+    )
     output["acceptance_gate"] = {
-        "canonical_reconciliation_equal": expected == attempted == terminal,
+        "expected_declared": expected_declared,
+        # Three terms only: expected/attempted/terminal.  Kept under its
+        # historical name so existing readers keep their meaning.
+        "canonical_reconciliation_equal": (
+            expected_declared and expected == attempted == terminal
+        ),
+        # Exit criterion 2 of BEAAA-21446, in full: the fourth term is the only
+        # one that can observe whether a row acquired anything from the target.
+        "expected_attempted_terminal_evidenced_equal": four_way_equal,
         "incomplete_false": not incomplete_reasons,
         "zero_unapproved_missing_required": not missing,
-        "passed": not incomplete_reasons and not missing,
+        "passed": four_way_equal and not incomplete_reasons and not missing,
     }
     output["bind_eligibility"] = "eligible" if not incomplete_reasons else "blocked_base_suite_incomplete"
     output["regrade"] = {
