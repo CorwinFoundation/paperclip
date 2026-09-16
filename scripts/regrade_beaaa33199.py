@@ -19,7 +19,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from api.full_scan_executor import seal_manifest
+from api.full_scan_executor import (
+    RECONCILED_TERMINAL_PROBE_STATUSES,
+    seal_manifest,
+)
 
 
 def capability_manifest(census_path: Path) -> dict[str, bool]:
@@ -122,8 +125,23 @@ def regrade(source: Path, destination: Path, census_path: Path) -> tuple[int, in
     output["incomplete_reasons"] = incomplete_reasons
     output["incomplete"] = bool(incomplete_reasons)
     output["analysis_status"] = "complete" if not incomplete_reasons else "analysis_incomplete"
+    # The regrade rewrites row states, so every summary of those rows is
+    # recomputed from the regraded rows. A summary carried over from the
+    # source contradicts the evidence it claims to describe.
+    attempted = len(output["evidence_rows"])
+    terminal = sum(
+        count
+        for status, count in statuses.items()
+        if status in RECONCILED_TERMINAL_PROBE_STATUSES
+    )
+    expected = int(output.get("counts", {}).get("expected", attempted))
+    output["reconciliation"] = {
+        "attempted": attempted,
+        "terminal": terminal,
+        "by_status": dict(sorted(statuses.items())),
+    }
     output["acceptance_gate"] = {
-        "canonical_reconciliation_equal": True,
+        "canonical_reconciliation_equal": expected == attempted == terminal,
         "incomplete_false": not incomplete_reasons,
         "zero_unapproved_missing_required": not missing,
         "passed": not incomplete_reasons and not missing,

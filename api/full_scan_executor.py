@@ -1015,6 +1015,63 @@ def manifest_content_hash(manifest: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
+def manifest_status_consistency_errors(
+    manifest: Mapping[str, Any],
+) -> list[str]:
+    """Return every disagreement between per-row states and summary counts.
+
+    A derived manifest that rewrites ``evidence_rows`` must rewrite every
+    summary of those rows with them. A reader of a signed manifest has no way
+    to tell which field is authoritative when they disagree, so the summaries
+    are checked against the rows themselves rather than against each other.
+    Summaries absent from the document are not invented here.
+    """
+    rows = manifest.get("evidence_rows")
+    if not isinstance(rows, list):
+        return []
+    observed = Counter(
+        str(row.get("status") or "unknown")
+        for row in rows
+        if isinstance(row, Mapping)
+    )
+    observed_by_status = dict(sorted(observed.items()))
+    observed_terminal = sum(
+        count
+        for status, count in observed.items()
+        if status in RECONCILED_TERMINAL_PROBE_STATUSES
+    )
+    errors: list[str] = []
+
+    def _compare_counts(field: str, declared: Any) -> None:
+        if not isinstance(declared, Mapping):
+            return
+        if dict(sorted(declared.items())) != observed_by_status:
+            errors.append(
+                f"{field} {dict(sorted(declared.items()))} disagrees with "
+                f"per-row states {observed_by_status}"
+            )
+
+    _compare_counts("status_counts", manifest.get("status_counts"))
+    reconciliation = manifest.get("reconciliation")
+    if isinstance(reconciliation, Mapping):
+        _compare_counts(
+            "reconciliation.by_status", reconciliation.get("by_status")
+        )
+        attempted = reconciliation.get("attempted")
+        if isinstance(attempted, int) and attempted != len(rows):
+            errors.append(
+                f"reconciliation.attempted {attempted} disagrees with "
+                f"{len(rows)} evidence rows"
+            )
+        terminal = reconciliation.get("terminal")
+        if isinstance(terminal, int) and terminal != observed_terminal:
+            errors.append(
+                f"reconciliation.terminal {terminal} disagrees with "
+                f"{observed_terminal} terminal per-row states"
+            )
+    return errors
+
+
 def seal_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     """Return a self-consistent hash and signature over the exact content.
 
@@ -1022,12 +1079,21 @@ def seal_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     helper safe for derived manifests: callers cannot accidentally retain a
     signature from the source document after changing acceptance or evidence
     fields.
+
+    A manifest whose row summaries contradict its own ``evidence_rows`` does
+    not seal. Signing such a document publishes a contradiction under our
+    signature, so it fails here instead.
     """
     unsigned = {
         key: value
         for key, value in manifest.items()
         if key not in {"signed_manifest", "manifest_hash"}
     }
+    inconsistencies = manifest_status_consistency_errors(unsigned)
+    if inconsistencies:
+        raise FullScanExecutorError(
+            "manifest is not self-consistent: " + "; ".join(inconsistencies)
+        )
     sealed = dict(unsigned)
     sealed["signed_manifest"] = sign_manifest(unsigned)
     sealed["manifest_hash"] = manifest_content_hash(unsigned)
