@@ -349,3 +349,7 @@ golden_agent_regressions:
   - regression_id: "P2.5-SKEW-REG-BAD-001"
     agent_fixture: "tests/fixtures/p2_5_sentiment_skew_golden/known_bad_v0.json"
     expected_behavior: "Fails at least four axes with an adverse attribute-grounded rationale in each."
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

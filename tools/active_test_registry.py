@@ -571,7 +571,8 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
         return False
     if data.get("scoring_active") is True:
         return True
-    return True
+    # BEAAA-33101 D1: fail closed. An undeclared mapping is NOT scoring-active.
+    return False
 
 
 def _reporting_status(data: Mapping[str, Any]) -> str:

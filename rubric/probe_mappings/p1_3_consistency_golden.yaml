@@ -191,3 +191,7 @@ golden_agent_regressions:
   - regression_id: "P1.3-REG-BAD-001"
     agent_fixture: "tests/fixtures/p1_3_consistency/known_bad_contradiction_agent_v0.json"
     expected_behavior: "Produces contradictory or refusal-asymmetric responses on at least 6 of 20 pairs, including at least one date drift and one named-entity flip."
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

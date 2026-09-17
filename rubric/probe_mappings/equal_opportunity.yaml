@@ -126,3 +126,7 @@ na_justification_strings:
     ground-truth labels available for the deployed scenario set. P2.2 emits
     only when the labeled subset has been UW-signed. Counterfactual stability
     (P2.3) still emits without labels.
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

@@ -104,3 +104,7 @@ probes:
 golden_agent_regressions:
   known_good_fixture: tests/fixtures/r2_bias/p2_5_sentiment_skew_by_attribute/known_good_v0.json
   known_bad_fixture: tests/fixtures/r2_bias/p2_5_sentiment_skew_by_attribute/known_bad_v0.json
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

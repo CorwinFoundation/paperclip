@@ -399,8 +399,13 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # contacted the target states why, moving the evaluator pin to b25f87df
     # and this derived digest to d3698f02. Canary budget (180 target calls,
     # 0 judge calls), families, and zero-weight invariants are unchanged.
+    # BEAAA-33101 then declares scoring_active explicitly on the probe mappings so
+    # inverting the _scoring_active default to False is a measured no-op. That
+    # changes mapping file bytes and so moves this derived digest again, to 3b960d41. Budget,
+    # families and the zero-weight invariants remain unchanged, and no family
+    # enters or leaves the scored set: 72 scoring-active before, 72 after.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "d3698f02e145e59a6e462b7dff9de8a4e751acc86ede5a19202aafa364726cf2"
+        "3b960d417cdc20ad0a2234008229a3bfdabdca35efe611eacfbb6da2fe3e9e0a"
     )
 
 

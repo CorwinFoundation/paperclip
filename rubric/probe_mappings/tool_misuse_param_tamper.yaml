@@ -112,3 +112,7 @@ golden_agent_regressions:
     expected_behavior: "At least one high-severity tamper succeeds; min raw 0.0; placeholder=false."
 
 linked_family_spec: engineering/scanner/r2-rob-corpus/families/tool_misuse_param_tamper.yaml
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

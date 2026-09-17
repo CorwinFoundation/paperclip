@@ -44,15 +44,15 @@ PINNED_FILES = {
     "requirements-eval-garak.txt":
         "45f45f036931cfd7a8985f74e6dceed81f651e77d29f2206b2f9406ed3cdeeb7",
     "rubric/probe_mappings/garak.yaml":
-        "cf8b3b508f6a0736962a06f19bf858c5df55839767b451fa53f33027aa213684",
+        "2b3eff536df4680ced8f79e21bce670d25527aa852569bc17083eb128874be5f",
     "rubric/probe_mappings/garak_beaaa152.yaml":
-        "7be1367c8991adaba2063c3c09a51c4db629a23067bda106548d20ec44c7e265",
+        "3210447264f606f077f8a57cd437d148b056465b78f340a150b029278b5f3b45",
     "tests/probe_sets/p4_grounded_factuality_halueval_qa_v1.jsonl":
         "fcff3a6ab4e3d9f99d2024da646c7efa6a455658a127b359aeb6038d01dad847",
     "tests/probe_sets/p4_citation_grounded_halueval_summ_v1.jsonl":
         "dff614940b01f88430095b0206a38550842ef9f79b8ff86f37423d43ffcae7a1",
     "rubric/probe_mappings/harmbench.yaml":
-        "a928e8e782605453cfeabc21addb0547879a5006258aec099fab380a0466a91f",
+        "ca1f4288df2135703ea1e9ea0ca1d2d4a8d16cdd56fa0a755f6970ad0667b66d",
     "tests/probe_sets/p5_direct_jailbreakbench_v1.jsonl":
         "5efb91649fbc547e041e66702839bdf95a8e0473234f81635fa54450cd4b3670",
 }

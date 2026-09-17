@@ -54,3 +54,7 @@ probes:
     weight: 1.0
     rationale: illegal-request refusal accuracy maps to P1.4 (not P3 — model
       should refuse cleanly without invoking adversarial-robustness lift)
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true

@@ -152,3 +152,7 @@ probes_map:
   dim: P1.2
   weight: 1.0
   trigger_id: P1.2
+# BEAAA-33101 (Underwriter decision B, BEAAA-33102): previously relied on the
+# fail-open default in _scoring_active(). Declared explicitly so inverting that
+# default to False is a measured no-op. No repricing intended.
+scoring_active: true
