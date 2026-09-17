@@ -51,6 +51,7 @@ class Api:
         self.key = key
         self.company = company
         self.forbidden = []
+        self._interactions = {}
 
     def _call(self, method, path, body=None):
         url = self.base + path
@@ -92,6 +93,13 @@ class Api:
         return rows if isinstance(rows, list) else rows.get("comments", [])
 
     def interactions(self, issue_id):
+        if issue_id in self._interactions:
+            return self._interactions[issue_id]
+        rows = self._fetch_interactions(issue_id)
+        self._interactions[issue_id] = rows
+        return rows
+
+    def _fetch_interactions(self, issue_id):
         try:
             rows = self.get("/api/issues/%s/interactions" % issue_id) or []
         except urllib.error.HTTPError:
@@ -159,7 +167,13 @@ def resolve_reviewer(api, issue, names):
     assignee = issue.get("assigneeAgentId")
     if not assignee:
         return None, "unassigned"
-    for row in api.comments(issue["id"])[-3:][::-1]:
+    # The comments API returns newest-first (measured 2026-09-17 on BEAAA-31040:
+    # 21:17, 21:10, 21:09, 21:06, 09-16 13:29). The v0.2 slice was [-3:][::-1],
+    # which reads the three *oldest* comments of the fetched page - on a row with
+    # more than three comments that is not where a park lands, and on the 8 rows
+    # currently at the 25-comment fetch cap the newest comments were never read
+    # at all. Read the newest three, newest first.
+    for row in api.comments(issue["id"])[:3]:
         if row.get("authorAgentId") != assignee:
             continue
         targets = [m for m in MENTION_RE.findall(row.get("content") or row.get("body") or "")
@@ -175,6 +189,42 @@ def held_by_card(api, issue_id):
     reply lands as user auth, and a default-flag card expires on it. Age the card,
     not the status."""
     return any((i.get("status") or "").lower() == "pending" for i in api.interactions(issue_id))
+
+
+def confirmation_risk(api, issue):
+    """Classify pending `request_confirmation` cards on an issue by survivability.
+
+    A confirmation created with the default `supersedeOnUserComment: true` is
+    destroyed by the next board/user comment on its own issue: status flips to
+    `expired`, `result.outcome` reads `superseded_by_comment`, and `respondedAt`
+    stays null - so from the outside the row still looks like it has a live
+    reviewer route while the decision window is already gone. Measured three
+    times on this board (2026-09-17): `9839cb06` on BEAAA-29930 resolved
+    `expired` one second after a local-board comment, `5bdc8e0a` on BEAAA-30912
+    and `598ecccf` on BEAAA-29930 in the same second as theirs. BEAAA-29748
+    makes `supersedeOnUserComment: false` standing for anything acting as a
+    gate, so a `true` card is both fragile and off-standard.
+
+    `ask_user_questions` does not carry the flag and survives: `8c16a8af` on
+    BEAAA-33592 took two board comments and stayed `pending`.
+
+    Returns (fragile, dead): fragile cards are one comment from dying, dead ones
+    already have a board/user comment after them and are pending in name only.
+    """
+    fragile, dead = [], []
+    pending = [i for i in api.interactions(issue["id"])
+               if (i.get("status") or "").lower() == "pending"
+               and i.get("kind") == "request_confirmation"
+               and (i.get("payload") or {}).get("supersedeOnUserComment") is not False]
+    if not pending:
+        return fragile, dead
+    board_stamps = [c.get("createdAt") or "" for c in api.comments(issue["id"])
+                    if not c.get("authorAgentId")]
+    latest_board = max(board_stamps) if board_stamps else ""
+    for card in pending:
+        created = card.get("createdAt") or ""
+        (dead if latest_board and latest_board > created else fragile).append(card)
+    return fragile, dead
 
 
 def mention(agent_id, names):
@@ -248,9 +298,18 @@ def main():
             pinged += 1
         state["actions"]["ping:" + issue["id"]] = now.isoformat().replace("+00:00", "Z")
 
-    summary = "Swept %d in_review. Pinged: %d. Escalated: %d. Unassigned-for-CEO-triage: %d.%s" % (
+    at_risk, already_dead = [], []
+    for issue in issues:
+        fragile, dead = confirmation_risk(api, issue)
+        at_risk += [(issue, c) for c in fragile]
+        already_dead += [(issue, c) for c in dead]
+
+    summary = "Swept %d in_review. Pinged: %d. Escalated: %d. Unassigned-for-CEO-triage: %d.%s%s" % (
         len(issues), pinged, len(stale), len(triage),
-        (" Held (pending board card): %d." % len(held)) if held else "")
+        (" Held (pending board card): %d." % len(held)) if held else "",
+        (" Fragile confirmations: %d (already superseded: %d)."
+         % (len(at_risk) + len(already_dead), len(already_dead)))
+        if (at_risk or already_dead) else "")
     lines = [summary, "",
              "Sweep at %s UTC." % now.strftime("%Y-%m-%d %H:%M"), "",
              "Bucket: fresh<%dh=%d, ping%d-%dh=%d, escalate>%dh=%d."
@@ -259,6 +318,17 @@ def main():
         lines += ["", "Not pinged - a pending board card is already the reviewer path:"]
         for issue, hours in sorted(held, key=lambda r: -r[1]):
             lines.append("- %s (%dh, pending interaction)" % (link(issue["identifier"]), round(hours)))
+    if already_dead:
+        lines += ["", "Reads `pending` but is already superseded - the row has no live "
+                      "reviewer route and nobody was told (`supersedeOnUserComment` "
+                      "defaulted true, BEAAA-29748):"]
+        for issue, card in already_dead:
+            lines.append("- %s card `%s`" % (link(issue["identifier"]), card["id"][:8]))
+    if at_risk:
+        lines += ["", "Pending `request_confirmation` that the next board/user comment "
+                      "will silently expire - do not post status comments on these rows:"]
+        for issue, card in at_risk:
+            lines.append("- %s card `%s`" % (link(issue["identifier"]), card["id"][:8]))
     if stale:
         lines += ["", "%s escalation: %d `in_review` issues >%dh need a decision "
                       "(re-assign / return / cancel / done). Sample:"
