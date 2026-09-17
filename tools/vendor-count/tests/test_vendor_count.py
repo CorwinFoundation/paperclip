@@ -1,4 +1,4 @@
-import importlib.util, json, subprocess, sys, zipapp
+import importlib.util, json, re, subprocess, sys, zipapp
 from pathlib import Path
 
 R = Path(__file__).parents[1]
@@ -407,3 +407,50 @@ def test_self_check_passes_under_the_a1_lexical_opt_in():
     default = _self_check()
     assert default["fixture_check"]["matched"] is True
     assert row(default, "A1")["count"] is None
+
+
+def test_pack_version_is_declared_consistently():
+    """pyproject, the module and the README must state the same version.
+
+    BEAAA-33127 merged as 0.2.0 in `backbond_count.py` and the README while
+    `pyproject.toml` still read 0.1.2, so the installed distribution reported a
+    version the artifact did not. A vendor who compares `pip show backbond-count`
+    against `pack_version` in the file they are about to email sees a mismatch
+    and has every reason to distrust the whole artifact.
+    """
+    root = Path(__file__).resolve().parents[1]
+    pyproject = (root / "pyproject.toml").read_text()
+    readme = (root / "README.md").read_text()
+
+    declared = re.search(r'(?m)^version\s*=\s*"([^"]+)"', pyproject)
+    assert declared, "pyproject.toml declares no version"
+    assert declared.group(1) == m.VERSION, (
+        f"pyproject.toml says {declared.group(1)}, backbond_count.VERSION says {m.VERSION}"
+    )
+    assert readme.startswith(f"# backbond-count {m.VERSION}"), (
+        f"README heading does not state {m.VERSION}"
+    )
+
+
+def test_egress_gate_accepts_the_current_pack_version():
+    """A version bump that forgets the gate rejects every output file.
+
+    `_validate_vendor_count_artifact` pins an explicit set of accepted
+    `pack_version` values. If VERSION moves ahead of that set the pack still
+    runs and then fails at the last step, on the vendor's machine, after they
+    have done the work.
+    """
+    gate = (
+        Path(__file__).resolve().parents[2]
+        / "post-bind-ingest"
+        / "src"
+        / "post_bind_ingest"
+        / "egress.py"
+    ).read_text()
+    accepted = re.search(
+        r'artifact\.get\("pack_version"\)\s*not in\s*\{([^}]*)\}', gate
+    )
+    assert accepted, "could not find the accepted pack_version set in egress.py"
+    assert f'"{m.VERSION}"' in accepted.group(1), (
+        f"egress gate does not accept pack_version {m.VERSION}: {accepted.group(1)}"
+    )
