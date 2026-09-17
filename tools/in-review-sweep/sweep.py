@@ -91,6 +91,15 @@ class Api:
             return []
         return rows if isinstance(rows, list) else rows.get("comments", [])
 
+    def interactions(self, issue_id):
+        try:
+            rows = self.get("/api/issues/%s/interactions" % issue_id) or []
+        except urllib.error.HTTPError:
+            return []
+        if isinstance(rows, dict):
+            rows = rows.get("interactions") or rows.get("data") or []
+        return rows if isinstance(rows, list) else []
+
     def comment(self, issue_id, body, issue_key):
         """Cross-agent POSTs that 403 are aggregated into the BEAAA-2713 summary so
         the @mention still lands."""
@@ -160,6 +169,14 @@ def resolve_reviewer(api, issue, names):
     return assignee, "assignee"
 
 
+def held_by_card(api, issue_id):
+    """A row holding a pending interaction already has a reviewer path: the card.
+    Pinging it is worse than silence - the pinged seat answers in the thread, that
+    reply lands as user auth, and a default-flag card expires on it. Age the card,
+    not the status."""
+    return any((i.get("status") or "").lower() == "pending" for i in api.interactions(issue_id))
+
+
 def mention(agent_id, names):
     return "[@%s](agent://%s)" % (names.get(agent_id, "agent"), agent_id)
 
@@ -211,8 +228,12 @@ def main():
                 triage.append(row)
 
     pinged = 0
+    held = []
     for issue, hours, reviewer, _ in band:
         if recently_pinged(state, issue["id"], now):
+            continue
+        if held_by_card(api, issue["id"]):
+            held.append((issue, hours))
             continue
         body = (
             "%s - this issue has been `in_review` for %dh with no status change. "
@@ -227,12 +248,17 @@ def main():
             pinged += 1
         state["actions"]["ping:" + issue["id"]] = now.isoformat().replace("+00:00", "Z")
 
-    summary = "Swept %d in_review. Pinged: %d. Escalated: %d. Unassigned-for-CEO-triage: %d." % (
-        len(issues), pinged, len(stale), len(triage))
+    summary = "Swept %d in_review. Pinged: %d. Escalated: %d. Unassigned-for-CEO-triage: %d.%s" % (
+        len(issues), pinged, len(stale), len(triage),
+        (" Held (pending board card): %d." % len(held)) if held else "")
     lines = [summary, "",
              "Sweep at %s UTC." % now.strftime("%Y-%m-%d %H:%M"), "",
              "Bucket: fresh<%dh=%d, ping%d-%dh=%d, escalate>%dh=%d."
              % (FRESH_HOURS, len(fresh), FRESH_HOURS, STALE_HOURS, len(band), STALE_HOURS, len(stale))]
+    if held:
+        lines += ["", "Not pinged - a pending board card is already the reviewer path:"]
+        for issue, hours in sorted(held, key=lambda r: -r[1]):
+            lines.append("- %s (%dh, pending interaction)" % (link(issue["identifier"]), round(hours)))
     if stale:
         lines += ["", "%s escalation: %d `in_review` issues >%dh need a decision "
                       "(re-assign / return / cancel / done). Sample:"
