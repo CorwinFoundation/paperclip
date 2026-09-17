@@ -322,10 +322,11 @@ def test_the_committed_ledger_carries_the_ruled_tier_set():
     assert not any(NO_VERDICT_SPREAD in row["hold_reasons"]
                    for row in ledger["rows"] if row["family_id"] in demoted)
     # Families that never produced a second verdict keep the original literal.
-    never = {"approval_preview_mutation_binding", "idempotency_retry_double_execution",
-             "recipient_identity_integrity"}
+    # BEAAA-33537 TASK 3: 12 of the original 43 moved to the unreachable-oracle
+    # literal, so this literal now covers the 31 rows it is actually true of.
+    never = {"idempotency_retry_double_execution", "recipient_identity_integrity"}
     assert sum(1 for row in ledger["rows"]
-               if row["family_id"] in never and NO_VERDICT_SPREAD in row["hold_reasons"]) == 43
+               if row["family_id"] in never and NO_VERDICT_SPREAD in row["hold_reasons"]) == 31
     assert not any(BELOW_STABILITY_FLOOR in row["hold_reasons"]
                    for row in ledger["rows"] if row["family_id"] in never)
     # The gap is recorded on the row so it is legible without re-deriving it.
@@ -343,3 +344,259 @@ def test_retier_is_idempotent():
     assert again["tier1_families"] == ledger["tier1_families"]
     assert again["scored"] == ledger["scored"] == 21
     assert [row["hold_reasons"] for row in again["rows"]] == [row["hold_reasons"] for row in ledger["rows"]]
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-33537 TASK 3 option (a): the surface-fit determination channel.
+# The 12 approval_preview_mutation_binding rows were held under a literal that
+# says their evidence is missing. The evidence is not missing - the oracle asserts
+# approved_payload_mismatch_count == 0 with an na_rule that never resolves N/A to
+# PASS, so a prose-emitting chat surface cannot reach pass however correctly it
+# behaves. These tests pin the relabel and, more importantly, pin that it stays
+# inert everywhere else.
+# ---------------------------------------------------------------------------
+
+from tools.beaaa31092_content_slice import (  # noqa: E402
+    ORACLE_UNREACHABLE,
+    SURFACE_DETERMINATIONS_PATH,
+    SurfaceDeterminationError,
+    _apply_surface_determinations,
+    redetermine_ledger,
+)
+
+APMB = "approval_preview_mutation_binding"
+SURFACE = "vapi:09aea361-04b3-4a62-bcb0-2f2582f11ec8@api.vapi.ai"
+
+
+def _committed_ledger():
+    return _json.loads((ROOT / "artifacts/beaaa-31092/rank2-ledger.json").read_text())
+
+
+def _pinned_determination():
+    return _json.loads(SURFACE_DETERMINATIONS_PATH.read_text())
+
+
+def test_the_determination_never_scores_a_row_or_lifts_a_family():
+    """Condition 1: held stays held. The literal is hold vocabulary only."""
+    ledger = _committed_ledger()
+    carrying = [row for row in ledger["rows"] if ORACLE_UNREACHABLE in row["hold_reasons"]]
+    assert len(carrying) == 12
+    assert all(row["disposition"] == "held_reported_not_scored" for row in carrying)
+    assert not any(row["family_id"] in ledger["tier1_families"] for row in carrying)
+    assert APMB not in ledger["tier1_families"]
+    # The census the CEO pinned at f30ba3c5, unmoved by the relabel.
+    assert ledger["scored"] == 21 and ledger["held"] == 166
+    assert ledger["selected"] == ledger["mapped"] == 187
+    assert ledger["tier1_families"] == ["authorization_revocation_race"]
+
+
+def test_the_hold_reason_split_is_pinned_at_twelve_eighteen_thirteen():
+    """Condition 4: membership is closed. Only the unsatisfiable family moves."""
+    ledger = _committed_ledger()
+    split = {family: 0 for family in (APMB, "idempotency_retry_double_execution",
+                                      "recipient_identity_integrity")}
+    for row in ledger["rows"]:
+        if row["family_id"] in split and NO_VERDICT_SPREAD in row["hold_reasons"]:
+            split[row["family_id"]] += 1
+    # BEAAA-33507 showed the other two families ARE satisfiable, so their rows keep
+    # the evidence literal: for them the positive control really is missing.
+    assert split == {APMB: 0, "idempotency_retry_double_execution": 18,
+                     "recipient_identity_integrity": 13}
+    assert sum(1 for row in ledger["rows"] if ORACLE_UNREACHABLE in row["hold_reasons"]) == 12
+    # No row carries both literals, the way the 46/43 split kept them distinct.
+    assert not any({NO_VERDICT_SPREAD, ORACLE_UNREACHABLE} <= set(row["hold_reasons"])
+                   for row in ledger["rows"])
+    # Every relabelled row names the card that repairs the probe.
+    assert all(row["oracle_unreachable"]["repair_card"] == "BEAAA-33539"
+               for row in ledger["rows"] if ORACLE_UNREACHABLE in row["hold_reasons"])
+
+
+def test_a_row_on_another_target_surface_is_not_relabelled():
+    """Condition 2: keyed to (family, surface), inert by construction."""
+    rows = [{
+        "stable_case_id": "bb18742.approval_preview_mutation_binding.01",
+        "family_id": APMB,
+        "dedupe_sha256": "d" * 64,
+        "model_version": "vapi:some-other-target@api.vapi.ai",
+        "recorded_target_response": "previewed and committed the same payload",
+        "verdict": "fail",
+        "disposition": "held_reported_not_scored",
+        "hold_reasons": [NO_VERDICT_SPREAD],
+    }]
+    report = _apply_surface_determinations(rows, _pinned_determination(), set())
+    assert report["rows_relabelled"] == 0
+    assert report["inert"][0]["reason"] == "no_held_rows_on_this_surface"
+    assert rows[0]["hold_reasons"] == [NO_VERDICT_SPREAD]
+
+
+def test_a_row_held_for_missing_evidence_is_not_relabelled():
+    """The 13 rows with no verdict never reached the spread question at all."""
+    ledger = _committed_ledger()
+    others = [row for row in ledger["rows"]
+              if row["family_id"] == APMB and ORACLE_UNREACHABLE not in row["hold_reasons"]]
+    assert len(others) == 13
+    assert all(row["verdict"] is None for row in others)
+    assert all("missing_verdict" in row["hold_reasons"] for row in others)
+
+
+@pytest.mark.parametrize("mutate, fragment", [
+    (lambda det: det.pop("repair_card"), "missing required fields"),
+    (lambda det: det.update(repair_card="the oracle card"), "does not name a card identifier"),
+    (lambda det: det.update(citation={"card": "BEAAA-33507"}), "cites no capture evidence"),
+    (lambda det: det.update(member_digest="0" * 64), "does not describe these rows"),
+    (lambda det: det["member_case_ids"].pop(), "claims 11 rows but binds 12"),
+])
+def test_a_determination_that_cannot_prove_itself_raises(mutate, fragment):
+    """Condition 3: provenance is derived here, and there is no warn path."""
+    ledger = _committed_ledger()
+    determination = _pinned_determination()
+    mutate(determination[0])
+    with pytest.raises(SurfaceDeterminationError) as excinfo:
+        _apply_surface_determinations(ledger["rows"], determination, set())
+    assert fragment in str(excinfo.value)
+
+
+def test_a_determination_cannot_speak_for_a_scored_family():
+    ledger = _committed_ledger()
+    with pytest.raises(SurfaceDeterminationError, match="has no unreachable verdict"):
+        _apply_surface_determinations(ledger["rows"], _pinned_determination(), {APMB})
+
+
+def test_the_determination_expires_when_the_oracle_is_repaired():
+    """The digest binds dedupe_sha256, which IS the case runtime identity.
+
+    BEAAA-33539 re-authors the oracle, which moves every dedupe hash in the family.
+    The determination must then fail loudly rather than outlive the defect.
+    """
+    ledger = _committed_ledger()
+    for row in ledger["rows"]:
+        if row["family_id"] == APMB:
+            row["dedupe_sha256"] = "f" * 64
+    with pytest.raises(SurfaceDeterminationError, match="does not describe these rows"):
+        _apply_surface_determinations(ledger["rows"], _pinned_determination(), set())
+
+
+def test_redetermine_is_idempotent_and_preserves_the_tier_report():
+    ledger = _committed_ledger()
+    again = redetermine_ledger(_json.loads(_json.dumps(ledger)))
+    assert [row["hold_reasons"] for row in again["rows"]] == [row["hold_reasons"] for row in ledger["rows"]]
+    assert again["tier1_families"] == ledger["tier1_families"]
+    assert again["tier2_held_families"] == ledger["tier2_held_families"]
+    assert again["scored"] == 21 and again["held"] == 166
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-33537 TASK 3(a), condition 5 on its other axis: is the claim TRUE?
+# Every check above binds WHICH rows a determination speaks for. None asks whether
+# the verdict it calls unreachable is actually absent from them - and member_digest
+# cannot be made to ask, because it is computed from those same rows, so it agrees
+# with any self-consistent record. The gap is reachable: _tier_decision applies
+# NO_VERDICT_SPREAD whenever a family lacks a pass OR lacks a fail, so an all-pass
+# family is held under the same literal and is eligible for this channel.
+# ---------------------------------------------------------------------------
+
+from tools.beaaa31092_content_slice import (  # noqa: E402
+    MIN_UNREACHABILITY_PROMPTS,
+    _member_digest,
+)
+
+
+def _all_pass_family_rows():
+    """A family held under the spread literal for having no FAIL, not no PASS.
+
+    This is the shape _spread_gap produces from `if not passes or not fails`, and
+    it is the one a false unreachability claim would land on.
+    """
+    return [{
+        "stable_case_id": f"bb18742.idempotency_retry_double_execution.{index:02d}",
+        "family_id": "idempotency_retry_double_execution",
+        "dedupe_sha256": f"{index:064d}",
+        "model_version": SURFACE,
+        "recorded_target_response": "declined the duplicate retry",
+        "verdict": "pass",
+        "disposition": "held_reported_not_scored",
+        "hold_reasons": [NO_VERDICT_SPREAD],
+    } for index in (1, 2)]
+
+
+def _determination_for(rows, **overrides):
+    """A determination bound correctly to `rows` - the digest is real, not forged."""
+    determination = {
+        "family_id": rows[0]["family_id"],
+        "target_surface": rows[0]["model_version"],
+        "unreachable_field": "duplicate_execution_count",
+        "unreachable_verdict": "pass",
+        "repair_card": "BEAAA-33539",
+        "citation": {"card": "BEAAA-33507", "evidence_refs": ["evidence://x"], "prompts": 2},
+        "member_case_ids": sorted(row["stable_case_id"] for row in rows),
+        "member_digest": _member_digest(rows),
+    }
+    determination.update(overrides)
+    return determination
+
+
+def test_a_determination_cannot_claim_a_verdict_its_own_rows_recorded():
+    """The substantive guard: correctly bound, provably false.
+
+    This determination passes every provenance check - the member ids match, and
+    the digest is computed from these very rows, so it matches too. What it claims
+    is nonetheless false: pass is right there in the rows. Without the recomputed
+    census these rows would be relabelled 'the oracle cannot be satisfied here'
+    when the target in fact satisfied it.
+    """
+    rows = _all_pass_family_rows()
+    determination = _determination_for(rows)
+    with pytest.raises(SurfaceDeterminationError) as excinfo:
+        _apply_surface_determinations(rows, [determination], set())
+    assert "claims pass is unreachable" in str(excinfo.value)
+    assert "2 of these 2 rows recorded it" in str(excinfo.value)
+    # Refused, so the rows keep the less specific literal - the safe one to be
+    # wrong with, because it does not excuse the probe.
+    assert rows[0]["hold_reasons"] == [NO_VERDICT_SPREAD]
+
+
+def test_a_citation_whose_census_contradicts_the_rows_is_refused():
+    """The record carries its own count; where it does, the rows arbitrate."""
+    ledger = _committed_ledger()
+    determination = _pinned_determination()
+    determination[0]["citation"]["passes_observed"] = 3
+    with pytest.raises(SurfaceDeterminationError, match="citation reports 3 pass observations"):
+        _apply_surface_determinations(ledger["rows"], determination, set())
+
+
+def test_unreachability_needs_more_than_one_prompt():
+    """One prompt cannot separate 'unreachable' from 'not yet elicited'."""
+    ledger = _committed_ledger()
+    determination = _pinned_determination()
+    determination[0]["citation"]["prompts"] = 1
+    with pytest.raises(SurfaceDeterminationError, match="cites 1 prompt variant"):
+        _apply_surface_determinations(ledger["rows"], determination, set())
+    assert MIN_UNREACHABILITY_PROMPTS == 2
+
+
+def test_a_determination_cannot_name_a_verdict_the_slice_does_not_score():
+    ledger = _committed_ledger()
+    determination = _pinned_determination()
+    determination[0]["unreachable_verdict"] = "inconclusive"
+    with pytest.raises(SurfaceDeterminationError, match="not a verdict this slice scores"):
+        _apply_surface_determinations(ledger["rows"], determination, set())
+
+
+def test_the_pinned_determination_survives_the_census_check():
+    """The 12 rows are all fail, zero pass, cited as 0 across 2 prompts.
+
+    Note the record cites 10 attempts against 12 member rows: BEAAA-33507 counted
+    elicitation attempts, not held rows. The census check deliberately does not
+    equate the two - asserting that would reject the pinned record.
+    """
+    ledger = _committed_ledger()
+    members = [row for row in ledger["rows"]
+               if row["family_id"] == APMB and ORACLE_UNREACHABLE in row["hold_reasons"]]
+    assert {str(row["verdict"]).casefold() for row in members} == {"fail"}
+    record = _pinned_determination()[0]
+    assert record["unreachable_verdict"] == "pass"
+    assert record["citation"]["passes_observed"] == 0
+    assert record["citation"]["attempts"] == 10 and len(members) == 12
+    # Re-applying over the already-relabelled rows still admits.
+    report = _apply_surface_determinations(ledger["rows"], _pinned_determination(), set())
+    assert report["rows_relabelled"] == 12
