@@ -577,6 +577,10 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
 
 UNMAPPED_CANDIDATE_RUBRIC_STATUS = "unmapped_reported_not_scored"
 MAPPED_VIA_PRODUCTION_MAPPING_STATUS = "mapped_via_production_mapping"
+# BEAAA-33507 TASK 2: the Founder dev tier is mapped to a rubric point (P3.4) but
+# priced at zero weight (underwriting_active false, priced_score_weight 0.0), so
+# it is mapped-and-scored-at-zero, not unmapped. Same literal C10 already writes.
+MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS = "mapped_scored_zero_weight"
 
 
 def row_blocks_scoring_activation(row: Mapping[str, Any]) -> bool:
@@ -958,16 +962,65 @@ def _beaaa31092_dev_scored_digests() -> frozenset[str]:
     registry from re-deciding eligibility with a weaker rule. A missing or
     unreadable ledger promotes nothing.
     """
+    return frozenset(_beaaa31092_dev_scored_rows())
+
+
+@lru_cache(maxsize=1)
+def _beaaa31092_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
+    """The rank-2 ledger's ``scored`` rows, keyed by dedupe digest.
+
+    BEAAA-33507 TASK 2: the registry used to read only the digests here and
+    stamp the registration literal ``unmapped_reported_not_scored`` /
+    ``execution_evidenced: False`` onto every dev-tier row, so the rows the
+    ledger had mapped and evidenced still read unmapped and unevidenced to
+    every consumer that was not reading the ledger. They stayed scoring-active
+    only through the ``dev_scoring_active`` carve-out in
+    ``row_blocks_scoring_activation``. Carrying the ledger's mapping and
+    evidence onto the rows lets them clear D2 on their own fields.
+    """
     path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-ledger.json"
     try:
         ledger = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return frozenset()
-    return frozenset(
-        str(row["dedupe_sha256"])
+        return {}
+    run_manifest = str(ledger.get("run_manifest_sha256") or "")
+    return {
+        str(row["dedupe_sha256"]): {**row, "run_manifest_sha256": run_manifest}
         for row in ledger.get("rows", [])
         if row.get("disposition") == "scored"
-    )
+    }
+
+
+def _beaaa31092_dev_evidence_metadata(
+    ledger_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Mapping + execution evidence to carry from a ledger row onto its registry row.
+
+    Fail-closed: a ledger row missing its rubric point, its recorded target
+    response or its terminal verdict contributes nothing, so the registry row
+    keeps the unmapped/unevidenced registration literal and would demote under
+    D2 rather than assert evidence the ledger does not carry.
+    """
+    rubric_point_id = str(ledger_row.get("rubric_point_id") or "")
+    recorded_response = ledger_row.get("recorded_target_response")
+    verdict = str(ledger_row.get("verdict") or "").casefold()
+    if not rubric_point_id or not recorded_response or verdict not in {"pass", "fail", "partial"}:
+        return {}
+    return {
+        "candidate_rubric_mapping_status": MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS,
+        "candidate_rubric_point_id": rubric_point_id,
+        "candidate_rubric_mapping_rationale": str(
+            ledger_row.get("mapping_rationale") or ""
+        ),
+        "execution_evidenced": True,
+        "execution_evidence_status": "beaaa31092_rank2_ledger_target_measured",
+        "execution_evidence_ref": str(ledger_row.get("evidence_ref") or ""),
+        "execution_evidence_verdict": verdict,
+        "execution_evidence_model_version": str(ledger_row.get("model_version") or ""),
+        "execution_evidence_run_manifest_sha256": str(
+            ledger_row.get("run_manifest_sha256") or ""
+        ),
+    }
 
 
 def _merge_content_candidate_inventory(
@@ -1011,13 +1064,21 @@ def _merge_content_candidate_inventory(
             "candidate_registration_status": "registered_reported_not_scored",
             "candidate_rubric_mapping_status": "unmapped_reported_not_scored",
         }
-        if str(candidate["dedupe_sha256"]) in _beaaa31092_dev_scored_digests():
+        ledger_row = _beaaa31092_dev_scored_rows().get(str(candidate["dedupe_sha256"]))
+        if ledger_row is not None:
             # BEAAA-31092: dev-mode scoring only. ``_scoring_active`` resolves this
             # to scored when BACKBOND_FOUNDER_DEV_MODE=on and reported-not-scored
             # otherwise, and a content-candidate row is non-countable while it is
             # reported-not-scored, so the flag-off production count never moves.
             candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
             candidate_metadata["dev_scoring_active"] = True
+            # BEAAA-33507 TASK 2: the ledger holds this row's P3.4 mapping and its
+            # target-measured evidence (recorded response + terminal verdict, bound
+            # to the rank-2 run manifest). Carry both onto the row so it clears D2
+            # on its own fields instead of relying on the dev carve-out. Written
+            # before the registration literal is spread, which the literal's
+            # ``**candidate_metadata`` tail then overrides.
+            candidate_metadata.update(_beaaa31092_dev_evidence_metadata(ledger_row))
             # The registration literal below hardcodes scoring_active=False, so the
             # dev resolution has to be written in rather than left to the mapping
             # resolver that never sees these rows.

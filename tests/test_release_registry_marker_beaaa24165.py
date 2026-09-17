@@ -21,11 +21,12 @@ REPO = Path(__file__).resolve().parents[1]
 # digest is re-pinned. Previous pin ca712717...69bf8 came from BEAAA-31091 (ii-015
 # indirect-injection fixture prompt).
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    # Rehashed after the demoted observational tranche began carrying
-    # reporting_status=reported_not_scored (BEAAA-33462). Counts are unmoved --
+    # Rehashed after the dev-tier candidate rows began carrying the rank-2
+    # ledger mapping (candidate_rubric_mapping_status=mapped_dev_scored, P3.4)
+    # and their real execution evidence (BEAAA-33507). Counts are unmoved --
     # 2,353 / 2,353 / 2,352 with 137 excluded rows -- so only the digest re-pins.
-    # Prior pin 923494e2...1ba6f came from the scoring_active=False rewrite.
-    "91fc69958751b09e52fe5601b2e4c64e611518bc65960afb0103f59f045daf4d"
+    # Prior pin 91fc6995...daf4d came from the reported_not_scored rewrite.
+    "d3d23ad1d7ed286fb4fa1c3835aa2596806f771b0e346f2c379327d87e5db460"
 )
 
 
