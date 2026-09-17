@@ -591,14 +591,13 @@ def row_blocks_scoring_activation(row: Mapping[str, Any]) -> bool:
     Both are fail-closed: the absence of a declaration bars activation.
     """
 
-    if row.get("dev_scoring_active") is True:
-        # The Founder dev tier (BEAAA-31092) is already gated: these rows are
-        # scoring-active only while BACKBOND_FOUNDER_DEV_MODE is on, and they
-        # are non-countable with it off, so they never reach a production
-        # score. D2 guards the production scored set; re-gating the dev tier
-        # here would disable it without changing any production number, and
-        # re-dispositioning individual rows is outside this card's scope.
-        return False
+    # BEAAA-33538: no tier is exempt. The ``dev_scoring_active`` early return
+    # that used to sit here bypassed both predicates for every dev-tier row;
+    # BEAAA-33507 (PR #569) put the rank-2 ledger's P3.4 mapping and its
+    # target-measured evidence onto those rows, so they clear D2 on their own
+    # fields and the exemption is no longer load-bearing. Do not reintroduce a
+    # tier-keyed bypass here: pinned by
+    # tests/test_beaaa33538_no_tier_exemption.py.
     return (
         row.get("candidate_rubric_mapping_status")
         == UNMAPPED_CANDIDATE_RUBRIC_STATUS
