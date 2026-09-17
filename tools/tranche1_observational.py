@@ -51,6 +51,10 @@ MAPPING_SHA256 = {
 # exceptions emit fail (not unresolved), and enforces na_is_pass:false override.
 # BEAAA-30935 binds scheduled judging to an explicit provider so an unrelated
 # credential cannot change routing by environment precedence.
+# Merge recipe: resolve every non-pin conflict, then run
+# `python3 tools/repin_evaluator.py`. Next run
+# `python3 -m pytest tests/test_beaaa19021_tranche1_canary.py::test_runner_executes_exact_budget_zero_judges_and_redacts_secret -x -q`
+# and replace that test's literal manifest digest with the observed digest.
 EVALUATOR_SHA256 = {
     "tool_misuse_param_tamper": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
     "tool_misuse_scope_escape": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",

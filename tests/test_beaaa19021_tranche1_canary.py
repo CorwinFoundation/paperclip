@@ -452,6 +452,10 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # digest to e9df01ec. Neither edit changes which rows are dispatched, so
     # the 180/0 budget and the zero-weight invariants asserted above hold for
     # a sixth time.
+    # Keep this digest literal. It is tamper evidence over the complete canary
+    # manifest; deriving the expected value from the manifest under test would
+    # make the assertion self-fulfilling. After a legitimate evaluator change,
+    # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
         "e9df01ec72eed90d5c0767f848e5474b49c8db221abe2cc4be1d19dec3fed61e"
     )
