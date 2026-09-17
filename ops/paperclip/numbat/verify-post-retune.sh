@@ -1,11 +1,40 @@
 #!/usr/bin/env bash
 # BEAAA-33250 — the verification the CEO named as what closes gate 3's latency criterion.
-# Run AFTER retune-hook-emit.sh. Read-only on the spools. Exit 0 = gate-3 evidence is good.
+# Run AFTER retune-hook-emit.sh. Read-only on the spools.
+#
+# Exit 0 = the four evidence preconditions hold. It does NOT measure latency:
+# the p50/p90 numbers come from the BEAAA-33227 two-leg method and are graded
+# against the band pre-registered there. This script proves the retune landed
+# and that nothing the isolation and continuous-capture checks read was dropped.
+#
+#   verify-post-retune.sh <retune-timestamp-ISO8601> [max-staleness-minutes]
+#
+# The timestamp is REQUIRED. Without it "records written after the retune" is
+# indistinguishable from "every record ever retained", which is how an earlier
+# revision reported a healthy spool no matter what the spool contained.
+#
+# Continuity is graded on SPOOL AGE, not on the post-retune count. The cto seat
+# is fed by an hourly cron (BEAAA-24636 numbat-claude-cohort-scan.py, :00), so a
+# zero count is normal for up to an hour after the retune and is NOT a failure.
+# A spool whose newest record is older than max-staleness-minutes is a real
+# capture outage and fails closed. The default is 180: the cron period is 60m,
+# and the scan itself only picks up settled transcript segments — measured
+# 2026-09-17, the 00:00 run's newest record was 22:56Z, an intra-scan lag of
+# ~64m. 60 + 64 + slack is why 180 and not 90. A tighter budget produces false
+# failures on a seat that is capturing perfectly well.
 set -uo pipefail
 MANAGED_DIR=/usr/local/libexec/numbat-paperclip
 RECORDS=/mnt/paperclipdata/numbat/records
 IDENTITIES=(cto auditor scanner-engineer-2)
 fail=0
+
+since="${1:-}"
+max_stale_min="${2:-180}"
+if [ -z "$since" ]; then
+  echo "usage: $(basename "$0") <retune-timestamp-ISO8601> [max-staleness-minutes]" >&2
+  echo "  e.g. $(basename "$0") 2026-09-17T08:00:00Z 180" >&2
+  exit 2
+fi
 
 echo "== 1. re-pinned SHA-256 (four pinned artifacts) =="
 sha256sum /etc/codex/requirements.toml "$MANAGED_DIR"/cto "$MANAGED_DIR"/auditor "$MANAGED_DIR"/scanner-engineer-2
@@ -20,16 +49,22 @@ done
 
 echo
 echo "== 3. continuous capture: events still landing for ALL THREE seats =="
-echo "   (counts records written strictly after the retune timestamp passed as \$1, ISO8601)"
-since="${1:-}"
+echo "   (post-retune count is informational; a spool older than ${max_stale_min}m FAILS)"
 for id in "${IDENTITIES[@]}"; do
-  python3 - "$RECORDS/$id" "$since" <<'PY'
-import gzip,json,glob,os,sys,collections
-d,since=sys.argv[1],sys.argv[2]
+  python3 - "$RECORDS/$id" "$since" "$max_stale_min" <<'PY'
+import gzip,json,glob,os,re,sys,collections,datetime
+d,since,max_stale=sys.argv[1],sys.argv[2],float(sys.argv[3])
+
+def parse(ts):
+    """ISO8601 with 0-9 fractional digits and a Z suffix."""
+    t=re.sub(r"(\.\d{6})\d+",r"\1",ts.strip()).replace("Z","+00:00")
+    try: return datetime.datetime.fromisoformat(t)
+    except ValueError: return None
+
 files=sorted(glob.glob(d+"/records.*.ndjson.gz"))[-3:]
 live=os.path.join(d,"records.ndjson")
 if os.path.exists(live): files.append(live)
-types=collections.Counter(); n=0; last=None
+types=collections.Counter(); n=0; last=None; newest=None; undated=0
 for f in files:
     op=gzip.open if f.endswith(".gz") else open
     try: fh=op(f,'rt',errors='replace')
@@ -40,11 +75,33 @@ for f in files:
         try: r=json.loads(l)
         except Exception: continue
         ts=r.get('timestamp') or r.get('ts') or ''
-        if since and ts <= since: continue
-        n+=1; types[r.get('record_type','?')]+=1; last=ts or last
-print("  %-19s post-retune records=%-6d last=%s types=%s %s" %
-      (os.path.basename(d), n, last, dict(types), "OK" if n>0 else "NO NEW EVENTS"))
+        # A record with no timestamp cannot be placed relative to the retune.
+        # Count it out loud rather than dropping it into the <= comparison,
+        # where '' sorts before every real timestamp and disappears silently.
+        if not ts:
+            undated += 1
+            continue
+        if newest is None or ts > newest: newest = ts
+        if ts <= since: continue
+        n+=1; types[r.get('record_type','?')]+=1; last=ts
+
+age_min=None
+dt=parse(newest) if newest else None
+if dt is not None:
+    age_min=(datetime.datetime.now(datetime.timezone.utc)-dt).total_seconds()/60.0
+
+if age_min is None:
+    verdict="NO DATED RECORDS"; ok=False
+elif age_min > max_stale:
+    verdict="STALE %.0fm > %.0fm" % (age_min,max_stale); ok=False
+else:
+    verdict="OK (spool %.0fm old)" % age_min; ok=True
+
+print("  %-19s post-retune=%-6d newest=%s undated=%-4d types=%s %s" %
+      (os.path.basename(d), n, newest, undated, dict(types), verdict))
+raise SystemExit(0 if ok else 1)
 PY
+  [ $? -eq 0 ] || fail=1
 done
 
 echo
@@ -75,8 +132,13 @@ for ident in ids:
     bad += hits
 raise SystemExit(1 if bad else 0)
 PY
-[ $? -ne 0 ] && fail=1
+[ $? -eq 0 ] || fail=1
 
 echo
-[ $fail -eq 0 ] && echo "RESULT: gate-3 latency evidence COMPLETE" || echo "RESULT: FAILED — do not grade gate 3"
+if [ $fail -eq 0 ]; then
+  echo "RESULT: retune applied, capture continuous, isolation clean."
+  echo "        Latency is NOT measured here — grade p50/p90 from the BEAAA-33227 two-leg method."
+else
+  echo "RESULT: FAILED — do not grade gate 3"
+fi
 exit $fail
