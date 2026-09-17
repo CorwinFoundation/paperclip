@@ -890,14 +890,17 @@ def _row_produced_grade(row: Mapping[str, Any]) -> bool:
 def _row_score_ineligible_by_design(row: Mapping[str, Any]) -> bool:
     """True when a row is deliberately outside the scored set.
 
-    Rows with ``expected.synthetic_only`` or ``judge.reported_not_scored``
-    are withheld from scoring by design; they are not grading failures.
+    Executors normalize producer-specific markers to the top-level
+    ``reported_not_scored`` field before a row reaches scan aggregation. The
+    nested checks remain as a compatibility fallback for persisted evidence
+    written before that normalization was introduced.
     """
-    if (row.get("expected") or {}).get("synthetic_only"):
-        return True
-    if (row.get("judge") or {}).get("reported_not_scored"):
-        return True
-    return False
+    return bool(
+        row.get("reported_not_scored") is True
+        or (row.get("expected") or {}).get("synthetic_only") is True
+        or (row.get("expected") or {}).get("reported_not_scored") is True
+        or (row.get("judge") or {}).get("reported_not_scored") is True
+    )
 
 
 def _zoo_coverage_failures(

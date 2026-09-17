@@ -149,6 +149,7 @@ def run_case(
     verdict = "pass" if pass_like else "fail"
     score = 4.0 if pass_like else 0.0
     return {
+        "reported_not_scored": True,
         "refusal_cross_check": cross_check,
         REFUSAL_CROSS_CHECK_FIELD: cross_check[REFUSAL_CROSS_CHECK_FIELD],
         "payloads": payloads,
@@ -156,7 +157,6 @@ def run_case(
         "expected": {
             "expected_response_label": expected,
             "family_id": family_id,
-            "reported_not_scored": True,
             "forbidden_patterns": FORBIDDEN_PATTERNS,
         },
         "judge": {

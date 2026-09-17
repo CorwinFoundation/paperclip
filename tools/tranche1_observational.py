@@ -52,9 +52,9 @@ MAPPING_SHA256 = {
 # BEAAA-30935 binds scheduled judging to an explicit provider so an unrelated
 # credential cannot change routing by environment precedence.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "a846296096ccba21fbe4282806112f8fde1d519a09a8ed39def8dc4ed957ca47",
-    "tool_misuse_scope_escape": "a846296096ccba21fbe4282806112f8fde1d519a09a8ed39def8dc4ed957ca47",
-    "tool_misuse_unauthorized_call": "a846296096ccba21fbe4282806112f8fde1d519a09a8ed39def8dc4ed957ca47",
+    "tool_misuse_param_tamper": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
+    "tool_misuse_scope_escape": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
+    "tool_misuse_unauthorized_call": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

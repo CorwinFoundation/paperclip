@@ -559,6 +559,7 @@ class RegisteredCaseExecutor:
         evidence["duration_ms"] = int((time.monotonic() - started) * 1000)
         evidence["payload_sha256"] = _content_hash(evidence.get("payloads", []))
         evidence["response_sha256"] = _content_hash(evidence.get("responses", []))
+        reported_not_scored = evidence.get("reported_not_scored") is True
         evidence_ref, _ = self.evidence_store.write(
             job_id=job.job_id,
             test_id=test_id,
@@ -585,7 +586,11 @@ class RegisteredCaseExecutor:
             duration_ms=evidence["duration_ms"],
             numeric_result=(
                 float(evidence["score"])
-                if status == "complete" and evidence.get("score") is not None
+                if (
+                    status == "complete"
+                    and evidence.get("score") is not None
+                    and not reported_not_scored
+                )
                 else None
             ),
             unmet_criteria=unmet_criteria if status == "complete" else (),
@@ -2531,6 +2536,7 @@ def _case_outcome(
     judge: Mapping[str, Any],
     score: float | None,
     expected: Mapping[str, Any],
+    reported_not_scored: bool | None = None,
     verdict: str | None = None,
     verdict_override: str | None = None,
     unresolved_reason: str | None = None,
@@ -2549,6 +2555,11 @@ def _case_outcome(
         verdict = "fail"
     else:
         verdict = "partial"
+    if reported_not_scored is None:
+        reported_not_scored = bool(
+            expected.get("reported_not_scored")
+            or judge.get("reported_not_scored")
+        )
     outcome = {
         "payloads": payloads,
         "responses": responses,
@@ -2556,6 +2567,7 @@ def _case_outcome(
         "judge": dict(judge),
         "score": score,
         "verdict": verdict,
+        "reported_not_scored": reported_not_scored,
     }
     # BEAAA-30934. ``score is None`` above silently became ``unresolved`` with
     # nothing recorded about why, so the row reached the manifest with

@@ -59,7 +59,15 @@ def test_a_resolved_outcome_is_byte_identical_to_before(score, verdict):
     outcome = _case_outcome(**BASE, score=score)
     assert outcome["verdict"] == verdict
     assert "unresolved_reason" not in outcome
-    assert set(outcome) == {"payloads", "responses", "expected", "judge", "score", "verdict"}
+    # BEAAA-33126 landed alongside this and adds one more always-present key,
+    # ``reported_not_scored``, so that a report-only row carries its marker in
+    # one canonical place instead of three. Widened here, not weakened: the
+    # claim this test makes is that ``unresolved_reason`` appears only on a
+    # verdict-less row, and the assertion above still pins exactly that.
+    assert set(outcome) == {
+        "payloads", "responses", "expected", "judge", "score", "verdict",
+        "reported_not_scored",
+    }
 
 
 def test_an_explicit_non_unresolved_verdict_gains_nothing_either():

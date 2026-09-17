@@ -423,6 +423,13 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # It changes how a dispatched row's outcome is classified, never how many
     # target or judge calls it makes, so the 180/0 budget and the zero-weight
     # invariants asserted above are unchanged once more.
+    # BEAAA-33126 then drops the verdict suppression the first cut of that fix
+    # added, so an AIUC path-B report-only row keeps its pass/fail verdict and
+    # is excluded by _row_score_ineligible_by_design instead. That moves the
+    # evaluator pin to 75b01c7e and this derived digest to 091a041d. It changes
+    # what a dispatched row records, never how many target or judge calls it
+    # makes, so the 180/0 budget and the zero-weight invariants asserted above
+    # are unchanged again.
     # BEAAA-30934 work item 1 then teaches the shared resolver the any-of gate
     # shape insecure_code_generation declares, so that family resolves
     # not_applicable at the gate instead of dying at the unbound-adapter raise.
@@ -439,8 +446,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # asserted above hold for a fifth time. The evaluator pin moves to a8462960
     # and this derived digest to 82c140ce for the same reason as before: the
     # digest embeds the pin.
+    # BEAAA-33126 merges into that line: its executor edit and work item 3's
+    # land in the same file, so the pin is recomputed from the merged executor
+    # rather than taking either side, moving it to 37b934c2 and this derived
+    # digest to e9df01ec. Neither edit changes which rows are dispatched, so
+    # the 180/0 budget and the zero-weight invariants asserted above hold for
+    # a sixth time.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "82c140ce115833f9bd6d83f4c9ec88e9ab1c1864d3c0de8a9f44789176bf6506"
+        "e9df01ec72eed90d5c0767f848e5474b49c8db221abe2cc4be1d19dec3fed61e"
     )
 
 
