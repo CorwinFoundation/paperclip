@@ -1332,6 +1332,69 @@ def run_scheduled_zoo_scan(
     return manifest_path
 
 
+def _vapi_capability_declaration(
+    assistant_id: str,
+    subject_factory: Callable[[], Any],
+) -> tuple[dict[str, bool] | None, dict[str, Any]]:
+    """Declare the scan subject's architecture flags before the job is submitted.
+
+    BEAAA-30934. The lane submitted its job with no ``capability_manifest``, so
+    ``evals.aiuc_path_b.applicability.resolve`` saw ``None`` and returned the
+    unattested policy default — ``applicable=False``, ``source="policy_default"``,
+    reason ``"<flag>=absent_capability_manifest"`` — for every gated family. That
+    is a record that nobody was asked, and it is where 44 rows of the census died
+    (``human_escalation_flagging`` 20, ``customer_defined_risk_pack`` 12,
+    ``mcp_tool_integrity`` 12).
+
+    The two tool-surface flags come from the captured assistant configuration.
+    ``has_structured_output`` cannot: it is derived by spending one bounded target
+    call per gated family on that family's own benign canary and admitting the
+    reply through the same reader lane C grades with (BEAAA-29804). A probe that
+    cannot run leaves the flag undeclared rather than guessing it, which restores
+    exactly today's behaviour for those rows and says so in the evidence.
+    """
+
+    from harness.vapi_capability_manifest import (
+        CapabilityDeclarationError,
+        declaration_evidence,
+        declare_for_assistant,
+    )
+
+    try:
+        declared = declare_for_assistant(assistant_id)
+    except CapabilityDeclarationError as exc:
+        return None, {
+            "declared": False,
+            "reason": f"capability_snapshot_unusable:{exc}",
+        }
+    if declared is None:
+        return None, {
+            "declared": False,
+            "reason": "assistant_id_absent_from_captured_configuration",
+        }
+
+    evidence: dict[str, Any] = {
+        "declared": True,
+        "configuration": declaration_evidence(assistant_id, declared),
+    }
+    try:
+        from harness.structured_output_probe import probe_live
+
+        probe = probe_live(assistant_id, subject_factory().complete)
+    except Exception as exc:  # a probe failure must not fabricate a surface
+        evidence["structured_output_probe"] = {
+            "ran": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "effect": "has_structured_output left undeclared",
+        }
+        return dict(declared), evidence
+
+    merged = dict(declared)
+    merged.update(probe.capability_manifest())
+    evidence["structured_output_probe"] = {"ran": True, **probe.evidence()}
+    return merged, evidence
+
+
 def run_scheduled_scan(
     job_name: str,
     *,
@@ -1385,6 +1448,11 @@ def run_scheduled_scan(
         target="own-account",
     )
     judge_factory = lambda: RateLimitedRunner(default_judge_runner(), shared_limiter)  # noqa: E731
+    capability_manifest, capability_evidence = _vapi_capability_declaration(
+        secrets["VAPI_ASSISTANT_ID"],
+        lambda: target_factory(config.agent_endpoint, secrets["VAPI_API_KEY"]),
+    )
+    request.invocation_context = {"target_capabilities": capability_manifest}
     budget = ScanBudget(
         max_estimated_judge_cost_usd=config.cost_cap_usd,
         max_wall_clock_seconds=config.timeout_seconds,
@@ -1416,6 +1484,7 @@ def run_scheduled_scan(
         scan_id=f"scheduled-{job_name}-{run_date}",
         wall_clock_budget_seconds=config.timeout_seconds,
         rate_limit_per_minute=config.rpm,
+        capability_manifest=capability_manifest,
     )
     lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
     attempt_id = str(lease["attempt_id"])
@@ -1446,6 +1515,8 @@ def run_scheduled_scan(
     )
     manifest["aborted"] = vapi_abort_reason is not None
     manifest["abort_reason"] = vapi_abort_reason
+    manifest["capability_manifest"] = capability_manifest
+    manifest["capability_declaration"] = capability_evidence
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(manifest_path)
