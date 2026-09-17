@@ -1142,6 +1142,28 @@ def _run_zoo_target(
     return finished, target_rows, abort_reason
 
 
+def _require_available_judge() -> str:
+    """Fail closed before dispatch when no judge credential is configured.
+
+    ``default_judge_runner`` degrades to a judge whose every ``complete`` call
+    raises rather than refusing to build, so a scan with no usable credential
+    still spends every target call and then grades none of them. Resolving the
+    judge once here turns a six-hour run that returns only verdict-less rows
+    into an immediate failure that names the missing credential.
+    """
+    from tools.registered_case_executor import default_judge_runner
+
+    model_id = default_judge_runner().model_id()
+    if model_id == "judge:unavailable":
+        provider = os.environ.get("ARE_FULL_SCAN_JUDGE_PROVIDER", "") or "(unset)"
+        raise RuntimeError(
+            "scheduled scan has no usable judge: provider "
+            f"{provider} is configured but its credential is absent; "
+            "set ANTHROPIC_API_KEY or OPENROUTER_API_KEY"
+        )
+    return model_id
+
+
 def run_scheduled_zoo_scan(
     *,
     config: ScheduleConfig | None = None,
@@ -1170,6 +1192,7 @@ def run_scheduled_zoo_scan(
     os.environ["ARE_FULL_SCAN_JUDGE_PROVIDER"] = config.judge_provider
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
     os.environ["ARE_FULL_SCAN_JUDGE_BATCH"] = "true"
+    _require_available_judge()
 
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / "zoo"
@@ -1330,6 +1353,7 @@ def run_scheduled_scan(
     os.environ["ARE_FULL_SCAN_JUDGE_PROVIDER"] = config.judge_provider
     os.environ["ARE_FULL_SCAN_JUDGE_MODEL"] = config.judge_model
     os.environ["ARE_FULL_SCAN_JUDGE_BATCH"] = "true"
+    _require_available_judge()
 
     run_date = datetime.now(timezone.utc).date().isoformat()
     output_dir = config.evidence_root / run_date / job_name
