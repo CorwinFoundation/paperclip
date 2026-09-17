@@ -22,6 +22,8 @@ from harness.runner import ModelRunner
 from tools.active_test_registry import build_registry
 from tools.registered_case_executor import EvidenceStore, RegisteredCaseExecutor, ScanBudget
 from tools.tranche1_observational import (
+    OBSERVATIONAL_REGISTRATION_STATUS,
+    execution_eligible,
     ALLOWLIST,
     CONFIG_SHA256,
     DISCLOSURE,
@@ -425,7 +427,7 @@ def select_exact_tranche(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, An
         dict(row)
         for row in rows
         if row.get("test_id") in ALLOWLIST
-        and row.get("scoring_active") is True
+        and execution_eligible(row)
     ]
     counts = Counter(str(row.get("test_id")) for row in selected)
     identities = [(str(row.get("test_id")), str(row.get("case_id"))) for row in selected]
@@ -443,7 +445,8 @@ def select_exact_tranche(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, An
             f"pre-call exact-allowlist drift: counts={dict(counts)} unique={len(set(identities))}"
         )
     required = {
-        "scoring_active": True,
+        "scoring_active": False,
+        "candidate_registration_status": OBSERVATIONAL_REGISTRATION_STATUS,
         "underwriting_active": False,
         "effective_underwriting_weight": 0.0,
         "observational_contract_version": ENVELOPE_VERSION,
@@ -528,7 +531,7 @@ def run_tranche1_canary(
     families = [
         {
             **ranking,
-            "scoring_active": True,
+            "scoring_active": False,
             "underwriting_active": False,
             "effective_underwriting_weight": 0.0,
         }
@@ -561,7 +564,7 @@ def run_tranche1_canary(
         "budget": budget,
         "families": families,
         "zero_weight_invariants": {
-            "scoring_active": True,
+            "scoring_active": False,
             "underwriting_active": False,
             "effective_weight": 0.0,
             "absolute_delta": {

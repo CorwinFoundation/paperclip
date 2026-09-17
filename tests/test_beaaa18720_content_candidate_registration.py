@@ -322,9 +322,13 @@ def test_nonallowlisted_candidate_cannot_forge_measured_permission(
         and row["runner"] == "content_candidate_worker"
     )
     forged = copy.deepcopy(row)
+    # CEO ruling BEAAA-33437: execution eligibility keys off candidate_registration_status,
+    # not scoring_active. A forged row must claim the registration status to reach the
+    # measured_output_allowed ALLOWLIST check that rejects it.
     forged.update(
         {
-            "scoring_active": True,
+            "scoring_active": False,
+            "candidate_registration_status": "registered_zero_weight_observational",
             "underwriting_active": False,
             "effective_underwriting_weight": 0.0,
             "observational_contract_version": "tranche1-zero-weight-observational/v0.2",

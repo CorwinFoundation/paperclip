@@ -346,7 +346,9 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
         "quote_policy_behavior": 0,
         "published_weighted_countable_totals": 0,
     }
-    assert all(row["scoring_active"] for row in report["families"])
+    # CEO ruling BEAAA-33437: ZWO rows carry scoring_active=False; execution eligibility
+    # keys off candidate_registration_status, not the weight flag.
+    assert all(not row["scoring_active"] for row in report["families"])
     assert all(not row["underwriting_active"] for row in report["families"])
     assert all(row["effective_underwriting_weight"] == 0.0 for row in report["families"])
     materialized = "\n".join(
@@ -452,12 +454,25 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # digest to e9df01ec. Neither edit changes which rows are dispatched, so
     # the 180/0 budget and the zero-weight invariants asserted above hold for
     # a sixth time.
+    # BEAAA-33437 (CEO ruling): activate_registry_rows now writes scoring_active=False
+    # on the 36 ZWO rows instead of True, per the ruling that scoring_active is a
+    # scoring-weight flag only. The families section embeds scoring_active for each
+    # row, so the manifest digest moves from e9df01ec to fc23c45d. Budget, row
+    # dispatch, and zero-weight invariants are all unchanged.
+    # BEAAA-33462 then routes a row that merely *claims* the observational
+    # envelope into the same row-authorization chokepoint, so the executor moves
+    # and the evaluator pin with it, c8a14cee -> 21d71bb5, carrying this derived
+    # digest fc23c45d -> c5a690bb. The pin is the only thing that moved: taking
+    # the manifest this test produces at the new head and substituting
+    # ``pins.evaluator`` back to c8a14cee reproduces fc23c45d byte for byte, so
+    # budget, row dispatch, families and the zero-weight invariants asserted
+    # above are unchanged for a seventh time.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "e9df01ec72eed90d5c0767f848e5474b49c8db221abe2cc4be1d19dec3fed61e"
+        "c5a690bb5023ab6054033af80a93496475fa8cf66cfeb85fa47d1ad03aabff57"
     )
 
 

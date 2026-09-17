@@ -91,7 +91,9 @@ def test_registry_promotes_exactly_36_without_count_or_worker_collateral(monkeyp
     selected = [
         row for row in rows
         if row.get("runner") == "content_candidate_worker"
-        and row.get("scoring_active") is True
+        # CEO ruling BEAAA-33437: ZWO rows carry scoring_active=False; execution eligibility
+        # keys off candidate_registration_status, not the weight flag.
+        and row.get("scoring_active") is False
         and row.get("candidate_registration_status")
         == "registered_zero_weight_observational"
     ]
@@ -113,7 +115,8 @@ def test_single_config_rollback_restores_only_36(monkeypatch):
     active_before = [
         row for row in rows
         if row.get("runner") == "content_candidate_worker"
-        and row.get("scoring_active") is True
+        # CEO ruling BEAAA-33437: ZWO rows carry scoring_active=False.
+        and row.get("scoring_active") is False
         and row.get("candidate_registration_status")
         == "registered_zero_weight_observational"
     ]

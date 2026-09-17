@@ -575,6 +575,45 @@ def _scoring_active(data: Mapping[str, Any]) -> bool:
     return False
 
 
+UNMAPPED_CANDIDATE_RUBRIC_STATUS = "unmapped_reported_not_scored"
+MAPPED_VIA_PRODUCTION_MAPPING_STATUS = "mapped_via_production_mapping"
+
+
+def row_blocks_scoring_activation(row: Mapping[str, Any]) -> bool:
+    """BEAAA-33175 D2: return whether a row is barred from being scoring-active.
+
+    A row may not carry weight while its rubric mapping is still declared
+    ``unmapped_reported_not_scored``, or while its execution is unevidenced.
+    Both are fail-closed: the absence of a declaration bars activation.
+    """
+
+    if row.get("dev_scoring_active") is True:
+        # The Founder dev tier (BEAAA-31092) is already gated: these rows are
+        # scoring-active only while BACKBOND_FOUNDER_DEV_MODE is on, and they
+        # are non-countable with it off, so they never reach a production
+        # score. D2 guards the production scored set; re-gating the dev tier
+        # here would disable it without changing any production number, and
+        # re-dispositioning individual rows is outside this card's scope.
+        return False
+    return (
+        row.get("candidate_rubric_mapping_status")
+        == UNMAPPED_CANDIDATE_RUBRIC_STATUS
+        or row.get("execution_evidenced") is not True
+    )
+
+
+def apply_fail_closed_scoring(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Demote every row that is scoring-active without mapping or evidence."""
+
+    for row in rows:
+        if row.get("scoring_active") is not True:
+            continue
+        if row_blocks_scoring_activation(row):
+            row["scoring_active"] = False
+            row["reporting_status"] = "reported_not_scored"
+    return rows
+
+
 def _reporting_status(data: Mapping[str, Any]) -> str:
     if (
         str(data.get("benchmark") or "") in FOUNDER_DEV_SCORED_FAMILIES
@@ -815,6 +854,8 @@ def build_registry(
         reconciled = _merge_content_candidate_inventory(reconciled)
     if mapping_dir.resolve() == MAPPING_DIR.resolve():
         reconciled = _merge_authorized_tau_support_crm(reconciled)
+    # BEAAA-33175 D2: last word on activation, after every merge has run.
+    reconciled = apply_fail_closed_scoring(reconciled)
     return reconciled
 
 
@@ -998,7 +1039,20 @@ def _merge_content_candidate_inventory(
             # -coverage identity: dropping it here would silently shrink the
             # distinct-case count by one row per graduated case, so carry it
             # across unchanged.
-            current.update(candidate_metadata)
+            graduated_metadata = dict(candidate_metadata)
+            # BEAAA-33175: this row is already bound to a production mapping and
+            # carries that mapping's rubric id, so stamping the registration
+            # literal ``unmapped_reported_not_scored`` onto it asserts something
+            # false. The inventory enriches a graduated row's identity and
+            # provenance; it does not un-map a mapped row. Preserve a truthful
+            # status already set by an activation path (C10 writes
+            # ``mapped_scored_zero_weight``), otherwise record the production
+            # mapping as the binding.
+            graduated_metadata["candidate_rubric_mapping_status"] = (
+                current.get("candidate_rubric_mapping_status")
+                or MAPPED_VIA_PRODUCTION_MAPPING_STATUS
+            )
+            current.update(graduated_metadata)
             current["applicability_gate"] = candidate_applicability
             if _is_lane_c_family(family_id) and not current.get(
                 "runtime_case_identity"
@@ -1130,10 +1184,14 @@ def _reconcile_runtime_identities(rows: list[dict[str, Any]]) -> list[dict[str, 
 
 
 def _is_promotable_runtime_row(row: Mapping[str, Any]) -> bool:
+    # BEAAA-33200: reporting_status deliberately excluded here.
+    # It was derived from scoring state, so including it made execution_evidenced
+    # a function of _scoring_active, creating a circular dependency with D2.
+    # Whether a row is promotable (i.e. it has a materializable runtime identity
+    # with pending evidence) must not depend on scoring disposition.
     return (
         row.get("status") == "active"
         and row.get("case_class") != "attestation"
-        and row.get("reporting_status") != "reported_not_scored"
         and row.get("target_bound") is True
         and row.get("execution_evidence_status") == "target_bound_evidence_pending"
     )

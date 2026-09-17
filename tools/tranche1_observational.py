@@ -56,9 +56,9 @@ MAPPING_SHA256 = {
 # `python3 -m pytest tests/test_beaaa19021_tranche1_canary.py::test_runner_executes_exact_budget_zero_judges_and_redacts_secret -x -q`
 # and replace that test's literal manifest digest with the observed digest.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
-    "tool_misuse_scope_escape": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
-    "tool_misuse_unauthorized_call": "37b934c2a86f788047b34644dc54a5064e38d2a791aa3248bb2cff73885f6403",
+    "tool_misuse_param_tamper": "21d71bb557fae089a721eb38875c6d3baf2ac0da3d68ba4dce4296c7ca169a63",
+    "tool_misuse_scope_escape": "21d71bb557fae089a721eb38875c6d3baf2ac0da3d68ba4dce4296c7ca169a63",
+    "tool_misuse_unauthorized_call": "21d71bb557fae089a721eb38875c6d3baf2ac0da3d68ba4dce4296c7ca169a63",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
@@ -126,6 +126,38 @@ def rollback_requested() -> bool:
     return override == "off"
 
 
+OBSERVATIONAL_REGISTRATION_STATUS = "registered_zero_weight_observational"
+
+
+def execution_eligible(row: Mapping[str, Any]) -> bool:
+    """Execution eligibility for the zero-weight observational tranche.
+
+    Per the BEAAA-33437 CEO ruling, ``scoring_active`` states one thing only:
+    whether a row's result carries scoring weight in a customer-facing score.
+    It is never an execution selector. Eligibility keys off the explicit
+    registration status the envelope writes, which the D2 fail-closed
+    demotion (``apply_fail_closed_scoring``) does not touch.
+    """
+
+    return row.get("candidate_registration_status") == OBSERVATIONAL_REGISTRATION_STATUS
+
+
+def claims_observational_envelope(row: Mapping[str, Any]) -> bool:
+    """A row asserting the zero-weight observational envelope, authorized or not.
+
+    Execution eligibility keys off ``candidate_registration_status`` (BEAAA-33437),
+    so an unregistered row that stamps the envelope fields would otherwise skip the
+    row-authorization chokepoint entirely and be scored on the ordinary path. This
+    predicate is what brings a forged claim back under the chokepoint; whether the
+    claim is honoured is still decided by :func:`measured_output_allowed`.
+    """
+
+    return (
+        row.get("observational_contract_version") is not None
+        or row.get("observational_disclosure") is not None
+    )
+
+
 def measured_output_allowed(row: Mapping[str, Any]) -> bool:
     """Row-bound permission; worker identity does not override family policy."""
 
@@ -134,7 +166,7 @@ def measured_output_allowed(row: Mapping[str, Any]) -> bool:
     family = str(row.get("test_id") or "")
     return (
         family in ALLOWLIST
-        and row.get("scoring_active") is True
+        and execution_eligible(row)
         and row.get("underwriting_active") is False
         and row.get("effective_underwriting_weight") == 0.0
         and row.get("observational_contract_version") == ENVELOPE_VERSION
@@ -217,9 +249,17 @@ def activate_registry_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in selected:
         row.update(
             {
-                "scoring_active": True,
-                "reporting_status": "zero_weight_observational",
-                "candidate_registration_status": "registered_zero_weight_observational",
+                "scoring_active": False,
+                # BEAAA-33462: the top-level status is the canonical
+                # BEAAA-33126 vocabulary. The observational character of the
+                # tranche is carried by candidate_registration_status and the
+                # envelope fields below, which is what execution_eligible()
+                # and measured_output_allowed() key off. A row that carries no
+                # scoring weight is reported-not-scored, full stop; the legacy
+                # "zero_weight_observational" label is what BEAAA-33099
+                # audited as hiding exactly that fact.
+                "reporting_status": "reported_not_scored",
+                "candidate_registration_status": OBSERVATIONAL_REGISTRATION_STATUS,
                 "observational_contract_version": ENVELOPE_VERSION,
                 "observational_disclosure": DISCLOSURE,
                 "effective_underwriting_weight": 0.0,

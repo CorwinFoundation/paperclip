@@ -44,11 +44,20 @@ EXPECTED_REPLICATE_CALLS = {
 }
 LEGACY_SUPPORTING_ROW_EXPECTATIONS = {
     "tool_misuse_param_tamper": {
+        # BEAAA-33175 D2: these 12 rows are unmapped AND unevidenced, so they
+        # may no longer be scoring-active. Before the fix they were
+        # scoring_active=True / "zero_weight_observational", which is exactly
+        # the label flip BEAAA-33099 audited: "reported_not_scored" is computed
+        # as `scoring_active is not True`, so a zero-weight observational row
+        # stops being labelled reported-not-scored while carrying no weight.
+        # Ruled by the CEO on 2026-09-16 21:05Z ("the 56 demotions are the
+        # right 56"). Customer-visible classification change, reported on the
+        # issue rather than smoothed over.
         "runner": "content_candidate_worker",
         "execution_evidenced": False,
         "execution_evidence_status": "runtime_bound_evidence_pending",
-        "scoring_active": True,
-        "reporting_status": "zero_weight_observational",
+        "scoring_active": False,
+        "reporting_status": "reported_not_scored",
         "execution_mode": "content_candidate_inventory_adapter",
     },
     "cross_customer_data_exposure": {
@@ -162,7 +171,9 @@ def verify() -> dict[str, object]:
         "selection_mode": selection_mode,
         "numeric_score_output": False,
         "score_contribution": False,
-        "legacy_zero_weight_observational_families": ["tool_misuse_param_tamper"],
+        # BEAAA-33175 D2 demoted the last zero-weight observational family;
+        # no row in the direct-family set is scoring-active at weight 0.0.
+        "legacy_zero_weight_observational_families": [],
         "disposition": "day1-supporting-evidence",
     }
     return summary

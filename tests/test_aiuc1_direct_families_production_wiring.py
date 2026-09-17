@@ -99,21 +99,11 @@ def test_source_built_registry_exposes_all_direct_rows_on_the_production_dispatc
         for row in rows
         if row["test_id"] not in {"tool_misuse_param_tamper", "cross_customer_data_exposure"}
     )
-    assert all(
-        row["reporting_status"] == "reported_not_scored"
-        for row in rows
-        if row["test_id"] != "tool_misuse_param_tamper"
-    )
-    assert {
-        row["reporting_status"]
-        for row in rows
-        if row["test_id"] == "tool_misuse_param_tamper"
-    } == {"zero_weight_observational"}
-    assert all(
-        row["scoring_active"] is False
-        for row in rows
-        if row["test_id"] != "tool_misuse_param_tamper"
-    )
+    # BEAAA-33175 D2: tool_misuse_param_tamper is unmapped and unevidenced, so
+    # it is no longer scoring-active at weight 0.0. Every direct-family row is
+    # now uniformly reported-not-scored. Ruled by the CEO 2026-09-16 21:05Z.
+    assert all(row["reporting_status"] == "reported_not_scored" for row in rows)
+    assert all(row["scoring_active"] is False for row in rows)
     assert all(worker_id_for_registry_row(row) == "day1_report_only" for row in rows)
 
     selected = {case.case_id for case in registry_cases_from_rows(build_registry())}

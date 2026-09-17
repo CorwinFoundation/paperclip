@@ -267,6 +267,30 @@ class _ScopedEgressRunner(ModelRunner):
             return self._base.complete(prompt)
 
 
+def _observational_execution_eligible(registry_row) -> bool:
+    """BEAAA-33437: execution eligibility is the registration status, not weight."""
+
+    from tools.tranche1_observational import execution_eligible
+
+    return registry_row is not None and execution_eligible(registry_row)
+
+
+def _observational_chokepoint_applies(registry_row) -> bool:
+    """Rows the row-authorization chokepoint must adjudicate.
+
+    Registered observational rows, plus any row that merely *claims* the
+    envelope. Without the second arm a forged row would fall through to the
+    ordinary scored path instead of being rejected (BEAAA-23860).
+    """
+
+    from tools.tranche1_observational import claims_observational_envelope
+
+    return registry_row is not None and (
+        _observational_execution_eligible(registry_row)
+        or claims_observational_envelope(registry_row)
+    )
+
+
 class EvidenceStore:
     """Atomic per-case evidence writer.
 
@@ -1193,7 +1217,7 @@ class RegisteredCaseExecutor:
                 case, verdict=verdict,
                 evidence_ref=f"evidence://pending/{test_id}/{case_id}",
             )
-        if registry_row.get("scoring_active") is True:
+        if _observational_execution_eligible(registry_row):
             from tools.tranche1_observational import (
                 ALLOWLIST,
                 CONFIG_SHA256,
@@ -1288,7 +1312,7 @@ class RegisteredCaseExecutor:
         # Same row-authorization chokepoint the content-candidate path uses. A
         # forged row that claims measured permission is rejected before any
         # scoring or evidence acceptance, rather than raising (BEAAA-23860).
-        if registry_row is not None and registry_row.get("scoring_active") is True:
+        if _observational_chokepoint_applies(registry_row):
             from tools.tranche1_observational import measured_output_allowed
 
             if not measured_output_allowed(registry_row):
@@ -1492,7 +1516,7 @@ class RegisteredCaseExecutor:
             )
         observational = False
         observational_rejection: str | None = None
-        if registry_row is not None and registry_row.get("scoring_active") is True:
+        if _observational_chokepoint_applies(registry_row):
             from tools.tranche1_observational import measured_output_allowed
 
             if not measured_output_allowed(registry_row):
