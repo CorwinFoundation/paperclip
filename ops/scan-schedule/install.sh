@@ -45,6 +45,7 @@ for unit in backbond-scan-vapi.service backbond-scan-vapi-beaaa30934.service bac
 done
 chown "$unit_user:$unit_user" "$manifest_root"
 chmod 0755 "$manifest_root"
+"$here/relax-run-dir-perms.sh" "$manifest_root" "$unit_user"
 printf '%s\n' "beai-agent ALL=(root) NOPASSWD: /usr/bin/systemctl start backbond-scan-vapi.service, /usr/bin/systemctl stop backbond-scan-vapi.service, /usr/bin/systemctl restart backbond-scan-vapi.service, /usr/bin/systemctl status backbond-scan-vapi.service, /usr/bin/systemctl start backbond-scan-vapi-beaaa30934.service, /usr/bin/systemctl status backbond-scan-vapi-beaaa30934.service, /usr/bin/systemctl start backbond-scan-vapi-garak.service, /usr/bin/systemctl stop backbond-scan-vapi-garak.service, /usr/bin/systemctl restart backbond-scan-vapi-garak.service, /usr/bin/systemctl status backbond-scan-vapi-garak.service, /usr/bin/systemctl start backbond-scan-zoo.service, /usr/bin/systemctl stop backbond-scan-zoo.service, /usr/bin/systemctl restart backbond-scan-zoo.service, /usr/bin/systemctl status backbond-scan-zoo.service" > /etc/sudoers.d/backbond-scan-schedule
 chmod 0440 /etc/sudoers.d/backbond-scan-schedule
 visudo -cf /etc/sudoers.d/backbond-scan-schedule >/dev/null
