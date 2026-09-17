@@ -416,8 +416,15 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # digest to 9b3f8066. The gate changes which rows are dispatched, never how
     # many calls a dispatched row costs, so the 180/0 budget and the zero-weight
     # invariants asserted above are again unchanged.
+    # BEAAA-30934 work item 2 then splits the confirmation adapter's single
+    # LaneCError into an absent-surface case and a contract-violation case, so a
+    # row that answered can no longer terminate on an uncaught exception. That
+    # moves the evaluator pin to b214b2a4 and this derived digest to ca508f30.
+    # It changes how a dispatched row's outcome is classified, never how many
+    # target or judge calls it makes, so the 180/0 budget and the zero-weight
+    # invariants asserted above are unchanged once more.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "9b3f8066eb5d8054cd60077fe5b1f564e566502660634267ec36e992acea6721"
+        "ca508f3007b62240ca03609d50e3a3632b889b7c16cf3342e176d330b41c44ff"
     )
 
 
