@@ -165,6 +165,64 @@ def rejudge(row: Mapping[str, Any], capability_manifest: Mapping[str, Any] | Non
     return _verdict(row), "judge_verdict_unchanged_by_deterministic_gates", "recorded"
 
 
+# --- the tree has to speak the oracle's vocabulary ------------------------
+
+
+def _oracle_expectation_keys() -> frozenset[str]:
+    """Every ``expected`` key ``_deterministic_refusal_disposition`` reads.
+
+    Taken from the executor's own constants so this cannot drift away from the
+    gate it is checking.
+    """
+
+    from tools.registered_case_executor import (
+        _CAPABILITY_PRESUPPOSING_EXPECTATION_KEYS,
+    )
+
+    return frozenset({"expected_disposition"}) | _CAPABILITY_PRESUPPOSING_EXPECTATION_KEYS
+
+
+def _recognised_expected_keys(row: Mapping[str, Any]) -> set[str]:
+    expected = row.get("expected")
+    if not isinstance(expected, Mapping):
+        return set()
+    return set(expected) & _oracle_expectation_keys()
+
+
+def assert_oracle_inputs_recognised(sample: list[dict[str, Any]]) -> int:
+    """Refuse a sample whose ``expected`` vocabulary the oracle cannot read.
+
+    A tree written by a different producer still loads, still samples, and
+    still yields an agreement number -- one where every row reports
+    ``decided_by: "recorded"`` because the oracle was handed a shape it does
+    not recognise and correctly returned ``None`` each time. That number looks
+    measured and is not, and this replay is run once, behind a root grant that
+    is spent when it runs. So the schema is asserted rather than assumed.
+
+    Note this is deliberately *not* "no gate fired": a sample of genuinely
+    substantive answers fires nothing and is a valid result. The failure being
+    caught is a sample where no row even carries a key the gate reads.
+    """
+
+    if not sample:
+        return 0
+    recognised = sum(1 for row in sample if _recognised_expected_keys(row))
+    if recognised:
+        return recognised
+    seen: set[str] = set()
+    for row in sample:
+        expected = row.get("expected")
+        if isinstance(expected, Mapping):
+            seen.update(str(key) for key in expected)
+    raise RejudgeError(
+        "no sampled row carries an `expected` key the deterministic oracle "
+        f"reads ({', '.join(sorted(_oracle_expectation_keys()))}); the tree "
+        f"uses {', '.join(sorted(seen)) or 'no expectation keys at all'}. "
+        "Re-judging this sample would report every row as `recorded` and "
+        "publish an agreement number that only looks measured."
+    )
+
+
 # --- agreement ------------------------------------------------------------
 
 
@@ -232,8 +290,10 @@ def main(argv: list[str] | None = None) -> int:
 
     rows = load_rows(args.evidence_root)
     sample = derive_sample(rows)
+    recognised = assert_oracle_inputs_recognised(sample)
     labels = json.loads(LABELS_PATH.read_text(encoding="utf-8"))["labels"]
     result = agreement(sample, labels, manifest)
+    result["rows_with_recognised_expected"] = recognised
     result["evidence_root"] = str(args.evidence_root)
     result["capability_manifest"] = manifest
     result["total_rows_read"] = len(rows)

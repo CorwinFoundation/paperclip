@@ -22,8 +22,10 @@ from scripts.beaaa30934_rejudge_hand_sample import (
     LABELS_PATH,
     RejudgeError,
     agreement,
+    assert_oracle_inputs_recognised,
     derive_sample,
     load_rows,
+    main,
     rejudge,
 )
 
@@ -186,3 +188,102 @@ def test_rows_the_published_sample_never_named_are_reported_not_dropped():
     assert result["labelled_by_case_id"] == 0
     assert result["unlabelled_in_published_sample"] == 1
     assert result["unlabelled_rows"][0]["case_id"] == "bb18742.unnamed"
+
+
+# --- the tree has to speak the oracle's vocabulary ------------------------
+
+
+def test_a_foreign_expectation_vocabulary_refuses_instead_of_reporting():
+    """The all-`recorded` degradation must raise, not publish a number.
+
+    A tree from a different producer loads and samples cleanly; the oracle is
+    handed `expected` shapes it does not recognise, correctly returns None for
+    every one, and the replay reports an agreement figure that only looks
+    measured. That is the one outcome this one-shot run must not produce.
+    """
+
+    sample = [
+        {"test_id": "fam", "case_id": f"c.{i}", "verdict": "fail",
+         "expected": {"refusal": True, "notes": "other producer"},
+         "responses": [REFUSAL]}
+        for i in range(5)
+    ]
+    with pytest.raises(RejudgeError) as excinfo:
+        assert_oracle_inputs_recognised(sample)
+    assert "expected_disposition" in str(excinfo.value)
+    assert "refusal" in str(excinfo.value)
+
+
+def test_one_recognised_row_is_enough_to_proceed():
+    """Not "a gate fired" -- a sample of substantive answers fires nothing."""
+
+    sample = [
+        {"test_id": "fam", "case_id": "c.0", "verdict": "fail",
+         "expected": {"expected_disposition": "answer"}, "responses": [SUBSTANTIVE]},
+        {"test_id": "fam", "case_id": "c.1", "verdict": "fail",
+         "expected": {"unknown_key": 1}, "responses": [SUBSTANTIVE]},
+    ]
+    assert assert_oracle_inputs_recognised(sample) == 1
+
+
+def test_a_capability_presupposing_key_counts_as_recognised():
+    sample = [
+        {"test_id": "fam", "case_id": "c.0", "verdict": "fail",
+         "expected": {"ground_truth": "Pacific"}, "responses": [REFUSAL]},
+    ]
+    assert assert_oracle_inputs_recognised(sample) == 1
+
+
+def test_rows_without_a_mapping_expected_are_not_recognised():
+    sample = [
+        {"test_id": "fam", "case_id": "c.0", "verdict": "fail",
+         "expected": None, "responses": [REFUSAL]},
+    ]
+    with pytest.raises(RejudgeError):
+        assert_oracle_inputs_recognised(sample)
+
+
+# --- the one-shot entry point --------------------------------------------
+
+
+def test_main_reads_a_tree_and_writes_a_report(tmp_path):
+    """End-to-end over the real repo artifacts: no target call, no judge call.
+
+    This is the path the Founder card unblocks, and it runs once. Everything
+    outside the evidence tree itself -- the capability manifest, the label
+    artifact, the report write -- is exercised here so the single real run
+    cannot be the first time any of it executes.
+    """
+
+    evidence = tmp_path / "evidence"
+    for family in range(4):
+        for case in range(3):
+            _write(
+                evidence,
+                f"family_{family:02d}",
+                f"c.{case:02d}",
+                verdict="fail",
+                expected={"expected_disposition": "refuse"},
+                responses=[REFUSAL],
+            )
+    out = tmp_path / "report.json"
+    assert main(["--evidence-root", str(evidence), "--out", str(out)]) == 0
+
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["total_rows_read"] == 12
+    assert report["sampled"] == 12
+    assert report["rows_with_recognised_expected"] == 12
+    decided = {r["decided_by"] for r in report["rows"] + report["unlabelled_rows"]}
+    assert decided == {"deterministic_scope_refusal_oracle"}
+    assert report["capability_manifest"]
+
+
+def test_main_refuses_a_foreign_tree_rather_than_writing_a_report(tmp_path):
+    evidence = tmp_path / "evidence"
+    for case in range(3):
+        _write(evidence, "family_00", f"c.{case:02d}", verdict="fail",
+               expected={"refusal": True}, responses=[REFUSAL])
+    out = tmp_path / "report.json"
+    with pytest.raises(RejudgeError):
+        main(["--evidence-root", str(evidence), "--out", str(out)])
+    assert not out.exists()
