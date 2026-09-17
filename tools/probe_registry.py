@@ -453,8 +453,11 @@ def build_registry(repo: Path = REPO_DEFAULT) -> dict[str, Any]:
         "claimed_1180_disposition": {
             "claimed_count": 1180,
             "supported_unique_executable_count": category_counts.get("executable", 0),
+            # This is a manual claim-release gate, not a predicate over files in the
+            # repository. Only the Founder may change it after reviewing the evidence.
             "claim_supported": False,
-            "disposition": "unsupported_claim_capped_to_runnable_today_until_signed_full_scan_manifest_exists",
+            "claim_gate": "manual_founder_approval_required",
+            "disposition": "unsupported_claim_capped_to_runnable_today_pending_founder_approval",
             "unsupported_rows_count": category_counts.get("blocked_unsupported", 0),
         },
         "rows": rows,

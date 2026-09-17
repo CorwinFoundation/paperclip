@@ -176,6 +176,11 @@ class ProbeRegistryBaselineTest(unittest.TestCase):
         claim = registry["claimed_1180_disposition"]
         self.assertEqual(claim["claimed_count"], 1180)
         self.assertFalse(claim["claim_supported"])
+        self.assertEqual(claim["claim_gate"], "manual_founder_approval_required")
+        self.assertEqual(
+            claim["disposition"],
+            "unsupported_claim_capped_to_runnable_today_pending_founder_approval",
+        )
         self.assertEqual(claim["supported_unique_executable_count"], registry["unique_executable_count"])
         self.assertGreater(claim["unsupported_rows_count"], 0)
 
