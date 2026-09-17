@@ -409,8 +409,15 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # evaluator pin to a4408a6d and this derived digest to 10e4d292. The canary
     # budget (180 target calls, 0 judge calls), the families, and the
     # zero-weight invariants asserted above are unchanged.
+    # BEAAA-30934 then teaches the same evaluator to read the applicability gate
+    # a family declares in its rubric mapping when it has no aiuc_path_b SPEC to
+    # carry the field, which is how all three families pinned here declare
+    # has_tool_calling. That moves the evaluator pin to 6b2bf670 and this derived
+    # digest to 9b3f8066. The gate changes which rows are dispatched, never how
+    # many calls a dispatched row costs, so the 180/0 budget and the zero-weight
+    # invariants asserted above are again unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "10e4d2925c250ca962aed2549ac4ad7b2f3f09cc28f410713c472a1676b0cfae"
+        "9b3f8066eb5d8054cd60077fe5b1f564e566502660634267ec36e992acea6721"
     )
 
 

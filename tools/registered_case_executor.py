@@ -1836,26 +1836,84 @@ def build_registered_case_workers(
     return {worker_id: executor for worker_id in WORKERS}
 
 
+_MAPPING_FLAG_CACHE: dict[str, str | None] = {}
+
+
+def _mapping_applicability_flag(test_id: str) -> str | None:
+    """The architecture gate a family declares in its rubric probe mapping.
+
+    BEAAA-30934. ``FamilySpec.applicability_flag`` is not the only place a
+    family declares a gate, and for six families it is not the place at all:
+    they have no ``evals.aiuc_path_b`` SPEC and declare the gate in
+    ``rubric/probe_mappings/<family>.yaml`` under ``applicability``, the Option
+    C form adopted in ``rubric/applicability_policy.yaml`` (UW + CEO co-signed,
+    BEAAA-225). Reading only the SPEC silently dropped those declarations, so
+    ``tool_misuse_unauthorized_call`` and ``tool_misuse_scope_escape`` resolved
+    as unconditional, ran past the gate, matched no adapter branch and died at
+    the ``registered case adapter not bound`` raise — 24 rows of the Vapi lane's
+    88 ``dispatch_failure``, each one a crash standing in for a gate the family
+    had already declared.
+
+    Only a single-condition ``fires_when_all`` is honored. The shared resolver
+    decides one flag against one manifest; a multi-flag gate is not expressible
+    to it, and inventing a conjunction here would put a second applicability
+    semantics in the tree, which is the BEAAA-29793 defect this path exists to
+    have closed. A multi-flag gate therefore returns ``None`` and behaves
+    exactly as it does today, visibly rather than by omission.
+    """
+
+    if test_id in _MAPPING_FLAG_CACHE:
+        return _MAPPING_FLAG_CACHE[test_id]
+
+    flag: str | None = None
+    path = REPO_ROOT / "rubric" / "probe_mappings" / f"{test_id}.yaml"
+    try:
+        import yaml
+
+        mapping = yaml.safe_load(path.read_text(encoding="utf-8"))
+        conditions = (mapping.get("applicability") or {}).get("fires_when_all")
+        if isinstance(conditions, Sequence) and len(conditions) == 1:
+            condition = conditions[0]
+            if isinstance(condition, Mapping) and len(condition) == 1:
+                name, expected = next(iter(condition.items()))
+                # ``fires_when_all: [{flag: true}]`` is the only form the
+                # resolver can honor; a gate that fires on an explicit false
+                # inverts the fail-closed direction and is left alone.
+                if expected is True:
+                    flag = str(name)
+    except Exception:
+        # A missing or unreadable mapping is the unconditional case, which is
+        # what this path returned before the fallback existed. Applicability
+        # must not become a new way for a scan to fail.
+        flag = None
+
+    _MAPPING_FLAG_CACHE[test_id] = flag
+    return flag
+
+
 def _declared_applicability_flag(test_id: str) -> str | None:
     """The architecture flag a family declares as its applicability gate.
 
     Read from ``FamilySpec.applicability_flag`` — the same field
     ``evals.aiuc_path_b.base.run_family`` honors — so the production path and
     the eval library cannot disagree about which surfaces a conditional family
-    applies to. A family that declares no flag is unconditional and returns
-    ``None``. Nothing is hardcoded here on purpose: adding a gate to a family
-    is a one-line SPEC change that this path picks up automatically.
+    applies to, falling back to the family's rubric probe mapping for the
+    families that have no SPEC to carry the field (see
+    ``_mapping_applicability_flag``). A family that declares a gate in neither
+    place is unconditional and returns ``None``. Nothing is hardcoded here on
+    purpose: adding a gate to a family is a one-line declaration in either
+    source that this path picks up automatically.
     """
 
     try:
         from evals.aiuc_path_b.manifest import FAMILY_MODULES
     except Exception:  # a non-AIUC family must never be blocked by this import
-        return None
+        return _mapping_applicability_flag(test_id)
     module = FAMILY_MODULES.get(test_id)
     if module is None:
-        return None
+        return _mapping_applicability_flag(test_id)
     flag = getattr(getattr(module, "SPEC", None), "applicability_flag", None)
-    return str(flag) if flag else None
+    return str(flag) if flag else _mapping_applicability_flag(test_id)
 
 
 def _resolve_applicability(test_id: str, registry_row: Mapping[str, Any]):
