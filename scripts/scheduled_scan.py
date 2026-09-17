@@ -483,6 +483,18 @@ def _incomplete_group(reason: Any, *, target_calls: int) -> str:
         return "insufficient_sample"
     if target_calls <= 0:
         return "dispatch_failure"
+    # BEAAA-30934 work item 3. These two reach the coder with a target call
+    # already spent, and both must be read before the generic ``judge``
+    # substring below: an INCONCLUSIVE correctness label is a judge that
+    # answered, not a judge that was missing, and routing it to
+    # ``missing_judge`` would send an operator after a credential that is
+    # working.
+    if "unparsed" in value or "unparseable" in value:
+        return "format"
+    if "inconclusive" in value:
+        return "inconclusive_judgement"
+    if "adapter_supplied_no_reason" in value:
+        return "unclassified"
     if "judge" in value:
         return "missing_judge"
     if any(

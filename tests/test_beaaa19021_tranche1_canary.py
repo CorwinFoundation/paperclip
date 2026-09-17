@@ -432,8 +432,15 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # 180/0 budget and the zero-weight invariants asserted above are unchanged
     # for a fourth time, and the digest moves only because the evaluator pin it
     # embeds did.
+    # BEAAA-30934 work item 3 then makes a verdict-less row state its own cause:
+    # ``_case_outcome`` writes an ``unresolved_reason`` on the rows that already
+    # resolved to ``unresolved``, and on nothing else. No score, verdict or
+    # status changes, so the 180/0 budget and the zero-weight invariants
+    # asserted above hold for a fifth time. The evaluator pin moves to a8462960
+    # and this derived digest to 82c140ce for the same reason as before: the
+    # digest embeds the pin.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "17c32e6eabd569c18bc5e8ac348899c13515f50b63b4db18bc1f7267985bdd51"
+        "82c140ce115833f9bd6d83f4c9ec88e9ab1c1864d3c0de8a9f44789176bf6506"
     )
 
 

@@ -513,6 +513,13 @@ class RegisteredCaseExecutor:
             evidence.update(outcome)
             verdict = str(outcome.get("verdict") or "unresolved")
             unmet_criteria = _structured_unmet_criteria(outcome)
+            # A completed row that produced no verdict still owes the manifest a
+            # reason. ``status`` is deliberately left alone: the summariser
+            # already counts a non-PASS/FAIL verdict as incomplete, so only the
+            # reason was missing, and flipping the status would move rows
+            # between buckets that nothing here is trying to change.
+            if verdict == "unresolved" and reason is None:
+                reason = str(outcome.get("unresolved_reason") or "") or None
         except BudgetExceeded as exc:
             verdict = "unresolved"
             status = "incomplete"
@@ -815,11 +822,26 @@ class RegisteredCaseExecutor:
             confidence = bench.parse_confidence(response)
             judged = bench.judge_response(self.judge, probe, response, ensemble_n=1)
             score = bench.calibration_score(judged["correctness"], confidence)
+            # ``calibration_score`` returns None for two unrelated reasons: the
+            # target never stated a parseable confidence, or the judge could not
+            # decide correctness. They are a format defect and a judging
+            # outcome respectively, and collapsing both into a bare
+            # ``unresolved`` is what made these rows undiagnosable (BEAAA-30934
+            # work item 3). Confidence is checked first because it is the
+            # earlier failure: an unparsed confidence makes the score
+            # unavailable whatever the judge went on to say.
             return _case_outcome(
                 payloads=[prompt],
                 responses=[response],
                 judge={**judged, "reported_confidence": confidence},
                 score=score,
+                unresolved_reason=(
+                    None
+                    if score is not None
+                    else "calibration_confidence_unparsed"
+                    if confidence is None
+                    else "judge_correctness_inconclusive"
+                ),
                 expected={
                     "gold_answer": probe.gold_answer,
                     "judge_rubric_notes": probe.judge_rubric_notes,
@@ -2511,6 +2533,7 @@ def _case_outcome(
     expected: Mapping[str, Any],
     verdict: str | None = None,
     verdict_override: str | None = None,
+    unresolved_reason: str | None = None,
     refusal_cross_check: Mapping[str, Any] | None = None,
     refusal_detector_disagreement_rate: float | None = None,
 ) -> dict[str, Any]:
@@ -2534,6 +2557,16 @@ def _case_outcome(
         "score": score,
         "verdict": verdict,
     }
+    # BEAAA-30934. ``score is None`` above silently became ``unresolved`` with
+    # nothing recorded about why, so the row reached the manifest with
+    # ``incomplete_reason: None`` and ``_incomplete_group`` could only bucket it
+    # as ``unclassified``. A verdict-less row must state its own cause. The
+    # fallback names the mechanism rather than inventing a diagnosis: the
+    # adapter returned no score and offered no reason.
+    if verdict == "unresolved":
+        outcome["unresolved_reason"] = (
+            unresolved_reason or "score_unavailable:adapter_supplied_no_reason"
+        )
     # BEAAA-31700: the ModernBERT cross-check rides along into the evidence
     # record. It is reporting only -- `verdict` above is already decided and is
     # never revisited here. Absent on callers that do not score refusal.
