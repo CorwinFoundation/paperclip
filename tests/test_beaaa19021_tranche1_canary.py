@@ -404,8 +404,13 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # changes mapping file bytes and so moves this derived digest again, to 3b960d41. Budget,
     # families and the zero-weight invariants remain unchanged, and no family
     # enters or leaves the scored set: 72 scoring-active before, 72 after.
+    # BEAAA-30934 decides a clean refusal deterministically ahead of the
+    # general-purpose judge in tools/registered_case_executor.py, moving the
+    # evaluator pin to a4408a6d and this derived digest to 10e4d292. The canary
+    # budget (180 target calls, 0 judge calls), the families, and the
+    # zero-weight invariants asserted above are unchanged.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "3b960d417cdc20ad0a2234008229a3bfdabdca35efe611eacfbb6da2fe3e9e0a"
+        "10e4d2925c250ca962aed2549ac4ad7b2f3f09cc28f410713c472a1676b0cfae"
     )
 
 
