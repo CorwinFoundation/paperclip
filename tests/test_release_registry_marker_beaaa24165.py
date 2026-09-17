@@ -26,7 +26,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # and their real execution evidence (BEAAA-33507). Counts are unmoved --
     # 2,353 / 2,353 / 2,352 with 137 excluded rows -- so only the digest re-pins.
     # Prior pin 91fc6995...daf4d came from the reported_not_scored rewrite.
-    "d3d23ad1d7ed286fb4fa1c3835aa2596806f771b0e346f2c379327d87e5db460"
+    "fcde4065f3d775341be7c441629e1617840f7ed2a51918419b593deea4e97bef"
 )
 
 

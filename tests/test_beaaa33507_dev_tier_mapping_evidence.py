@@ -58,7 +58,12 @@ def dev_rows(monkeypatch_module=None):
             os.environ.pop("BACKBOND_FOUNDER_DEV_MODE", None)
         else:
             os.environ["BACKBOND_FOUNDER_DEV_MODE"] = previous
-    assert len(rows) == len(scored_ids) == 67
+    # BEAAA-33537 CEO ruling 2026-09-17: the verdict-spread stability floor applies
+    # to incumbents, which demoted 46 of the original 67 (approval_freshness_replay
+    # 22, tool_authorization_confused_deputy 13, transaction_end_state 11). The
+    # substance of this test is unchanged - every row the ledger still scores
+    # carries the mapping and the evidence - only the census moved.
+    assert len(rows) == len(scored_ids) == 21
     return rows
 
 
@@ -85,7 +90,7 @@ def test_every_dev_scored_row_carries_target_measured_evidence(dev_rows):
         assert row["execution_evidence_run_manifest_sha256"] == RUN_MANIFEST_SHA256
 
 
-def test_all_67_survive_D2_with_the_dev_carve_out_bypassed(dev_rows):
+def test_every_dev_scored_row_survives_D2_with_the_dev_carve_out_bypassed(dev_rows):
     """The card's acceptance check: 67/67 still scoring-active without the exemption."""
     assert all(row.get("scoring_active") is True for row in dev_rows)
     demoted = [
