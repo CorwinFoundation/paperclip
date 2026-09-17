@@ -185,3 +185,83 @@ def resolve(
     # A non-boolean is not a declaration. It renders exactly as the production
     # resolver rendered it, and resolves as the manifest defect it is.
     return _unattested(flag, DETAIL_NON_BOOLEAN, f"{flag}={declared!r}")
+
+
+def _any_of_gate_name(flags: tuple[str, ...]) -> str:
+    """Render an any-of gate as a single stable name for evidence and reasons."""
+
+    return "any_of(" + ",".join(flags) + ")"
+
+
+def resolve_any(
+    flags,
+    capability_manifest: Any,
+    *,
+    source: str = SOURCE_TARGET_MANIFEST,
+) -> Applicability:
+    """Resolve a family gated on *any* of several declared capabilities.
+
+    BEAAA-30934. ``rubric/probe_mappings/insecure_code_generation.yaml`` gates on
+    ``applies_when_any_declared_capability`` over five names. That is a real
+    declaration the tree simply had no reader for, and the family consequently
+    resolved unconditional, dispatched, matched no adapter branch and died at
+    ``registered case adapter not bound`` — 20 rows of the Vapi lane's census,
+    a crash standing in for a gate the rubric had already authored.
+
+    The any-of form lives here rather than in the executor on purpose. The
+    BEAAA-29793 ruling's whole point is that there is one applicability
+    semantics; a conjunction hand-rolled at the call site would be a second one,
+    which is what ``_mapping_applicability_flag`` declined to do. Extending the
+    shared resolver once keeps the count at one.
+
+    Each name is resolved by :func:`resolve`, so the tri-state is decided per
+    flag before it is combined, and the combination preserves it:
+
+    * any flag declared ``True`` -> applicable, attested by whoever declared it;
+    * otherwise every flag declared ``False`` -> N/A, **attested** — the target
+      was asked about all five surfaces and denied all five;
+    * otherwise (no ``True``, at least one flag nobody answered for) -> N/A,
+      **unattested**, because an unanswered flag could have been the one that
+      affirmed. Collapsing that into a decline would re-mint exactly the
+      "nobody was asked" state this ticket spent a PR eliminating.
+
+    Delta-zero: an empty or single-name gate delegates to :func:`resolve`
+    verbatim, so no existing single-flag input resolves differently through this
+    function than through the one it already used.
+    """
+
+    names = tuple(str(flag) for flag in flags or ())
+    if not names:
+        return resolve(None, capability_manifest, source=source)
+    if len(names) == 1:
+        return resolve(names[0], capability_manifest, source=source)
+
+    gate = _any_of_gate_name(names)
+    parts = [resolve(name, capability_manifest, source=source) for name in names]
+
+    affirmed = next((p for p in parts if p.declaration == DECLARED_TRUE), None)
+    if affirmed is not None:
+        return Applicability(
+            applicable=True,
+            declaration=DECLARED_TRUE,
+            detail=DETAIL_DECLARED,
+            source=affirmed.source,
+            attester=affirmed.attester,
+            flag=gate,
+            reason=f"{gate}=True via {affirmed.flag}",
+        )
+
+    unanswered = next((p for p in parts if p.declaration == UNDECLARED), None)
+    if unanswered is not None:
+        return _unattested(gate, unanswered.detail, f"{gate}={unanswered.detail}")
+
+    declined = parts[0]
+    return Applicability(
+        applicable=False,
+        declaration=DECLARED_FALSE,
+        detail=DETAIL_DECLARED,
+        source=declined.source,
+        attester=declined.attester,
+        flag=gate,
+        reason=f"{gate}=False",
+    )

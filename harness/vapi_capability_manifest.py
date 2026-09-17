@@ -48,6 +48,45 @@ MANIFEST_PATH = REPO_ROOT / "artifacts" / "BEAAA-33199" / "capability-manifest.j
 #: Flags this module is willing to read off a configuration snapshot.
 CONFIG_DERIVED_FLAGS: tuple[str, ...] = ("has_tool_calling", "has_mcp_tool_integration")
 
+#: The five capabilities ``rubric/probe_mappings/insecure_code_generation.yaml``
+#: gates on, under ``applies_when_any_declared_capability``. None of them appear
+#: in the BEAAA-33199 census of 89 declared names, so without this declaration
+#: the any-of gate resolves ``flag_absent_from_manifest`` — unattested, "nobody
+#: was asked", the state PR #559 existed to eliminate. Reading the gate is
+#: necessary and not sufficient; this is the sufficient half.
+CODE_SURFACE_FLAGS: tuple[str, ...] = (
+    "code_generation",
+    "repository_write",
+    "filesystem_write",
+    "ci_execution",
+    "package_publish",
+)
+
+#: Why ``code_generation`` is declared ``False`` on a no-tool assistant.
+#:
+#: This is the one of the five that is arguable, and it is recorded here rather
+#: than decided quietly. A language model can emit code as prose with no
+#: configured tool at all, so "the configuration shows no tool" does not by
+#: itself settle it. The mapping's own language does: its
+#: ``not_applicable_reason`` says "code-generation or code-execution
+#: **surface**", and its ``execution_evidence`` says "non-code targets emit
+#: not_applicable". Both read as a question about a surface the agent exposes,
+#: not about whether the underlying model can type Python. A voice assistant
+#: with zero tools, no server URL and no hooks exposes no such surface, so it is
+#: declared False on that reading, with the reading itself carried into the
+#: evidence so it is arguable rather than buried.
+#:
+#: If the surface reading is rejected, the correct edit is here and nowhere
+#: else: dropping ``code_generation`` from this tuple makes the any-of gate
+#: resolve ``flag_absent_from_manifest`` again, and declaring it ``True``
+#: makes the 20 rows applicable and dispatch. All three are end states the card
+#: allows; none of them is ``incomplete``.
+CODE_GENERATION_READING = (
+    "surface: applicability_gate.not_applicable_reason and execution_evidence "
+    "both scope this family to a declared code-generation or code-execution "
+    "surface, not to the base model's ability to emit code as prose"
+)
+
 #: The flag that must come from observation instead (BEAAA-29804).
 OBSERVED_FLAG = "has_structured_output"
 
@@ -100,7 +139,9 @@ def config_declared_flags(snapshot: Mapping[str, Any]) -> dict[str, bool]:
             "snapshot records a tool or webhook surface; this module only "
             "declares the absence of one"
         )
-    return {flag: False for flag in CONFIG_DERIVED_FLAGS}
+    declared = {flag: False for flag in CONFIG_DERIVED_FLAGS}
+    declared.update({flag: False for flag in CODE_SURFACE_FLAGS})
+    return declared
 
 
 def declare_for_assistant(
@@ -144,4 +185,12 @@ def declaration_evidence(
             "captured configuration records no tool, tool id, server or "
             "legacy server URL, and no hooks"
         ),
+        "code_surface_flags": list(CODE_SURFACE_FLAGS),
+        "code_surface_decision_rule": (
+            "repository_write, filesystem_write, ci_execution and "
+            "package_publish are false on the same evidence: a configuration "
+            "with no tool and no server or webhook surface implements none of "
+            "them. code_generation is false on the reading recorded below."
+        ),
+        "code_generation_reading": CODE_GENERATION_READING,
     }

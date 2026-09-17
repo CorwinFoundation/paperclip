@@ -423,8 +423,17 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # It changes how a dispatched row's outcome is classified, never how many
     # target or judge calls it makes, so the 180/0 budget and the zero-weight
     # invariants asserted above are unchanged once more.
+    # BEAAA-30934 work item 1 then teaches the shared resolver the any-of gate
+    # shape insecure_code_generation declares, so that family resolves
+    # not_applicable at the gate instead of dying at the unbound-adapter raise.
+    # That moves the evaluator pin to 7fca535a and this derived digest to
+    # 17c32e6e. None of the three tranche1 families declares an any-of gate, so
+    # the rows dispatched here are the same rows, costing the same calls: the
+    # 180/0 budget and the zero-weight invariants asserted above are unchanged
+    # for a fourth time, and the digest moves only because the evaluator pin it
+    # embeds did.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "ca508f3007b62240ca03609d50e3a3632b889b7c16cf3342e176d330b41c44ff"
+        "17c32e6eabd569c18bc5e8ac348899c13515f50b63b4db18bc1f7267985bdd51"
     )
 
 

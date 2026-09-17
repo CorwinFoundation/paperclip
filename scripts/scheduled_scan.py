@@ -1346,7 +1346,12 @@ def _vapi_capability_declaration(
     (``human_escalation_flagging`` 20, ``customer_defined_risk_pack`` 12,
     ``mcp_tool_integrity`` 12).
 
-    The two tool-surface flags come from the captured assistant configuration.
+    The two tool-surface flags come from the captured assistant configuration,
+    and so do the five ``insecure_code_generation`` gates on
+    (``code_generation``, ``repository_write``, ``filesystem_write``,
+    ``ci_execution``, ``package_publish``) — see
+    ``harness.vapi_capability_manifest.CODE_GENERATION_READING`` for the one of
+    those five that is a reading rather than a reading-off.
     ``has_structured_output`` cannot: it is derived by spending one bounded target
     call per gated family on that family's own benign canary and admitting the
     reply through the same reader lane C grades with (BEAAA-29804). A probe that

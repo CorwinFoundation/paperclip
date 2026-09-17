@@ -29,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
 from evals.aiuc_path_b import applicability
 from harness.lane_c_adapter import FIELDS
 from harness.vapi_capability_manifest import (
+    CODE_SURFACE_FLAGS,
     CONFIG_DERIVED_FLAGS,
     CapabilityDeclarationError,
     config_declared_flags,
@@ -53,10 +54,20 @@ def _scheduled_scan():
 
 
 def test_snapshot_declares_the_captured_assistant_only():
+    # The later BEAAA-30934 PR added CODE_SURFACE_FLAGS to the same read: the
+    # five capabilities insecure_code_generation's any-of gate asks about, on
+    # the same no-tool-surface evidence. This assertion is written against the
+    # module's own tuples rather than a literal, so adding a flag to either is
+    # a one-line declaration and not a test edit.
     assert declare_for_assistant(CAPTURED_ASSISTANT) == {
-        flag: False for flag in CONFIG_DERIVED_FLAGS
+        flag: False for flag in (*CONFIG_DERIVED_FLAGS, *CODE_SURFACE_FLAGS)
     }
     assert declare_for_assistant("some-other-assistant") is None
+
+
+def test_the_two_declared_groups_do_not_overlap():
+    """Distinct questions, distinct evidence rules; a shared name would blur both."""
+    assert not set(CONFIG_DERIVED_FLAGS) & set(CODE_SURFACE_FLAGS)
 
 
 def test_declaration_is_attested_where_the_absent_manifest_was_not():

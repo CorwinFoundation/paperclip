@@ -1939,6 +1939,79 @@ def _mapping_applicability_flag(test_id: str) -> str | None:
     return flag
 
 
+_MAPPING_GATE_CACHE: dict[str, tuple[tuple[str, ...] | None, str | None]] = {}
+
+
+def _mapping_applicability_gate(test_id: str) -> tuple[tuple[str, ...] | None, str | None]:
+    """The any-of capability gate a family declares under ``applicability_gate``.
+
+    BEAAA-30934. A third declaration shape, and the one
+    ``insecure_code_generation`` uses::
+
+        applicability_gate:
+          applicable: false
+          applies_when_any_declared_capability: [code_generation, ...]
+          not_applicable_reason: "declared agent has no ... surface"
+
+    ``_mapping_applicability_flag`` reads ``applicability.fires_when_all`` and
+    honors only a single condition, so this declaration was invisible: the
+    family resolved unconditional, dispatched, matched no adapter branch and
+    died at the ``registered case adapter not bound`` raise on line 983 — 20
+    rows of the Vapi lane's 88 ``dispatch_failure``, each one a crash standing
+    in for a gate the rubric had authored and nothing read.
+
+    Returns ``(flags, authored_reason)``. The reason is the rubric's own
+    sentence, carried into N/A evidence alongside the resolver's rendering so
+    the artifact says why in the family's words as well as the resolver's.
+    Anything other than a list of names under ``applicable: false`` returns
+    ``(None, None)`` and leaves the family exactly as it is today — including
+    ``voice_adversarial_pack``, whose ``applicability_gate`` is a bare string.
+    """
+
+    if test_id in _MAPPING_GATE_CACHE:
+        return _MAPPING_GATE_CACHE[test_id]
+
+    flags: tuple[str, ...] | None = None
+    reason: str | None = None
+    path = REPO_ROOT / "rubric" / "probe_mappings" / f"{test_id}.yaml"
+    try:
+        import yaml
+
+        mapping = yaml.safe_load(path.read_text(encoding="utf-8"))
+        gate = (mapping or {}).get("applicability_gate")
+        if isinstance(gate, Mapping) and gate.get("applicable") is False:
+            declared = gate.get("applies_when_any_declared_capability")
+            if isinstance(declared, Sequence) and not isinstance(declared, (str, bytes)):
+                names = tuple(str(name) for name in declared if name)
+                if names:
+                    flags = names
+                    authored = gate.get("not_applicable_reason")
+                    reason = str(authored) if authored else None
+    except Exception:
+        # Same rule as the sibling reader: applicability must never become a
+        # new way for a scan to fail.
+        flags, reason = None, None
+
+    _MAPPING_GATE_CACHE[test_id] = (flags, reason)
+    return flags, reason
+
+
+def _declared_applicability_gate(test_id: str) -> tuple[str, ...] | None:
+    """Every architecture flag a family's gate depends on, in declaration order.
+
+    One name for a single-flag gate, several for an any-of gate, ``None`` for an
+    unconditional family. The single-flag answer is ``_declared_applicability_flag``
+    verbatim, so the two cannot disagree and every existing caller of that
+    function keeps its ``str | None`` contract.
+    """
+
+    flag = _declared_applicability_flag(test_id)
+    if flag is not None:
+        return (flag,)
+    flags, _reason = _mapping_applicability_gate(test_id)
+    return flags
+
+
 def _declared_applicability_flag(test_id: str) -> str | None:
     """The architecture flag a family declares as its applicability gate.
 
@@ -1989,8 +2062,15 @@ def _resolve_applicability(test_id: str, registry_row: Mapping[str, Any]):
 
     from evals.aiuc_path_b import applicability
 
-    flag = _declared_applicability_flag(test_id)
-    return applicability.resolve(flag, registry_row.get("capability_manifest"))
+    gate = _declared_applicability_gate(test_id)
+    manifest = registry_row.get("capability_manifest")
+    if gate is None:
+        return applicability.resolve(None, manifest)
+    if len(gate) == 1:
+        return applicability.resolve(gate[0], manifest)
+    # BEAAA-30934: an any-of gate, combined by the shared resolver rather than
+    # here, so the tree keeps exactly one applicability semantics.
+    return applicability.resolve_any(gate, manifest)
 
 
 def _not_applicable_outcome(
@@ -2017,6 +2097,15 @@ def _not_applicable_outcome(
     except Exception:  # the N/A verdict must not depend on oracle lookup
         expected = {}
 
+    # BEAAA-30934: when the family's rubric mapping authored its own N/A
+    # sentence, carry it beside the resolver's rendering. The card asks for an
+    # explicit machine-readable reason; for these families the rubric already
+    # wrote one and nothing had ever read it.
+    _gate_flags, authored_reason = _mapping_applicability_gate(test_id)
+    declared_reason = (
+        {"declared_not_applicable_reason": authored_reason} if authored_reason else {}
+    )
+
     return _case_outcome(
         payloads=[],
         responses=[],
@@ -2026,6 +2115,7 @@ def _not_applicable_outcome(
             "applicable": False,
             "applicability_reason": resolution.reason,
             "applicability": resolution.as_evidence(),
+            **declared_reason,
             "reported_not_scored": True,
         },
         score=None,
