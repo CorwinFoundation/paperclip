@@ -1,27 +1,101 @@
-"""Resume only the 40 unresolved BEAAA-30934 Vapi rows."""
+"""Resume the unresolved BEAAA-30934 Vapi rows.
+
+Roster derivation is durable.  The pending set is the unresolved case ids of
+the 2026-09-08 source scan minus the case ids this replay has already written
+a real verdict for under its own evidence root, so the script is resumable and
+re-runnable without depending on anything outside the scan manifest root.
+
+The first cut subtracted a prior replay directory under ``/tmp`` and asserted
+the exact triple ``source=69 prior=29 selected=40``.  That directory is gone,
+so the assertion could only raise and the run produced no rows (BEAAA-30934).
+"""
+
+from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from types import SimpleNamespace
 
-from api.full_scan_executor import FullScanJobStore, dispatch_registry_attempt, registry_cases_from_rows
-from api.full_scan_worker import load_default_full_scan_registry_rows
-from harness.customer_runner import customer_agent_http_runner_factory
-from scripts import scheduled_scan as scheduled
-from tools.registered_case_executor import ScanBudget, build_registered_case_workers, default_judge_runner
+SOURCE = Path(
+    os.environ.get(
+        "BEAAA30934_SOURCE_EVIDENCE",
+        "/var/lib/backbond/scans/2026-09-08/vapi/evidence/d7a46f24-48b5-4174-88e4-3ab5b0305a18",
+    )
+)
+OUT = Path(
+    os.environ.get(
+        "BEAAA30934_REPLAY_ROOT",
+        "/var/lib/backbond/scans/beaaa-30934-replay-remaining",
+    )
+)
+MAX_TARGET_CALLS = 100
 
-SOURCE = Path("/var/lib/backbond/scans/2026-09-08/vapi/evidence/d7a46f24-48b5-4174-88e4-3ab5b0305a18")
-PRIOR = Path("/tmp/beaaa-30934-replay-20260909T1205Z/evidence/be25ada6-4390-4fca-b47e-feabb8e7e0e5")
-OUT = Path("/var/lib/backbond/scans/beaaa-30934-replay-remaining")
+
+def _verdicts(evidence_root: Path) -> dict[str, str]:
+    """Map case_id -> lowercased recorded verdict under an evidence root."""
+    verdicts: dict[str, str] = {}
+    for path in sorted(evidence_root.glob("*/*.json")):
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(record, dict):
+            verdicts[path.stem] = str(record.get("verdict", "")).lower()
+    return verdicts
+
+
+def unresolved_case_ids(evidence_root: Path) -> set[str]:
+    """Case ids the source scan left without a verdict."""
+    return {case_id for case_id, verdict in _verdicts(evidence_root).items() if verdict == "unresolved"}
+
+
+def resolved_case_ids(evidence_root: Path) -> set[str]:
+    """Case ids this replay has already resolved, so a re-run skips them."""
+    if not evidence_root.exists():
+        return set()
+    return {
+        case_id
+        for case_id, verdict in _verdicts(evidence_root).items()
+        if verdict not in ("", "unresolved")
+    }
+
+
+def pending_case_ids(source_evidence: Path, replay_evidence: Path) -> set[str]:
+    """The roster: still-unresolved source rows this replay has not resolved."""
+    if not source_evidence.exists():
+        raise FileNotFoundError(f"source evidence root is missing: {source_evidence}")
+    return unresolved_case_ids(source_evidence) - resolved_case_ids(replay_evidence)
+
+
+def select_rows(rows, case_ids: set[str]) -> list:
+    """Registry rows for ``case_ids``, refusing a roster the budget cannot serve."""
+    selected = [row for row in rows if str(row.get("case_id")) in case_ids]
+    missing = sorted(case_ids - {str(row.get("case_id")) for row in selected})
+    if missing:
+        raise RuntimeError(f"{len(missing)} pending case ids have no registry row: {missing[:10]}")
+    if len(selected) > MAX_TARGET_CALLS:
+        raise RuntimeError(
+            f"roster of {len(selected)} rows exceeds the {MAX_TARGET_CALLS}-call replay budget"
+        )
+    return selected
 
 
 def main() -> int:
-    source_ids = {p.stem for p in SOURCE.glob("*/*.json") if str(json.loads(p.read_text()).get("verdict", "")).lower() == "unresolved"}
-    prior_ids = {p.stem for p in PRIOR.glob("*/*.json")}
-    rows = [r for r in load_default_full_scan_registry_rows() if str(r.get("case_id")) in source_ids - prior_ids]
-    if len(source_ids) != 69 or len(prior_ids) != 29 or len(rows) != 40:
-        raise RuntimeError(f"replay roster mismatch: source={len(source_ids)} prior={len(prior_ids)} selected={len(rows)}")
+    from api.full_scan_executor import FullScanJobStore, dispatch_registry_attempt, registry_cases_from_rows
+    from api.full_scan_worker import load_default_full_scan_registry_rows
+    from harness.customer_runner import customer_agent_http_runner_factory
+    from scripts import scheduled_scan as scheduled
+    from tools.registered_case_executor import ScanBudget, build_registered_case_workers, default_judge_runner
+
+    replay_evidence = OUT / "evidence"
+    case_ids = pending_case_ids(SOURCE, replay_evidence)
+    rows = select_rows(load_default_full_scan_registry_rows(), case_ids)
+    print(json.dumps({"source": str(SOURCE), "pending": len(case_ids), "selected": len(rows)}))
+    if not rows:
+        print(json.dumps({"status": "nothing_to_replay"}))
+        return 0
 
     config = scheduled.ScheduleConfig.from_environment()
     secrets = scheduled.map_secret_environment()
@@ -29,7 +103,7 @@ def main() -> int:
     request = SimpleNamespace(agent_endpoint=config.agent_endpoint, agent_id=secrets["VAPI_ASSISTANT_ID"], tenant_id=config.tenant_id)
     subject = lambda endpoint, secret: scheduled.RateLimitedRunner(customer_agent_http_runner_factory(endpoint, secret, secrets["VAPI_ASSISTANT_ID"]), limiter)
     judge = lambda: scheduled.RateLimitedRunner(default_judge_runner(), limiter)
-    workers = build_registered_case_workers(request, secrets["VAPI_API_KEY"], budget=ScanBudget(max_target_calls=100, max_judge_calls=100, max_estimated_judge_cost_usd=10, max_wall_clock_seconds=7200), evidence_root=OUT / "evidence", subject_factory=subject, judge_factory=judge)
+    workers = build_registered_case_workers(request, secrets["VAPI_API_KEY"], budget=ScanBudget(max_target_calls=MAX_TARGET_CALLS, max_judge_calls=MAX_TARGET_CALLS, max_estimated_judge_cost_usd=10, max_wall_clock_seconds=7200), evidence_root=replay_evidence, subject_factory=subject, judge_factory=judge)
     store = FullScanJobStore()
     job = store.submit(agent_id=secrets["VAPI_ASSISTANT_ID"], scanner_version=config.scanner_version, corpus_version=config.corpus_version, model_versions=next(iter(workers.values())).manifest_metadata(), seed=config.seed, registry_cases=registry_cases_from_rows(rows), scan_id="beaaa-30934-replay-remaining", wall_clock_budget_seconds=7200, rate_limit_per_minute=30)
     lease = store.lease(job.job_id, ttl_seconds=7200)
