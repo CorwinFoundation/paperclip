@@ -303,9 +303,13 @@ def test_a_control_reusing_a_roster_response_is_rejected_not_counted(tmp_path):
 def test_the_committed_ledger_carries_the_ruled_tier_set():
     """BEAAA-33537 CEO ruling: the floor applies to incumbents, no grandfather."""
     ledger = _json.loads((ROOT / "artifacts/beaaa-31092/rank2-ledger.json").read_text())
-    assert ledger["tier1_families"] == ["authorization_revocation_race"]
-    assert ledger["scored"] == 21
-    assert ledger["held"] == 166
+    # BEAAA-33568: approval_freshness_replay reached the floor on its own
+    # second-round minority observations and re-admits its own 22 rows. The other
+    # two demoted families did not and stay held, so the census moves by exactly
+    # 22 and the selected/mapped totals do not move at all.
+    assert ledger["tier1_families"] == ["approval_freshness_replay", "authorization_revocation_race"]
+    assert ledger["scored"] == 43
+    assert ledger["held"] == 144
     assert ledger["selected"] == ledger["mapped"] == 187
     # The one surviving family clears on exactly three unambiguous minority
     # observations: its fourth pass shares response text with a roster fail.
@@ -313,12 +317,19 @@ def test_the_committed_ledger_carries_the_ruled_tier_set():
     assert {row["stable_case_id"] for row in ledger["verdict_spread_gate"]["withheld_observations"]} == {
         "bb18716.authorization_revocation_race.12", "bb18716.authorization_revocation_race.14",
     }
-    demoted = {"approval_freshness_replay", "tool_authorization_confused_deputy", "transaction_end_state"}
+    # BEAAA-33568: of the three families the floor demoted, one cleared it on new
+    # observations and two did not. The two that did not are still held; the one
+    # that did is asserted as tier-1 above.
+    demoted = {"tool_authorization_confused_deputy", "transaction_end_state"}
     assert demoted <= set(ledger["tier2_held_families"])
-    # CEO amendment: the 46 demoted rows carry the stability-floor literal, NOT
+    assert "approval_freshness_replay" not in set(ledger["tier2_held_families"])
+    # CEO amendment: the still-demoted rows carry the stability-floor literal, NOT
     # NO_VERDICT_SPREAD - these families DID demonstrate spread, just too thinly.
+    # 24 of the original 46; the 22 that re-admitted dropped the literal with it.
     assert sum(1 for row in ledger["rows"]
-               if row["family_id"] in demoted and BELOW_STABILITY_FLOOR in row["hold_reasons"]) == 46
+               if row["family_id"] in demoted and BELOW_STABILITY_FLOOR in row["hold_reasons"]) == 24
+    assert not any(BELOW_STABILITY_FLOOR in row["hold_reasons"] for row in ledger["rows"]
+                   if row["family_id"] == "approval_freshness_replay")
     assert not any(NO_VERDICT_SPREAD in row["hold_reasons"]
                    for row in ledger["rows"] if row["family_id"] in demoted)
     # Families that never produced a second verdict keep the original literal.
@@ -342,7 +353,7 @@ def test_retier_is_idempotent():
     ledger = _json.loads((ROOT / "artifacts/beaaa-31092/rank2-ledger.json").read_text())
     again = retier_ledger(_json.loads(_json.dumps(ledger)))
     assert again["tier1_families"] == ledger["tier1_families"]
-    assert again["scored"] == ledger["scored"] == 21
+    assert again["scored"] == ledger["scored"] == 43
     assert [row["hold_reasons"] for row in again["rows"]] == [row["hold_reasons"] for row in ledger["rows"]]
 
 
@@ -384,10 +395,11 @@ def test_the_determination_never_scores_a_row_or_lifts_a_family():
     assert all(row["disposition"] == "held_reported_not_scored" for row in carrying)
     assert not any(row["family_id"] in ledger["tier1_families"] for row in carrying)
     assert APMB not in ledger["tier1_families"]
-    # The census the CEO pinned at f30ba3c5, unmoved by the relabel.
-    assert ledger["scored"] == 21 and ledger["held"] == 166
+    # The census the CEO pinned at f30ba3c5, moved only by the BEAAA-33568
+    # re-admission of approval_freshness_replay and unmoved by the relabel.
+    assert ledger["scored"] == 43 and ledger["held"] == 144
     assert ledger["selected"] == ledger["mapped"] == 187
-    assert ledger["tier1_families"] == ["authorization_revocation_race"]
+    assert ledger["tier1_families"] == ["approval_freshness_replay", "authorization_revocation_race"]
 
 
 def test_the_hold_reason_split_is_pinned_at_twelve_eighteen_thirteen():
@@ -482,7 +494,7 @@ def test_redetermine_is_idempotent_and_preserves_the_tier_report():
     assert [row["hold_reasons"] for row in again["rows"]] == [row["hold_reasons"] for row in ledger["rows"]]
     assert again["tier1_families"] == ledger["tier1_families"]
     assert again["tier2_held_families"] == ledger["tier2_held_families"]
-    assert again["scored"] == 21 and again["held"] == 166
+    assert again["scored"] == 43 and again["held"] == 144
 
 
 # ---------------------------------------------------------------------------
@@ -654,13 +666,19 @@ def _manifest_for(family, tmp_path, monkeypatch):
 
 
 def test_a_control_through_retier_is_judged_on_its_merits(tmp_path, monkeypatch):
-    family = "approval_freshness_replay"
+    # BEAAA-33568 retargeted this from approval_freshness_replay, which now
+    # re-admits and so no longer satisfies the premise below. The test needs a
+    # family that is STILL held by the floor; tool_authorization_confused_deputy
+    # is one, short a single minority observation. Re-pinning the assertion to
+    # agree with a scored family would have kept the test green while dropping
+    # what it was written to check.
+    family = "tool_authorization_confused_deputy"
     ledger, manifest = _manifest_for(family, tmp_path, monkeypatch)
     inventory = [_json.loads(line) for line in INVENTORY.read_text().splitlines() if line]
     family_inventory = [row for row in inventory if row.get("family_id") == family]
-    # approval_freshness_replay has NO scored rows on this ledger - it is held by
-    # the stability floor, which is precisely why a control is being offered for
-    # it. Binding to one of its held-for-spread cases is the fix.
+    # This family has NO scored rows on this ledger - it is held by the stability
+    # floor, which is precisely why a control is being offered for it. Binding to
+    # one of its held-for-spread cases is the fix.
     bindable = {row["stable_case_id"] for row in ledger["rows"]
                 if row["family_id"] == family and _bindable(row)}
     assert bindable and not any(row["disposition"] == "scored" for row in ledger["rows"]
@@ -725,3 +743,38 @@ def test_the_pinned_inventory_in_the_repo_matches_the_constant():
     assert _hashlib.sha256(
         (ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl").read_bytes()
     ).hexdigest() == INVENTORY_SHA256
+
+
+# BEAAA-33568: the gate must reverse its own prior demotions before recomputing,
+# or the observations that would clear a family have already been removed by the
+# pass being redone. BEAAA-33596 made the control bindable; this makes it count.
+from tools.beaaa31092_content_slice import (  # noqa: E402
+    GATE_AUTHORED_HOLD_REASONS,
+    _restore_gate_demotions,
+)
+
+
+def test_restore_reverses_only_the_gate_s_own_demotions():
+    """A row held for its own evidence defect is not restored by a gate recompute."""
+    rows = [
+        {"disposition": "held_reported_not_scored", "hold_reasons": [BELOW_STABILITY_FLOOR],
+         "verdict_spread_gap": {"short_by": {}}},
+        {"disposition": "held_reported_not_scored", "hold_reasons": [NO_VERDICT_SPREAD]},
+        {"disposition": "held_reported_not_scored", "hold_reasons": [ORACLE_UNREACHABLE]},
+        # held for the gate AND for a real defect of its own: stays held.
+        {"disposition": "held_reported_not_scored",
+         "hold_reasons": ["missing_verdict", BELOW_STABILITY_FLOOR]},
+        # never touched by the gate at all.
+        {"disposition": "held_reported_not_scored", "hold_reasons": ["provenance_mismatch"]},
+        {"disposition": "scored", "hold_reasons": []},
+    ]
+    assert _restore_gate_demotions(rows) == 3
+    assert [row["disposition"] for row in rows] == [
+        "scored", "scored", "scored",
+        "held_reported_not_scored", "held_reported_not_scored", "scored",
+    ]
+    assert rows[3]["hold_reasons"] == ["missing_verdict", BELOW_STABILITY_FLOOR]
+    assert rows[4]["hold_reasons"] == ["provenance_mismatch"]
+    # The gap the gate attached is dropped with the demotion that produced it.
+    assert "verdict_spread_gap" not in rows[0]
+    assert GATE_AUTHORED_HOLD_REASONS == {NO_VERDICT_SPREAD, BELOW_STABILITY_FLOOR, ORACLE_UNREACHABLE}

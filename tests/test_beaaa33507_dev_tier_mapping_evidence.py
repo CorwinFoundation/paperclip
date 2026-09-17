@@ -63,7 +63,14 @@ def dev_rows(monkeypatch_module=None):
     # 22, tool_authorization_confused_deputy 13, transaction_end_state 11). The
     # substance of this test is unchanged - every row the ledger still scores
     # carries the mapping and the evidence - only the census moved.
-    assert len(rows) == len(scored_ids) == 21
+    #
+    # BEAAA-33568 2026-09-17: approval_freshness_replay reached the minority floor
+    # on a fresh capture round and re-admitted its own 22 rows, so the census moves
+    # 21 -> 43 (authorization_revocation_race 21 + approval_freshness_replay 22).
+    # Same reasoning as above: the assertions below are what this test is about, and
+    # they run over a strictly larger set. len(rows) == len(scored_ids) is the
+    # load-bearing half and is unchanged.
+    assert len(rows) == len(scored_ids) == 43
     return rows
 
 

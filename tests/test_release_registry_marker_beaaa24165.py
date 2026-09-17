@@ -21,12 +21,13 @@ REPO = Path(__file__).resolve().parents[1]
 # digest is re-pinned. Previous pin ca712717...69bf8 came from BEAAA-31091 (ii-015
 # indirect-injection fixture prompt).
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
-    # Rehashed after the dev-tier candidate rows began carrying the rank-2
-    # ledger mapping (candidate_rubric_mapping_status=mapped_dev_scored, P3.4)
-    # and their real execution evidence (BEAAA-33507). Counts are unmoved --
-    # 2,353 / 2,353 / 2,352 with 137 excluded rows -- so only the digest re-pins.
-    # Prior pin 91fc6995...daf4d came from the reported_not_scored rewrite.
-    "fcde4065f3d775341be7c441629e1617840f7ed2a51918419b593deea4e97bef"
+    # Rehashed after BEAAA-33568 re-admitted approval_freshness_replay's 22 rows
+    # to the rank-2 ledger's scored set, which flips those rows to the dev-scored
+    # mapping and evidence fields and so changes their normalized bytes. The row
+    # census is unmoved -- 2,353 / 2,353 / 2,352 with 137 excluded rows, all
+    # asserted above this line -- so only the digest re-pins. Prior pin
+    # fcde4065...97bef came from the BEAAA-33507 dev-tier mapping rewrite.
+    "774b614b8b860e519fb8785f579c3d0efb9c2e6802fb3e3d1fcb3726ec9e715f"
 )
 
 

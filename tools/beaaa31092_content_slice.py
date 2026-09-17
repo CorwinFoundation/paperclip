@@ -60,6 +60,29 @@ SURFACE_DETERMINATIONS_PATH = Path(__file__).resolve().parents[1] / "artifacts/b
 # so the retier path can bind a control's oracle without being handed anything.
 PINNED_INVENTORY_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
 EVIDENCE_FRAMEWORK = "content_candidate@beaaa-18720-1.0.0"
+# BEAAA-33568. Every hold reason the gate itself writes. A row holding one of
+# these is held BECAUSE of a gate decision, not because of a defect in its own
+# evidence, so re-applying the gate has to reverse its own prior verdict before
+# recomputing. ORACLE_UNREACHABLE belongs here too: it is a relabel of a gate
+# literal, applied after the tier decision, and it replaces rather than
+# accompanies the literal.
+GATE_AUTHORED_HOLD_REASONS = frozenset({NO_VERDICT_SPREAD, BELOW_STABILITY_FLOOR, ORACLE_UNREACHABLE})
+# BEAAA-33568. The accepted controls are part of the tier decision on record, so
+# they are pinned in-repo and loaded by default - the same posture the surface
+# determinations take. Without a default, re-applying the gate without repeating
+# ``--controls`` silently withdraws the evidence a family was re-admitted on and
+# demotes it again, which would make the committed artifact depend on an argument
+# nobody can see in it, and makes retier non-idempotent.
+READMISSION_CONTROLS_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/readmission-controls.json"
+# BEAAA-33568 / BEAAA-33596 reconciliation. A control supplied by default must
+# bring its own manifest. BEAAA-33596 requires a run manifest whenever controls
+# are offered, because the judge-configuration digest is derived from the
+# manifest evidence rows and a surrogate would trade a false rejection for a
+# false acceptance. That invariant is right and is kept intact. But the pinned
+# controls above are supplied IMPLICITLY, so without this a caller who asked for
+# neither is made to answer for an input they never offered. The pinned record
+# and the pinned manifest are one default, not two.
+PINNED_RUN_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-run-manifest.json"
 
 
 class ControlBindingError(ValueError):
@@ -732,6 +755,27 @@ def redetermine_ledger(
     return ledger
 
 
+def _load_controls(
+    controls: list[dict[str, Any]] | Path | None,
+) -> tuple[list[dict[str, Any]] | None, bool]:
+    """Pinned in-repo record by default; an explicit argument overrides it.
+
+    An explicitly supplied empty list means "no controls" and is honoured as such;
+    only ``None`` falls through to the pinned record.
+
+    Returns the controls and whether they came from the pinned default, because
+    the caller has to know the difference: a defaulted control also defaults its
+    manifest, an explicitly supplied one does not.
+    """
+    if controls is None:
+        if not READMISSION_CONTROLS_PATH.is_file():
+            return None, False
+        return json.loads(READMISSION_CONTROLS_PATH.read_text(encoding="utf-8")), True
+    if isinstance(controls, Path):
+        return json.loads(controls.read_text(encoding="utf-8")), False
+    return controls, False
+
+
 def _load_determinations(
     determinations: list[dict[str, Any]] | Path | None,
 ) -> list[dict[str, Any]] | None:
@@ -745,9 +789,39 @@ def _load_determinations(
     return determinations
 
 
+def _restore_gate_demotions(rows: list[dict[str, Any]]) -> int:
+    """Undo the gate's own prior demotions so the gate can be recomputed.
+
+    A row demoted by a previous gate pass is no longer ``scored``, and the tier
+    decision only observes scored rows. Re-applying the gate without reversing
+    that first therefore cannot re-admit anything: the observations that would
+    clear a family were removed by the very pass being redone, so a family reads
+    as having no verdict mix at all rather than the mix it actually measured.
+
+    A row is restored only when the gate is the SOLE reason it is held. A row that
+    also failed a fail-closed evidence check keeps its hold: that defect is its
+    own, the gate did not cause it, and re-scoring it would score an unevidenced
+    row. Reversal is what makes the gate idempotent in both directions - a
+    recompute that changes no verdict restores and re-demotes the same rows and
+    lands on the ledger it started from.
+    """
+    restored = 0
+    for row in rows:
+        if row["disposition"] != "held_reported_not_scored":
+            continue
+        remaining = [reason for reason in row["hold_reasons"] if reason not in GATE_AUTHORED_HOLD_REASONS]
+        if len(remaining) == len(row["hold_reasons"]) or remaining:
+            continue
+        row["disposition"] = "scored"
+        row["hold_reasons"] = remaining
+        row.pop("verdict_spread_gap", None)
+        restored += 1
+    return restored
+
+
 def retier_ledger(
     ledger: dict[str, Any],
-    controls: list[dict[str, Any]] | None = None,
+    controls: list[dict[str, Any]] | Path | None = None,
     determinations: list[dict[str, Any]] | Path | None = None,
     manifest_path: Path | None = None,
     inventory_path: Path | None = None,
@@ -763,6 +837,10 @@ def retier_ledger(
     re-demotes it nor restores it.
     """
     rows = ledger["rows"]
+    controls, controls_defaulted = _load_controls(controls)
+    if controls_defaulted and manifest_path is None and PINNED_RUN_MANIFEST_PATH.is_file():
+        manifest_path = PINNED_RUN_MANIFEST_PATH
+    _restore_gate_demotions(rows)
     inventory_rows, evidence = _control_binding_inputs(controls, manifest_path, inventory_path)
     spread, tier1, control_report, withheld = _tier_decision(rows, inventory_rows, evidence, controls)
     determination_report = _apply_surface_determinations(rows, _load_determinations(determinations), tier1)
