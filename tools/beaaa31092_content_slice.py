@@ -38,6 +38,10 @@ BELOW_STABILITY_FLOOR = "verdict_spread_below_stability_floor"
 # scored disposition reads it: it is applied after _tier_decision has run, and
 # only ever rewrites the hold reason of a row that is already held.
 ORACLE_UNREACHABLE = "oracle_unreachable_on_target_surface"
+# The hold literals the spread gate itself applies, as opposed to the fail-closed
+# checks. A row carrying only these is evidence the ledger WOULD score but for the
+# gate, which is exactly the evidence a control is offered to rescue.
+SPREAD_HOLD_REASONS = (NO_VERDICT_SPREAD, BELOW_STABILITY_FLOOR)
 # A determination must name the card that repairs the probe. Condition 5 of the
 # ruling: a determination that cannot name its repair does not load. Without this
 # the literal becomes a graveyard - an honest label with nothing behind it.
@@ -52,6 +56,25 @@ DETERMINATION_REQUIRED_FIELDS = (
     "member_digest",
 )
 SURFACE_DETERMINATIONS_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/surface-determinations.json"
+# The roster inventory is in the repo and its bytes are pinned at INVENTORY_SHA256,
+# so the retier path can bind a control's oracle without being handed anything.
+PINNED_INVENTORY_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
+EVIDENCE_FRAMEWORK = "content_candidate@beaaa-18720-1.0.0"
+
+
+class ControlBindingError(ValueError):
+    """A control that cannot be bound is a load failure, not a silent rejection.
+
+    BEAAA-33596. ``retier_ledger`` used to pass an empty inventory and an empty
+    evidence map into ``_admit_controls``, so every control offered through
+    ``--retier`` came back rejected for ``family_not_in_slice`` and
+    ``family_has_no_single_judge_configuration`` - reasons that describe OUR
+    missing inputs and say nothing about the control. A caller reading that report
+    would conclude their evidence was bad. The inputs are now required up front and
+    their absence is raised, because the honest answer to "is this control any
+    good" when we cannot check is not "no", it is "ask again properly".
+    """
+
 # Condition 5 on its other axis. Every check above binds WHICH rows a
 # determination speaks for; none of them asks whether its claim is TRUE. That gap
 # is reachable, not theoretical: _tier_decision applies NO_VERDICT_SPREAD whenever
@@ -317,6 +340,31 @@ def _control_rejections(
     return reasons
 
 
+def _bindable(row: dict[str, Any]) -> bool:
+    """Can a control bind to this roster case to prove same-oracle provenance?
+
+    BEAAA-33596. The predecessor asked for ``disposition == "scored"``, which is
+    right on the build path - ``_admit_controls`` runs before the gate demotes
+    anything, so a family held only for want of spread still presents scored rows.
+    It is wrong on the retier path, where the ledger is already demoted: every row
+    of the family the control is meant to rescue reads
+    ``held_reported_not_scored``, so the control is rejected for
+    ``bound_case_not_scored`` - held because it lacks a control, and unable to
+    accept one because it is held.
+
+    The intent of the original check is preserved exactly: a control may only
+    reproduce an oracle the ledger would actually score. A row held for a
+    fail-closed reason - bad provenance, missing evidence, an unsupported verdict -
+    is still not bindable, because the ledger would not score it whatever the
+    spread showed.
+    """
+    if row["disposition"] == "scored":
+        return True
+    return (row["disposition"] == "held_reported_not_scored"
+            and bool(row["hold_reasons"])
+            and all(reason in SPREAD_HOLD_REASONS for reason in row["hold_reasons"]))
+
+
 def _admit_controls(
     controls: list[dict[str, Any]] | None,
     inventory_rows: list[dict[str, Any]],
@@ -338,22 +386,22 @@ def _admit_controls(
     inventory_by_family: dict[str, list[dict[str, Any]]] = {}
     for row in inventory_rows:
         inventory_by_family.setdefault(row["family_id"], []).append(row)
-    scored_evidence_by_family: dict[str, list[dict[str, Any]]] = {}
-    scored_cases_by_family: dict[str, set[str]] = {}
+    bindable_evidence_by_family: dict[str, list[dict[str, Any]]] = {}
+    bindable_cases_by_family: dict[str, set[str]] = {}
     for row in rows:
-        if row["disposition"] != "scored":
+        if not _bindable(row):
             continue
-        scored_cases_by_family.setdefault(row["family_id"], set()).add(row["stable_case_id"])
+        bindable_cases_by_family.setdefault(row["family_id"], set()).add(row["stable_case_id"])
         if row["dedupe_sha256"] in evidence:
-            scored_evidence_by_family.setdefault(row["family_id"], []).append(evidence[row["dedupe_sha256"]])
+            bindable_evidence_by_family.setdefault(row["family_id"], []).append(evidence[row["dedupe_sha256"]])
     for control in controls:
         family = control.get("family_id")
         family_inventory = inventory_by_family.get(family or "", [])
-        judge_digest = _family_judge_digest(scored_evidence_by_family.get(family or "", []))
+        judge_digest = _family_judge_digest(bindable_evidence_by_family.get(family or "", []))
         reasons = _control_rejections(
             control,
             _case_oracle_digests(family_inventory),
-            scored_cases_by_family.get(family or "", set()),
+            bindable_cases_by_family.get(family or "", set()),
             judge_digest,
             roster_responses.get(family or "", {}),
         )
@@ -701,6 +749,8 @@ def retier_ledger(
     ledger: dict[str, Any],
     controls: list[dict[str, Any]] | None = None,
     determinations: list[dict[str, Any]] | Path | None = None,
+    manifest_path: Path | None = None,
+    inventory_path: Path | None = None,
 ) -> dict[str, Any]:
     """Re-apply the current tier gate to an already-built ledger, in place.
 
@@ -713,7 +763,8 @@ def retier_ledger(
     re-demotes it nor restores it.
     """
     rows = ledger["rows"]
-    spread, tier1, control_report, withheld = _tier_decision(rows, [], {}, controls)
+    inventory_rows, evidence = _control_binding_inputs(controls, manifest_path, inventory_path)
+    spread, tier1, control_report, withheld = _tier_decision(rows, inventory_rows, evidence, controls)
     determination_report = _apply_surface_determinations(rows, _load_determinations(determinations), tier1)
     counts = Counter(row["disposition"] for row in rows)
     ledger.update({
@@ -749,6 +800,55 @@ def _gate_report(spread: dict[str, Any], withheld: list[dict[str, Any]]) -> dict
     }
 
 
+def _manifest_evidence(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """The run manifest's content-candidate evidence rows, keyed by dedupe digest."""
+    return {
+        row.get("probe_id", "").removeprefix("content-candidate:sha256:"): row
+        for row in manifest.get("evidence_rows", [])
+        if row.get("framework") == EVIDENCE_FRAMEWORK
+    }
+
+
+def _pinned_bytes(path: Path, expected_sha256: str, what: str) -> bytes:
+    payload = path.read_bytes()
+    observed = hashlib.sha256(payload).hexdigest()
+    if observed != expected_sha256:
+        raise ControlBindingError(
+            f"{what} at {path} hashes to {observed}, not the pinned {expected_sha256}")
+    return payload
+
+
+def _control_binding_inputs(
+    controls: list[dict[str, Any]] | None,
+    manifest_path: Path | None,
+    inventory_path: Path | None,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """The inventory and evidence a control must be checked against, on the retier path.
+
+    ``build_ledger`` has both in hand. ``retier_ledger`` does not, and the digests
+    cannot be reconstructed from the ledger rows: ``JUDGE_CONFIG_FIELDS`` reads
+    ``corpus_version`` and ``case_version``, which live on the manifest evidence
+    rows and are not carried onto the ledger. Deriving a surrogate from
+    ``model_version`` alone would trade a false rejection for a false acceptance,
+    which is the worse of the two errors, so the manifest is required rather than
+    approximated. Both inputs are checked against their pins before use.
+    """
+    if not controls:
+        return [], {}
+    inventory = _pinned_bytes(inventory_path or PINNED_INVENTORY_PATH, INVENTORY_SHA256, "roster inventory")
+    chosen = [
+        json.loads(line) for line in inventory.decode("utf-8").splitlines() if line
+    ]
+    chosen = [row for row in chosen if row.get("family_id") in SLICE_FAMILIES]
+    if manifest_path is None:
+        raise ControlBindingError(
+            "controls supplied to retier_ledger without a run manifest: the judge "
+            "configuration digest is derived from the manifest evidence rows, which "
+            f"the ledger does not carry. Pass the manifest pinned at {RUN_MANIFEST_SHA256}.")
+    manifest = _pinned_bytes(manifest_path, RUN_MANIFEST_SHA256, "run manifest")
+    return chosen, _manifest_evidence(json.loads(manifest.decode("utf-8")))
+
+
 def build_ledger(
     inventory_path: Path,
     manifest_path: Path,
@@ -766,11 +866,7 @@ def build_ledger(
     outside_fingerprints = Counter(
         row["semantic_behavior_fingerprint"] for row in inventory if row.get("family_id") not in SLICE_FAMILIES
     )
-    evidence = {
-        row.get("probe_id", "").removeprefix("content-candidate:sha256:"): row
-        for row in manifest.get("evidence_rows", [])
-        if row.get("framework") == "content_candidate@beaaa-18720-1.0.0"
-    }
+    evidence = _manifest_evidence(manifest)
     rows = []
     for row in sorted(chosen, key=lambda value: value["stable_case_id"]):
         digest = row["dedupe_sha256"]
@@ -868,7 +964,7 @@ def main() -> int:
                                     args.determinations)
     elif args.retier is not None:
         ledger = retier_ledger(json.loads(args.retier.read_text(encoding="utf-8")), controls,
-                               args.determinations)
+                               args.determinations, args.manifest, args.inventory)
     else:
         ledger = build_ledger(args.inventory, args.manifest, args.evidence_dir, args.job_id, controls,
                               args.determinations)

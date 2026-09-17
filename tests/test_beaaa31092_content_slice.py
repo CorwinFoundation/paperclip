@@ -600,3 +600,128 @@ def test_the_pinned_determination_survives_the_census_check():
     # Re-applying over the already-relabelled rows still admits.
     report = _apply_surface_determinations(ledger["rows"], _pinned_determination(), set())
     assert report["rows_relabelled"] == 12
+
+
+# ---------------------------------------------------------------------------
+# BEAAA-33596: a control offered through the retier path must be judged on its
+# merits. retier_ledger used to pass an empty inventory and an empty evidence map
+# into _admit_controls, so every control came back rejected for family_not_in_slice
+# and family_has_no_single_judge_configuration - reasons that describe our missing
+# inputs, not the control. The committed ledger can only be moved by --retier, so
+# that made the control channel unreachable on the one path that matters.
+# ---------------------------------------------------------------------------
+
+import hashlib as _hashlib  # noqa: E402
+
+from tools.beaaa31092_content_slice import (  # noqa: E402
+    ControlBindingError,
+    INVENTORY_SHA256,
+    _bindable,
+    RUN_MANIFEST_SHA256,
+    retier_ledger,
+)
+
+LEDGER_PATH = ROOT / "artifacts/beaaa-31092/rank2-ledger.json"
+
+
+def _manifest_for(family, tmp_path, monkeypatch):
+    """A run manifest carrying the evidence rows of one family's ledger rows.
+
+    The real manifest is not in the repo, so the fixture stands in for it and the
+    pin is redirected to the fixture's own bytes. The pin CHECK is exercised
+    separately below - what this binds is that a control is admitted once the
+    inputs are actually present.
+    """
+    ledger = _json.loads(LEDGER_PATH.read_text())
+    rows = [row for row in ledger["rows"] if row["family_id"] == family and row["verdict"]]
+    manifest = {"evidence_rows": [
+        {
+            "probe_id": f"content-candidate:sha256:{row['dedupe_sha256']}",
+            "framework": "content_candidate@beaaa-18720-1.0.0",
+            "verdict": row["verdict"],
+            "model_version": row["model_version"],
+            "corpus_version": "beaaa-18720-1.0.0",
+            "case_version": "1",
+            "evidence_ref": row["evidence_ref"],
+        }
+        for row in rows
+    ]}
+    path = tmp_path / "run-manifest.json"
+    path.write_bytes(_json.dumps(manifest).encode("utf-8"))
+    monkeypatch.setattr("tools.beaaa31092_content_slice.RUN_MANIFEST_SHA256",
+                        _hashlib.sha256(path.read_bytes()).hexdigest())
+    return ledger, path
+
+
+def test_a_control_through_retier_is_judged_on_its_merits(tmp_path, monkeypatch):
+    family = "approval_freshness_replay"
+    ledger, manifest = _manifest_for(family, tmp_path, monkeypatch)
+    inventory = [_json.loads(line) for line in INVENTORY.read_text().splitlines() if line]
+    family_inventory = [row for row in inventory if row.get("family_id") == family]
+    # approval_freshness_replay has NO scored rows on this ledger - it is held by
+    # the stability floor, which is precisely why a control is being offered for
+    # it. Binding to one of its held-for-spread cases is the fix.
+    bindable = {row["stable_case_id"] for row in ledger["rows"]
+                if row["family_id"] == family and _bindable(row)}
+    assert bindable and not any(row["disposition"] == "scored" for row in ledger["rows"]
+                                if row["family_id"] == family)
+    bound = sorted(bindable)[0]
+    control = {
+        "family_id": family,
+        "bound_case_id": bound,
+        "verdict": "pass",
+        "evidence_ref": "evidence://beaaa-33596/control/c1.json",
+        "recorded_target_response": "a second-round observation nothing in the roster carries",
+        "prompt_sha256": "c" * 64,
+        "n": 4,
+        "target_id": "vapi:09aea361@api.vapi.ai",
+        "capture_round": "beaaa-33596-round-2",
+        "status": "complete",
+        "acquisition_basis": "target-measured",
+        "target_calls": 4,
+        "oracle_digest": _case_oracle_digests(family_inventory)[bound],
+        "judge_config_digest": _family_judge_digest(
+            [{"corpus_version": "beaaa-18720-1.0.0", "case_version": "1",
+              "model_version": row["model_version"]}
+             for row in ledger["rows"]
+             if row["family_id"] == family and _bindable(row)]),
+    }
+    report = retier_ledger(_json.loads(_json.dumps(ledger)), [control],
+                           manifest_path=manifest)["verdict_spread_controls"]
+    # The point of the fix: no rejection that describes OUR missing inputs.
+    blamed = {reason for record in report["rejected"] for reason in record["rejection_reasons"]}
+    assert not blamed & {"family_not_in_slice", "bound_case_not_in_family",
+                         "family_has_no_single_judge_configuration"}
+    assert len(report["accepted"]) == 1
+    assert report["accepted"][0]["capture_round"] == "beaaa-33596-round-2"
+
+
+def test_a_control_with_no_manifest_raises_instead_of_rejecting_it(tmp_path):
+    """The honest answer when we cannot check is not 'no', it is 'ask properly'."""
+    ledger = _json.loads(LEDGER_PATH.read_text())
+    with pytest.raises(ControlBindingError, match="without a run manifest"):
+        retier_ledger(ledger, [{"family_id": "approval_freshness_replay"}])
+    # ...and a retier with no controls at all is untouched by any of this.
+    assert retier_ledger(_json.loads(_json.dumps(ledger)))["scored"] == ledger["scored"]
+
+
+def test_a_manifest_or_inventory_off_its_pin_is_refused(tmp_path, monkeypatch):
+    family = "approval_freshness_replay"
+    ledger, manifest = _manifest_for(family, tmp_path, monkeypatch)
+    monkeypatch.setattr("tools.beaaa31092_content_slice.RUN_MANIFEST_SHA256", "f" * 64)
+    with pytest.raises(ControlBindingError, match="run manifest"):
+        retier_ledger(_json.loads(_json.dumps(ledger)), [{"family_id": family}],
+                      manifest_path=manifest)
+
+    off_pin = tmp_path / "inventory.jsonl"
+    off_pin.write_text('{"family_id": "approval_freshness_replay"}\n')
+    with pytest.raises(ControlBindingError, match="roster inventory"):
+        retier_ledger(_json.loads(_json.dumps(ledger)), [{"family_id": family}],
+                      manifest_path=manifest, inventory_path=off_pin)
+
+
+def test_the_pinned_inventory_in_the_repo_matches_the_constant():
+    """The whole oracle half of the fix rests on this being true."""
+    assert _hashlib.sha256(
+        (ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl").read_bytes()
+    ).hexdigest() == INVENTORY_SHA256
