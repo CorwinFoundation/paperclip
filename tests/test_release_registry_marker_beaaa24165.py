@@ -23,11 +23,19 @@ REPO = Path(__file__).resolve().parents[1]
 EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Rehashed after BEAAA-33568 re-admitted approval_freshness_replay's 22 rows
     # to the rank-2 ledger's scored set, which flips those rows to the dev-scored
-    # mapping and evidence fields and so changes their normalized bytes. The row
-    # census is unmoved -- 2,353 / 2,353 / 2,352 with 137 excluded rows, all
-    # asserted above this line -- so only the digest re-pins. Prior pin
+    # mapping and evidence fields and so changes their normalized bytes. Prior pin
     # fcde4065...97bef came from the BEAAA-33507 dev-tier mapping rewrite.
-    "774b614b8b860e519fb8785f579c3d0efb9c2e6802fb3e3d1fcb3726ec9e715f"
+    #
+    # Re-pinned again for BEAAA-33810: the agent-escape incident tranche adds 8
+    # executable rows (OOSC-INC-01..08) to out_of_scope_containment, so unlike the
+    # re-pins above this one DOES move the census -- 2,353 / 2,353 / 2,352 becomes
+    # 2,361 / 2,361 / 2,360, all asserted below. The digest is not the proof that
+    # only the tranche moved; the row-level diff is. Regenerating the registry from
+    # a clean origin/master (213f7133) reproduces the committed artifact with 0 rows
+    # added and 0 removed, and the branch adds exactly 11 rows over that baseline:
+    # the 8 executable cases plus 3 fixture_test_only fixture files. Prior pin
+    # 774b614b...e715f came from BEAAA-33568.
+    "b4b6e143783185d591099ca9b04a8f3cc9a3b876d692c00066f989aa7e686331"
 )
 
 
@@ -37,9 +45,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_353
-    assert marker["generated_executable_count"] == 2_353
-    assert marker["distinct_runtime_count"] == 2_352
+    assert marker["published_executable_count"] == 2_361
+    assert marker["generated_executable_count"] == 2_361
+    assert marker["distinct_runtime_count"] == 2_360
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()

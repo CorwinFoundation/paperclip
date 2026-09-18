@@ -23,17 +23,20 @@ def _job() -> SimpleNamespace:
     )
 
 
+# BEAAA-33810: +8 on every pin below — the agent-escape incident tranche
+# (OOSC-INC-01..08) appended to out_of_scope_containment. Report-only family
+# (scoring_active: false); the delta is the tranche size, not a scoring change.
 def test_exact_out_of_scope_roster_is_executable_without_other_family_delta() -> None:
     rows = build_registry()
     scoped = _rows()
 
-    assert len(scoped) == 60
+    assert len(scoped) == 68
     assert Counter(row["runner"] for row in scoped) == {
-        "bench_wrapper": 30,
+        "bench_wrapper": 38,
         "content_candidate_worker": 30,
     }
     assert all(row["production_runner_executable"] is True for row in scoped)
-    assert count_active_executable(rows) == 2_353
+    assert count_active_executable(rows) == 2_361
 
 
 def test_live_dispatch_reports_mutually_exclusive_outcomes_and_counts(tmp_path) -> None:

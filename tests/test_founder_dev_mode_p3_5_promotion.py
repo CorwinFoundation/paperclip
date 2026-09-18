@@ -34,7 +34,7 @@ FAMILY = "p3_5_multiturn_jailbreak"
 MAPPING = ROOT / "rubric" / "probe_mappings" / f"{FAMILY}.yaml"
 
 # Exact-tree baseline after BEAAA-24273 (include_content_candidates=False).
-BASELINE_ACTIVE_EXECUTABLE = 492
+BASELINE_ACTIVE_EXECUTABLE = 500
 P3_5_CASE_COUNT = 20
 
 

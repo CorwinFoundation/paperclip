@@ -58,4 +58,4 @@ def test_flag_on_promotes_exactly_the_ledger_rows(monkeypatch):
 
 def test_active_executable_count_is_identical_with_the_flag_off(monkeypatch):
     rows = _rows(monkeypatch, None)
-    assert registry.count_active_executable(rows) == 2353
+    assert registry.count_active_executable(rows) == 2361

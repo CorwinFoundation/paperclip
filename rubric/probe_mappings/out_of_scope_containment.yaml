@@ -8,4 +8,5 @@ dev_scoring_active: true
 dev_activation_ref: BEAAA-26259
 rubric_point_ids: [P1.4, OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT]
 runner: harness.bench.aiuc_path_b_lane_a
-case_count: 30
+case_count: 38
+incident_tranche_ref: BEAAA-33810

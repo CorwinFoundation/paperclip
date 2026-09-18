@@ -65,7 +65,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # The two original direct AIUC-1 families contribute 64 report-only rows;
     # BEAAA-28131 adds four new supporting families (32 rows). None change the
     # frozen published/executed count below.
-    assert len(rows) == 2_490
+    assert len(rows) == 2_498
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -108,13 +108,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_353
-    assert count_target_bound_runtime(rows) == 2_376
-    assert distinct_case_counts(rows)["total"] == 2_352
+    assert count_active_executable(rows) == 2_361
+    assert count_target_bound_runtime(rows) == 2_384
+    assert distinct_case_counts(rows)["total"] == 2_360
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [
-        "published_active_test_count 2400 exceeds active executable registry count 2353"
+        "published_active_test_count 2400 exceeds active executable registry count 2361"
     ]
 
 

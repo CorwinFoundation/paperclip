@@ -6,7 +6,7 @@
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Hallucination rate (factual)",
@@ -14,7 +14,7 @@
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Citation integrity",
@@ -22,7 +22,7 @@
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Self-contradiction under perturbation",
@@ -30,7 +30,7 @@
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Out-of-scope refusal accuracy",
@@ -38,7 +38,7 @@
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Confidence calibration vs error",
@@ -46,7 +46,7 @@
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Eval coverage breadth",
@@ -54,7 +54,7 @@
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Demographic parity gap (protected attrs)",
@@ -62,7 +62,7 @@
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Equal opportunity gap",
@@ -70,7 +70,7 @@
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Counterfactual stability",
@@ -78,7 +78,7 @@
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Representation in eval set",
@@ -86,7 +86,7 @@
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Output sentiment skew by attr",
@@ -94,7 +94,7 @@
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
@@ -102,7 +102,7 @@
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Direct prompt-injection resistance",
@@ -110,7 +110,7 @@
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Indirect injection (tool/RAG content) resistance",
@@ -118,7 +118,7 @@
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Secret/credential exfiltration resistance",
@@ -126,7 +126,7 @@
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Multi-turn jailbreak persistence",
@@ -134,7 +134,7 @@
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
@@ -142,7 +142,7 @@
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Audit log completeness",
@@ -150,7 +150,7 @@
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Model/prompt version control",
@@ -158,7 +158,7 @@
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Kill-switch + rollback time",
@@ -166,7 +166,7 @@
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Incident-response playbook",
@@ -174,7 +174,7 @@
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Eval re-run cadence",
@@ -182,7 +182,7 @@
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Owner accountability matrix",
@@ -190,7 +190,7 @@
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "PII scan-time detection (defense-layer)",
@@ -247,7 +247,7 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     },
     {
       "name": "Tool misuse \u2014 unauthorized call",
@@ -255,17 +255,17 @@
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 0de943f"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure f5af0cb"
     }
   ],
   "bucket_counts": {
     "attestation_only": 7,
     "declared_minimum_only": 208,
-    "fixture_test_only": 124,
+    "fixture_test_only": 127,
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 61,
     "report_only": 3,
-    "runnable_today": 2449
+    "runnable_today": 2457
   },
   "bucket_definitions": {
     "attestation_only": "Governance/operator evidence row; countable as evidence requirement, not an executable probe.",
@@ -279,13 +279,13 @@
   "category_counts": {
     "attestation_only": 7,
     "blocked_unsupported": 372,
-    "executable": 2353,
+    "executable": 2361,
     "executable_on_default_runtime": 119,
     "executed_in_latest_evidenced_run": 0,
-    "fixture_test_only": 124,
+    "fixture_test_only": 127,
     "inactive_deferred": 8,
     "proxy_grade": 61,
-    "registered": 2860,
+    "registered": 2871,
     "reported": 11,
     "scoring_active": 0
   },
@@ -294,7 +294,7 @@
     "claim_supported": false,
     "claimed_count": 1180,
     "disposition": "unsupported_claim_capped_to_runnable_today_pending_founder_approval",
-    "supported_unique_executable_count": 2353,
+    "supported_unique_executable_count": 2361,
     "unsupported_rows_count": 372
   },
   "dedupe_key_fields": [
@@ -310,7 +310,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "0de943f4c2c9ab1b697aa8259752e9f39160c0b6",
+    "generated_from_content_sha": "f5af0cbba85c8d527f48e72cd8e247a44343189f",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -320,9 +320,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "0de943f4c2c9ab1b697aa8259752e9f39160c0b6",
+    "source_closure_sha": "f5af0cbba85c8d527f48e72cd8e247a44343189f",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-0de943f",
+    "source_closure_version": "registry-source-f5af0cb",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -8610,6 +8610,262 @@
         "version": "out_of_scope_containment@0.1.0"
       },
       "stable_id": "1a7c20bd273edf1ad8dee18937ec0eca246c2ab25b7b406b2f58e81e15cc8685",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-01",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "9c958a37dd17c2051d8f6a2688de956952b6cc8125478ce866e03f1eac1a325f",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-02",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "801b8502c8650fb175ab4b8c900c932b41e8c1f5dad51d57df0aefbfc10554d5",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-03",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "c078e25358acff046a6a01f22d8b247ac5cdbf8ab6353526a816a2d2ac7cec7d",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-04",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "93df0762fab4c0e428ade22a7b93a947aecdba7fbaccecffaef4cba586c911e6",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-05",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "a04569e3ee02f01d1ac6c492cbb1973eb6dda47e28a1082a9ccb153f9c1fc3f3",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-06",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "7dd4982d011eda1d0e72e41e81d655e60d70da83b8d90b18455ba76f943896ab",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-07",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "224d3f9d1e773bad5fe5717ac163ded2dad7efdbacb86084e647d8e86ed7b917",
+      "version_pin": "out_of_scope_containment@0.1.0",
+      "worker_runner": "bench_wrapper"
+    },
+    {
+      "bucket": "runnable_today",
+      "case_id_or_probe_id": "OOSC-INC-08",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": true,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": false,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "out_of_scope_containment",
+      "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
+      "framework": "bench_wrapper",
+      "framework_version": "0.1.0",
+      "mode": "production_worker_registry_v0.1",
+      "reason": "BEAAA-13644 active-test registry marks this row active with a pinned production runner",
+      "rubric_point_id": "OPS.SCOPE.OUT_OF_SCOPE_CONTAINMENT",
+      "source": "rubric/probe_mappings/out_of_scope_containment.yaml",
+      "source_provenance": {
+        "path": "rubric/probe_mappings/out_of_scope_containment.yaml",
+        "version": "out_of_scope_containment@0.1.0"
+      },
+      "stable_id": "545ef5c25854c42f96d67f413719badea8eb65e7c9e361ef246d30115095f0c9",
       "version_pin": "out_of_scope_containment@0.1.0",
       "worker_runner": "bench_wrapper"
     },
@@ -81037,6 +81293,93 @@
     },
     {
       "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "out_of_scope_containment_agent_escape/known_bad.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/out_of_scope_containment_agent_escape/known_bad.json",
+      "source_provenance": {
+        "path": "tests/fixtures/out_of_scope_containment_agent_escape/known_bad.json",
+        "version": "n/a"
+      },
+      "stable_id": "f76b110c01b9f84f19217741f0bfa83af24579116778f7ae76d98807c00cab19"
+    },
+    {
+      "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "out_of_scope_containment_agent_escape/known_good.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/out_of_scope_containment_agent_escape/known_good.json",
+      "source_provenance": {
+        "path": "tests/fixtures/out_of_scope_containment_agent_escape/known_good.json",
+        "version": "n/a"
+      },
+      "stable_id": "0ceed952175ed0152afe4891def3f417d2e81deb8266fdd5308b6790058e6a67"
+    },
+    {
+      "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "out_of_scope_containment_agent_escape/shapes.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/out_of_scope_containment_agent_escape/shapes.json",
+      "source_provenance": {
+        "path": "tests/fixtures/out_of_scope_containment_agent_escape/shapes.json",
+        "version": "n/a"
+      },
+      "stable_id": "701ac68960ffa1f6028d05d821712b324534b61b3be65c816e4075f092747886"
+    },
+    {
+      "bucket": "fixture_test_only",
       "case_id_or_probe_id": "p1_1_factuality/known_bad_hallucination_agent_v0.json",
       "categories": {
         "attestation_only": false,
@@ -90924,7 +91267,7 @@
     "tests/fixtures/golden_agents/**",
     "evals/provisional_tau_support_crm.py"
   ],
-  "unique_executable_count": 2353,
+  "unique_executable_count": 2361,
   "upstream_framework_pins": {
     "agentdojo": "0.1.35",
     "garak": "0.16.0",

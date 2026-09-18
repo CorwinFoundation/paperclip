@@ -45,9 +45,11 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # CBRN and cyber-misuse restore two families and 80 rows; harmful-output
     # restores one more family and 60 rows. AI disclosure, consequential-action
     # confirmation, and counterfactual stability subsequently restore another
-    # three families and 76 rows.
+    # three families and 76 rows. BEAAA-33810 adds the eight-case agent-escape
+    # incident tranche to out_of_scope_containment: one family unchanged, that
+    # family 60 -> 68 rows, so 2,458 -> 2,466 and the map hash moves with it.
     assert len(counts) == 130
-    assert sum(counts.values()) == 2458
+    assert sum(counts.values()) == 2466
     assert hashlib.sha256(serialized).hexdigest() == (
-        "66c1b35de60d5240f3d518f76b1d6082eea46862f258c5fdc6de8c1ded8b9d23"
+        "0fbcf97ee405939347fb060c80ec0ed9f1083c444da1e4d660e0e5a56e24a5bc"
     )

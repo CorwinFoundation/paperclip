@@ -57,15 +57,15 @@ class DistinctCaseCountTests(unittest.TestCase):
         runnable = count_target_bound_runtime(self.rows)
         # BEAAA-24273 added 60 independently evidenced, non-text rows to the
         # no-content-candidate view. The collision set is unchanged.
-        self.assertEqual(runnable, 525)
+        self.assertEqual(runnable, 533)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 525)
+        self.assertEqual(counts["declared_total"], 533)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
         # Global unique (prompts, expected) pairs follow the current registry
         # source of truth: 510 declared - 22 dupes plus the newly bound
         # eval-representation row = 487.
-        self.assertEqual(counts["total"], 491)
+        self.assertEqual(counts["total"], 499)
         self.assertEqual(counts["declared_total"] - counts["total"], 34)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
