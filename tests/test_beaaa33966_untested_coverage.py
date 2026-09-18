@@ -91,9 +91,17 @@ def test_evidenced_rows_do_not_appear():
     assert build_untested_coverage(rows)["count"] == 0
 
 
-def test_the_rank2_manifest_reports_its_fifty():
-    """The measured case this card was filed on: 50 unevidenced, 24 unreasoned."""
+def test_the_rank2_manifest_reports_its_remaining_twenty_four():
+    """The measured case this card was filed on, after BEAAA-33970.
+
+    It was 50 unevidenced rows, 24 of them unreasoned.  BEAAA-33970 re-derived
+    the manifest against the eleven declarations, so the 26 capability-gated
+    rows now carry ``na_evidence`` and have left the unevidenced population.
+    The 24 that remain carry no capability reason and no recorded target
+    response, and no declaration reaches them.  The count is pinned at 24 so a
+    later change cannot quietly disposition them the way the 26 were.
+    """
     rows = json.loads(RANK2_MANIFEST.read_text(encoding="utf-8"))["evidence_rows"]
     coverage = build_untested_coverage(rows)
-    assert coverage["count"] == 50
+    assert coverage["count"] == 24
     assert coverage["counts_by_category"]["unevidenced_no_reason"] == 24

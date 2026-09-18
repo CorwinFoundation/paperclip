@@ -76,17 +76,82 @@ def test_the_manifest_declares_itself_unfit_to_bind():
     assert declared["missing_required"] == 26
 
 
+# BEAAA-33970 re-derived the 26 capability-gated rows in the pinned manifest, so
+# the live recompute no longer equals the frozen census byte for byte. The
+# artefact stays frozen - it is a dated record of the BEAAA-33661 measurement,
+# not a live view - and the test below asserts the live census equals that record
+# AFTER applying exactly the transformation 33970 is authorised to make. Anything
+# else that moves still reddens this test, which is the guarantee the plain
+# equality was providing.
+RE_DERIVED_ROWS = 26
+
+
+def _census_after_the_33970_rederivation() -> dict:
+    """The frozen census, plus the 26-row disposition and nothing else.
+
+    Written as arithmetic on the frozen values rather than a fresh literal, so
+    the 26 has to be conserved: a row can only leave
+    ``manifest_row_truncated_no_verdict`` by arriving in ``result_triple_flip``,
+    and can only leave ``manifest=<absent>`` by arriving under
+    ``manifest=not_applicable`` with its file-side verdict unchanged.
+    """
+    expected = {k: v for k, v in CENSUS.items() if k != "manifest_path"}
+
+    # The 26 carried no verdict at all; they now carry the declared N/A
+    # disposition, so they stop being truncated and start being ordinary
+    # manifest-vs-file verdict flips.
+    buckets = dict(expected["cause_buckets"])
+    truncated = buckets.pop("content_candidate:manifest_row_truncated_no_verdict")
+    assert truncated == RE_DERIVED_ROWS, truncated
+    buckets["content_candidate:result_triple_flip"] += RE_DERIVED_ROWS
+    expected["cause_buckets"] = buckets
+
+    pairs = dict(expected["verdict_pairs"])
+    moved = 0
+    for file_verdict in ("fail", "pass"):
+        count = pairs.pop(f"manifest=<absent> file={file_verdict}")
+        pairs[f"manifest=not_applicable file={file_verdict}"] = count
+        moved += count
+    assert moved == RE_DERIVED_ROWS, moved
+    expected["verdict_pairs"] = pairs
+
+    # The manifest's own fitness fields, post re-derivation. `passed` stays
+    # false: the 24 BEAAA-33228 unjustified non-acquisition rows still block the
+    # four-way equality, which is BEAAA-33992.
+    expected["manifest_self_declared"] = {
+        "acceptance_gate": {
+            "canonical_reconciliation_equal": True,
+            "expected_attempted_terminal_evidenced_equal": False,
+            "expected_declared": True,
+            "incomplete_false": True,
+            "passed": False,
+            "zero_unapproved_missing_required": True,
+        },
+        "analysis_status": "complete",
+        "bind_eligibility": "eligible",
+        "incomplete": False,
+        "missing_required": 0,
+    }
+    return expected
+
+
 @pytest.mark.skipif(not EVIDENCE_ROOT.is_dir(), reason="exported evidence tree not mounted")
 def test_the_pinned_census_still_reproduces_from_the_exported_evidence():
+    """The re-derivation moved the 26 and touched nothing else.
+
+    In particular ``by_ledger_disposition`` (9 scored-disagree, 34 scored-agree,
+    66 held-disagree) and ``scored_row_disagreement_causes`` come through the
+    equality unchanged, which is the fence: a disposition moved, no score did.
+    """
     live = census(
         EVIDENCE_ROOT,
         ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json",
         ROOT / "artifacts/beaaa-31092/rank2-ledger.json",
     )
     # ``manifest_path`` echoes whatever path the caller passed; it is not a count.
-    assert {k: v for k, v in live.items() if k != "manifest_path"} == {
-        k: v for k, v in CENSUS.items() if k != "manifest_path"
-    }
+    assert {k: v for k, v in live.items() if k != "manifest_path"} == (
+        _census_after_the_33970_rederivation()
+    )
 
 
 def test_only_nine_of_the_forty_three_scored_rows_are_in_the_disagreement_set():
@@ -136,9 +201,14 @@ def test_the_pinned_manifest_is_refused_because_it_names_no_approved_blocker():
     message = str(raised.value)
     assert "declares itself unfit to bind" in message
     assert "names no approved_blocker_ref" in message
-    for term in ("incomplete", "bind_eligibility:blocked_base_suite_incomplete",
-                 "acceptance_gate_not_passed", "missing_required:26"):
-        assert term in message
+    # BEAAA-33970 cleared four of the five terms this originally named
+    # (incomplete, analysis_status, bind_eligibility, missing_required:26) by
+    # re-deriving the 26 capability-gated rows against the BEAAA-33966
+    # declarations. The refusal itself is unchanged and still fail-closed; only
+    # the reason list is shorter. The survivor is BEAAA-33992's 24 rows.
+    assert "acceptance_gate_not_passed" in message
+    for cleared in ("incomplete", "bind_eligibility:", "missing_required:"):
+        assert cleared not in message, f"{cleared!r} should have been cleared by BEAAA-33970"
 
 
 def test_there_is_no_caller_side_bypass_left():
@@ -174,8 +244,8 @@ def test_an_approval_permits_the_bind_but_does_not_hide_the_unfitness():
     manifest["approved_blocker_ref"] = "BEAAA-33671"
     fitness = _assert_manifest_fit_to_bind(manifest)
     assert fitness["approved_blocker_ref"] == "BEAAA-33671"
-    assert "bind_eligibility:blocked_base_suite_incomplete" in fitness["unfit_reasons"]
-    assert "missing_required:26" in fitness["unfit_reasons"]
+    # Post BEAAA-33970 the pinned manifest disowns itself on one term, not five.
+    assert fitness["unfit_reasons"] == ["acceptance_gate_not_passed"]
 
 
 def test_the_guard_re_scores_nothing(monkeypatch):

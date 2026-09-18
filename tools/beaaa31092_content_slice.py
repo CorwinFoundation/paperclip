@@ -15,7 +15,7 @@ MANIFEST_SHA256 = "5b399d02d1229e99246ad709cf5213188e5f13f5b9cc49a4a26a4a5f0bb4c
 # BEAAA-31116 controlled rerun e1332067: the manifest that actually carries this
 # roster's target-measured rows. The BEAAA-30720 manifest above names refs inside
 # job a935915a and binds none of them, so it stays pinned for provenance only.
-RUN_MANIFEST_SHA256 = "ab9fdb0304b614e0689536b5bb8bd4a933591c3a0543472f523a2097992607cb"
+RUN_MANIFEST_SHA256 = "f1f32147343717e506ae15ca351d8d0c0f02c1f3e8dbe9469d50d45ab42a59d7"
 # BEAAA-31092 CEO ruling 2026-09-16: a family is score-eligible only if it returned
 # both verdicts against the live target. An all-fail family cannot be told apart
 # from a probe that always fails, so it is held until a positive control exists.
@@ -1113,7 +1113,22 @@ def _control_binding_inputs(
 # in BEAAA-33661 item 2: none of its 2458 rows carries a
 # ``recorded_target_response``, so the slice over it scores zero rows and it can
 # reach no scored row to exclude. BEAAA-33670 carries the corpus-wide sweep.
-FIT_ANALYSIS_STATUS = "analysis_complete"
+# BEAAA-33970. This constant read ``analysis_complete`` from the guard's first
+# commit, and no producer in this tree has ever emitted that string:
+# ``build_attempt_manifest`` (api/full_scan_executor.py) and
+# ``scripts/regrade_beaaa33199.py`` both write ``complete`` when a run has no
+# incomplete reasons, and ``demo-real-agent`` pins ``complete`` independently.
+# The term was therefore unsatisfiable - a manifest that declared its analysis
+# COMPLETE was flagged unfit for saying so. Nothing caught it because every
+# manifest in tree carries ``analysis_incomplete``, which this guard refuses for
+# the right reason; the BEAAA-33970 re-derivation is the first to produce a
+# healthy value and it hit the dead term immediately.
+#
+# The narrowing intent is unchanged: refuse a manifest whose analysis is not
+# complete. ``tests/test_beaaa33970_fit_analysis_status.py`` pins the constant
+# against a manifest built by the real executor, so producer and guard cannot
+# drift apart again without a red test.
+FIT_ANALYSIS_STATUS = "complete"
 FIT_BIND_ELIGIBILITY = "eligible"
 
 
