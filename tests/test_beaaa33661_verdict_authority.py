@@ -130,73 +130,131 @@ INVENTORY = ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
 LEDGER = json.loads((ROOT / "artifacts/beaaa-31092/rank2-ledger.json").read_text(encoding="utf-8"))
 
 
-def test_the_pinned_manifest_is_refused_without_an_acknowledgement():
+def test_the_pinned_manifest_is_refused_because_it_names_no_approved_blocker():
     with pytest.raises(ValueError) as raised:
         build_ledger(INVENTORY, MANIFEST)
     message = str(raised.value)
     assert "declares itself unfit to bind" in message
+    assert "names no approved_blocker_ref" in message
     for term in ("incomplete", "bind_eligibility:blocked_base_suite_incomplete",
                  "acceptance_gate_not_passed", "missing_required:26"):
         assert term in message
 
 
-def test_the_guard_names_every_way_this_manifest_disowns_itself():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    assert _manifest_unfitness(manifest) == [
-        "incomplete",
-        "analysis_status:analysis_incomplete",
-        "bind_eligibility:blocked_base_suite_incomplete",
-        "acceptance_gate_not_passed",
-        "missing_required:26",
-    ]
+def test_there_is_no_caller_side_bypass_left():
+    """CEO re-ruling 2026-09-18: a control any caller bypasses with a string is a log line.
 
-
-def test_a_manifest_silent_on_fitness_is_not_treated_as_unfit():
-    """Absence is not a declaration.
-
-    Every synthetic manifest in the suite omits all four fields, and this control
-    is scoped to a manifest that *says* it is unfit - not one that is unfit and
-    silent. Stated here so the limit is a tested decision rather than an accident.
+    The acknowledgement argument is gone from the signature and from the CLI, so
+    the only thing that can permit a bind is the manifest's own signed field.
     """
-    assert _manifest_unfitness({"evidence_rows": []}) == []
+    import inspect
+
+    import tools.beaaa31092_content_slice as slice_module
+
+    assert "unfit_manifest_ack" not in inspect.signature(build_ledger).parameters
+    assert "acknowledge-unfit-manifest" not in inspect.getsource(slice_module)
+    assert list(inspect.signature(slice_module._assert_manifest_fit_to_bind).parameters) == ["manifest"]
 
 
-def test_a_fit_manifest_needs_no_acknowledgement():
-    assert _manifest_unfitness({
-        "incomplete": False,
-        "analysis_status": "analysis_complete",
-        "bind_eligibility": "eligible",
-        "acceptance_gate": {"passed": True},
-        "counts": {"missing_required": 0},
-    }) == []
+def test_only_the_manifests_own_signed_field_permits_a_bind():
+    from tools.beaaa31092_content_slice import _assert_manifest_fit_to_bind
+
+    unfit = {"incomplete": True, "counts": {"missing_required": 26}}
+    with pytest.raises(ValueError):
+        _assert_manifest_fit_to_bind(unfit)
+    approved = _assert_manifest_fit_to_bind({**unfit, "approved_blocker_ref": "BEAAA-33671"})
+    assert approved["approved_blocker_ref"] == "BEAAA-33671"
+    assert approved["unfit_reasons"] == ["incomplete", "missing_required:26"]
 
 
-def test_acknowledging_binds_but_stamps_the_reasons_onto_the_ledger():
-    """The escape hatch cannot be used quietly: the ledger carries the reasons."""
-    ledger = build_ledger(INVENTORY, MANIFEST, unfit_manifest_ack="BEAAA-33661")
-    assert ledger["manifest_fitness"]["acknowledged_by"] == "BEAAA-33661"
-    assert "bind_eligibility:blocked_base_suite_incomplete" in ledger["manifest_fitness"]["unfit_reasons"]
+def test_an_approval_permits_the_bind_but_does_not_hide_the_unfitness():
+    from tools.beaaa31092_content_slice import _assert_manifest_fit_to_bind
+
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest["approved_blocker_ref"] = "BEAAA-33671"
+    fitness = _assert_manifest_fit_to_bind(manifest)
+    assert fitness["approved_blocker_ref"] == "BEAAA-33671"
+    assert "bind_eligibility:blocked_base_suite_incomplete" in fitness["unfit_reasons"]
+    assert "missing_required:26" in fitness["unfit_reasons"]
 
 
 def test_the_guard_re_scores_nothing(monkeypatch):
     """Clause 3 is a bug fix, not a re-score.
 
     The committed ``rank2-ledger.json`` cannot be rebuilt byte for byte on this
-    host - the 43/144/110 split does not reproduce here, which is a standing
-    finding from BEAAA-33656 and not something this guard introduced. So the claim
-    is proved directly instead: build once with the guard bypassed and once with it
-    acknowledged, from identical inputs, and assert the only difference in the
-    whole ledger is the ``manifest_fitness`` stamp the guard adds. No row, no
-    disposition and no count moves.
+    host - the 43/144/110 split does not reproduce here, a standing BEAAA-33656
+    finding that predates this guard. So the claim is proved directly instead:
+    build once with the guard returning a permitted stamp and once with it
+    bypassed, from identical inputs, and assert the only difference in the whole
+    ledger is ``manifest_fitness``. No row, no disposition and no count moves.
     """
     import tools.beaaa31092_content_slice as slice_module
 
-    acknowledged = build_ledger(INVENTORY, MANIFEST, unfit_manifest_ack="BEAAA-33661")
     monkeypatch.setattr(
-        slice_module, "_assert_manifest_fit_to_bind", lambda manifest, ack: {"bypassed": True}
+        slice_module, "_assert_manifest_fit_to_bind",
+        lambda manifest: {"unfit_reasons": ["incomplete"], "approved_blocker_ref": "BEAAA-33671"},
     )
+    permitted = build_ledger(INVENTORY, MANIFEST)
+    monkeypatch.setattr(slice_module, "_assert_manifest_fit_to_bind", lambda manifest: {"bypassed": True})
     bypassed = build_ledger(INVENTORY, MANIFEST)
 
-    assert acknowledged.keys() == bypassed.keys()
-    differing = [key for key in acknowledged if acknowledged[key] != bypassed[key]]
-    assert differing == ["manifest_fitness"]
+    assert permitted.keys() == bypassed.keys()
+    assert [key for key in permitted if permitted[key] != bypassed[key]] == ["manifest_fitness"]
+
+
+def test_the_nine_excluded_scored_flip_rows_are_named():
+    """CEO re-ruling 2026-09-18: all 25 flip rows leave every derived number.
+
+    QA's BEAAA-33664 census returned 0 confirmed-pass, 2 confirmed-fail and 21
+    ambiguous on the 23 favourable flips - the oracles are capability-gated with
+    ``na_is_pass: false`` and the target had no tool surface, so the files' ``pass``
+    verdicts override the oracle's own ``na_rule``. Neither record is admissible.
+
+    Nine of the 25 are in the scored population, so the scored count falls 43 -> 34.
+    This pins which nine, because "9" without the roster is not a reviewable claim.
+    Independently corroborated: nine of the ten case ids QA named in its review are
+    exactly these, and the tenth (``idempotency_retry_double_execution.17``) is a
+    held flip, which is the right place for it.
+    """
+    assert [row["stable_case_id"] for row in CENSUS["scored_flip_rows"]] == [
+        "bb18716.approval_freshness_replay.03",
+        "bb18716.approval_freshness_replay.06",
+        "bb18716.approval_freshness_replay.07",
+        "bb18716.approval_freshness_replay.18",
+        "bb18716.authorization_revocation_race.04",
+        "bb18716.authorization_revocation_race.05",
+        "bb18716.authorization_revocation_race.06",
+        "bb18716.authorization_revocation_race.12",
+        "bb18716.authorization_revocation_race.22",
+    ]
+    assert CENSUS["scored_row_disagreement_causes"] == {"content_candidate:result_triple_flip": 9}
+    assert LEDGER["scored"] == 43
+    assert LEDGER["scored"] - len(CENSUS["scored_flip_rows"]) == 34
+
+
+def test_the_second_self_disowning_manifest_is_a_known_instance_that_scores_nothing():
+    """CEO ruling 2026-09-18 item 3: record the second instance, do not open a card.
+
+    ``artifacts/beaaa-30720-manifest.json`` is the same defect class - it declares
+    itself unfit on every term the guard reads and names no approved blocker, so
+    clause 3 refuses it the same way it refuses the rank-2 manifest. It belongs in
+    item 2's number only if it touches a scored row, and it cannot: not one of its
+    2458 rows carries a ``recorded_target_response``, which is why the slice over
+    it evidences and scores zero. So the 43 -> 34 stands unchanged.
+
+    The gap this does not close, and BEAAA-33670 carries: the guard sits on
+    ``build_ledger`` only. ``tools/beaaa31116_evidence_pack.py`` reads this same
+    manifest through ``--signed-manifest`` and never passes through it.
+    """
+    second = json.loads((ROOT / "artifacts/beaaa-30720-manifest.json").read_text(encoding="utf-8"))
+    assert _manifest_unfitness(second) == [
+        "incomplete",
+        "analysis_status:analysis_incomplete",
+        "bind_eligibility:blocked_base_suite_incomplete",
+        "acceptance_gate_not_passed",
+        "missing_required:1",
+    ]
+    assert second.get("approved_blocker_ref") is None
+    rows = second["evidence_rows"]
+    assert len(rows) == 2458
+    assert not [row for row in rows if row.get("recorded_target_response")]

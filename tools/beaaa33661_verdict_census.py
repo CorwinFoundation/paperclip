@@ -54,6 +54,15 @@ def _bucket(manifest_row: dict[str, Any], record: dict[str, Any]) -> str:
     return "result_triple_flip"
 
 
+def _ledger_rows_by_ref(ledger_path: Path) -> dict[str, dict[str, Any]]:
+    """The ledger's rows keyed by ``evidence_ref``, the only key the two sides share."""
+    try:
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(row["evidence_ref"]): row for row in ledger.get("rows", []) if row.get("evidence_ref")}
+
+
 def _dispositions(ledger_path: Path) -> dict[str, str]:
     """evidence_ref -> the ledger's disposition for that row.
 
@@ -80,6 +89,7 @@ def census(
 ) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     dispositions = _dispositions(ledger_path)
+    ledger_rows = _ledger_rows_by_ref(ledger_path)
     by_disposition: Counter[str] = Counter()
     scored_causes: Counter[str] = Counter()
     buckets: Counter[str] = Counter()
@@ -87,6 +97,14 @@ def census(
     by_framework: Counter[str] = Counter()
     self_consistency: Counter[str] = Counter()
     casefold_only = 0
+    # BEAAA-33661 CEO re-ruling 2026-09-18: QA's BEAAA-33664 census came back
+    # 0 confirmed-pass / 2 confirmed-fail / 21 ambiguous on the 23 favourable
+    # flips, so NEITHER record is admissible on a flip row - the manifest's
+    # ``fail`` is an unearned default and the file's ``pass`` an unearned override
+    # of the oracle's own ``na_rule``. All 25 content_candidate flip rows are
+    # excluded from every derived number. Naming the scored ones is what tells you
+    # how far the scored count falls, so the roster is emitted, not just counted.
+    scored_flips: list[dict[str, str]] = []
     misbound: Counter[str] = Counter()
     unreadable = 0
 
@@ -124,7 +142,16 @@ def census(
         if agrees_folded:
             continue
         if disposition == "scored":
-            scored_causes[f"{framework}:{_bucket(row, record)}"] += 1
+            cause = _bucket(row, record)
+            scored_causes[f"{framework}:{cause}"] += 1
+            if cause == "result_triple_flip":
+                ledger_row = ledger_rows.get(str(row.get("evidence_ref")), {})
+                scored_flips.append({
+                    "stable_case_id": str(ledger_row.get("stable_case_id") or ""),
+                    "family_id": str(ledger_row.get("family_id") or ""),
+                    "manifest_verdict": manifest_verdict,
+                    "file_verdict": file_verdict,
+                })
         pairs[f"manifest={manifest_verdict} file={file_verdict}"] += 1
         buckets[f"{framework}:{_bucket(row, record)}"] += 1
 
@@ -147,6 +174,7 @@ def census(
         "verdict_pairs": dict(sorted(pairs.items())),
         "cause_buckets": dict(sorted(buckets.items())),
         "by_ledger_disposition": dict(sorted(by_disposition.items())),
+        "scored_flip_rows": sorted(scored_flips, key=lambda row: row["stable_case_id"]),
         "scored_row_disagreement_causes": dict(sorted(scored_causes.items())),
         "self_consistency": dict(sorted(self_consistency.items())),
     }

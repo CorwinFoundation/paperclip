@@ -998,6 +998,19 @@ def _control_binding_inputs(
 # absence is not a declaration and every synthetic manifest in the test suite is
 # silent on all four. This control catches a manifest that says it is unfit, not
 # one that is unfit and silent.
+#
+# Known second instance, per the CEO ruling of 2026-09-18 item 3 (recorded here
+# rather than given its own card, because the guard already fails closed on it):
+# ``artifacts/beaaa-30720-manifest.json`` self-disowns on all five terms with
+# ``missing_required: 1`` and ``approved_blocker_ref: null``. The call sites it
+# reaches are the two ``build_ledger`` binds in
+# ``tests/test_beaaa31092_content_slice.py`` - now refused, skipped under
+# BEAAA-33671 - and ``tools/beaaa31116_evidence_pack.py`` ``--signed-manifest``,
+# which is NOT behind this guard and is invoked by
+# ``docs/deploy/sequence-20-production-deployment-runbook.md``. It moves no number
+# in BEAAA-33661 item 2: none of its 2458 rows carries a
+# ``recorded_target_response``, so the slice over it scores zero rows and it can
+# reach no scored row to exclude. BEAAA-33670 carries the corpus-wide sweep.
 FIT_ANALYSIS_STATUS = "analysis_complete"
 FIT_BIND_ELIGIBILITY = "eligible"
 
@@ -1022,27 +1035,32 @@ def _manifest_unfitness(manifest: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def _assert_manifest_fit_to_bind(
-    manifest: dict[str, Any], acknowledgement: str | None
-) -> dict[str, Any]:
+def _assert_manifest_fit_to_bind(manifest: dict[str, Any]) -> dict[str, Any]:
     """Refuse to bind verdicts out of a manifest that disowns itself.
 
-    The acknowledgement is deliberately a caller-supplied reference rather than a
-    boolean: rebuilding the pinned BEAAA-31092 ledger has to keep reading this
-    manifest to reproduce the 43/144 split byte for byte, so the escape hatch has
-    to exist. Making it name an issue puts the decision in the artefact instead of
-    in a default, and the reasons are stamped onto the ledger either way, so no
-    downstream reader can consume a ledger without seeing that its binding
-    manifest was unfit.
+    BEAAA-33661, CEO re-ruling 2026-09-18. This guard first shipped with a
+    caller-supplied acknowledgement string, which the CEO correctly called a log
+    line rather than a control: anything a caller bypasses by passing a string is
+    not fail-closed. The decision now has to live in the signed artefact. The only
+    thing that permits a bind out of a self-disowning manifest is that manifest's
+    own ``approved_blocker_ref`` - the field the schema already reserves for a
+    named human approval of exactly this, and whose absence the manifest's own
+    ``acceptance_gate.zero_unapproved_missing_required`` already reports.
+
+    The consequence was accepted deliberately: the manifest pinned at
+    ``RUN_MANIFEST_SHA256`` carries ``approved_blocker_ref: null``, so the pinned
+    BEAAA-31092 ledger cannot be rebuilt until someone approves the blocker. That
+    approval is the CEO's and is filed as a card. Do not route around it.
     """
     reasons = _manifest_unfitness(manifest)
-    if reasons and not acknowledgement:
+    approved = str(manifest.get("approved_blocker_ref") or "")
+    if reasons and not approved:
         raise ValueError(
             "run manifest declares itself unfit to bind verdicts "
-            f"({', '.join(reasons)}); build_ledger will not read verdicts out of "
-            "it. Supply unfit_manifest_ack=<issue ref> to bind anyway, which "
-            "stamps the reasons onto the ledger.")
-    return {"unfit_reasons": reasons, "acknowledged_by": acknowledgement or None}
+            f"({', '.join(reasons)}) and names no approved_blocker_ref; "
+            "build_ledger will not read verdicts out of it. The approval belongs "
+            "in the signed manifest, not in a caller argument.")
+    return {"unfit_reasons": reasons, "approved_blocker_ref": approved or None}
 
 
 def build_ledger(
@@ -1052,11 +1070,10 @@ def build_ledger(
     job_id: str | None = None,
     controls: list[dict[str, Any]] | Path | None = None,
     determinations: list[dict[str, Any]] | Path | None = None,
-    unfit_manifest_ack: str | None = None,
 ) -> dict[str, Any]:
     inventory = _jsonl(inventory_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_fitness = _assert_manifest_fit_to_bind(manifest, unfit_manifest_ack)
+    manifest_fitness = _assert_manifest_fit_to_bind(manifest)
     if isinstance(controls, Path):
         controls = json.loads(controls.read_text(encoding="utf-8"))
     chosen = [row for row in inventory if row.get("family_id") in SLICE_FAMILIES]
@@ -1150,9 +1167,6 @@ def main() -> int:
     parser.add_argument("--determinations", type=Path, default=None,
                         help="JSON list of surface-fit determinations; hold vocabulary only, "
                              "defaults to the pinned artifacts/beaaa-31092/surface-determinations.json")
-    parser.add_argument("--acknowledge-unfit-manifest", default=None, metavar="ISSUE_REF",
-                        help="bind verdicts out of a manifest that declares itself unfit "
-                             "(BEAAA-33661 clause 3); the reasons are stamped onto the ledger")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--redetermine", type=Path, default=None,
                         help="apply the pinned surface determinations to an existing ledger "
@@ -1169,7 +1183,7 @@ def main() -> int:
                                args.determinations, args.manifest, args.inventory)
     else:
         ledger = build_ledger(args.inventory, args.manifest, args.evidence_dir, args.job_id, controls,
-                              args.determinations, args.acknowledge_unfit_manifest)
+                              args.determinations)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 0 if ledger["held"] == 0 else 2

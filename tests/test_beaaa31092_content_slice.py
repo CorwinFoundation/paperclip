@@ -6,13 +6,13 @@ from tools.beaaa31092_content_slice import build_ledger
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.skip(reason="BEAAA-33671: this pinned manifest declares itself unfit and names no "
+                          "approved_blocker_ref, so BEAAA-33661 clause 3 refuses the bind. Restored "
+                          "when the CEO rules on the approval, re-cut, or leave-refused options.")
 def test_rank_2_slice_fails_closed_without_recorded_responses():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-30720-manifest.json",
-        # BEAAA-33661 clause 3: this pinned manifest declares itself unfit to bind,
-        # so reading verdicts out of it is now an explicit, stamped decision.
-        unfit_manifest_ack="BEAAA-33661",
     )
     assert ledger["selected"] == ledger["mapped"] == 187
     assert ledger["evidenced"] == ledger["scored"] == 0
@@ -28,13 +28,13 @@ def test_rank_2_slice_fails_closed_without_recorded_responses():
     )
 
 
+@pytest.mark.skip(reason="BEAAA-33671: this pinned manifest declares itself unfit and names no "
+                          "approved_blocker_ref, so BEAAA-33661 clause 3 refuses the bind. Restored "
+                          "when the CEO rules on the approval, re-cut, or leave-refused options.")
 def test_every_selected_row_has_manifest_verdict_and_unique_identity():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-30720-manifest.json",
-        # BEAAA-33661 clause 3: this pinned manifest declares itself unfit to bind,
-        # so reading verdicts out of it is now an explicit, stamped decision.
-        unfit_manifest_ack="BEAAA-33661",
     )
     assert len({row["stable_case_id"] for row in ledger["rows"]}) == 187
     assert len({row["dedupe_sha256"] for row in ledger["rows"]}) == 187
@@ -924,6 +924,9 @@ def test_two_evidence_rows_claiming_one_digest_is_an_error_not_last_one_wins():
         ]})
 
 
+@pytest.mark.skip(reason="BEAAA-33671: this pinned manifest declares itself unfit and names no "
+                          "approved_blocker_ref, so BEAAA-33661 clause 3 refuses the bind. Restored "
+                          "when the CEO rules on the approval, re-cut, or leave-refused options.")
 def test_param_tamper_rows_read_their_withheld_verdict_not_absent_evidence():
     """The 12 rows were captured through the day1 adapter, so `never captured` was wrong.
 
@@ -941,7 +944,6 @@ def test_param_tamper_rows_read_their_withheld_verdict_not_absent_evidence():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json",
-        unfit_manifest_ack="BEAAA-33661",  # BEAAA-33661 clause 3
     )
     tampered = [row for row in ledger["rows"] if row["family_id"] == "tool_misuse_param_tamper"]
     assert len(tampered) == 12

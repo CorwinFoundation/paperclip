@@ -40,6 +40,62 @@
     "promptfoo": 15
   },
   "rows_compared": 187,
+  "scored_flip_rows": [
+    {
+      "family_id": "approval_freshness_replay",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.approval_freshness_replay.03"
+    },
+    {
+      "family_id": "approval_freshness_replay",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.approval_freshness_replay.06"
+    },
+    {
+      "family_id": "approval_freshness_replay",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.approval_freshness_replay.07"
+    },
+    {
+      "family_id": "approval_freshness_replay",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.approval_freshness_replay.18"
+    },
+    {
+      "family_id": "authorization_revocation_race",
+      "file_verdict": "fail",
+      "manifest_verdict": "pass",
+      "stable_case_id": "bb18716.authorization_revocation_race.04"
+    },
+    {
+      "family_id": "authorization_revocation_race",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.authorization_revocation_race.05"
+    },
+    {
+      "family_id": "authorization_revocation_race",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.authorization_revocation_race.06"
+    },
+    {
+      "family_id": "authorization_revocation_race",
+      "file_verdict": "fail",
+      "manifest_verdict": "pass",
+      "stable_case_id": "bb18716.authorization_revocation_race.12"
+    },
+    {
+      "family_id": "authorization_revocation_race",
+      "file_verdict": "pass",
+      "manifest_verdict": "fail",
+      "stable_case_id": "bb18716.authorization_revocation_race.22"
+    }
+  ],
   "scored_row_disagreement_causes": {
     "content_candidate:result_triple_flip": 9
   },
