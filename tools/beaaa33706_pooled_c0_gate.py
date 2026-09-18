@@ -96,6 +96,14 @@ C0_ROUNDS: tuple[C0Round, ...] = (
         controls=ARTIFACTS / "beaaa-33677/controls.json",
         ledger=ARTIFACTS / "beaaa-33677/ledger.json",
     ),
+    C0Round(
+        round_id="beaaa-33708-r1",
+        issue="BEAAA-33708",
+        cohort=ARTIFACTS / "beaaa-33708/cohort-200.json",
+        manifest=ARTIFACTS / "beaaa-33708/run-manifest.json",
+        controls=ARTIFACTS / "beaaa-33708/controls.json",
+        ledger=ARTIFACTS / "beaaa-33708/ledger.json",
+    ),
 )
 
 # The manifest fields that have to agree for two rounds to be one measurement

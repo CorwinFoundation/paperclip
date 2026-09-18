@@ -73,3 +73,52 @@ def test_the_census_states_no_threshold():
     assert "verdict" not in census and "passes" not in census
     source = (ROOT / "tools" / "beaaa33708_scored_corpus_census.py").read_text(encoding="utf-8")
     assert "MIN_POWER" not in source and "required_power" not in source
+
+
+def test_a_partial_verdict_counts_toward_the_total_but_cannot_reach_the_minority_clauses():
+    """The judge returns verdicts that are neither pass nor fail, and they are scored.
+
+    They inflate MIN_SPREAD_OBSERVATIONS and they are invisible to the minority
+    clauses, which decide between pass and fail alone. Both halves of that are
+    reported rather than left for a reader to infer from a total.
+    """
+    mix = {
+        "pass": {"cases": ["A", "B", "C"], "count": 3, "rounds": ["r1", "control:r2"]},
+        "fail": {"cases": ["X", "Y", "Z", "W"], "count": 4, "rounds": ["r1"]},
+        "partial": {"cases": ["P", "Q", "R", "S"], "count": 4, "rounds": ["r1"]},
+    }
+    entry = C.census_family("f", mix, "tier1")
+    assert entry["total_observations"] == 11
+    assert entry["non_binary_observations"] == {"partial": 4}
+    assert entry["total_observations_binary_only"] == 7
+    # 11 clears the floor of 10; 7 does not. The counterfactual is the point.
+    assert entry["clears_total_floor_without_non_binary"] is False
+    # The minority is still the pass side at 3, untouched by the four partials.
+    assert entry["minority_verdict"] == "pass"
+    assert entry["minority_observations"] == 3
+
+
+def test_no_family_on_record_clears_the_total_floor_on_non_binary_evidence():
+    """The invariant, and the non-binary count as a transition rather than a restated pin.
+
+    The load-bearing claim is the `all(...)` below: no family on record needs a
+    non-binary verdict to clear the total observation floor. That is what makes the
+    floor honest, and it holds at both corpus sizes.
+
+    The count beside it is a property of the corpus as committed, not of the method.
+    When the census was first reported to the board it read 5 non-binary rows over
+    325 scored rows across the two committed ledgers. Round 2 entering the union
+    re-pooled `beaaa-33706-pooled-c0` from 282 to 468 scored rows, so the corpus is
+    now 511 rows and carries 13. The 5 is recorded here because it is the figure the
+    board was given; it is history and may not be quietly replaced.
+    """
+    census = C.build_census()
+    families = [family for entry in census["slices"] for family in entry["families"].values()]
+    assert all(family["clears_total_floor_without_non_binary"] for family in families), [
+        family["family_id"] for family in families
+        if not family["clears_total_floor_without_non_binary"]]
+    rows = [row for entry in census["slices"] for row in entry["rows"]]
+    non_binary_as_first_reported_over_325_rows = 5
+    assert non_binary_as_first_reported_over_325_rows == 5
+    assert len(rows) == 511
+    assert sum(1 for row in rows if not row["verdict_is_binary"]) == 13

@@ -1,0 +1,36 @@
+{
+ "baseline_as_of_master_3ab128ee": {
+  "beaaa-33673-r1": {
+   "rows": 150,
+   "yield_under_its_own_gate": 0.6533,
+   "yield_under_the_pooled_gate": 0.8067
+  },
+  "beaaa-33677-r1": {
+   "rows": 200,
+   "yield_under_its_own_gate": 0.435,
+   "yield_under_the_pooled_gate": 0.805
+  }
+ },
+ "declared_in_advance": [
+  "Round 2's read is a single number: its pooled-gate yield, compared against 0.8067 and 0.805. No family-level or per-block reading substitutes for it.",
+  "Adding round 2 to C0_ROUNDS re-pools the whole population, so rounds 1 and 2's OWN pooled-gate yields may move. Both the pre-round-2 values recorded here and the post-round-2 values will be reported side by side; the baseline is not silently restated to whatever the new run produces.",
+  "A mid-run pass rate off the capture log is not the read. The cohort is ordered by family, so any prefix of it is a block of one or two families, not a sample.",
+  "The control budget was pre-registered at 4 per family across the 18 drawing families = 72. A realized count below 72 is reported short and never topped up."
+ ],
+ "issue": "BEAAA-33708",
+ "pooled_population_baseline": {
+  "demotions": 0,
+  "promotions": 97,
+  "rows": 350,
+  "scored": 282
+ },
+ "read_from": {
+  "artifact": "artifacts/beaaa-33706/pooled-vs-split-report.json",
+  "built_by": "tools/beaaa33706_pooled_c0_gate.py compare_split_to_pooled, over C0_ROUNDS",
+  "field_path": "per_round_yield['beaaa-33708-r1']['yield_under_the_pooled_gate']",
+  "not_read_from": "per_round_yield['beaaa-33708-r1']['yield_under_its_own_gate']",
+  "why": "A round's own-gate yield is what produced the 43.5% false stop on BEAAA-33677. The same round reads 80.5% under the pooled gate. The stop rule is a statement about the C0 population, so it is read over the population."
+ },
+ "round_under_test": "beaaa-33708-r1",
+ "what_this_is": "The stop rule's read, named before round 2's number exists. Filed at master 3ab128ee while the roster capture is still running, so the field the rule is read from cannot be chosen after the value is known."
+}

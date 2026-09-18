@@ -295,9 +295,15 @@ def test_the_pooled_gate_over_the_committed_rounds_is_pinned():
     ledger, proof = P.build_pooled_ledger()
     report = P.compare_split_to_pooled(ledger)
     assert proof["families_left_split"] == []
-    assert (ledger["selected"], ledger["mapped"], ledger["evidenced"]) == (350, 350, 350)
-    assert (ledger["scored"], ledger["held"], ledger["dropped_duplicate"]) == (282, 68, 0)
-    assert ledger["roster_capture_rounds"] == ["beaaa-33673-r1", "beaaa-33677-r1"]
+    # Round 2 (BEAAA-33708) entered the registry, so these pins moved. The
+    # pre-round-2 values are kept beside them: a pin restated to whatever the
+    # newest build printed records nothing, and the whole point of the union
+    # being a standing rule is that the movement is inspectable.
+    #   350 -> 550 rows, 282 -> 468 scored, 68 -> 82 held, 97 -> 240 promotions,
+    #   8 -> 11 tier-1 families. Demotions were 0 before and stay 0.
+    assert (ledger["selected"], ledger["mapped"], ledger["evidenced"]) == (550, 550, 550)
+    assert (ledger["scored"], ledger["held"], ledger["dropped_duplicate"]) == (468, 82, 0)
+    assert ledger["roster_capture_rounds"] == ["beaaa-33673-r1", "beaaa-33677-r1", "beaaa-33708-r1"]
     assert ledger["tier1_families"] == [
         "citation_integrity_legal",
         "confidence_calibration",
@@ -305,21 +311,36 @@ def test_the_pooled_gate_over_the_committed_rounds_is_pinned():
         "hallucination_legal",
         "p1_1_factuality_golden",
         "p1_3_consistency_golden",
+        "p2_1_demographic_parity_gap",
         "p2_3_counterfactual_stability",
+        "p2_5_sentiment_skew_by_attribute",
+        "peril_data_containment",
         "self_contradiction_pairs",
     ]
-    assert (report["promotions"], report["demotions"], report["other_disposition_moves"]) == (97, 0, 0)
-    assert report["still_held_total"] == 68
+    assert (report["promotions"], report["demotions"], report["other_disposition_moves"]) == (240, 0, 0)
+    assert report["still_held_total"] == 82
     assert report["still_held_by_literal"].keys() == {
         "no_verdict_spread_positive_control_missing", "verdict_spread_below_stability_floor"}
     # No row is held without a literal, on either side of the comparison.
     assert all(row["hold_reasons"] for row in ledger["rows"]
                if row["disposition"] == "held_reported_not_scored")
-    # The control channel is unchanged by pooling, and says so rather than being silent.
+    # The control channel is NO LONGER unchanged by pooling, and that is the
+    # point of reporting it. Over two rounds the union accepted every control its
+    # own round accepted (115/115, 9/9 rejected). With round 2 in, six controls
+    # that their own round admitted are rejected in the union because their
+    # response duplicates a roster response somewhere in the pooled population.
+    # That is control independence enforced in the union rather than routed
+    # around, so it is pinned by its cause and not waved through as a count.
     channel = report["control_channel"]
-    assert (channel["accepted_before"], channel["accepted_after"]) == (115, 115)
-    assert (channel["rejected_before"], channel["rejected_after"]) == (9, 9)
-    assert channel["accepted_in_its_own_round_but_rejected_in_the_union"] == []
+    assert (channel["accepted_before"], channel["accepted_after"]) == (176, 170)
+    assert (channel["rejected_before"], channel["rejected_after"]) == (15, 21)
+    lost = channel["accepted_in_its_own_round_but_rejected_in_the_union"]
+    assert len(lost) == 6
+    assert all(record["was"] == "accepted" for record in lost)
+    assert {reason for record in lost for reason in record["rejection_reasons"]} == {
+        "duplicate_roster_response"}
+    # Every one comes from round 2's control capture; rounds 1a/1b are untouched.
+    assert {record["capture_round"] for record in lost} == {"beaaa-33708-r2"}
 
 
 def test_no_family_loses_tier1_by_pooling():
@@ -333,9 +354,18 @@ def test_no_family_loses_tier1_by_pooling():
 def test_round_1_yield_is_reported_under_both_gates():
     ledger, _ = P.build_pooled_ledger()
     per_round = P.compare_split_to_pooled(ledger)["per_round_yield"]
+    # Own-gate yields are properties of a round and never move. Pooled-gate
+    # yields are properties of the union, so adding round 2 moved them:
+    # 33673-r1 0.8067 -> 0.8533 and 33677-r1 0.805 -> 0.855. Both pre-round-2
+    # values are written here rather than replaced, because BEAAA-33708's
+    # pre-registration forbids restating the baseline to the newest build.
     assert per_round["beaaa-33677-r1"]["yield_under_its_own_gate"] == 0.435
-    assert per_round["beaaa-33677-r1"]["yield_under_the_pooled_gate"] == 0.805
+    assert per_round["beaaa-33677-r1"]["yield_under_the_pooled_gate"] == 0.855
     assert per_round["beaaa-33673-r1"]["yield_under_its_own_gate"] == 0.6533
+    assert per_round["beaaa-33673-r1"]["yield_under_the_pooled_gate"] == 0.8533
+    # Round 2's read, the field its stop rule was pre-registered against.
+    assert per_round["beaaa-33708-r1"]["yield_under_its_own_gate"] == 0.215
+    assert per_round["beaaa-33708-r1"]["yield_under_the_pooled_gate"] == 0.845
 
 
 def test_per_row_round_keying_is_what_carries_the_pooled_result(monkeypatch):
@@ -359,33 +389,73 @@ def test_per_row_round_keying_is_what_carries_the_pooled_result(monkeypatch):
     collapsed = Z.build_ledger_from_objects(pooled["cohort_ids"], S._jsonl(Z.PINNED_INVENTORY_PATH),
                                             pooled["manifest"], pooled["controls"],
                                             roster_round=collapsed_declaration)
-    assert collapsed["scored"] == 247
-    assert ledger["scored"] - collapsed["scored"] == 35
+    # Was 247 scored and a 35-row gap over two rounds; 414 and 54 with round 2 in.
+    assert collapsed["scored"] == 414
+    assert ledger["scored"] - collapsed["scored"] == 54
     assert set(ledger["tier1_families"]) - set(collapsed["tier1_families"]) == {"counterfactual_stability"}
 
 
-def test_a_minority_supplied_entirely_by_controls_is_reported_not_buried():
-    """One of the eight tier-1 families has no scored roster row on its minority side.
+def test_no_tier1_minority_is_entirely_control_supplied_in_the_union():
+    """Over two rounds ``p2_3_counterfactual_stability`` had no roster row on its
+    minority side; round 2 supplied one, so the union has no control-only family.
 
-    ``p2_3_counterfactual_stability`` clears on three control observations across
-    two control rounds and nothing else - exactly the observation floor and exactly
-    the span floor, with zero roster rows carrying the minority verdict. That is
-    permitted: BEAAA-33537 admits controls into the tier decision and BEAAA-33611
-    counts control rounds. It is also invisible in a promotion count, so the gate
-    has to say it out loud or the seven rows it converts read like the other ninety.
+    That family is why ``minority_support`` exists. It cleared on three control
+    observations across two control rounds and nothing else - exactly the
+    observation floor and exactly the span floor - which is permitted (BEAAA-33537
+    admits controls into the tier decision, BEAAA-33611 counts control rounds) and
+    invisible in a promotion count. BEAAA-33708 ruled the seven rows stay scored
+    and control-only spread stays legal, so what was missing was that a reader
+    could not see it. On more data it resolved itself: the flag is now False
+    everywhere, and this test pins the transition rather than deleting the claim.
+    The flag's own reporting path is held non-vacuous by the synthetic case below.
     """
     ledger, _ = P.build_pooled_ledger()
     support = P.minority_support(ledger)
     control_only = sorted(family for family, value in support.items()
                           if value["minority_entirely_control_supplied"])
-    assert control_only == ["p2_3_counterfactual_stability"]
+    assert control_only == []
+    # What moved: one scored roster row on the minority side, from round 2.
     value = support["p2_3_counterfactual_stability"]
     assert value["minority_verdict"] == "pass"
+    minority = value["by_verdict"]["pass"]
+    assert minority["scored_roster_rows"] == 1
+    assert minority["roster_rounds"] == ["beaaa-33708-r1"]
+    assert minority["control_rounds"] == ["control:beaaa-33673-r2",
+                                          "control:beaaa-33677-r2",
+                                          "control:beaaa-33708-r2"]
+    # Off both floors now that round 2 is in: 5 observations over 4 rounds.
+    assert value["minority_at_the_observation_floor"] is False
+    assert value["minority_at_the_span_floor"] is False
+    # And every tier-1 family carries roster rows on its minority side, which is
+    # the stronger statement the two-round union could not make.
+    for family, other in support.items():
+        assert other["by_verdict"][other["minority_verdict"]]["scored_roster_rows"] > 0, family
+
+
+def test_a_minority_supplied_entirely_by_controls_is_still_reported_not_buried():
+    """Non-vacuity for the flag itself, independent of what the corpus happens to hold.
+
+    The committed union no longer contains a control-only minority. The reporting
+    path must not therefore go untested, or a later round that does produce one
+    would convert rows with nothing saying so.
+    """
+    ledger = {
+        "tier1_families": ["synthetic_family"],
+        "verdict_spread_gate": {"families": {"synthetic_family": {
+            "fail": {"count": 9, "rounds": ["r1", "r2"]},
+            "pass": {"count": 3, "rounds": ["control:r1-c", "control:r2-c"]},
+        }}},
+        "rows": [{"disposition": "scored", "family_id": "synthetic_family",
+                  "verdict": "fail", "recorded_target_response": f"refused {i}"}
+                 for i in range(9)],
+    }
+    value = P.minority_support(ledger)["synthetic_family"]
+    assert value["minority_verdict"] == "pass"
+    assert value["minority_entirely_control_supplied"] is True
     assert value["minority_at_the_observation_floor"] is True
     assert value["minority_at_the_span_floor"] is True
+    assert value["by_verdict"]["pass"]["scored_roster_rows"] == 0
     assert value["by_verdict"]["pass"]["roster_rounds"] == []
-    # And every other tier-1 family does carry roster rows on its minority side.
-    for family, other in support.items():
-        if family in control_only:
-            continue
-        assert other["by_verdict"][other["minority_verdict"]]["scored_roster_rows"] > 0, family
+    # The majority side is read off the scored rows, so it stays visible too.
+    assert value["by_verdict"]["fail"]["scored_roster_rows"] == 9
+    assert value["by_verdict"]["fail"]["distinct_roster_responses"] == 9

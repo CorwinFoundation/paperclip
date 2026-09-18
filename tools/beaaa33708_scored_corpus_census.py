@@ -87,6 +87,17 @@ def census_family(family: str, mix: dict[str, Any], tier: str) -> dict[str, Any]
     roster_total = sum(side["roster_observations"] for side in sides.values())
     control_total = sum(side["control_observations"] for side in sides.values())
 
+    # A third thing the corpus rests on that a pass/fail reading hides. The judge can
+    # return a verdict that is neither: `partial` rows exist, they are scored, and the
+    # spread gate counts their observations toward MIN_SPREAD_OBSERVATIONS. They cannot
+    # reach the minority clauses - the minority is decided between pass and fail alone -
+    # so their whole effect is on the total. Reported with the counterfactual attached,
+    # because "the family clears the floor" and "the family clears the floor on evidence
+    # that picked a side" are different claims and only one of them was being made.
+    non_binary = {verdict: side["observations"]
+                  for verdict, side in sides.items() if verdict not in ("pass", "fail")}
+    binary_total = total - sum(non_binary.values())
+
     # Control power, stated as a counterfactual rather than a ratio: delete every control
     # observation and ask whether the family still shows two sides at all. A family that
     # answers "no" is one whose discrimination evidence is entirely the control channel.
@@ -100,6 +111,9 @@ def census_family(family: str, mix: dict[str, Any], tier: str) -> dict[str, Any]
         "total_observation_margin": total - S.MIN_SPREAD_OBSERVATIONS,
         "roster_observations": roster_total,
         "control_observations": control_total,
+        "non_binary_observations": dict(sorted(non_binary.items())),
+        "total_observations_binary_only": binary_total,
+        "clears_total_floor_without_non_binary": binary_total >= S.MIN_SPREAD_OBSERVATIONS,
         "minority_verdict": minority_verdict,
         "spread_basis": _basis(minority),
         "two_sided_without_controls": len(roster_sides) >= 2,
@@ -158,7 +172,9 @@ def census_slice(entry: Slice) -> dict[str, Any]:
             "total_observation_margin", "minority_observations",
             "minority_observation_margin", "minority_span", "minority_span_margin",
             "minority_roster_observations", "minority_control_observations",
-            "two_sided_without_controls")},
+            "two_sided_without_controls", "total_observations_binary_only",
+            "clears_total_floor_without_non_binary")},
+        "verdict_is_binary": str(row.get("verdict")).casefold() in ("pass", "fail"),
     } for row in sorted(scored, key=lambda r: (r["family_id"], r["stable_case_id"]))]
 
     return {
@@ -210,6 +226,9 @@ def build_census(corpus: tuple[Slice, ...] = CORPUS) -> dict[str, Any]:
             "minority_span_margin": margins("minority_span_margin", rows),
             "total_observation_margin": margins("total_observation_margin", rows),
             "two_sided_without_controls": distribution("two_sided_without_controls", rows),
+            "verdict_is_binary": distribution("verdict_is_binary", rows),
+            "clears_total_floor_without_non_binary": distribution(
+                "clears_total_floor_without_non_binary", rows),
         },
         "distribution_by_family": {
             "spread_basis": distribution("spread_basis", families),
@@ -217,6 +236,8 @@ def build_census(corpus: tuple[Slice, ...] = CORPUS) -> dict[str, Any]:
             "minority_observation_margin": margins("minority_observation_margin", families),
             "minority_span_margin": margins("minority_span_margin", families),
             "two_sided_without_controls": distribution("two_sided_without_controls", families),
+            "clears_total_floor_without_non_binary": distribution(
+                "clears_total_floor_without_non_binary", families),
         },
         "slices": slices,
     }
