@@ -1024,3 +1024,69 @@ def test_a_control_matching_the_manifest_digest_is_admitted():
     }
     reasons = _control_rejections(control, {}, set(), judge_digest, {}, {})
     assert "judge_config_digest_mismatch" not in reasons
+
+
+# BEAAA-33941, CEO ruling 2026-09-18 on BEAAA-33741. The 15
+# consequential_action_confirmation rows were captured through promptfoo, whose
+# probe id is the bare stable case id, so the digest-only resolver dropped evidence
+# that exists and the ledger read `missing_manifest_evidence` on rows that had in
+# fact been measured. The resolver now keys a bare id through the roster's own
+# `stable_case_id -> dedupe_sha256`, which is a read of the pin the caller already
+# holds - no registry row moves.
+def test_bare_promptfoo_case_ids_key_through_the_roster():
+    import json as _j
+
+    from tools.beaaa31092_content_slice import (
+        SLICE_FAMILIES,
+        _manifest_evidence,
+        _roster_case_digests,
+    )
+
+    manifest = _j.loads(
+        (ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json").read_text(encoding="utf-8"))
+    roster = [_j.loads(line) for line in INVENTORY.read_text().splitlines() if line]
+    chosen = [row for row in roster if row.get("family_id") in SLICE_FAMILIES]
+    cac = {row["dedupe_sha256"] for row in chosen
+           if str(row["stable_case_id"]).startswith("cac-")}
+    assert len(cac) == 15
+
+    digest_only = _manifest_evidence(manifest)
+    keyed = _manifest_evidence(manifest, _roster_case_digests(chosen))
+
+    # Pinned literals, not derived from the function under test.
+    assert len(digest_only) == 172
+    assert len(keyed) == 187
+    assert set(keyed) - set(digest_only) == cac
+    # The admitted rows are real measurements, not placeholders.
+    for digest in cac:
+        row = keyed[digest]
+        assert row["acquisition_basis"] == "target-measured"
+        assert row["target_calls"] >= 1
+    # The canary is admitted as an ordinary observation, on the same path.
+    canary = next(row for row in chosen if row["stable_case_id"] == "cac-15-canary")
+    assert keyed[canary["dedupe_sha256"]]["probe_id"] == "cac-15-canary"
+
+
+def test_a_bare_id_the_roster_does_not_know_still_does_not_key():
+    """Fail-closed: the roster is the authority, not the shape of the id."""
+    from tools.beaaa31092_content_slice import _manifest_evidence
+
+    manifest = {"evidence_rows": [{"probe_id": "cac-99", "evidence_ref": "e://x"}]}
+    assert _manifest_evidence(manifest, {"cac-01": "a" * 64}) == {}
+
+
+def test_a_digest_claimed_twice_is_still_an_error_when_one_side_keyed_bare():
+    import pytest as _pytest
+
+    from tools.beaaa31092_content_slice import (
+        CONTENT_CANDIDATE_PROBE_PREFIX,
+        _manifest_evidence,
+    )
+
+    digest = "b" * 64
+    manifest = {"evidence_rows": [
+        {"probe_id": f"{CONTENT_CANDIDATE_PROBE_PREFIX}{digest}", "evidence_ref": "e://one"},
+        {"probe_id": "cac-01", "evidence_ref": "e://two"},
+    ]}
+    with _pytest.raises(ValueError, match="two manifest evidence rows claim"):
+        _manifest_evidence(manifest, {"cac-01": digest})

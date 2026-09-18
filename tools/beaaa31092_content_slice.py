@@ -974,7 +974,19 @@ def _gate_report(spread: dict[str, Any], withheld: list[dict[str, Any]]) -> dict
     }
 
 
-def _manifest_evidence(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _roster_case_digests(inventory_rows: list[dict[str, Any]]) -> dict[str, str]:
+    """``stable_case_id -> dedupe_sha256`` for evidence whose probe id carries no digest."""
+    return {
+        str(row["stable_case_id"]): str(row["dedupe_sha256"])
+        for row in inventory_rows
+        if row.get("stable_case_id") and row.get("dedupe_sha256")
+    }
+
+
+def _manifest_evidence(
+    manifest: dict[str, Any],
+    case_digests: dict[str, str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """The run manifest's evidence rows, keyed by the dedupe digest their probe id carries.
 
     BEAAA-33656, CEO ruling 2026-09-18. The key is the digest, not the framework.
@@ -989,16 +1001,30 @@ def _manifest_evidence(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     ``SPREAD_HOLD_REASONS``. The rows stay unbindable and the control channel sees
     no new judge digest.
 
-    A probe id carrying no digest - promptfoo's bare ``cac-NN`` - still does not key
-    here. A digest claimed by two different evidence rows is an error rather than a
-    silent last-one-wins.
+    BEAAA-33941, CEO ruling 2026-09-18 on BEAAA-33741. A probe id carrying no digest
+    - promptfoo's bare ``cac-NN`` - now keys through the roster, not by parsing the
+    id. The prior clause excluded it for a mechanical reason only ("carries no
+    digest"), never a judgement that the rows were unmeasured, and all 15
+    ``consequential_action_confirmation`` rows read
+    ``acquisition_basis: target-measured`` with a recorded response. The
+    ``stable_case_id -> dedupe_sha256`` map comes from the caller's own roster rows -
+    the inventory already pinned at ``INVENTORY_SHA256`` - so this is a read of an
+    existing pin in the consumer plane. No registry row is edited and the lane-C
+    identity stamp is untouched, which is what the BEAAA-33741 D2 fence forbids.
+
+    A digest claimed by two different evidence rows is an error rather than a silent
+    last-one-wins, whichever way the row keyed.
     """
+    case_digests = case_digests or {}
     keyed: dict[str, dict[str, Any]] = {}
     for row in manifest.get("evidence_rows", []):
         probe_id = str(row.get("probe_id") or "")
-        if not probe_id.startswith(CONTENT_CANDIDATE_PROBE_PREFIX):
-            continue
-        digest = probe_id.removeprefix(CONTENT_CANDIDATE_PROBE_PREFIX)
+        if probe_id.startswith(CONTENT_CANDIDATE_PROBE_PREFIX):
+            digest = probe_id.removeprefix(CONTENT_CANDIDATE_PROBE_PREFIX)
+        else:
+            digest = case_digests.get(probe_id)
+            if digest is None:
+                continue
         previous = keyed.get(digest)
         if previous is not None and previous.get("evidence_ref") != row.get("evidence_ref"):
             raise ValueError(
@@ -1045,7 +1071,8 @@ def _control_binding_inputs(
             "configuration digest is derived from the manifest evidence rows, which "
             f"the ledger does not carry. Pass the manifest pinned at {RUN_MANIFEST_SHA256}.")
     manifest = _pinned_bytes(manifest_path, RUN_MANIFEST_SHA256, "run manifest")
-    return chosen, _manifest_evidence(json.loads(manifest.decode("utf-8")))
+    return chosen, _manifest_evidence(
+        json.loads(manifest.decode("utf-8")), _roster_case_digests(chosen))
 
 
 # BEAAA-33661 clause 3, CEO ratified 2026-09-18. A full-scan run manifest carries
@@ -1145,7 +1172,7 @@ def build_ledger(
     outside_fingerprints = Counter(
         row["semantic_behavior_fingerprint"] for row in inventory if row.get("family_id") not in SLICE_FAMILIES
     )
-    evidence = _manifest_evidence(manifest)
+    evidence = _manifest_evidence(manifest, _roster_case_digests(chosen))
     rows = []
     for row in sorted(chosen, key=lambda value: value["stable_case_id"]):
         digest = row["dedupe_sha256"]
