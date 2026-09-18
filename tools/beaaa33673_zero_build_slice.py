@@ -27,6 +27,8 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +79,29 @@ SLICE_FAMILIES: dict[str, tuple[str, str]] = {
 # question the corpus left open. Fail closed instead.
 AMBIGUOUS_RUBRIC_POINT = "ambiguous_rubric_point_binding"
 ROSTER_ROUND = "beaaa-33673-r1"
+
+
+@dataclass(frozen=True)
+class RosterCohort:
+    """A DECLARED multi-round cohort: the rounds it pools and each row's own round.
+
+    BEAAA-33706, CEO ruling 2026-09-18 condition 4. The round-1 defect was one
+    round's observations silently binding to another round's roster label while the
+    spread report came back populated and the gate stayed quiet. The fix is not to
+    loosen the check that caught it: it is to make the union something a caller has
+    to DECLARE, row by row, and keep the check failing closed on anything the
+    declaration does not name.
+
+    ``rounds_by_case`` is derived from the pooled manifest's own evidence, never
+    supplied by hand, so a row cannot be relabelled into a round it did not run in.
+    """
+
+    cohort_id: str
+    rounds_by_case: Mapping[str, str]
+
+    @property
+    def rounds(self) -> tuple[str, ...]:
+        return tuple(sorted(set(self.rounds_by_case.values())))
 
 
 # The target the cohort was measured against, and the judge configuration that read
@@ -154,7 +179,10 @@ def manifest_from_capture(
     }
 
 
-def _assert_roster_round_matches_manifest(manifest: dict[str, Any], roster_round: str) -> None:
+def _assert_roster_round_matches_manifest(
+    manifest: dict[str, Any],
+    roster_round: "str | RosterCohort",
+) -> None:
     """The round label the gate observes under must name the rows the manifest carries.
 
     ``roster_round`` is not decoration: ``_tier_decision`` keys every roster
@@ -168,14 +196,38 @@ def _assert_roster_round_matches_manifest(manifest: dict[str, Any], roster_round
     manifest bound the gate to ``beaaa-33673-r1`` with no error. Fail closed on
     the mismatch instead of trusting the caller to remember the flag.
     """
-    rounds = {row.get("capture_round") for row in manifest.get("evidence_rows") or []}
+    evidence_rows = manifest.get("evidence_rows") or []
+    rounds = {row.get("capture_round") for row in evidence_rows}
     rounds.discard(None)
     if not rounds:
         return  # a manifest that records no round makes no claim to contradict
-    if rounds != {roster_round}:
+    if isinstance(roster_round, str):
+        if rounds != {roster_round}:
+            raise ValueError(
+                f"roster_round {roster_round!r} does not name this manifest's evidence: "
+                f"the manifest carries capture rounds {sorted(rounds)}")
+        return
+    # A declared union (BEAAA-33706). Same check, one level finer: every row must
+    # observe under the round the declaration gives it, every declared round must
+    # actually carry rows, and an undeclared round is still an error rather than a
+    # default. Nothing here is permitted that a single-round build would refuse.
+    undeclared = sorted({row["stable_case_id"] for row in evidence_rows
+                         if row.get("capture_round") and row["stable_case_id"] not in roster_round.rounds_by_case})
+    if undeclared:
         raise ValueError(
-            f"roster_round {roster_round!r} does not name this manifest's evidence: "
-            f"the manifest carries capture rounds {sorted(rounds)}")
+            f"cohort {roster_round.cohort_id!r} declares no capture round for "
+            f"{len(undeclared)} manifest evidence rows: {undeclared[:5]}")
+    relabelled = sorted(row["stable_case_id"] for row in evidence_rows
+                        if row.get("capture_round")
+                        and roster_round.rounds_by_case[row["stable_case_id"]] != row["capture_round"])
+    if relabelled:
+        raise ValueError(
+            f"cohort {roster_round.cohort_id!r} would observe {len(relabelled)} rows under a round "
+            f"they did not run in: {relabelled[:5]}")
+    empty = sorted(set(roster_round.rounds) - rounds)
+    if empty:
+        raise ValueError(
+            f"cohort {roster_round.cohort_id!r} declares rounds with no evidence in this manifest: {empty}")
 
 
 def _cohort_ids(cohort_path: Path) -> list[str]:
@@ -188,17 +240,36 @@ def build_ledger(
     inventory_path: Path,
     manifest_path: Path,
     controls: list[dict[str, Any]] | Path | None = None,
-    roster_round: str = ROSTER_ROUND,
+    roster_round: "str | RosterCohort" = ROSTER_ROUND,
 ) -> dict[str, Any]:
+    """Build the ledger for one round's committed artifacts."""
     inventory = S._jsonl(inventory_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_fitness = S._assert_manifest_fit_to_bind(manifest)
     if isinstance(controls, Path):
         controls = json.loads(controls.read_text(encoding="utf-8"))
+    return build_ledger_from_objects(
+        _cohort_ids(cohort_path), inventory, manifest, controls, roster_round=roster_round)
+
+
+def build_ledger_from_objects(
+    cohort_ids: list[str],
+    inventory: list[dict[str, Any]],
+    manifest: dict[str, Any],
+    controls: list[dict[str, Any]] | None = None,
+    roster_round: "str | RosterCohort" = ROSTER_ROUND,
+) -> dict[str, Any]:
+    """The gate itself, over inputs already loaded.
+
+    Split out for BEAAA-33706 so the pooled C0 gate runs THIS implementation over a
+    union of rounds rather than a second copy of it. A ruling that moves the floor,
+    the dedupe rule or a hold literal moves the pooled gate and the single-round
+    gate together, because there is only the one.
+    """
+    manifest_fitness = S._assert_manifest_fit_to_bind(manifest)
 
     _assert_roster_round_matches_manifest(manifest, roster_round)
 
-    wanted = set(_cohort_ids(cohort_path))
+    wanted = set(cohort_ids)
     chosen = [row for row in inventory if row["stable_case_id"] in wanted]
     missing = wanted - {row["stable_case_id"] for row in chosen}
     if missing:
@@ -265,14 +336,28 @@ def build_ledger(
             "hold_reasons": reasons,
         })
 
+    # A declared union hands the gate each row's OWN round; a single round hands it
+    # the one label. Either way the gate never invents a round for a row.
+    observed_under: "str | Mapping[str, str]" = (
+        roster_round if isinstance(roster_round, str) else roster_round.rounds_by_case)
     spread, tier1, control_report, withheld = S._tier_decision(
-        rows, chosen, evidence, controls, roster_round=roster_round)
+        rows, chosen, evidence, controls, roster_round=observed_under)
     counts = Counter(row["disposition"] for row in rows)
-    return {
+    ledger_head: dict[str, Any] = {
         "schema_version": "beaaa-33673-zero-build-slice-ledger/v1",
         "slice_name": "zero-build cohort: C0 rows readable against the pinned Wave-0 oracle",
         "inventory_sha256": INVENTORY_SHA256,
-        "roster_capture_round": roster_round,
+    }
+    if isinstance(roster_round, str):
+        ledger_head["roster_capture_round"] = roster_round
+    else:
+        # A pooled build says so in its own header, and names the rounds it pooled.
+        # The extra key is emitted ONLY on the pooled path so a single-round ledger
+        # keeps reproducing byte for byte.
+        ledger_head["roster_capture_round"] = roster_round.cohort_id
+        ledger_head["roster_capture_rounds"] = list(roster_round.rounds)
+    return {
+        **ledger_head,
         "manifest_fitness": manifest_fitness,
         "tier1_families": sorted(tier1),
         "tier2_held_families": sorted(set(spread) - tier1),

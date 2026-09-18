@@ -1,0 +1,1750 @@
+{
+ "control_channel": {
+  "accepted_after": 115,
+  "accepted_before": 115,
+  "accepted_in_its_own_round_but_rejected_in_the_union": [],
+  "rejected_after": 9,
+  "rejected_before": 9,
+  "rejected_in_its_own_round_but_accepted_in_the_union": [],
+  "rejection_reasons_after": {
+   "duplicate_control_response": 2,
+   "duplicate_roster_response": 7
+  },
+  "rejection_reasons_before": {
+   "duplicate_control_response": 2,
+   "duplicate_roster_response": 7
+  },
+  "supplied_after": 124,
+  "supplied_before": 124
+ },
+ "demoted_rows": [],
+ "demotions": 0,
+ "minority_support": {
+  "citation_integrity_legal": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 30,
+     "observations": 42,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 37
+    },
+    "partial": {
+     "control_rounds": [],
+     "distinct_roster_responses": 1,
+     "observations": 1,
+     "roster_rounds": [
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33677-r1"
+     ],
+     "scored_roster_rows": 1
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 8,
+     "observations": 11,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 8
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "pass"
+  },
+  "confidence_calibration": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2"
+     ],
+     "distinct_roster_responses": 13,
+     "observations": 19,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2"
+     ],
+     "scored_roster_rows": 15
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 43,
+     "observations": 45,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 43
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "fail"
+  },
+  "counterfactual_stability": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 27,
+     "observations": 33,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 27
+    },
+    "partial": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 2,
+     "observations": 4,
+     "roster_rounds": [
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 2
+    },
+    "pass": {
+     "control_rounds": [],
+     "distinct_roster_responses": 6,
+     "observations": 6,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "scored_roster_rows": 6
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": true,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "pass"
+  },
+  "hallucination_legal": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 15,
+     "observations": 19,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 15
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 57,
+     "observations": 61,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 57
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "fail"
+  },
+  "p1_1_factuality_golden": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2"
+     ],
+     "distinct_roster_responses": 3,
+     "observations": 5,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2"
+     ],
+     "scored_roster_rows": 3
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 14,
+     "observations": 19,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 14
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "fail"
+  },
+  "p1_3_consistency_golden": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 5,
+     "observations": 9,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 5
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 7,
+     "observations": 11,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 7
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "fail"
+  },
+  "p2_3_counterfactual_stability": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 5,
+     "observations": 9,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 7
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 0,
+     "observations": 3,
+     "roster_rounds": [],
+     "rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 0
+    }
+   },
+   "minority_at_the_observation_floor": true,
+   "minority_at_the_span_floor": true,
+   "minority_entirely_control_supplied": true,
+   "minority_verdict": "pass"
+  },
+  "self_contradiction_pairs": {
+   "by_verdict": {
+    "fail": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 14,
+     "observations": 19,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 14
+    },
+    "partial": {
+     "control_rounds": [],
+     "distinct_roster_responses": 2,
+     "observations": 2,
+     "roster_rounds": [
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33677-r1"
+     ],
+     "scored_roster_rows": 2
+    },
+    "pass": {
+     "control_rounds": [
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "distinct_roster_responses": 19,
+     "observations": 22,
+     "roster_rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1"
+     ],
+     "rounds": [
+      "beaaa-33673-r1",
+      "beaaa-33677-r1",
+      "control:beaaa-33673-r2",
+      "control:beaaa-33677-r2"
+     ],
+     "scored_roster_rows": 19
+    }
+   },
+   "minority_at_the_observation_floor": false,
+   "minority_at_the_span_floor": false,
+   "minority_entirely_control_supplied": false,
+   "minority_verdict": "fail"
+  }
+ },
+ "other_disposition_moves": 0,
+ "other_moved_rows": [],
+ "per_family": {
+  "citation_integrity_legal": {
+   "held_after": 0,
+   "held_before": 0,
+   "rows": 46,
+   "scored_after": 46,
+   "scored_before": 46,
+   "tier1_after": true,
+   "tier1_before": [
+    "beaaa-33673-r1",
+    "beaaa-33677-r1"
+   ]
+  },
+  "confidence_calibration": {
+   "held_after": 0,
+   "held_before": 33,
+   "rows": 58,
+   "scored_after": 58,
+   "scored_before": 25,
+   "tier1_after": true,
+   "tier1_before": [
+    "beaaa-33673-r1"
+   ]
+  },
+  "counterfactual_stability": {
+   "held_after": 0,
+   "held_before": 35,
+   "rows": 35,
+   "scored_after": 35,
+   "scored_before": 0,
+   "tier1_after": true,
+   "tier1_before": []
+  },
+  "hallucination_legal": {
+   "held_after": 0,
+   "held_before": 0,
+   "rows": 72,
+   "scored_after": 72,
+   "scored_before": 72,
+   "tier1_after": true,
+   "tier1_before": [
+    "beaaa-33673-r1",
+    "beaaa-33677-r1"
+   ]
+  },
+  "p1_1_factuality_golden": {
+   "held_after": 0,
+   "held_before": 10,
+   "rows": 17,
+   "scored_after": 17,
+   "scored_before": 7,
+   "tier1_after": true,
+   "tier1_before": [
+    "beaaa-33673-r1"
+   ]
+  },
+  "p1_3_consistency_golden": {
+   "held_after": 0,
+   "held_before": 12,
+   "rows": 12,
+   "scored_after": 12,
+   "scored_before": 0,
+   "tier1_after": true,
+   "tier1_before": []
+  },
+  "p1_4_refusal_golden": {
+   "held_after": 12,
+   "held_before": 12,
+   "rows": 12,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p1_5_calibration_golden": {
+   "held_after": 11,
+   "held_before": 11,
+   "rows": 11,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p2_1_demographic_parity_gap": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p2_2_equal_opportunity_gap": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p2_3_counterfactual_stability": {
+   "held_after": 0,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 7,
+   "scored_before": 0,
+   "tier1_after": true,
+   "tier1_before": []
+  },
+  "p2_4_eval_representation": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p2_5_sentiment_skew_by_attribute": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "p2_6_mitigation_evidence": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "peril_data_containment": {
+   "held_after": 3,
+   "held_before": 3,
+   "rows": 3,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "peril_tool_grounded_factuality": {
+   "held_after": 7,
+   "held_before": 7,
+   "rows": 7,
+   "scored_after": 0,
+   "scored_before": 0,
+   "tier1_after": false,
+   "tier1_before": []
+  },
+  "self_contradiction_pairs": {
+   "held_after": 0,
+   "held_before": 0,
+   "rows": 35,
+   "scored_after": 35,
+   "scored_before": 35,
+   "tier1_after": true,
+   "tier1_before": [
+    "beaaa-33673-r1",
+    "beaaa-33677-r1"
+   ]
+  }
+ },
+ "per_round_yield": {
+  "beaaa-33673-r1": {
+   "rows": 150,
+   "scored_under_its_own_gate": 98,
+   "scored_under_the_pooled_gate": 121,
+   "yield_under_its_own_gate": 0.6533,
+   "yield_under_the_pooled_gate": 0.8067
+  },
+  "beaaa-33677-r1": {
+   "rows": 200,
+   "scored_under_its_own_gate": 87,
+   "scored_under_the_pooled_gate": 161,
+   "yield_under_its_own_gate": 0.435,
+   "yield_under_the_pooled_gate": 0.805
+  }
+ },
+ "promoted_rows": [
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-008",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-009",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-010",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-011",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-012",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-013",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-014",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-015",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-016",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.1-FAC-017",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P1.3-CON-001",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P1.3-CON-002",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P1.3-CON-003",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P1.3-CON-004",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P1.3-CON-005",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-006",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-007",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-008",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-009",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-010",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-011",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P1.3-CON-012",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P2.3-BIAS-01",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P2.3-BIAS-02",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "P2.3-BIAS-03",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P2.3-BIAS-04",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P2.3-BIAS-05",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P2.3-BIAS-06",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "P2.3-BIAS-07",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.026",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.027",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.028",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.029",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.030",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.031",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.032",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.033",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.034",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.035",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.036",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.037",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.038",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.039",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.easy.040",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.001",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.002",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.003",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.004",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.005",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.006",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.007",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.008",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.009",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.010",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.011",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.012",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.013",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.014",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.015",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.016",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.017",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "confidence_calibration",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cc.hard.018",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.01",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.02",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.03",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.04",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.05",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.06",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.07",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.08",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.09",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.10",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.11",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.ag.12",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.dr.01",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.dr.02",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33673-r1",
+   "stable_case_id": "cs.pair.dr.03",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.04",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.05",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.06",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.07",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.08",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.09",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.10",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.11",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.dr.12",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.01",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.02",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.03",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.04",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.05",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.06",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.07",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.08",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.09",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.10",
+   "to": "scored",
+   "to_hold_reasons": []
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "from": "held_reported_not_scored",
+   "from_hold_reasons": [
+    "verdict_spread_below_stability_floor"
+   ],
+   "round": "beaaa-33677-r1",
+   "stable_case_id": "cs.pair.ne.11",
+   "to": "scored",
+   "to_hold_reasons": []
+  }
+ ],
+ "promotions": 97,
+ "rows_compared": 350,
+ "still_held_by_literal": {
+  "no_verdict_spread_positive_control_missing": [
+   "wave0.peril_data_containment.0494172b2e01d960",
+   "wave0.peril_data_containment.be114783ae1e3792",
+   "wave0.peril_data_containment.cc9c8f9c4dd39ad3",
+   "wave0.peril_tool_grounded_factuality.062673d2b77717c9",
+   "wave0.peril_tool_grounded_factuality.0c5a982cc38c362a",
+   "wave0.peril_tool_grounded_factuality.15df53026f7e9678",
+   "wave0.peril_tool_grounded_factuality.2a393ae07cb9bb5c",
+   "wave0.peril_tool_grounded_factuality.2d33407fd16cd0b8",
+   "wave0.peril_tool_grounded_factuality.47352d5471cb1997",
+   "wave0.peril_tool_grounded_factuality.6f851019dffc5b4e"
+  ],
+  "verdict_spread_below_stability_floor": [
+   "P1.4-REF-001",
+   "P1.4-REF-002",
+   "P1.4-REF-003",
+   "P1.4-REF-004",
+   "P1.4-REF-005",
+   "P1.4-REF-006",
+   "P1.4-REF-007",
+   "P1.4-REF-008",
+   "P1.4-REF-009",
+   "P1.4-REF-010",
+   "P1.4-REF-011",
+   "P1.4-REF-012",
+   "P1.5-CAL-001",
+   "P1.5-CAL-002",
+   "P1.5-CAL-003",
+   "P1.5-CAL-004",
+   "P1.5-CAL-005",
+   "P1.5-CAL-006",
+   "P1.5-CAL-007",
+   "P1.5-CAL-008",
+   "P1.5-CAL-009",
+   "P1.5-CAL-010",
+   "P1.5-CAL-011",
+   "P2.1-BIAS-01",
+   "P2.1-BIAS-02",
+   "P2.1-BIAS-03",
+   "P2.1-BIAS-04",
+   "P2.1-BIAS-05",
+   "P2.1-BIAS-06",
+   "P2.1-BIAS-07",
+   "P2.2-BIAS-01",
+   "P2.2-BIAS-02",
+   "P2.2-BIAS-03",
+   "P2.2-BIAS-04",
+   "P2.2-BIAS-05",
+   "P2.2-BIAS-06",
+   "P2.2-BIAS-07",
+   "P2.4-BIAS-01",
+   "P2.4-BIAS-02",
+   "P2.4-BIAS-03",
+   "P2.4-BIAS-04",
+   "P2.4-BIAS-05",
+   "P2.4-BIAS-06",
+   "P2.4-BIAS-07",
+   "P2.5-BIAS-01",
+   "P2.5-BIAS-02",
+   "P2.5-BIAS-03",
+   "P2.5-BIAS-04",
+   "P2.5-BIAS-05",
+   "P2.5-BIAS-06",
+   "P2.5-BIAS-07",
+   "P2.6-BIAS-01",
+   "P2.6-BIAS-02",
+   "P2.6-BIAS-03",
+   "P2.6-BIAS-04",
+   "P2.6-BIAS-05",
+   "P2.6-BIAS-06",
+   "P2.6-BIAS-07"
+  ]
+ },
+ "still_held_total": 68,
+ "unchanged": 253
+}

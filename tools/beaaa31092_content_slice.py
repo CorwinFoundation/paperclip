@@ -7,6 +7,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 INVENTORY_SHA256 = "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
@@ -519,12 +520,35 @@ def _tier1_families(spread: dict[str, dict[str, dict[str, Any]]]) -> set[str]:
     return tier1
 
 
+def _roster_round_for(roster_round: "str | Mapping[str, str]", stable_case_id: str) -> str:
+    """The round one roster observation is recorded under.
+
+    A plain string stamps every row with one label - a single roster capture is a
+    single sampling moment. A mapping is a DECLARED union: the caller has proved
+    the rounds are one measurement population and each row observes under its own
+    capture round, because two captures are two sampling moments and collapsing
+    them into one label would understate the span the floor measures.
+
+    A case the declaration does not name fails closed. The whole point of making
+    the union explicit is that an undeclared round cannot slip into the span count.
+    """
+    if isinstance(roster_round, str):
+        return roster_round
+    try:
+        return roster_round[stable_case_id]
+    except KeyError:
+        raise ValueError(
+            f"roster case {stable_case_id!r} observes under no declared capture round; "
+            "a declared multi-round cohort must name the round of every row it gates"
+        ) from None
+
+
 def _tier_decision(
     rows: list[dict[str, Any]],
     inventory_rows: list[dict[str, Any]],
     evidence: dict[str, dict[str, Any]],
     controls: list[dict[str, Any]] | None,
-    roster_round: str = RUN_MANIFEST_SHA256,
+    roster_round: "str | Mapping[str, str]" = RUN_MANIFEST_SHA256,
 ) -> tuple[dict[str, Any], set[str], dict[str, Any], list[dict[str, Any]]]:
     """Verdict-spread tier gate, then demote every family that does not clear it.
 
@@ -543,6 +567,13 @@ def _tier_decision(
     stamp its own provenance instead of this one's. It is deliberately one value per
     build: a roster capture is a single sampling moment however many cases it
     contains, which is exactly what ``MIN_MINORITY_SPAN`` is there to measure.
+
+    BEAAA-33706, CEO ruling 2026-09-18: a caller that has PROVED two rounds are one
+    measurement population may pass a mapping of ``stable_case_id`` to capture round
+    instead, and each row then observes under its own round. That is not a loosening
+    of the clause above - the rounds really were distinct sampling moments, and the
+    one value per build still holds for every caller that does not declare a union.
+    A case the mapping does not name fails closed in ``_roster_round_for``.
     """
     spread: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -573,7 +604,7 @@ def _tier_decision(
             })
             continue
         observe(row["family_id"], str(row["verdict"]).casefold(), 1,
-                roster_round, row["stable_case_id"])
+                _roster_round_for(roster_round, row["stable_case_id"]), row["stable_case_id"])
 
     control_report = _admit_controls(controls, inventory_rows, evidence, rows, observe)
     tier1 = _tier1_families(spread)
