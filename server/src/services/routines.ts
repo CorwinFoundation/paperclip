@@ -1539,7 +1539,11 @@ export function routineService(
         }
 
         try {
-          createdIssue = await issueSvc.create(input.routine.companyId, {
+          // Bind issueService to THIS transaction so create() reuses `txDb` — its
+          // internal `db.transaction(...)` then opens a SAVEPOINT on the same
+          // connection instead of borrowing a 2nd pooled connection while we hold
+          // the `routines ... for update` lock (which self-deadlocks a saturated pool).
+          createdIssue = await issueService(txDb).create(input.routine.companyId, {
             projectId,
             projectWorkspaceId,
             goalId: input.routine.goalId,

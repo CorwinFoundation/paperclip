@@ -3515,6 +3515,11 @@ export interface HeartbeatServiceOptions {
   environmentRuntime?: HeartbeatEnvironmentRuntime;
 }
 
+// Read-only DB handle satisfied by both the pooled client and a transaction (tx).
+// Lets hot-path reads run on the caller's tx instead of grabbing a 2nd pooled
+// connection — see releaseIssueExecutionAndPromote (avoids pool self-deadlock).
+type DbReader = Pick<Db, "select">;
+
 export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) {
   const instanceSettings = instanceSettingsService(db);
   const getCurrentUserRedactionOptions = async () => ({
@@ -3764,8 +3769,8 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     return { routineId: issueContext.originId, env: routine?.env ?? null };
   }
 
-  async function getRuntimeState(agentId: string) {
-    return db
+  async function getRuntimeState(agentId: string, dbOrTx: DbReader = db) {
+    return dbOrTx
       .select()
       .from(agentRuntimeState)
       .where(eq(agentRuntimeState.agentId, agentId))
@@ -3777,8 +3782,9 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     agentId: string,
     adapterType: string,
     taskKey: string,
+    dbOrTx: DbReader = db,
   ) {
-    return db
+    return dbOrTx
       .select()
       .from(agentTaskSessions)
       .where(
@@ -4666,6 +4672,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
   async function resolveSessionBeforeForWakeup(
     agent: typeof agents.$inferSelect,
     taskKey: string | null,
+    dbOrTx: DbReader = db,
   ) {
     if (taskKey) {
       const codec = getAdapterSessionCodec(agent.adapterType);
@@ -4674,6 +4681,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
         agent.id,
         agent.adapterType,
         taskKey,
+        dbOrTx,
       );
       const parsedParams = normalizeSessionParams(
         codec.deserialize(existingTaskSession?.sessionParamsJson ?? null),
@@ -4685,7 +4693,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
       );
     }
 
-    const runtimeForRun = await getRuntimeState(agent.id);
+    const runtimeForRun = await getRuntimeState(agent.id, dbOrTx);
     return runtimeForRun?.sessionId ?? null;
   }
 
@@ -10352,6 +10360,11 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     const recoveryAgentNameKey = normalizeAgentNameKey(recoveryAgent?.name);
 
     const promotionResult = await db.transaction(async (tx) => {
+      // Pool-safety: run the reads/guards inside this transaction on `tx` (or a
+      // tx-bound service) rather than the module-global `db`. Borrowing a 2nd pooled
+      // connection while holding the `issues ... for update` locks below can
+      // self-deadlock a saturated pool (all conns idle-in-transaction, none freed).
+      const txTreeControlSvc = issueTreeControlService(tx as unknown as Db);
       // Lock the context issue (if any) AND every issue that still references this run.
       //
       // A single run can hold execution locks on multiple issues: the caller's context
@@ -10531,7 +10544,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
 
         const deferredPayload = parseObject(deferred.payload);
         const deferredContextSeed = parseObject(deferredPayload[DEFERRED_WAKE_CONTEXT_KEY]);
-        const activePauseHold = await treeControlSvc.getActivePauseHoldGate(issue.companyId, issue.id);
+        const activePauseHold = await txTreeControlSvc.getActivePauseHoldGate(issue.companyId, issue.id);
         const treeHoldInteractionWake = activePauseHold && await isVerifiedIssueTreeControlInteractionWake(tx, {
           companyId: issue.companyId,
           issueId: issue.id,
@@ -10662,7 +10675,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
 
         const sessionBefore =
           readNonEmptyString(promotedContextSnapshot.resumeSessionDisplayId) ??
-          await resolveSessionBeforeForWakeup(deferredAgent, promotedTaskKey);
+          await resolveSessionBeforeForWakeup(deferredAgent, promotedTaskKey, tx as unknown as Db);
         const promotedContinuationAttempt = readContinuationAttempt(
           promotedContextSnapshot.livenessContinuationAttempt,
         );
@@ -10744,7 +10757,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
         return { kind: "released" as const };
       }
 
-      if (await isAutomaticRecoverySuppressedByPauseHold(db, issue.companyId, issue.id, treeControlSvc)) {
+      if (await isAutomaticRecoverySuppressedByPauseHold(tx as unknown as Db, issue.companyId, issue.id, txTreeControlSvc)) {
         return { kind: "released" as const };
       }
 

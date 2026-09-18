@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { inferOpenAiCompatibleBiller, type AdapterExecutionContext, type AdapterExecutionResult } from "@paperclipai/adapter-utils";
 import {
   adapterExecutionTargetIsRemote,
@@ -67,6 +69,83 @@ import {
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const CODEX_ROLLOUT_NOISE_RE =
   /^\d{4}-\d{2}-\d{2}T[^\s]+\s+ERROR\s+codex_core::rollout::list:\s+state db missing rollout path for thread\s+[a-z0-9-]+$/i;
+
+const execFileAsync = promisify(execFile);
+const MEMPALACE_RECALL_BIN = "/home/beai-agent/.local/bin/mempalace-recall";
+const MEMPALACE_RECALL_MIN_SIM = "0.55";
+const MEMPALACE_RECALL_TIMEOUT_MS = 2500;
+
+/**
+ * Drop recall hits that are low-signal even when they score high similarity —
+ * the store contains raw `ls -l` listings, sha blobs, and path dumps that match
+ * on shared role/ticket tokens but carry no reusable knowledge. Precision-first:
+ * only reject obvious command-output / filename-dominated chunks so genuine notes
+ * (which are prose) survive. This is a bridge until ingestion distills content.
+ */
+function looksLikeLowSignalChunk(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 40) return true;
+  if (/-rw-|drwx|lrwx|[-d][rwx-]{9}\s/.test(t)) return true; // ls -l permission bits
+  if (/\bbeai-agent\s+beai-agent\b/.test(t)) return true; // owner:group dumps
+  if (/\b[0-9a-f]{40,}\b/.test(t)) return true; // sha/hash blobs
+  const tokens = t.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 6) {
+    const fileish = tokens.filter((w) => /_/.test(w) || /\.[A-Za-z0-9]{1,4}$/.test(w) || /\//.test(w)).length;
+    if (fileish / tokens.length > 0.5) return true; // mostly filenames/paths
+    const prose = tokens.filter((w) => /^[A-Za-z][A-Za-z'’-]{2,}$/.test(w)).length;
+    if (prose / tokens.length < 0.25) return true; // barely any prose words
+  }
+  return false;
+}
+
+/**
+ * Best-effort MemPalace recall block for the codex wake prompt. Codex agents have
+ * no lifecycle hook and never query memory otherwise; this injects the top matching
+ * past-session notes into their wake prompt. Fleet-safe by construction:
+ *   - env-gated: only runs when MEMPALACE_WAKE_RECALL=1 (default off)
+ *   - threshold-gated: only hits with similarity >= 0.55 (the recall client filters)
+ *   - time-bounded: 2.5s cap on the warm daemon (sub-second when warm)
+ *   - fully fail-open: any error/timeout/miss returns "" so the wake prompt is unchanged
+ * Never throws; the caller can await it unconditionally.
+ */
+async function buildCodexRecallSection(query: string): Promise<string> {
+  if (process.env.MEMPALACE_WAKE_RECALL !== "1") return "";
+  const q = query.replace(/\s+/g, " ").trim();
+  if (q.length < 8) return "";
+  try {
+    const { stdout } = await execFileAsync(
+      MEMPALACE_RECALL_BIN,
+      [q, "6", MEMPALACE_RECALL_MIN_SIM],
+      { timeout: MEMPALACE_RECALL_TIMEOUT_MS, maxBuffer: 1024 * 1024 },
+    );
+    const parsed = JSON.parse(stdout) as {
+      ok?: boolean;
+      results?: Array<{ similarity?: number; text?: string }>;
+    };
+    if (!parsed?.ok || !Array.isArray(parsed.results) || parsed.results.length === 0) {
+      return "";
+    }
+    // Request extra candidates (6) and drop low-signal chunks, then keep the top 3.
+    const usable = parsed.results.filter((hit) => {
+      const text = String(hit.text ?? "").replace(/\s+/g, " ").trim();
+      return text.length > 0 && !looksLikeLowSignalChunk(text);
+    });
+    if (usable.length === 0) return "";
+    const lines = usable.slice(0, 3).map((hit) => {
+      const sim = typeof hit.similarity === "number" ? hit.similarity.toFixed(2) : "?";
+      const text = String(hit.text ?? "").replace(/\s+/g, " ").trim().slice(0, 400);
+      return `- (sim ${sim}) ${text}`;
+    });
+    return [
+      "## Relevant memory (auto-recalled)",
+      "MemPalace surfaced these from past agent sessions using this task's context.",
+      "They may be partial or stale — treat as hints and verify before relying on them.",
+      ...lines,
+    ].join("\n");
+  } catch {
+    return "";
+  }
+}
 
 function stripCodexRolloutNoise(text: string): string {
   const parts = text.split(/\r?\n/);
@@ -767,10 +846,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     }
     const renderedPrompt = shouldUseResumeDeltaPrompt ? "" : renderTemplate(promptTemplate, templateData);
     const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
+    const wakeIssueObj = parseObject(parseObject(context.paperclipWake).issue);
+    const recallQuery = [
+      wakeTaskId,
+      asString(wakeIssueObj.identifier, "").trim(),
+      asString(wakeIssueObj.title, "").trim(),
+      issueWorkMode,
+      wakeReason,
+    ]
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(" ");
+    const codexRecallSection = await buildCodexRecallSection(recallQuery);
     const prompt = joinPromptSections([
       promptInstructionsPrefix,
       renderedBootstrapPrompt,
       wakePrompt,
+      codexRecallSection,
       codexFallbackHandoffNote,
       sessionHandoffNote,
       renderedPrompt,
@@ -780,6 +871,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       instructionsChars,
       bootstrapPromptChars: renderedBootstrapPrompt.length,
       wakePromptChars: wakePrompt.length,
+      recallSectionChars: codexRecallSection.length,
       sessionHandoffChars: sessionHandoffNote.length,
       heartbeatPromptChars: renderedPrompt.length,
     };

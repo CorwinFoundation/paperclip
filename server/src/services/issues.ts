@@ -92,6 +92,10 @@ import {
   RECOVERY_ORIGIN_KINDS,
 } from "./recovery/origins.js";
 import { classifyIssueGraphLiveness, type IssueLivenessFinding } from "./recovery/issue-graph-liveness.js";
+import {
+  evaluateAgentChildGovernance,
+  readAgentChildGovernancePolicy,
+} from "./agent-child-governance.js";
 
 const ALL_ISSUE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
 const MAX_ISSUE_COMMENT_PAGE_LIMIT = 500;
@@ -5034,6 +5038,50 @@ export function issueService(db: Db) {
         throw unprocessable("in_progress issues require an assignee");
       }
       return db.transaction(async (tx) => {
+        if (issueData.parentId && issueData.createdByAgentId) {
+          const childGovernancePolicy = readAgentChildGovernancePolicy(companyId);
+          if (childGovernancePolicy) {
+            // Lock the parent so concurrent agent requests cannot both pass the
+            // same child-count or singleton-assignee check.
+            const governedParent = await tx
+              .select({
+                id: issues.id,
+                priority: issues.priority,
+              })
+              .from(issues)
+              .where(and(eq(issues.id, issueData.parentId), eq(issues.companyId, companyId)))
+              .for("update")
+              .then((rows) => rows[0] ?? null);
+            if (!governedParent) throw notFound("Parent issue not found");
+
+            const existingChildren = await tx
+              .select({
+                id: issues.id,
+                identifier: issues.identifier,
+                status: issues.status,
+                assigneeAgentId: issues.assigneeAgentId,
+              })
+              .from(issues)
+              .where(and(eq(issues.companyId, companyId), eq(issues.parentId, governedParent.id)))
+              .orderBy(asc(issues.issueNumber), asc(issues.createdAt));
+            const governanceViolation = evaluateAgentChildGovernance({
+              policy: childGovernancePolicy,
+              actorAgentId: issueData.createdByAgentId,
+              parentPriority: governedParent.priority,
+              childPriority: issueData.priority,
+              assigneeAgentId: issueData.assigneeAgentId,
+              existingChildren,
+            });
+            if (governanceViolation) {
+              throw conflict(governanceViolation.message, {
+                code: governanceViolation.code,
+                parentIssueId: governedParent.id,
+                ...governanceViolation.details,
+              });
+            }
+          }
+        }
+
         const defaultCompanyGoal = await getDefaultCompanyGoal(tx, companyId);
         let projectWorkspaceId = issueData.projectWorkspaceId ?? null;
         let executionWorkspaceId = issueData.executionWorkspaceId ?? null;
@@ -5322,25 +5370,25 @@ export function issueService(db: Db) {
       let validatedProjectWorkspace: { projectId: string } | null = null;
       let validatedExecutionWorkspace: { projectId: string } | null = null;
       if (!nextProjectId && nextProjectWorkspaceId) {
-        const workspace = await assertValidProjectWorkspace(existing.companyId, null, nextProjectWorkspaceId);
+        const workspace = await assertValidProjectWorkspace(existing.companyId, null, nextProjectWorkspaceId, dbOrTx);
         validatedProjectWorkspace = workspace;
         nextProjectId = workspace.projectId;
         patch.projectId = workspace.projectId;
       }
       if (!nextProjectId && nextExecutionWorkspaceId) {
-        const workspace = await assertValidExecutionWorkspace(existing.companyId, null, nextExecutionWorkspaceId);
+        const workspace = await assertValidExecutionWorkspace(existing.companyId, null, nextExecutionWorkspaceId, dbOrTx);
         validatedExecutionWorkspace = workspace;
         nextProjectId = workspace.projectId;
         patch.projectId = workspace.projectId;
       }
       if (nextProjectWorkspaceId) {
         if (!validatedProjectWorkspace) {
-          await assertValidProjectWorkspace(existing.companyId, nextProjectId, nextProjectWorkspaceId);
+          await assertValidProjectWorkspace(existing.companyId, nextProjectId, nextProjectWorkspaceId, dbOrTx);
         }
       }
       if (nextExecutionWorkspaceId) {
         if (!validatedExecutionWorkspace) {
-          await assertValidExecutionWorkspace(existing.companyId, nextProjectId, nextExecutionWorkspaceId);
+          await assertValidExecutionWorkspace(existing.companyId, nextProjectId, nextExecutionWorkspaceId, dbOrTx);
         }
       }
 

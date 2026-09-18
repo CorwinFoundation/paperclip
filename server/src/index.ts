@@ -851,7 +851,16 @@ export async function startServer(): Promise<StartedServer> {
       logger.error({ err }, "startup heartbeat recovery failed");
     });
 
+    let schedulerTickSeq = 0;
+    const SCHEDULER_PENDING_WARN_MS = 60_000;
     setInterval(() => {
+      const tickSeq = ++schedulerTickSeq;
+      const tickStartedAt = Date.now();
+      // Always-on liveness line: confirms the dispatch loop is firing at all.
+      // Its ABSENCE from the logs is the signature of the 2026-08-26 overnight
+      // dispatch stall (server up, GETs served, but no wakes emitted for hours).
+      logger.info({ tickSeq, intervalMs: config.heartbeatSchedulerIntervalMs }, "scheduler loop tick");
+
       const sweptRuntimeStatuses = heartbeat.sweepExpiredRuntimeStatuses();
       if (sweptRuntimeStatuses > 0) {
         logger.info(
@@ -860,28 +869,48 @@ export async function startServer(): Promise<StartedServer> {
         );
       }
 
+      // Detect a dispatch tick that never settles (e.g. tickTimers awaiting a
+      // DB connection from an exhausted pool). A hung promise emits no error and
+      // no dispatch, so without this it is invisible in the logs.
+      let dispatchSettled = false;
+      const dispatchPendingWarn = setTimeout(() => {
+        if (!dispatchSettled) {
+          logger.warn(
+            { tickSeq, pendingMs: Date.now() - tickStartedAt },
+            "heartbeat dispatch tick still pending — tickTimers has not settled (possible DB pool exhaustion or event-loop stall)",
+          );
+        }
+      }, SCHEDULER_PENDING_WARN_MS);
+      dispatchPendingWarn.unref?.();
+
       void heartbeat
         .tickTimers(new Date())
         .then((result) => {
-          if (result.enqueued > 0) {
-            logger.info({ ...result }, "heartbeat timer tick enqueued runs");
+          const durationMs = Date.now() - tickStartedAt;
+          if (result.enqueued > 0 || durationMs > SCHEDULER_PENDING_WARN_MS) {
+            logger.info({ ...result, tickSeq, durationMs }, "heartbeat timer tick enqueued runs");
           }
         })
         .catch((err) => {
-          logger.error({ err }, "heartbeat timer tick failed");
+          logger.error({ err, tickSeq }, "heartbeat timer tick failed");
+        })
+        .finally(() => {
+          dispatchSettled = true;
+          clearTimeout(dispatchPendingWarn);
         });
 
       void routines
         .tickScheduledTriggers(new Date())
         .then((result) => {
-          if (result.triggered > 0) {
-            logger.info({ ...result }, "routine scheduler tick enqueued runs");
+          const durationMs = Date.now() - tickStartedAt;
+          if (result.triggered > 0 || durationMs > SCHEDULER_PENDING_WARN_MS) {
+            logger.info({ ...result, tickSeq, durationMs }, "routine scheduler tick enqueued runs");
           }
         })
         .catch((err) => {
-          logger.error({ err }, "routine scheduler tick failed");
+          logger.error({ err, tickSeq }, "routine scheduler tick failed");
         });
-  
+
       // Periodically reap orphaned runs (5-min staleness threshold) and make sure
       // persisted queued work is still being driven forward.
       void heartbeat

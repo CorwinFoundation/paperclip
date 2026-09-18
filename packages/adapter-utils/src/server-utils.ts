@@ -2050,10 +2050,16 @@ export async function ensurePaperclipSkillSymlink(
     return "skipped";
   }
 
-  const linkedPathExists = await fs.stat(resolvedLinkedPath).then(() => true).catch(() => false);
-  if (linkedPathExists) {
-    return "skipped";
-  }
+  // token-usage fix (2026-08-19): previously, if the symlink pointed at a still-existing
+  // but WRONG location (resolvedLinkedPath !== source), we returned "skipped" and left
+  // agents pinned to a stale skill checkout, triggering full issue/comment reloads and
+  // runaway token usage. Always fall through to repoint the symlink at `source`.
+  // Reverses the over-conservative guard from 4e759da0; the `resolvedLinkedPath === source`
+  // check above still prevents churn once the link is correctly repointed.
+  // const linkedPathExists = await fs.stat(resolvedLinkedPath).then(() => true).catch(() => false);
+  // if (linkedPathExists) {
+  //   return "skipped";
+  // }
 
   await fs.unlink(target);
   await linkSkill(source, target);

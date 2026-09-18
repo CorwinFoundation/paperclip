@@ -2891,6 +2891,132 @@ describeEmbeddedPostgres("issueService.create workspace inheritance", () => {
 
     expect(child.requestDepth).toBe(MAX_ISSUE_REQUEST_DEPTH);
   });
+
+  it("does not parse child-governance configuration for root issue creation", async () => {
+    const companyId = randomUUID();
+    const previousPolicy = process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE;
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Board company",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: false });
+    process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE = "{not valid json";
+
+    try {
+      const rootIssue = await svc.create(companyId, {
+        title: "Board root issue",
+        status: "todo",
+        priority: "medium",
+      });
+
+      expect(rootIssue).toMatchObject({
+        companyId,
+        title: "Board root issue",
+        parentId: null,
+      });
+    } finally {
+      if (previousPolicy === undefined) delete process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE;
+      else process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE = previousPolicy;
+    }
+  });
+
+  it("enforces configured singleton child assignees inside the shared create transaction", async () => {
+    const companyId = randomUUID();
+    const parentIssueId = randomUUID();
+    const ownerAgentId = randomUUID();
+    const qaAgentId = randomUUID();
+    const previousPolicy = process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE;
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Governed company",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: false });
+    await db.insert(agents).values([
+      {
+        id: ownerAgentId,
+        companyId,
+        name: "Owner",
+        role: "engineer",
+        status: "active",
+        adapterType: "codex_local",
+        adapterConfig: {},
+        runtimeConfig: {},
+        permissions: {},
+      },
+      {
+        id: qaAgentId,
+        companyId,
+        name: "QA",
+        role: "qa_engineer",
+        status: "active",
+        adapterType: "codex_local",
+        adapterConfig: {},
+        runtimeConfig: {},
+        permissions: {},
+      },
+    ]);
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId,
+      title: "Implementation parent",
+      status: "in_progress",
+      priority: "high",
+      assigneeAgentId: ownerAgentId,
+    });
+
+    process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE = JSON.stringify({
+      [companyId]: {
+        maxChildren: 3,
+        singletonAssigneeAgentIds: [qaAgentId],
+        overrideAgentIds: [],
+        enforcePriorityCeiling: true,
+      },
+    });
+
+    try {
+      const first = await svc.create(companyId, {
+        parentId: parentIssueId,
+        title: "Canonical QA gate",
+        status: "todo",
+        priority: "medium",
+        assigneeAgentId: qaAgentId,
+        createdByAgentId: ownerAgentId,
+      });
+
+      await expect(svc.create(companyId, {
+        parentId: parentIssueId,
+        title: "Duplicate QA gate",
+        status: "todo",
+        priority: "medium",
+        assigneeAgentId: qaAgentId,
+        createdByAgentId: ownerAgentId,
+      })).rejects.toMatchObject({
+        status: 409,
+        details: {
+          code: "agent_child_singleton_exists",
+          parentIssueId,
+          existingIssueId: first.id,
+          existingIdentifier: first.identifier,
+          assigneeAgentId: qaAgentId,
+        },
+      });
+
+      const persistedChildren = await db
+        .select({ id: issues.id })
+        .from(issues)
+        .where(eq(issues.parentId, parentIssueId));
+      expect(persistedChildren).toEqual([{ id: first.id }]);
+    } finally {
+      if (previousPolicy === undefined) delete process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE;
+      else process.env.PAPERCLIP_AGENT_CHILD_GOVERNANCE = previousPolicy;
+    }
+  });
 });
 
 describeEmbeddedPostgres("issueService blockers and dependency wake readiness", () => {

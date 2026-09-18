@@ -56,10 +56,16 @@ type IssueWakeTarget = {
   status: string;
 };
 
-type ResolvedInteractionResult = {
+type RequestConfirmationAcceptedHook<TAcceptedResult> = (
+  transactionDb: Db,
+  interaction: IssueThreadInteraction,
+) => Promise<TAcceptedResult>;
+
+type ResolvedInteractionResult<TAcceptedResult = never> = {
   interaction: IssueThreadInteraction;
   createdIssues: IssueWakeTarget[];
   continuationIssue?: IssueWakeTarget | null;
+  acceptedResult: TAcceptedResult | null;
 };
 
 type IssueThreadInteractionRow = typeof issueThreadInteractions.$inferSelect;
@@ -179,6 +185,46 @@ function shouldReturnAcceptedConfirmationToCreatorAgent(args: {
   if (args.issue.assigneeAgentId) return false;
   if (isTerminalIssueStatus(args.issue.status)) return false;
   return true;
+}
+
+async function returnResolvedConfirmationToCreatorAgent(
+  db: Db | any,
+  issue: { id: string; companyId: string },
+  resolvedRows: IssueThreadInteractionRow[],
+  actor: InteractionActor,
+) {
+  const creatorAgentId = resolvedRows.find((row) =>
+    isRequestConfirmationLikeKind(row.kind) && row.createdByAgentId
+  )?.createdByAgentId;
+  if (!creatorAgentId || !actor.userId) return null;
+
+  const issueContext = await db
+    .select({
+      id: issues.id,
+      companyId: issues.companyId,
+      status: issues.status,
+      assigneeAgentId: issues.assigneeAgentId,
+      assigneeUserId: issues.assigneeUserId,
+    })
+    .from(issues)
+    .where(eq(issues.id, issue.id))
+    .then((rows: IssueResolutionContext[]) => rows[0] ?? null);
+
+  if (
+    !issueContext
+    || issueContext.companyId !== issue.companyId
+    || issueContext.status !== "in_review"
+    || issueContext.assigneeAgentId
+    || !issueContext.assigneeUserId
+  ) return null;
+
+  return issueService(db).update(issue.id, {
+    status: "todo",
+    assigneeAgentId: creatorAgentId,
+    assigneeUserId: null,
+    actorAgentId: actor.agentId ?? null,
+    actorUserId: actor.userId ?? null,
+  });
 }
 
 function shouldSupersedeRequestConfirmationOnUserComment(interaction: RequestConfirmationLikeInteraction) {
@@ -588,21 +634,23 @@ export function issueThreadInteractionService(db: Db) {
     return current;
   }
 
-  async function acceptRequestConfirmation(args: {
+  async function acceptRequestConfirmation<TAcceptedResult = never>(args: {
     issue: { id: string; companyId: string };
     current: IssueThreadInteractionRow;
     input: AcceptIssueThreadInteraction;
     actor: InteractionActor;
+    onAccepted?: RequestConfirmationAcceptedHook<TAcceptedResult>;
   }): Promise<{
     interaction: IssueThreadInteraction;
     continuationIssue: IssueWakeTarget | null;
+    acceptedResult: TAcceptedResult | null;
   }> {
     const expired = await expireStaleRequestConfirmationTarget(db, {
       row: args.current,
       actor: args.actor,
     });
     if (expired) {
-      return { interaction: expired, continuationIssue: null };
+      return { interaction: expired, continuationIssue: null, acceptedResult: null };
     }
 
     const interaction = hydrateInteraction(args.current);
@@ -683,9 +731,15 @@ export function issueThreadInteractionService(db: Db) {
         await touchIssue(tx, args.issue.id);
       }
 
+      const acceptedInteraction = hydrateInteraction(updated);
+      const acceptedResult = args.onAccepted
+        ? await args.onAccepted(tx as unknown as Db, acceptedInteraction)
+        : null;
+
       return {
-        interaction: hydrateInteraction(updated),
+        interaction: acceptedInteraction,
         continuationIssue,
+        acceptedResult,
       };
     });
   }
@@ -734,7 +788,13 @@ export function issueThreadInteractionService(db: Db) {
     if (!updated) {
       throw conflict("Interaction has already been resolved");
     }
-    await touchIssue(db, args.issue.id);
+    const returnedIssue = await returnResolvedConfirmationToCreatorAgent(
+      db,
+      args.issue,
+      [updated],
+      args.actor,
+    );
+    if (!returnedIssue) await touchIssue(db, args.issue.id);
     return hydrateInteraction(updated);
   }
 
@@ -859,20 +919,28 @@ export function issueThreadInteractionService(db: Db) {
       return hydrateInteraction(created);
     },
 
-    acceptInteraction: async (
+    acceptInteraction: async <TAcceptedResult = never>(
       issue: { id: string; companyId: string; projectId: string | null; goalId: string | null },
       interactionId: string,
       input: AcceptIssueThreadInteraction,
       actor: InteractionActor,
-    ): Promise<ResolvedInteractionResult> => {
+      options: {
+        onRequestConfirmationAccepted?: RequestConfirmationAcceptedHook<TAcceptedResult>;
+      } = {},
+    ): Promise<ResolvedInteractionResult<TAcceptedResult>> => {
       const data = acceptIssueThreadInteractionSchema.parse(input);
       const current = await getPendingInteractionForResolution({ issue, interactionId });
       switch (current.kind) {
-        case "suggest_tasks":
+        case "suggest_tasks": {
           // Accepting suggest_tasks only creates follow-up issues; it does not
           // approve code state or move the source workspace forward, so the
           // workspace_finalize gate (PAPA-440) does not apply here.
-          return issueThreadInteractionService(db).acceptSuggestedTasks(issue, interactionId, data, actor);
+          const accepted = await issueThreadInteractionService(db).acceptSuggestedTasks(issue, interactionId, data, actor);
+          return {
+            ...accepted,
+            acceptedResult: null,
+          };
+        }
         case "request_confirmation": {
           await assertIssueWorkspaceFinalizedForAccept({ db, issue, sourceRunId: current.sourceRunId });
           const accepted = await acceptRequestConfirmation({
@@ -880,11 +948,13 @@ export function issueThreadInteractionService(db: Db) {
             current,
             input: data,
             actor,
+            onAccepted: options.onRequestConfirmationAccepted,
           });
           return {
             interaction: accepted.interaction,
             continuationIssue: accepted.continuationIssue,
             createdIssues: [],
+            acceptedResult: accepted.acceptedResult,
           };
         }
         case "request_checkbox_confirmation": {
@@ -899,6 +969,7 @@ export function issueThreadInteractionService(db: Db) {
             interaction: accepted.interaction,
             continuationIssue: accepted.continuationIssue,
             createdIssues: [],
+            acceptedResult: null,
           };
         }
         default:
@@ -1177,7 +1248,13 @@ export function issueThreadInteractionService(db: Db) {
       }
 
       if (expired.length > 0) {
-        await touchIssue(db, issue.id);
+        const returnedIssue = await returnResolvedConfirmationToCreatorAgent(
+          db,
+          issue,
+          superseded.filter((row) => expired.some((item) => item.id === row.id)),
+          actor,
+        );
+        if (!returnedIssue) await touchIssue(db, issue.id);
       }
       return expired;
     },
@@ -1262,7 +1339,13 @@ export function issueThreadInteractionService(db: Db) {
       }
 
       if (expired.length > 0) {
-        await touchIssue(db, issue.id);
+        const returnedIssue = await returnResolvedConfirmationToCreatorAgent(
+          db,
+          issue,
+          rows.filter((row) => expired.some((item) => item.id === row.id)),
+          { userId: expired.find((item) => item.resolvedByUserId)?.resolvedByUserId ?? null },
+        );
+        if (!returnedIssue) await touchIssue(db, issue.id);
       }
       return expired;
     },
@@ -1337,7 +1420,13 @@ export function issueThreadInteractionService(db: Db) {
       }
 
       if (expired.length > 0) {
-        await touchIssue(db, issue.id);
+        const returnedIssue = await returnResolvedConfirmationToCreatorAgent(
+          db,
+          issue,
+          staleRows.filter((row) => expired.some((item) => item.id === row.id)),
+          actor,
+        );
+        if (!returnedIssue) await touchIssue(db, issue.id);
       }
       return expired;
     },
