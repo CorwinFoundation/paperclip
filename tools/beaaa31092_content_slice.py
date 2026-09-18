@@ -205,6 +205,19 @@ ORACLE_IDENTITY_FIELDS = ("deterministic_oracle", "applicability")
 # configuration.
 JUDGE_CONFIG_FIELDS = ("corpus_version", "case_version", "model_version")
 ALLOWED_VERDICTS = {"pass", "fail", "partial"}
+
+# BEAAA-34043. ``not_applicable`` is not a verdict the scanner failed to parse -
+# it is a disposition the run declared, with ``na_evidence`` on the manifest row
+# recording why the case does not apply to this target. Before this, such a row
+# fell through ``ALLOWED_VERDICTS``, held for ``unsupported_verdict``, and sat
+# under the same ``held_reported_not_scored`` string as the genuinely unresolved
+# rows, so a reader could not tell a disposition we chose from a verdict we could
+# not read. ``declared_not_applicable`` separates the two. It is a disposition
+# and never a score: the relabel runs last, after the tier gate and the surface
+# determinations, so every upstream decision sees exactly the rows it saw before
+# and the only field that moves is the disposition string.
+NA_VERDICT = "not_applicable"
+DECLARED_NOT_APPLICABLE = "declared_not_applicable"
 # BEAAA-33537 CEO measurement 2026-09-17: 9 distinct target responses are shared by
 # 25 of the 67 scored rows, and one of them carries OPPOSITE verdicts inside a
 # single family (bb18716.authorization_revocation_race.12 reads pass, .14 reads
@@ -851,6 +864,33 @@ def redetermine_ledger(
     return ledger
 
 
+def _declare_not_applicable(
+    rows: list[dict[str, Any]],
+    evidence: dict[str, dict[str, Any]],
+) -> int:
+    """Relabel held rows the run itself declared not applicable.
+
+    BEAAA-34043. Narrow by construction: a row qualifies only if it is currently
+    held, carries verdict ``not_applicable``, AND the manifest evidence row it
+    binds to carries ``na_evidence``. An NA verdict with no ``na_evidence`` is a
+    bare assertion, so it stays held under ``unsupported_verdict``. Nothing but
+    ``disposition`` is written - ``hold_reasons`` is left exactly as the earlier
+    passes left it, because the reasons the row was not scored are still true,
+    and an NA is a disposition, never a score.
+    """
+    declared = 0
+    for row in rows:
+        if row["disposition"] != "held_reported_not_scored":
+            continue
+        if str(row.get("verdict") or "").casefold() != NA_VERDICT:
+            continue
+        if not (evidence.get(row["dedupe_sha256"]) or {}).get("na_evidence"):
+            continue
+        row["disposition"] = DECLARED_NOT_APPLICABLE
+        declared += 1
+    return declared
+
+
 def _load_controls(
     controls: list[dict[str, Any]] | Path | None,
 ) -> tuple[list[dict[str, Any]] | None, bool]:
@@ -940,6 +980,7 @@ def retier_ledger(
     inventory_rows, evidence = _control_binding_inputs(controls, manifest_path, inventory_path)
     spread, tier1, control_report, withheld = _tier_decision(rows, inventory_rows, evidence, controls)
     determination_report = _apply_surface_determinations(rows, _load_determinations(determinations), tier1)
+    _declare_not_applicable(rows, evidence)
     counts = Counter(row["disposition"] for row in rows)
     ledger.update({
         "tier1_families": sorted(tier1),
@@ -950,6 +991,7 @@ def retier_ledger(
         "scored": counts["scored"],
         "dropped_duplicate": counts["dropped_duplicate"],
         "held": counts["held_reported_not_scored"],
+        "declared_not_applicable": counts[DECLARED_NOT_APPLICABLE],
     })
     return ledger
 
@@ -1246,6 +1288,7 @@ def build_ledger(
         })
     spread, tier1, control_report, withheld = _tier_decision(rows, chosen, evidence, controls)
     determination_report = _apply_surface_determinations(rows, _load_determinations(determinations), tier1)
+    _declare_not_applicable(rows, evidence)
     counts = Counter(row["disposition"] for row in rows)
     return {
         "schema_version": "beaaa-31092-slice-ledger/v1",
@@ -1268,6 +1311,7 @@ def build_ledger(
         "scored": counts["scored"],
         "dropped_duplicate": counts["dropped_duplicate"],
         "held": counts["held_reported_not_scored"],
+        "declared_not_applicable": counts[DECLARED_NOT_APPLICABLE],
         "rows": rows,
     }
 

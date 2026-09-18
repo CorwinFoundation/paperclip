@@ -132,7 +132,22 @@ def test_the_pinned_census_still_reproduces_from_the_exported_evidence():
         ROOT / "artifacts/beaaa-31092/rank2-ledger.json",
     )
     # ``manifest_path`` echoes whatever path the caller passed; it is not a count.
-    assert {k: v for k, v in live.items() if k != "manifest_path"} == (
+    # BEAAA-34043 re-keyed one bucket and moved no row: 26 of the held rows now
+    # carry ``declared_not_applicable`` instead of ``held_reported_not_scored``.
+    # The census keys by the ledger's disposition string, so the pinned artefact
+    # is compared with that split folded back - which keeps the fence exact for
+    # every other term, and keeps the ledger the only pin this change moves.
+    # The split itself is asserted directly below rather than absorbed silently.
+    comparable = {k: v for k, v in live.items() if k != "manifest_path"}
+    live_dispositions = comparable["by_ledger_disposition"]
+    folded: dict = {}
+    for key, count in live_dispositions.items():
+        folded[key.replace("declared_not_applicable:", "held_reported_not_scored:")] = (
+            folded.get(key.replace("declared_not_applicable:", "held_reported_not_scored:"), 0) + count
+        )
+    assert live_dispositions.get("declared_not_applicable:disagree", 0) == 26
+    assert live_dispositions.get("declared_not_applicable:agree", 0) == 0
+    assert {**comparable, "by_ledger_disposition": folded} == (
         _census_after_the_33970_rederivation()
     )
 

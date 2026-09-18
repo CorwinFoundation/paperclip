@@ -340,7 +340,10 @@ def test_the_committed_ledger_carries_the_ruled_tier_set():
     # 22 and the selected/mapped totals do not move at all.
     assert ledger["tier1_families"] == ["approval_freshness_replay", "authorization_revocation_race"]
     assert ledger["scored"] == 43
-    assert ledger["held"] == 144
+    # BEAAA-34043 split the held side: 26 of those rows are declared N/A rather
+    # than unreadable. No row changed side - 118 + 26 is the same 144.
+    assert ledger["held"] == 118
+    assert ledger["held"] + ledger["declared_not_applicable"] == 144
     assert ledger["selected"] == ledger["mapped"] == 187
     # The one surviving family clears on exactly three unambiguous minority
     # observations: its fourth pass shares response text with a roster fail.
@@ -432,7 +435,7 @@ def test_the_determination_never_scores_a_row_or_lifts_a_family():
     assert APMB not in ledger["tier1_families"]
     # The census the CEO pinned at f30ba3c5, moved only by the BEAAA-33568
     # re-admission of approval_freshness_replay and unmoved by the relabel.
-    assert ledger["scored"] == 43 and ledger["held"] == 144
+    assert ledger["scored"] == 43 and ledger["held"] + ledger["declared_not_applicable"] == 144
     assert ledger["selected"] == ledger["mapped"] == 187
     assert ledger["tier1_families"] == ["approval_freshness_replay", "authorization_revocation_race"]
 
@@ -493,7 +496,10 @@ def test_a_row_held_for_missing_evidence_is_not_relabelled():
     assert all(row["verdict"] == "not_applicable" for row in others)
     assert all("unsupported_verdict" in row["hold_reasons"] for row in others)
     assert all(NO_VERDICT_SPREAD not in row["hold_reasons"] for row in others)
-    assert all(row["disposition"] == "held_reported_not_scored" for row in others)
+    # BEAAA-34043: still not scored, and still holding for the same reasons. The
+    # disposition now names the declaration instead of hiding it behind the
+    # string the unresolved rows carry.
+    assert all(row["disposition"] == "declared_not_applicable" for row in others)
 
 
 @pytest.mark.parametrize("mutate, fragment", [
@@ -539,7 +545,7 @@ def test_redetermine_is_idempotent_and_preserves_the_tier_report():
     assert [row["hold_reasons"] for row in again["rows"]] == [row["hold_reasons"] for row in ledger["rows"]]
     assert again["tier1_families"] == ledger["tier1_families"]
     assert again["tier2_held_families"] == ledger["tier2_held_families"]
-    assert again["scored"] == 43 and again["held"] == 144
+    assert again["scored"] == 43 and again["held"] + again["declared_not_applicable"] == 144
 
 
 # ---------------------------------------------------------------------------

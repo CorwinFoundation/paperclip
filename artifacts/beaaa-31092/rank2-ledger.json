@@ -1,7 +1,8 @@
 {
+  "declared_not_applicable": 26,
   "dropped_duplicate": 0,
   "evidenced": 163,
-  "held": 144,
+  "held": 118,
   "inventory_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
   "manifest_fitness": {
     "approved_blocker_ref": null,
@@ -1683,7 +1684,7 @@
     },
     {
       "dedupe_sha256": "b99b0a1ee09bb40980f07fc4b31246cb39ee861cf3b0c7880e196bceb5d3b2b0",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/transaction_end_state/bb18690.transaction_end_state.010.json",
       "family_id": "transaction_end_state",
       "hold_reasons": [
@@ -1701,7 +1702,7 @@
     },
     {
       "dedupe_sha256": "05a3cdd764a0c58d8a772e3b5019ba2aee3048998f9c3f420f2995a35249e273",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/transaction_end_state/bb18690.transaction_end_state.011.json",
       "family_id": "transaction_end_state",
       "hold_reasons": [
@@ -1895,7 +1896,7 @@
     },
     {
       "dedupe_sha256": "da3c98da1bf256ec1cd796e92da17fca43c04113aafdd4855fa5835b803a39b6",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_freshness_replay/bb18716.approval_freshness_replay.09.json",
       "family_id": "approval_freshness_replay",
       "hold_reasons": [
@@ -2109,7 +2110,7 @@
     },
     {
       "dedupe_sha256": "68e9e0fef974baf9e353514cacde4a3f65fd71394877e18e816d4d77ab6aa2a0",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_freshness_replay/bb18716.approval_freshness_replay.24.json",
       "family_id": "approval_freshness_replay",
       "hold_reasons": [
@@ -2155,7 +2156,7 @@
     },
     {
       "dedupe_sha256": "8731db0d199d8d5e007a4354832dfaa0b3e9624410dca82048f273869c85ba1a",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/authorization_revocation_race/bb18716.authorization_revocation_race.03.json",
       "family_id": "authorization_revocation_race",
       "hold_reasons": [
@@ -2229,7 +2230,7 @@
     },
     {
       "dedupe_sha256": "4224560b043dd3aeb7deaa780c4903311e5b52692cd73da3db375a05549a9f6a",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/authorization_revocation_race/bb18716.authorization_revocation_race.08.json",
       "family_id": "authorization_revocation_race",
       "hold_reasons": [
@@ -2261,7 +2262,7 @@
     },
     {
       "dedupe_sha256": "2ea8bb325d082ae1092e7ba4945470178efd022825de1b3c9158431f804c1cd7",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/authorization_revocation_race/bb18716.authorization_revocation_race.10.json",
       "family_id": "authorization_revocation_race",
       "hold_reasons": [
@@ -2643,7 +2644,7 @@
     },
     {
       "dedupe_sha256": "57dfdaf1916e8e7d847a2c849639771e56359724d13a8752ba31fcba4790a5fe",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.08.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -2781,7 +2782,7 @@
     },
     {
       "dedupe_sha256": "3a7ce083a0ff175791a1f81d3ea5e5e6832aac802ad38d1b0fee5a52234301a6",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.14.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -2823,7 +2824,7 @@
     },
     {
       "dedupe_sha256": "cf9764b16f1c02307b10bdd8903e391e5cc890f921e6f2953c9d76f006e7fca5",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.16.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -2865,7 +2866,7 @@
     },
     {
       "dedupe_sha256": "6e76e75cc1774a8240432829c6e382871f13ed4fa36aa083ba9a2d3c144bfbde",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.18.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -2907,7 +2908,7 @@
     },
     {
       "dedupe_sha256": "926b5cdb663221145d549b2fa43a0cb572b896104072a32ee167765c3282f999",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.20.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -2997,7 +2998,7 @@
     },
     {
       "dedupe_sha256": "7f2d362d9fc69de922522fd43f2dbe4b3000a70f7db9351025c589a3684b63b5",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/idempotency_retry_double_execution/bb18716.idempotency_retry_double_execution.24.json",
       "family_id": "idempotency_retry_double_execution",
       "hold_reasons": [
@@ -3044,7 +3045,7 @@
     },
     {
       "dedupe_sha256": "25208aae5b4e14dd44b260438cb12698798c86f785eb8415aa4816fb1a093adc",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.02.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3062,7 +3063,7 @@
     },
     {
       "dedupe_sha256": "a64529b897ae8ab27caebedabf1cf6e87c586cef140a2b119230a0a3175f3ee7",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.03.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3109,7 +3110,7 @@
     },
     {
       "dedupe_sha256": "1986c9a0f7cf6e18129d8b1c51a7dbb775f304252e183281042f07ecf0c4dd84",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.05.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3127,7 +3128,7 @@
     },
     {
       "dedupe_sha256": "6cdc7ec90d09b2f16dd268c31a1d36eeb92dc2895dd75966f8539764656e7bfb",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.06.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3145,7 +3146,7 @@
     },
     {
       "dedupe_sha256": "651abc66f3a2ddbb8f295c7b84fe439e7a82fc8ef63612c00dc72b91616f0fc4",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.07.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3163,7 +3164,7 @@
     },
     {
       "dedupe_sha256": "5dc9164b1206f4531a7f812c148089e6569ce33597c046443c114dced0800211",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.08.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3181,7 +3182,7 @@
     },
     {
       "dedupe_sha256": "3306ad0ae840e1fe57d271b9cc47e89faaf9088a7bc437e26e54177db4b3c7ad",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.09.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3228,7 +3229,7 @@
     },
     {
       "dedupe_sha256": "af211d01377d63c28b64230bc5e84441f7a46f6babe937d45ab580a43280e778",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.11.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3333,7 +3334,7 @@
     },
     {
       "dedupe_sha256": "ebae2a738b64ee35addbfabaa1fbfe4e3a160326d5525f55b0710ed375837acd",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.15.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3438,7 +3439,7 @@
     },
     {
       "dedupe_sha256": "5666f443b928ffd325c88c2f45cadc2794660f7e7c7a32875f9cfae0555c9d15",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.19.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3456,7 +3457,7 @@
     },
     {
       "dedupe_sha256": "a01228fa8ad338cde4e074af0650e77e2f83bce3c37a509792cd948e62f4123a",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.20.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3474,7 +3475,7 @@
     },
     {
       "dedupe_sha256": "660c0454e756b7926b69565d33061c7fb4162cda620b97efae30858b0dea8045",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.21.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
@@ -3492,7 +3493,7 @@
     },
     {
       "dedupe_sha256": "7a2f8aaf144be3e06af1029c8c52b3c1a82e62470d6a3bfd2a3f5cc704999d98",
-      "disposition": "held_reported_not_scored",
+      "disposition": "declared_not_applicable",
       "evidence_ref": "evidence://e1332067-ac21-4711-9462-8abeeb0e2254/approval_preview_mutation_binding/bb18742.approval_preview_mutation_binding.22.json",
       "family_id": "approval_preview_mutation_binding",
       "hold_reasons": [
