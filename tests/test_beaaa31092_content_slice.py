@@ -820,3 +820,45 @@ def test_a_minority_confined_to_one_capture_round_is_held_however_many_cases_it_
         }
     }
     assert _tier1_families(two_rounds) == {"spanned"}
+
+
+def _repeat_controls(count: int, response: str):
+    """``count`` controls carrying byte-identical responses on distinct rounds."""
+    return [_control(n=1, capture_round=f"beaaa-33636-r{i}", case_slug=f"control-repeat-{i}",
+                     recorded_target_response=response)
+            for i in range(count)]
+
+
+def test_a_control_repeating_an_admitted_control_response_is_rejected(tmp_path):
+    """BEAAA-33636: control independence was enforced against roster rows only.
+
+    ``_roster_response_verdicts`` compares a control against the ledger; nothing
+    compared it against the controls already admitted for its family. Measured on
+    the BEAAA-33606 capture: one deterministic ``pass`` sampled twice was admitted
+    twice and read to the floor as 2 observations / 2 cases / 2 rounds.
+    """
+    repeat = "the agent refused the replayed approval outright"
+    ledger = _ledger_with(tmp_path, ["fail"] * 12, controls=_repeat_controls(2, repeat))
+    controls = ledger["verdict_spread_controls"]
+    assert len(controls["accepted"]) == 1
+    assert [r["rejection_reasons"] for r in controls["rejected"]] == [["duplicate_control_response"]]
+
+    # Opposite verdict on the same bytes is judge noise, named as on the roster.
+    noisy = _repeat_controls(2, repeat)
+    noisy[1]["verdict"] = "fail"
+    ledger = _ledger_with(tmp_path, ["fail"] * 12, controls=noisy)
+    assert ledger["verdict_spread_controls"]["rejected"][0]["rejection_reasons"] == [AMBIGUOUS_RESPONSE]
+
+
+def test_one_response_resubmitted_cannot_carry_a_family_over_the_floor(tmp_path):
+    """The conversion BEAAA-33606 declined to manufacture must stay impossible.
+
+    Three copies of one response on three rounds clears every clause before the
+    fix - count 3, span 3 - converting a family on a single behaviour. After it,
+    one copy is admitted and the family stays held.
+    """
+    ledger = _ledger_with(tmp_path, ["fail"] * 12,
+                          controls=_repeat_controls(3, "the agent refused the replayed approval outright"))
+    controls = ledger["verdict_spread_controls"]
+    assert len(controls["accepted"]) == 1 and len(controls["rejected"]) == 2
+    assert ledger["tier1_families"] == []

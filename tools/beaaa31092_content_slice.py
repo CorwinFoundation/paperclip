@@ -327,6 +327,7 @@ def _control_rejections(
     scored_cases: set[str],
     judge_digest: str | None,
     roster_responses: dict[str, set[str]],
+    control_responses: dict[str, set[str]],
 ) -> list[str]:
     """Fail-closed admission checks for one control record.
 
@@ -369,10 +370,20 @@ def _control_rejections(
     # to a roster row's is that row's observation relabelled, and if the verdicts
     # differ it is judge noise on one response, which is the thing the floor exists
     # to reject.
-    roster_verdicts = roster_responses.get(_response_digest(control.get("recorded_target_response")))
+    digest = _response_digest(control.get("recorded_target_response"))
+    verdict = str(control.get("verdict", "")).casefold()
+    roster_verdicts = roster_responses.get(digest)
     if roster_verdicts:
-        verdict = str(control.get("verdict", "")).casefold()
         reasons.append(AMBIGUOUS_RESPONSE if verdict not in roster_verdicts else "duplicate_roster_response")
+    # BEAAA-33636: the same principle, control to control. Nothing above compared a
+    # control against the controls already admitted for its family, so one
+    # deterministic response submitted twice was admitted twice - each copy takes
+    # its own ``control:{capture_round}`` and ``control:{case_slug}`` key and the
+    # floor reads it as two observations across two cases and two rounds. A repeat
+    # is an admitted observation relabelled, exactly as a roster collision is.
+    control_verdicts = control_responses.get(digest)
+    if control_verdicts:
+        reasons.append(AMBIGUOUS_RESPONSE if verdict not in control_verdicts else "duplicate_control_response")
     return reasons
 
 
@@ -419,6 +430,9 @@ def _admit_controls(
     if not controls:
         return {"supplied": 0, "accepted": accepted, "rejected": rejected}
     roster_responses = _roster_response_verdicts(rows)
+    # Per family, the response digests already admitted from the control channel
+    # and the verdicts they carry - the control-side twin of ``roster_responses``.
+    admitted_responses: dict[str, dict[str, set[str]]] = {}
     inventory_by_family: dict[str, list[dict[str, Any]]] = {}
     for row in inventory_rows:
         inventory_by_family.setdefault(row["family_id"], []).append(row)
@@ -440,6 +454,7 @@ def _admit_controls(
             bindable_cases_by_family.get(family or "", set()),
             judge_digest,
             roster_responses.get(family or "", {}),
+            admitted_responses.get(family or "", {}),
         )
         if not family_inventory:
             reasons.append("family_not_in_slice")
@@ -466,6 +481,9 @@ def _admit_controls(
             f"control:{control.get('case_slug') or control['prompt_sha256']}",
         )
         accepted.append(record)
+        admitted_responses.setdefault(family or "", {}).setdefault(
+            _response_digest(control.get("recorded_target_response")), set()
+        ).add(str(control["verdict"]).casefold())
     return {"supplied": len(controls), "accepted": accepted, "rejected": rejected}
 
 
