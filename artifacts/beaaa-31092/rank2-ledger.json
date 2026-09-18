@@ -5,6 +5,13 @@
   "inventory_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
   "mapped": 187,
   "priced_score_weight": 0.0,
+  "provenance_stamp": {
+    "built_at": "2026-09-18T00:08:12Z",
+    "built_at_sha": "f5004d435b7c1cda77c70bfe6bdc0de905093b71",
+    "built_by_issue": "BEAAA-33611",
+    "notice": "SNAPSHOT. scored/held/evidenced on this artifact were produced by the code at built_at_sha and have not moved since. BEAAA-33656 and BEAAA-33941 (#607) both changed how evidence is keyed without re-authoring this file, because build_ledger refuses the pinned run manifest at _assert_manifest_fit_to_bind and retier_ledger only reverses gate-authored holds. Do not quote these counts as current. tools/beaaa33964_ledger_drift_check.py reports the gap.",
+    "stamped_by_issue": "BEAAA-33964"
+  },
   "rows": [
     {
       "dedupe_sha256": "3234a7f0d3d393a66f2737cb9650eb9643abcb687c64e42b653f5bfe1d52decb",

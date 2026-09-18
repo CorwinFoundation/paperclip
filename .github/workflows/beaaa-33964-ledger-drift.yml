@@ -1,0 +1,37 @@
+name: BEAAA-33964 rank-2 ledger drift
+
+# Reports whether artifacts/beaaa-31092/rank2-ledger.json still reproduces from
+# the pinned inventory + run manifest under the CURRENT code. It fails closed: a
+# rebuild that cannot run is reported as "ledger not reproducible under the
+# current manifest", not treated as nothing-to-compare.
+#
+# This job is deliberately NOT one of master's three required status checks
+# ("golden scanner regression", "python pytest", "python 3.11 CLI render smoke").
+# It is expected to be RED today - the pinned manifest is unfit to bind and
+# build_ledger refuses it - and that red IS the finding. Making it required would
+# convert a standing, known drift into a repo-wide merge block, which would get
+# the check waived rather than the ledger fixed. Its behaviour is pinned by
+# tests/test_beaaa33964_ledger_drift.py, which does run under "python pytest".
+
+on:
+  pull_request:
+    paths:
+      - "artifacts/beaaa-31092/**"
+      - "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
+      - "tools/beaaa31092_content_slice.py"
+      - "tools/beaaa33964_ledger_drift_check.py"
+      - ".github/workflows/beaaa-33964-ledger-drift.yml"
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  ledger-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Rebuild the pinned ledger and compare
+        run: PYTHONPATH=. python tools/beaaa33964_ledger_drift_check.py

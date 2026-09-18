@@ -995,11 +995,22 @@ def _manifest_evidence(
     ``content-candidate:sha256:<digest>`` probe id as the content_candidate rows,
     so the old framework filter dropped evidence that exists and the ledger read
     ``missing_manifest_evidence`` - absent work - on rows that had in fact been
-    measured. They now read their real withheld verdict instead. Nothing scores on
-    this change: ``unresolved`` is not a supported verdict, so the rows stay held
-    for ``unsupported_verdict``, which is a fail-closed reason and therefore not in
-    ``SPREAD_HOLD_REASONS``. The rows stay unbindable and the control channel sees
-    no new judge digest.
+    measured. This resolver now keys them to their real withheld verdict.
+
+    BEAAA-33964 correction 2026-09-18. An earlier revision of this docstring said
+    those 12 rows "now read their real withheld verdict instead". They do not, and
+    the committed ``artifacts/beaaa-31092/rank2-ledger.json`` still shows them
+    holding for ``missing_manifest_evidence``. The keying change is real but it
+    lives here, on the read path; the artifact only moves when a build-side pass
+    re-authors it, and ``_assert_manifest_fit_to_bind`` refuses every such pass on
+    the pinned run manifest while ``retier_ledger`` reverses gate-authored holds
+    only. So: the resolver keys them, and the artifact does not move until a
+    build-side pass runs on a fit manifest.
+
+    Nothing scores on this change either way: ``unresolved`` is not a supported
+    verdict, so the rows stay held for ``unsupported_verdict``, which is a
+    fail-closed reason and therefore not in ``SPREAD_HOLD_REASONS``. The rows stay
+    unbindable and the control channel sees no new judge digest.
 
     BEAAA-33941, CEO ruling 2026-09-18 on BEAAA-33741. A probe id carrying no digest
     - promptfoo's bare ``cac-NN`` - now keys through the roster, not by parsing the
