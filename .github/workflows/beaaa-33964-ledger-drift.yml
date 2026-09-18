@@ -19,6 +19,13 @@ name: BEAAA-33964 rank-2 ledger drift
 # reports the one non-comparable finding and exits 1. Pass --evidence-root (or
 # set BEAAA31092_EVIDENCE_ROOT) on a host that has the export mounted to get the
 # real comparison; it exits 0 there.
+#
+# BEAAA-34038: the job now also prints an ADVISORY replay - the committed ledger's
+# own recorded responses fed back through the rebuild - which answers whether
+# current code still derives the committed dispositions and counts. It prints
+# below the finding and never changes the exit code, because a response sourced
+# from the artifact under test proves the derivation is stable, not that the text
+# is what the target said. The job stays red until the real export is reachable.
 
 on:
   pull_request:

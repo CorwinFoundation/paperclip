@@ -24,6 +24,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,90 @@ NOT_COMPARABLE = (
 )
 
 NOT_REPRODUCIBLE = "ledger not reproducible under the current manifest"
+
+# BEAAA-34038. The e1332067 export is not reachable from CI, so the check above
+# cannot run there and reports one honest non-comparable finding. That leaves a
+# question unanswered that matters on its own: ignoring provenance, does the
+# CURRENT resolver code still derive the committed dispositions, hold reasons and
+# counts from the committed inputs?
+#
+# The committed ledger carries ``recorded_target_response`` verbatim for the rows
+# that resolved one. Replaying those strings back through the rebuild answers the
+# derivation question and nothing else. It is deliberately NOT a substitute for
+# the export: the response term is then sourced from the artifact under test, so
+# that one term is self-referential by construction and proves only that the
+# derivation is stable, never that the text is what the target said. This mode is
+# therefore diagnostic - it prints its result as ADVISORY and never changes the
+# exit code, which stays 1 whenever no real export was supplied.
+EMPTY_RESPONSE_HOLD = "evidence file records no target response"
+
+SELF_SOURCED = (
+    "ADVISORY (not a pass): responses replayed from the committed ledger itself, "
+    "so the provenance of recorded_target_response is assumed, not checked")
+
+
+def _replay_export(committed: dict[str, Any], job_id: str, dest: Path) -> int:
+    """Write an export-shaped tree of the ledger's own recorded responses.
+
+    Returns the number of rows written. Rows the committed ledger holds without a
+    response are skipped, so they stay unresolvable in the rebuild exactly as they
+    are in the artifact.
+    """
+    root = (dest / job_id).resolve()
+    written = 0
+    for row in committed.get("rows", []):
+        ref = row.get("evidence_ref") or ""
+        response = row.get("recorded_target_response")
+        if not ref.startswith(f"evidence://{job_id}/"):
+            continue
+        # A row the committed ledger holds as "evidence file records no target
+        # response" is a row whose export file existed and was empty. Replaying it
+        # as absent would produce "evidence file missing from the exported job" and
+        # read as drift, so the empty file is replayed as empty.
+        if not response:
+            if EMPTY_RESPONSE_HOLD not in (row.get("hold_reasons") or []):
+                continue
+            payload: dict[str, Any] = {"responses": []}
+        else:
+            payload = {"responses": [response]}
+        relative = ref.removeprefix(f"evidence://{job_id}/")
+        target = (root / relative).resolve()
+        if root not in target.parents:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(payload), encoding="utf-8")
+        written += 1
+    return written
+
+
+def derivation_diff_from_committed_responses(
+    ledger_path: Path = LEDGER,
+    inventory_path: Path = INVENTORY,
+    manifest_path: Path = RUN_MANIFEST,
+    controls_path: Path | None = CONTROLS,
+) -> list[str]:
+    """Advisory diff of every derived term, responses replayed from the ledger."""
+    committed = json.loads(Path(ledger_path).read_text(encoding="utf-8"))
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    job_id = manifest.get("job_id")
+    if not job_id:
+        return [f"  {NOT_REPRODUCIBLE}: the run manifest names no job_id to replay under"]
+    with tempfile.TemporaryDirectory() as tmp:
+        dest = Path(tmp)
+        written = _replay_export(committed, job_id, dest)
+        try:
+            rebuilt = build_ledger(
+                Path(inventory_path), Path(manifest_path),
+                evidence_root=(dest / job_id),
+                job_id=job_id,
+                controls=Path(controls_path) if controls_path else None)
+        except Exception as exc:  # noqa: BLE001 - same rule as the real path
+            return [f"  {NOT_REPRODUCIBLE}: the rebuild path raised {type(exc).__name__}: {exc}"]
+    diffs = _diff(committed, rebuilt)
+    header = (f"  replayed {written} committed response(s) under job {job_id}; "
+              f"{len(diffs) or 'no'} derived field(s) differ")
+    return [header, *diffs]
+
 
 # The stamp describes the snapshot, so it is deliberately not part of what the
 # rebuild has to reproduce - build_ledger cannot know the commit it runs at.
@@ -152,6 +237,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"BEAAA-33964 drift check FAILED ({len(findings)} finding(s)):")
     for finding in findings:
         print(f"- {finding}" if not finding.startswith("  ") else finding)
+    if evidence_root is None:
+        print(f"- {SELF_SOURCED}")
+        for line in derivation_diff_from_committed_responses(
+                args.ledger, args.inventory, args.manifest):
+            print(line)
     return 1
 
 

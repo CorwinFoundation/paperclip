@@ -138,3 +138,38 @@ def test_the_committed_ledger_names_the_commit_it_was_built_at():
     assert stamp["built_by_issue"] == "BEAAA-33992"
     assert "reproducible" in stamp["notice"]
     assert "evidence export" in stamp["notice"]
+
+
+def test_committed_response_replay_is_advisory_and_never_flips_the_exit_code(capsys):
+    """BEAAA-34038. The replay diagnostic reports; it never turns a red into a green.
+
+    Without an export the check must still exit 1. The replay answers a different
+    question - does current code still derive the committed dispositions from the
+    committed responses - and says out loud that it sourced those responses from
+    the artifact under test.
+    """
+    assert drift.main([]) == 1
+    out = capsys.readouterr().out
+    assert drift.NOT_COMPARABLE in out
+    assert "ADVISORY (not a pass)" in out
+    assert "no derived field(s) differ" in out
+
+
+def test_replay_writes_an_empty_file_for_a_row_recorded_as_empty(tmp_path):
+    """A row held "records no target response" replays as empty, not as absent.
+
+    Replaying it as absent would resolve to a different hold reason and read as
+    drift that is purely an artefact of the replay.
+    """
+    job = "job-1"
+    committed = {"rows": [
+        {"evidence_ref": f"evidence://{job}/fam/a.json", "recorded_target_response": "hi"},
+        {"evidence_ref": f"evidence://{job}/fam/b.json", "recorded_target_response": None,
+         "hold_reasons": [drift.EMPTY_RESPONSE_HOLD]},
+        {"evidence_ref": f"evidence://{job}/fam/c.json", "recorded_target_response": None,
+         "hold_reasons": ["missing_manifest_evidence"]},
+    ]}
+    assert drift._replay_export(committed, job, tmp_path) == 2
+    assert json.loads((tmp_path / job / "fam/a.json").read_text())["responses"] == ["hi"]
+    assert json.loads((tmp_path / job / "fam/b.json").read_text())["responses"] == []
+    assert not (tmp_path / job / "fam/c.json").exists()
