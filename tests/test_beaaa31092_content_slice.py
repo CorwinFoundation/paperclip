@@ -862,3 +862,78 @@ def test_one_response_resubmitted_cannot_carry_a_family_over_the_floor(tmp_path)
     controls = ledger["verdict_spread_controls"]
     assert len(controls["accepted"]) == 1 and len(controls["rejected"]) == 2
     assert ledger["tier1_families"] == []
+
+
+from tools.beaaa31092_content_slice import _manifest_evidence  # noqa: E402
+
+
+def test_manifest_evidence_keys_by_digest_not_by_framework():
+    """BEAAA-33656 commit A: the key is the probe id's digest, whatever captured it."""
+    digest = "a" * 64
+    keyed = _manifest_evidence({"evidence_rows": [
+        {"probe_id": f"content-candidate:sha256:{digest}",
+         "framework": "day1_report_only@day1-report-only-adapter/v0.1",
+         "evidence_ref": "evidence://job/fam/pt-01.json", "verdict": "unresolved"},
+        {"probe_id": "cac-01", "framework": "promptfoo@0.115.0",
+         "evidence_ref": "evidence://job/fam/cac-01.json", "verdict": "PASS"},
+    ]})
+    assert set(keyed) == {digest}, "a digest-keyed row is admitted regardless of framework"
+    assert keyed[digest]["verdict"] == "unresolved"
+
+
+def test_a_probe_id_without_a_digest_still_does_not_key():
+    assert _manifest_evidence({"evidence_rows": [
+        {"probe_id": "cac-01", "framework": "promptfoo@0.115.0",
+         "evidence_ref": "evidence://job/fam/cac-01.json", "verdict": "PASS"},
+    ]}) == {}
+
+
+def test_two_evidence_rows_claiming_one_digest_is_an_error_not_last_one_wins():
+    digest = "b" * 64
+    with pytest.raises(ValueError, match=digest):
+        _manifest_evidence({"evidence_rows": [
+            {"probe_id": f"content-candidate:sha256:{digest}",
+             "framework": "content_candidate@beaaa-18720-1.0.0",
+             "evidence_ref": "evidence://job/fam/one.json", "verdict": "fail"},
+            {"probe_id": f"content-candidate:sha256:{digest}",
+             "framework": "day1_report_only@day1-report-only-adapter/v0.1",
+             "evidence_ref": "evidence://job/fam/two.json", "verdict": "unresolved"},
+        ]})
+
+
+def test_param_tamper_rows_read_their_withheld_verdict_not_absent_evidence():
+    """The 12 rows were captured through the day1 adapter, so `never captured` was wrong.
+
+    They still do not score: `unresolved` is not a supported verdict. The point of
+    the change is the reason, not the count.
+    """
+    import json
+
+    manifest = json.loads(
+        (ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json").read_text(encoding="utf-8"))
+    day1 = [row for row in manifest["evidence_rows"]
+            if str(row.get("framework", "")).startswith("day1_report_only")]
+    assert len(day1) == 12 and all(row["verdict"] == "unresolved" for row in day1)
+
+    ledger = build_ledger(
+        ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+        ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json",
+    )
+    tampered = [row for row in ledger["rows"] if row["family_id"] == "tool_misuse_param_tamper"]
+    assert len(tampered) == 12
+    for row in tampered:
+        assert "missing_manifest_evidence" not in row["hold_reasons"]
+        assert "unsupported_verdict" in row["hold_reasons"]
+        assert row["verdict"] == "unresolved"
+        assert row["disposition"] == "held_reported_not_scored"
+
+
+def test_the_digest_keyed_rows_stay_unbindable_so_the_control_channel_is_untouched():
+    """Commit A does not reach the gate path: `unsupported_verdict` is fail-closed."""
+    from tools.beaaa31092_content_slice import SPREAD_HOLD_REASONS, _bindable
+
+    assert "unsupported_verdict" not in SPREAD_HOLD_REASONS
+    assert not _bindable({
+        "disposition": "held_reported_not_scored",
+        "hold_reasons": ["unsupported_verdict"],
+    })

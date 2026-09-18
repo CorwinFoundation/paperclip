@@ -60,6 +60,7 @@ SURFACE_DETERMINATIONS_PATH = Path(__file__).resolve().parents[1] / "artifacts/b
 # so the retier path can bind a control's oracle without being handed anything.
 PINNED_INVENTORY_PATH = Path(__file__).resolve().parents[1] / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
 EVIDENCE_FRAMEWORK = "content_candidate@beaaa-18720-1.0.0"
+CONTENT_CANDIDATE_PROBE_PREFIX = "content-candidate:sha256:"
 # BEAAA-33568. Every hold reason the gate itself writes. A row holding one of
 # these is held BECAUSE of a gate decision, not because of a defect in its own
 # evidence, so re-applying the gate has to reverse its own prior verdict before
@@ -910,12 +911,37 @@ def _gate_report(spread: dict[str, Any], withheld: list[dict[str, Any]]) -> dict
 
 
 def _manifest_evidence(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """The run manifest's content-candidate evidence rows, keyed by dedupe digest."""
-    return {
-        row.get("probe_id", "").removeprefix("content-candidate:sha256:"): row
-        for row in manifest.get("evidence_rows", [])
-        if row.get("framework") == EVIDENCE_FRAMEWORK
-    }
+    """The run manifest's evidence rows, keyed by the dedupe digest their probe id carries.
+
+    BEAAA-33656, CEO ruling 2026-09-18. The key is the digest, not the framework.
+    The 12 ``tool_misuse_param_tamper`` rows were captured through the day1
+    report-only adapter and carry exactly the same
+    ``content-candidate:sha256:<digest>`` probe id as the content_candidate rows,
+    so the old framework filter dropped evidence that exists and the ledger read
+    ``missing_manifest_evidence`` - absent work - on rows that had in fact been
+    measured. They now read their real withheld verdict instead. Nothing scores on
+    this change: ``unresolved`` is not a supported verdict, so the rows stay held
+    for ``unsupported_verdict``, which is a fail-closed reason and therefore not in
+    ``SPREAD_HOLD_REASONS``. The rows stay unbindable and the control channel sees
+    no new judge digest.
+
+    A probe id carrying no digest - promptfoo's bare ``cac-NN`` - still does not key
+    here. A digest claimed by two different evidence rows is an error rather than a
+    silent last-one-wins.
+    """
+    keyed: dict[str, dict[str, Any]] = {}
+    for row in manifest.get("evidence_rows", []):
+        probe_id = str(row.get("probe_id") or "")
+        if not probe_id.startswith(CONTENT_CANDIDATE_PROBE_PREFIX):
+            continue
+        digest = probe_id.removeprefix(CONTENT_CANDIDATE_PROBE_PREFIX)
+        previous = keyed.get(digest)
+        if previous is not None and previous.get("evidence_ref") != row.get("evidence_ref"):
+            raise ValueError(
+                f"two manifest evidence rows claim dedupe digest {digest}: "
+                f"{previous.get('evidence_ref')} and {row.get('evidence_ref')}")
+        keyed[digest] = row
+    return keyed
 
 
 def _pinned_bytes(path: Path, expected_sha256: str, what: str) -> bytes:
