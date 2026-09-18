@@ -295,15 +295,28 @@ def test_the_pooled_gate_over_the_committed_rounds_is_pinned():
     ledger, proof = P.build_pooled_ledger()
     report = P.compare_split_to_pooled(ledger)
     assert proof["families_left_split"] == []
-    # Round 2 (BEAAA-33708) entered the registry, so these pins moved. The
-    # pre-round-2 values are kept beside them: a pin restated to whatever the
+    # Round 3 (BEAAA-33712) entered the registry, so these pins moved again. Every
+    # superseded value is kept beside the new one: a pin restated to whatever the
     # newest build printed records nothing, and the whole point of the union
     # being a standing rule is that the movement is inspectable.
-    #   350 -> 550 rows, 282 -> 468 scored, 68 -> 82 held, 97 -> 240 promotions,
-    #   8 -> 11 tier-1 families. Demotions were 0 before and stay 0.
-    assert (ledger["selected"], ledger["mapped"], ledger["evidenced"]) == (550, 550, 550)
-    assert (ledger["scored"], ledger["held"], ledger["dropped_duplicate"]) == (468, 82, 0)
-    assert ledger["roster_capture_rounds"] == ["beaaa-33673-r1", "beaaa-33677-r1", "beaaa-33708-r1"]
+    #   350 -> 550 -> 607 rows, 282 -> 468 -> 516 scored, 68 -> 82 -> 91 held,
+    #   97 -> 240 -> 282 promotions, 8 -> 11 -> 11 tier-1 families.
+    #   Demotions were 0 at every round and stay 0.
+    #
+    # 607 SELECTED is the cohort exhausting rather than a number that happens to
+    # be larger: it is exactly the zero-build family row count of the pinned
+    # inventory, so every such row is now measured and in the pool. There is no
+    # round 4 to add.
+    #
+    # EVIDENCED IS 606, NOT 607, and the one-row gap is the point of the field.
+    # A single round-3 roster attempt errored; under the pre-registration it stayed
+    # short with no top-up and no reselection, so it is mapped but never evidenced.
+    # Pinning all three at 607 would erase the only trace in the ledger that a
+    # budgeted attempt was spent and returned nothing.
+    assert (ledger["selected"], ledger["mapped"], ledger["evidenced"]) == (607, 607, 606)
+    assert (ledger["scored"], ledger["held"], ledger["dropped_duplicate"]) == (516, 91, 0)
+    assert ledger["roster_capture_rounds"] == [
+        "beaaa-33673-r1", "beaaa-33677-r1", "beaaa-33708-r1", "beaaa-33712-r1"]
     assert ledger["tier1_families"] == [
         "citation_integrity_legal",
         "confidence_calibration",
@@ -317,30 +330,39 @@ def test_the_pooled_gate_over_the_committed_rounds_is_pinned():
         "peril_data_containment",
         "self_contradiction_pairs",
     ]
-    assert (report["promotions"], report["demotions"], report["other_disposition_moves"]) == (240, 0, 0)
-    assert report["still_held_total"] == 82
+    assert (report["promotions"], report["demotions"], report["other_disposition_moves"]) == (282, 0, 0)
+    assert report["still_held_total"] == 91  # was 82 over three rounds
+    # A THIRD hold literal appears with round 3, and it is the errored attempt:
+    # ``missing_manifest_evidence`` is how a mapped-but-unevidenced row is held.
+    # It is asserted here rather than allowed in by a loosened key check, so the
+    # short row is visible as a literal and not as a silently absent row.
     assert report["still_held_by_literal"].keys() == {
+        "missing_manifest_evidence",
         "no_verdict_spread_positive_control_missing", "verdict_spread_below_stability_floor"}
     # No row is held without a literal, on either side of the comparison.
     assert all(row["hold_reasons"] for row in ledger["rows"]
                if row["disposition"] == "held_reported_not_scored")
     # The control channel is NO LONGER unchanged by pooling, and that is the
     # point of reporting it. Over two rounds the union accepted every control its
-    # own round accepted (115/115, 9/9 rejected). With round 2 in, six controls
-    # that their own round admitted are rejected in the union because their
-    # response duplicates a roster response somewhere in the pooled population.
-    # That is control independence enforced in the union rather than routed
-    # around, so it is pinned by its cause and not waved through as a count.
+    # own round accepted (115/115, 9/9 rejected). Round 2 cost six. Round 3 takes
+    # it to eight, and the two new losses are the part worth reading: they come
+    # from round 1b's capture (``beaaa-33677-r2``), not round 3's. A control
+    # admitted two rounds ago can stop being independent when a later round
+    # measures a roster row that returns the same response. That is control
+    # independence enforced over the union as it stands, rather than frozen at
+    # the moment a round happened to run, so it is pinned by its cause.
+    #   accepted 176 -> 170 -> 202, rejected 15 -> 21 -> 26, lost 6 -> 8.
     channel = report["control_channel"]
-    assert (channel["accepted_before"], channel["accepted_after"]) == (176, 170)
-    assert (channel["rejected_before"], channel["rejected_after"]) == (15, 21)
+    assert (channel["accepted_before"], channel["accepted_after"]) == (210, 202)
+    assert (channel["rejected_before"], channel["rejected_after"]) == (18, 26)
     lost = channel["accepted_in_its_own_round_but_rejected_in_the_union"]
-    assert len(lost) == 6
+    assert len(lost) == 8
     assert all(record["was"] == "accepted" for record in lost)
     assert {reason for record in lost for reason in record["rejection_reasons"]} == {
         "duplicate_roster_response"}
-    # Every one comes from round 2's control capture; rounds 1a/1b are untouched.
-    assert {record["capture_round"] for record in lost} == {"beaaa-33708-r2"}
+    # No longer round 2's capture alone: rounds 1b and 2 both lose controls here.
+    assert {record["capture_round"] for record in lost} == {
+        "beaaa-33677-r2", "beaaa-33708-r2"}
 
 
 def test_no_family_loses_tier1_by_pooling():
@@ -389,9 +411,11 @@ def test_per_row_round_keying_is_what_carries_the_pooled_result(monkeypatch):
     collapsed = Z.build_ledger_from_objects(pooled["cohort_ids"], S._jsonl(Z.PINNED_INVENTORY_PATH),
                                             pooled["manifest"], pooled["controls"],
                                             roster_round=collapsed_declaration)
-    # Was 247 scored and a 35-row gap over two rounds; 414 and 54 with round 2 in.
-    assert collapsed["scored"] == 414
-    assert ledger["scored"] - collapsed["scored"] == 54
+    # Was 247 scored and a 35-row gap over two rounds; 414 and 54 with round 2 in;
+    # 456 and 60 with round 3. The gap has widened at every round, so per-row round
+    # keying is carrying more of the result as the union grows, not less.
+    assert collapsed["scored"] == 456
+    assert ledger["scored"] - collapsed["scored"] == 60
     assert set(ledger["tier1_families"]) - set(collapsed["tier1_families"]) == {"counterfactual_stability"}
 
 

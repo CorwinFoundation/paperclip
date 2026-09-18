@@ -24,7 +24,7 @@ def report() -> dict:
 
 
 def baseline_rounds() -> set[str]:
-    """The rounds the recorded baseline can possibly cover.
+    """The rounds the recorded baseline actually covers.
 
     The baseline artifact was frozen before the round under test was measured, so
     it cannot contain an entry for that round and must not be expected to. Demanding
@@ -32,11 +32,25 @@ def baseline_rounds() -> set[str]:
     whatever the new run produced - the exact silent-restatement the pre-registration
     exists to prevent. The round under test still has to be declared; it is excluded
     from the baseline, not from the registry.
+
+    CHANGED BY BEAAA-33712. This used to return ``declared - {under_test}``, deriving
+    the baseline set from the registry. That is right for exactly as long as the
+    registry holds only the round under test and the rounds the baseline froze over.
+    Round 3 declared a fourth round, so the derived set gained ``beaaa-33712-r1`` and
+    the equality below started failing - not because round 2's frozen record is wrong,
+    but because a record frozen in the past cannot grow to cover rounds that ran after
+    it. The set is now read from the frozen record itself and only *checked* against
+    the registry. The two properties that were load-bearing still hold and are still
+    asserted: every baseline round is declared, and the round under test is not one
+    of them.
     """
     declared = {r.round_id for r in P.C0_ROUNDS}
     under_test = PREREG["round_under_test"]
     assert under_test in declared, "the round under test must be declared in C0_ROUNDS"
-    return declared - {under_test}
+    recorded = set(PREREG["baseline_as_of_master_3ab128ee"])
+    assert recorded <= declared - {under_test}, (
+        "a baseline round must be declared in C0_ROUNDS and cannot be the round under test")
+    return recorded
 
 
 def test_the_named_field_exists_for_every_baseline_round(report):

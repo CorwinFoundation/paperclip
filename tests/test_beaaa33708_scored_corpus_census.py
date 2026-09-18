@@ -107,10 +107,18 @@ def test_no_family_on_record_clears_the_total_floor_on_non_binary_evidence():
 
     The count beside it is a property of the corpus as committed, not of the method.
     When the census was first reported to the board it read 5 non-binary rows over
-    325 scored rows across the two committed ledgers. Round 2 entering the union
-    re-pooled `beaaa-33706-pooled-c0` from 282 to 468 scored rows, so the corpus is
-    now 511 rows and carries 13. The 5 is recorded here because it is the figure the
-    board was given; it is history and may not be quietly replaced.
+    325 scored rows across the two committed ledgers. Round 2 re-pooled
+    `beaaa-33706-pooled-c0` from 282 to 468 scored rows, taking the corpus to 511 rows
+    and 13 non-binary. Round 3 exhausts the C0 cohort and takes the pooled slice to
+    516, so the corpus is now 559 rows and carries 15, spread over five families
+    (citation_integrity_legal 3, counterfactual_stability 6, hallucination_legal 2,
+    p1_3_consistency_golden 1, self_contradiction_pairs 3) rather than the three it
+    started with. The 5 and the 13 are recorded here because they are the figures the
+    board was given; they are history and may not be quietly replaced.
+
+    Worth stating plainly: the `all(...)` invariant above still holds at 559 rows. The
+    non-binary count roughly tripled across three rounds and no family has come to
+    depend on a `partial` to clear its total floor, which is the claim that matters.
     """
     census = C.build_census()
     families = [family for entry in census["slices"] for family in entry["families"].values()]
@@ -120,5 +128,7 @@ def test_no_family_on_record_clears_the_total_floor_on_non_binary_evidence():
     rows = [row for entry in census["slices"] for row in entry["rows"]]
     non_binary_as_first_reported_over_325_rows = 5
     assert non_binary_as_first_reported_over_325_rows == 5
-    assert len(rows) == 511
-    assert sum(1 for row in rows if not row["verdict_is_binary"]) == 13
+    non_binary_over_511_rows_with_round_2_in = 13
+    assert non_binary_over_511_rows_with_round_2_in == 13
+    assert len(rows) == 559
+    assert sum(1 for row in rows if not row["verdict_is_binary"]) == 15

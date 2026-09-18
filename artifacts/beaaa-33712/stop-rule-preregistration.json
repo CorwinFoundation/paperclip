@@ -1,0 +1,74 @@
+{
+ "cohort": {
+  "cohort_size": 57,
+  "consumed_by_prior_slices": 550,
+  "exhausts_the_cohort": true,
+  "pool_size": 57,
+  "zero_build_family_rows": 607
+ },
+ "control_budget": {
+  "arithmetic_ceiling_on_realized_controls": 37,
+  "drawing_families": 17,
+  "families_below_the_per_family_budget": 12,
+  "per_family": 4,
+  "pre_registered_attempts": 68
+ },
+ "declared_in_advance": [
+  "Round 3's read is a single number: its pooled-gate yield, compared against the frozen 0.8067 and 0.805. No family-level or per-block reading substitutes for it.",
+  "Adding round 3 to C0_ROUNDS re-pools the whole population, so rounds 1, 1b and 2's own pooled-gate yields may move again. The pre-round-3 values are recorded here and the post-round-3 values will be reported beside them; the baseline is not silently restated.",
+  "A mid-run pass rate off the capture log is not the read. The cohort is ordered by family, so any prefix of it is a block of one or two families, not a sample.",
+  "The control budget was pre-registered at 4 per family across the 17 drawing families = 68. A realized count below 68 is reported short and never topped up. Twelve of the 17 families contribute 1 to 3 rows, so at most 37 controls can be drawn; a shortfall against 68 is expected and is not a failure.",
+  "Round 3 exhausts the cohort and so terminates the sequence. If its pooled yield drops materially against the frozen baseline, the result is stop-and-report, not a further round.",
+  "The census is re-run over the re-pooled corpus rather than left describing a corpus master no longer holds.",
+  "Scope fence: no rubric weight changes, no registry row edits, no API output changes, nothing outside the C0 cohort."
+ ],
+ "issue": "BEAAA-33712",
+ "master_sha": "d4fe997e",
+ "measured_since_the_baseline_froze_as_of_master_d4fe997e": {
+  "beaaa-33673-r1": {
+   "rows": 150,
+   "yield_under_its_own_gate": 0.6533,
+   "yield_under_the_pooled_gate": 0.8533
+  },
+  "beaaa-33677-r1": {
+   "rows": 200,
+   "yield_under_its_own_gate": 0.435,
+   "yield_under_the_pooled_gate": 0.855
+  },
+  "beaaa-33708-r1": {
+   "rows": 200,
+   "yield_under_its_own_gate": 0.215,
+   "yield_under_the_pooled_gate": 0.845
+  },
+  "note": "Recorded so the pre-round-3 state of every declared round is on the record before round 3 re-pools it. The stop rule still compares against the frozen pair above."
+ },
+ "pooled_population_baseline": {
+  "demotions": 0,
+  "held": 82,
+  "promotions": 240,
+  "rows": 550,
+  "scored": 468
+ },
+ "read_from": {
+  "artifact": "artifacts/beaaa-33706/pooled-vs-split-report.json",
+  "built_by": "tools/beaaa33706_pooled_c0_gate.py compare_split_to_pooled, over C0_ROUNDS",
+  "field_path": "per_round_yield['beaaa-33712-r1']['yield_under_the_pooled_gate']",
+  "not_read_from": "per_round_yield['beaaa-33712-r1']['yield_under_its_own_gate']",
+  "why": "A round's own-gate yield is what produced the 43.5% false stop on BEAAA-33677, and round 2 read 21.5% own-gate against 84.5% pooled. The stop rule is a statement about the C0 population, so it is read over the population."
+ },
+ "roster_budget": {
+  "attempts_per_row": 1,
+  "hard_cap": 57,
+  "reselection": false,
+  "rows": 57,
+  "top_up": false
+ },
+ "round_under_test": "beaaa-33712-r1",
+ "stop_rule_baseline_frozen_as_history": {
+  "beaaa-33673-r1": 0.8067,
+  "beaaa-33677-r1": 0.805,
+  "rule": "These two literals are the comparison. They are NOT restated to whatever a later re-pooling produces, and BEAAA-33712's card names them explicitly.",
+  "source": "artifacts/beaaa-33706/pooled-vs-split-report.json as of master 3ab128ee"
+ },
+ "what_this_is": "The stop rule's read, named before round 3's number exists. Filed at master d4fe997e while the roster capture is still running, so the field the rule is read from cannot be chosen after the value is known. Round 3 exhausts the C0 cohort: its pool is 57 and its cohort is 57, so there is no round 4 to defer a read to."
+}

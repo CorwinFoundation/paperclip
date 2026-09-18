@@ -2,7 +2,8 @@
  "c0_capture_manifests_on_master": [
   "artifacts/beaaa-33673/run-manifest.json",
   "artifacts/beaaa-33677/run-manifest.json",
-  "artifacts/beaaa-33708/run-manifest.json"
+  "artifacts/beaaa-33708/run-manifest.json",
+  "artifacts/beaaa-33712/run-manifest.json"
  ],
  "control_regime": {
   "beaaa-33673-r1": {
@@ -28,6 +29,15 @@
     "beaaa-33708-r2"
    ],
    "controls": 67,
+   "same_judge_config": true,
+   "same_target": true,
+   "target_measured": true
+  },
+  "beaaa-33712-r1": {
+   "capture_rounds": [
+    "beaaa-33712-r2"
+   ],
+   "controls": 37,
    "same_judge_config": true,
    "same_target": true,
    "target_measured": true
@@ -89,13 +99,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "confidence_calibration": {
@@ -132,13 +154,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "counterfactual_stability": {
@@ -175,13 +209,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "hallucination_legal": {
@@ -218,13 +264,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p1_1_factuality_golden": {
@@ -261,13 +319,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p1_3_consistency_golden": {
@@ -304,13 +374,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p1_4_refusal_golden": {
@@ -347,13 +429,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p1_5_calibration_golden": {
@@ -390,13 +484,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_1_demographic_parity_gap": {
@@ -433,13 +539,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_2_equal_opportunity_gap": {
@@ -476,13 +594,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_3_counterfactual_stability": {
@@ -519,13 +649,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_4_eval_representation": {
@@ -562,13 +704,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_5_sentiment_skew_by_attribute": {
@@ -605,13 +759,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "p2_6_mitigation_evidence": {
@@ -648,13 +814,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "peril_data_containment": {
@@ -691,13 +869,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "peril_tool_grounded_factuality": {
@@ -734,13 +924,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "self_contradiction_pairs": {
@@ -777,13 +979,25 @@
      "target_id": [
       "vapi:09aea361@api.vapi.ai"
      ]
+    },
+    "beaaa-33712-r1": {
+     "judge_config_digest": [
+      "4b39336269d3244bc38a84f2b474b618c32fc7b3cb9226e24476d5857ba18e71"
+     ],
+     "model_version": [
+      "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+     ],
+     "target_id": [
+      "vapi:09aea361@api.vapi.ai"
+     ]
     }
    },
    "identity_agrees_across_rounds": true,
    "rounds": [
     "beaaa-33673-r1",
     "beaaa-33677-r1",
-    "beaaa-33708-r1"
+    "beaaa-33708-r1",
+    "beaaa-33712-r1"
    ]
   },
   "stop_instruction_v1": {
@@ -821,6 +1035,11 @@
    "evidence_rows": 200,
    "explicit_judge_digest_fix_present": true,
    "rows_carrying_the_manifest_judge_digest": 200
+  },
+  "beaaa-33712-r1": {
+   "evidence_rows": 56,
+   "explicit_judge_digest_fix_present": true,
+   "rows_carrying_the_manifest_judge_digest": 56
   }
  },
  "population_equivalent": true,
