@@ -51,6 +51,67 @@ TAU_FEATURE_PATHS = {
 }
 
 
+# Selection set for the scope guard.  Only commits touching a TAU feature
+# *source* are enumerated.  The eighteen excluded members of TAU_FEATURE_PATHS
+# are three shared registry artifacts (active_registry.json,
+# authoritative_registry.json, active_test_registry.py) and fifteen shared
+# count/registration tests and shared execution modules, all of which
+# regenerate or churn on every rubric/probe_mappings change.  Overlap with
+# those files is not evidence of TAU work: enumerating them pulled every
+# rubric commit into the guard and produced 20 violators whose forbidden paths
+# were their own source yamls -- one commit alone carrying 70 of them.
+# Allowlisting to green from there would have admitted substantially the whole
+# of rubric/probe_mappings/ and gutted the assertion (BEAAA-33747).
+TAU_FEATURE_SOURCES = {
+    "api/full_scan_executor.py",
+    "api/scan_handlers.py",
+    "docs/runbooks/full-scan-execution-layer.md",
+    "tests/test_aiuc1_direct_families_production_wiring.py",
+    "tests/test_founder_dev_mode_batch_promotion.py",
+    "tests/test_founder_dev_mode_p3_5_promotion.py",
+    "tests/test_full_scan_queue_worker_beaaa14843.py",
+    "tests/test_provisional_tau_support_crm_beaaa20725.py",
+    "tests/test_reconciliation_integrity_beaaa14842.py",
+    "tests/test_tau_production_dispatch_beaaa21427.py",
+    "tools/framework_worker_registry.py",
+    "tools/probe_registry.py",
+}
+
+# Recorded exceptions: already-merged commits that touched a forbidden path in
+# the same commit as a TAU feature source.  One entry per file, each naming the
+# commit and the ticket that authorised it.  No globs, no directory entries, no
+# wildcards -- an entry that cannot name a sha and a ticket does not go in.
+#
+# These seven are the measured cost of using file overlap as a proxy for
+# feature identity: shared generated artifacts and shared runtime modules make
+# overlap a poor proxy.  STANDING TRIGGER: if this list ever reaches 10
+# entries, stop extending it and re-base the guard on ticket identity -- TAU
+# membership by BEAAA- lane in the commit message rather than by path
+# (BEAAA-33747).
+TAU_SCOPE_EXCEPTIONS = {
+    # 2051f972 BEAAA-31910 -- GOAT attacker snapshot pin, added in the same commit as its full_scan_executor call site.
+    "api/attacker_pins.py",
+    # 1cfb4102 BEAAA-31047 -- native Garak routed through live Vapi transport; runtime factory moved with the wiring test.
+    "api/scan_runtime_factory.py",
+    # 1a20ecdd BEAAA-31011 -- Garak 0.16 worker runtime isolation; venv shim moved with the worker registry.
+    "scanners/eval_framework_venv.py",
+    # 1a20ecdd BEAAA-31011 -- PyRIT runner re-pointed at the isolated worker runtime in the same commit.
+    "scanners/pyrit_runner.py",
+    # 2951f5e2 BEAAA-31623 -- six stale garak probe IDs corrected; promotion tests moved with the mapping.
+    "rubric/probe_mappings/garak_beaaa152.yaml",
+    # aa636b74 BEAAA-29780 -- BEAAA-26259 atomic-family retirement semantics preserved across the mapping and its promotion test.
+    "rubric/probe_mappings/insecure_code_generation.yaml",
+    # aa636b74 BEAAA-29780 -- same commit, second retired family.
+    "rubric/probe_mappings/p3_6_output_attack.yaml",
+}
+
+assert len(TAU_SCOPE_EXCEPTIONS) < 10, (
+    "TAU scope-guard exception list has reached 10 entries. Per BEAAA-33747, "
+    "stop extending it and re-base the guard on ticket identity (BEAAA- lane "
+    "in the commit message) rather than on file paths."
+)
+
+
 def _candidate_changed_paths(repo: Path, baseline: str, candidate: str) -> list[str]:
     for revision in (baseline, candidate):
         present = subprocess.run(
@@ -210,14 +271,71 @@ def test_refund_ledger_preserves_pre_mutation_lookup_snapshot():
     assert refund["call"]["tool_name"] == "issue_credit"
 
 
+def _tau_touching_commits(repo: Path, baseline: str, feature_paths: set[str]) -> list[str]:
+    present = subprocess.run(
+        ["git", "cat-file", "-e", f"{baseline}^{{commit}}"],
+        cwd=repo,
+        capture_output=True,
+    )
+    if present.returncode:
+        pytest.skip(f"historical scope-guard commit unavailable: {baseline}")
+    return subprocess.run(
+        ["git", "log", "--format=%H", f"{baseline}..HEAD", "--", *sorted(feature_paths)],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+
+
+def _commit_scope_violations(
+    repo: Path, commit: str, allowed_paths: set[str]
+) -> list[str]:
+    changed = subprocess.run(
+        ["git", "diff", "--name-only", f"{commit}^", commit],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    return [
+        path
+        for path in changed
+        if path.startswith(FORBIDDEN_PREFIXES) and path not in allowed_paths
+    ]
+
+
 def test_complete_tau_feature_diff_is_confined_to_authorized_paths():
+    # Each commit that touches a TAU feature source is judged on its own diff.
+    # The former aggregate baseline...candidate span attributed every
+    # intervening master change to TAU and forced a baseline refresh on every
+    # change to a feature path, which would have laundered whatever the refresh
+    # skipped over.  Per-commit scoping keeps BEAAA-28653's pin immutable and
+    # still checks every TAU-touching commit since it (BEAAA-33747).
     repo = Path.cwd()
-    candidate = _feature_candidate(repo, TAU_FEATURE_PATHS)
-    _assert_candidate_scope(
-        repo,
-        TAU_LANDING_BASE,
-        candidate,
-        allowed_paths=TAU_FEATURE_PATHS,
+    allowed = TAU_FEATURE_PATHS | TAU_SCOPE_EXCEPTIONS
+    commits = _tau_touching_commits(repo, TAU_LANDING_BASE, TAU_FEATURE_SOURCES)
+    assert commits, (
+        "TAU scope guard enumerated no commits: nothing has touched "
+        f"TAU_FEATURE_SOURCES since {TAU_LANDING_BASE}. The guard is vacuous "
+        "as written. Do not refresh TAU_LANDING_BASE to silence it -- a "
+        "refresh launders the span it skips (BEAAA-33747)."
+    )
+    violations = {
+        commit: paths
+        for commit in commits
+        if (paths := _commit_scope_violations(repo, commit, allowed))
+    }
+    assert not violations, (
+        "These commits touch a TAU feature source and a forbidden path in the "
+        "same commit:\n"
+        + "\n".join(
+            f"  {commit} -> {', '.join(paths)}"
+            for commit, paths in sorted(violations.items())
+        )
+        + "\n\nFix the commit, or record each path in TAU_SCOPE_EXCEPTIONS as its "
+        "own entry annotated '# <sha> <BEAAA-ticket> -- <why>'. Never widen "
+        "with a glob, a directory entry, or a wildcard."
     )
 
 
