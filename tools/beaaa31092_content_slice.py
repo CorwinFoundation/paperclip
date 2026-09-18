@@ -1029,7 +1029,7 @@ def build_ledger(
                 reasons.append("provenance_mismatch")
             if ev.get("target_calls", 0) < 1:
                 reasons.append("unsupported_target_capability")
-            if ev.get("verdict") not in {"pass", "fail", "partial"}:
+            if str(ev.get("verdict") or "").casefold() not in ALLOWED_VERDICTS:
                 reasons.append("unsupported_verdict")
         rubric_point_id, rationale = SLICE_FAMILIES[row["family_id"]]
         disposition = "dropped_duplicate" if duplicate else ("scored" if not reasons else "held_reported_not_scored")

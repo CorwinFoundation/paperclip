@@ -227,6 +227,23 @@ def test_floor_admits_a_family_that_clears_every_clause(tmp_path):
     assert len(gate["families"][FAMILY]["pass"]["rounds"]) == MIN_MINORITY_SPAN
 
 
+def test_an_uppercase_verdict_is_read_like_its_lowercase_twin(tmp_path):
+    """BEAAA-33665: the ledger verdict read casefolds like its eleven siblings.
+
+    Nothing in the committed corpus writes mixed case, so this is latent: it is
+    a future judge or vendor export that would otherwise be held for an
+    ``unsupported_verdict`` it did not have.
+    """
+    upper = _ledger_with(tmp_path, ["PASS"] * 3 + ["FAIL"] * 9, controls=[_control()])
+    lower = _ledger_with(tmp_path, ["pass"] * 3 + ["fail"] * 9, controls=[_control()])
+
+    assert not any("unsupported_verdict" in row["hold_reasons"] for row in upper["rows"])
+    assert upper["evidenced"] == lower["evidenced"] == 12
+    assert len(_scored(upper)) == len(_scored(lower)) == 12
+    assert upper["tier1_families"] == lower["tier1_families"] == [FAMILY]
+    assert [row["hold_reasons"] for row in upper["rows"]] == [row["hold_reasons"] for row in lower["rows"]]
+
+
 def test_identical_response_with_opposite_verdicts_is_withheld_from_the_tier_decision(tmp_path):
     inventory = [_json.loads(line) for line in INVENTORY.read_text().splitlines() if line]
     digests = [row["dedupe_sha256"] for row in inventory if row.get("family_id") == FAMILY][:12]
