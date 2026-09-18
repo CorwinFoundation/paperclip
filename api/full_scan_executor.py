@@ -708,22 +708,7 @@ def build_attempt_manifest(
     verdict_counts = Counter(
         str(row.get("verdict") or "unresolved") for row in rows
     )
-    refused_rows = [row for row in rows if str(row.get("verdict") or "").lower() == "edge_refusal"]
-    untested_coverage = {
-        "count": len(refused_rows),
-        "rows": [
-            {
-                "probe_id": row["probe_id"],
-                "case_id": row["probe_id"],
-                "family_id": row.get("test_id") or row.get("framework"),
-                "refusing_party": (row.get("refusal") or {}).get("refusing_party"),
-                "reason": (row.get("refusal") or {}).get("reason"),
-                "provenance": (row.get("refusal") or {}).get("provenance", {}),
-                "evidence_ref": row.get("evidence_ref"),
-            }
-            for row in refused_rows
-        ],
-    }
+    untested_coverage = build_untested_coverage(rows)
     status_counts = Counter(str(row.get("status") or "unknown") for row in rows)
     budget = {
         "target_calls": sum(int(row.get("target_calls") or 0) for row in rows),
@@ -1515,6 +1500,71 @@ def unjustified_non_acquisition_rows(
             continue
         flagged.append(row)
     return flagged
+
+
+def build_untested_coverage(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Count every row the scan did not actually test, not just the refusals.
+
+    BEAAA-33966 TASK B.  This surface used to be built from one predicate --
+    ``verdict == edge_refusal`` -- so on the BEAAA-31092 rank-2 manifest it read
+    ``count: 0`` while 50 of 187 rows carried no evidence at all, 24 of them with
+    ``acquisition_basis: missing`` and ``incomplete_reason: null``.  A coverage
+    surface reporting zero untested while 50 rows are unevidenced is a false
+    all-clear, and these counts drive underwriting.
+
+    The rule is now the complement of :func:`evidenced_rows`, so it fails closed:
+    a row is untested unless it measured the target, derives from a declared
+    invariant, or justifies its non-acquisition under the BEAAA-33228 contract.
+    A row that states no basis and no reason has nowhere to hide -- it lands in
+    ``unevidenced_no_reason``.  Refusals stay listed with their refusal
+    provenance even though they are evidenced: the target's own behaviour
+    stopped the test, which is the original meaning of this surface.
+    """
+
+    rows = list(rows)
+    evidenced = {id(row) for row in evidenced_rows(rows)}
+    listed: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for row in rows:
+        refusal = row.get("refusal") or {}
+        refused = str(row.get("verdict") or "").lower() == "edge_refusal"
+        if not refused and id(row) in evidenced:
+            continue
+        if refused:
+            reason = str(refusal.get("reason") or "edge_refusal")
+            category = "edge_refusal"
+        else:
+            basis = str(row.get("acquisition_basis") or "") or None
+            stated = row.get("incomplete_reason") or row.get("na_evidence")
+            category = (
+                "unevidenced_with_reason" if stated else "unevidenced_no_reason"
+            )
+            reason = str(
+                row.get("incomplete_reason")
+                or (f"acquisition_basis:{basis}" if basis else "no_acquisition_basis")
+            )
+        seen.add(id(row))
+        listed.append(
+            {
+                "probe_id": row["probe_id"],
+                "case_id": row["probe_id"],
+                "family_id": row.get("test_id") or row.get("framework"),
+                "category": category,
+                "acquisition_basis": row.get("acquisition_basis"),
+                "status": row.get("status"),
+                "verdict": row.get("verdict"),
+                "refusing_party": refusal.get("refusing_party"),
+                "reason": reason,
+                "provenance": refusal.get("provenance", {}),
+                "evidence_ref": row.get("evidence_ref"),
+            }
+        )
+    counts = Counter(entry["category"] for entry in listed)
+    return {
+        "count": len(listed),
+        "counts_by_category": dict(sorted(counts.items())),
+        "rows": listed,
+    }
 
 
 EVIDENCED_ACQUISITION_BASES = frozenset({"target-measured", "invariant-derived"})

@@ -1,0 +1,237 @@
+{
+  "assistant_id": "09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+  "capabilities": [
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=approval_binding]",
+      "derivation": "recorded_declaration",
+      "name": "approval_binding",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=transaction_end_state]",
+      "derivation": "recorded_declaration",
+      "name": "transaction_end_state",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "Not named in the BEAAA-33199 census, so no per-capability line exists. The same recorded authenticated configuration snapshot in this artifact records the assistant's complete tool, server and hook surface as empty, and no capability can be implemented without one of those surfaces, so this artifact's own decision rule resolves the name to false.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/configuration_observed",
+      "derivation": "decision_rule_applied_to_same_observation",
+      "name": "authorization_lifecycle",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "Not named in the BEAAA-33199 census, so no per-capability line exists. The same recorded authenticated configuration snapshot in this artifact records the assistant's complete tool, server and hook surface as empty, and no capability can be implemented without one of those surfaces, so this artifact's own decision rule resolves the name to false.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/configuration_observed",
+      "derivation": "decision_rule_applied_to_same_observation",
+      "name": "delegated_authorization",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=session_authorization]",
+      "derivation": "recorded_declaration",
+      "name": "session_authorization",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=batch_idempotency]",
+      "derivation": "recorded_declaration",
+      "name": "batch_idempotency",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=browser_idempotency]",
+      "derivation": "recorded_declaration",
+      "name": "browser_idempotency",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=event_idempotency]",
+      "derivation": "recorded_declaration",
+      "name": "event_idempotency",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "Not named in the BEAAA-33199 census, so no per-capability line exists. The same recorded authenticated configuration snapshot in this artifact records the assistant's complete tool, server and hook surface as empty, and no capability can be implemented without one of those surfaces, so this artifact's own decision rule resolves the name to false.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/configuration_observed",
+      "derivation": "decision_rule_applied_to_same_observation",
+      "name": "non_idempotent_retry_safety",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=principal_idempotency]",
+      "derivation": "recorded_declaration",
+      "name": "principal_idempotency",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    },
+    {
+      "basis": "No implementing surface for this named capability appears in the captured assistant configuration; the authenticated snapshot records zero tools/tool IDs, no server URL, and no hooks.",
+      "basis_artifact": "artifacts/BEAAA-33199/capability-manifest.json",
+      "basis_artifact_sha256": "1e1981936009a95cd5f08d9f33e9b833e4178886f1fb10d5a5c9681d184f73be",
+      "basis_pointer": "#/capabilities[name=workflow_idempotency]",
+      "derivation": "recorded_declaration",
+      "name": "workflow_idempotency",
+      "observed_surface": {
+        "hooks": [],
+        "legacy_server_url": null,
+        "model_tool_ids": [],
+        "model_tools": [],
+        "server_url": null
+      },
+      "target_calls_spent": 0,
+      "upstream_capture_in_tree": false,
+      "upstream_capture_ref": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed",
+      "value": false
+    }
+  ],
+  "capability_manifest": {
+    "approval_binding": false,
+    "authorization_lifecycle": false,
+    "batch_idempotency": false,
+    "browser_idempotency": false,
+    "delegated_authorization": false,
+    "event_idempotency": false,
+    "non_idempotent_retry_safety": false,
+    "principal_idempotency": false,
+    "session_authorization": false,
+    "transaction_end_state": false,
+    "workflow_idempotency": false
+  },
+  "counts": {
+    "false": 11,
+    "total": 11,
+    "true": 0,
+    "undeclared": 0
+  },
+  "decision_rule": "true only when the captured assistant configuration contains a concrete model, tool/function, transcriber, transfer destination, or server/webhook surface implementing the named capability",
+  "issue": "BEAAA-33966",
+  "provenance_limitation": "Every declaration here is false and rests on one recorded observation of the target's authenticated configuration. That observation is read from the committed BEAAA-33199 capability manifest, hashed above. The raw capture it cites, artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.redacted.json#/preflight/observed, is not in this tree: artifacts/beaaa-19220/ does not exist. So the basis is a committed derived record of the probe, not the probe's own bytes. No capability is declared true, and no row is scored off these declarations.",
+  "schema": "backbond.vapi_capability_manifest/v1"
+}
