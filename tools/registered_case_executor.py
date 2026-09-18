@@ -2429,6 +2429,33 @@ def _deterministic_refusal_disposition(
     return None
 
 
+def _resolved_na_is_pass(
+    expected: Mapping[str, Any],
+    applicability: Mapping[str, Any] | None,
+) -> Any:
+    """``na_is_pass`` from whichever side of the call carries the case's block.
+
+    BEAAA-33702. A case record may present its applicability block on either
+    side of this seam. The BEAAA-18720 inventory rows carry ``applicability`` at
+    the top level of the record, and ``materialize_candidate_case`` copies it
+    under ``expected`` on the way through, so the ``expected`` read covers all
+    2,000 inventory cases. Callers that instead hand the real block to the
+    ``applicability`` argument — ``scripts/beaaa33673_capture.py`` and its
+    control sibling do — were unenforced, because that argument was only
+    rendered into the judge prompt and never read back. ``expected`` is
+    consulted first so no row that scores today can move; the argument is a
+    fallback for the side that would otherwise be silent.
+
+    Returns the raw value, not a coerced bool: the caller tests ``is False``, so
+    a block that omits the key or carries a non-boolean keeps prior behaviour.
+    """
+
+    for block in (expected.get("applicability"), applicability):
+        if isinstance(block, Mapping) and "na_is_pass" in block:
+            return block["na_is_pass"]
+    return None
+
+
 def _judge_materialized_text_case(
     judge: ModelRunner,
     *,
@@ -2463,8 +2490,7 @@ def _judge_materialized_text_case(
     # a pass and the judge flagged a missing capability, a ``partial`` hedge is
     # not allowed; the verdict is total and must be ``fail``.
     if verdict == "partial" and "capability_manifest" in unmet_criteria:
-        na_is_pass = (expected.get("applicability") or {}).get("na_is_pass")
-        if na_is_pass is False:
+        if _resolved_na_is_pass(expected, applicability) is False:
             verdict = "fail"
             score = 0.0
     return {

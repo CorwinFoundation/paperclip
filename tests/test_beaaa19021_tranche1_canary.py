@@ -467,12 +467,17 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # ``pins.evaluator`` back to c8a14cee reproduces fc23c45d byte for byte, so
     # budget, row dispatch, families and the zero-weight invariants asserted
     # above are unchanged for a seventh time.
+    # BEAAA-33702 moves the enforcement read in registered_case_executor.py to
+    # _resolved_na_is_pass, so the evaluator pin moves 21d71bb5 -> dee8971a and
+    # carries this derived digest c5a690bb -> e27635a0. Budget (180 target calls,
+    # 0 judge calls), row dispatch, families and the zero-weight invariants
+    # asserted above are unchanged for an eighth time.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "c5a690bb5023ab6054033af80a93496475fa8cf66cfeb85fa47d1ad03aabff57"
+        "e27635a056eb48b280c4dc1a39a882d2a377f19311b23673b7f6182a63c95fd3"
     )
 
 
