@@ -83,6 +83,19 @@ describe("isCodexUnknownSessionError", () => {
     expect(isCodexUnknownSessionError("", "state db returned stale rollout path for thread abc")).toBe(true);
   });
 
+  it("treats the paginated_threads resume rejection as a stale session", () => {
+    // Verbatim errorReason off Designer seat 60670b68 at 2026-09-18T14:33:04.070Z.
+    expect(
+      isCodexUnknownSessionError(
+        "",
+        "Error: thread/resume: thread/resume failed: paginated_threads is not supported yet (code -32601)",
+      ),
+    ).toBe(true);
+    expect(
+      isCodexUnknownSessionError("paginated_threads is not supported yet", ""),
+    ).toBe(true);
+  });
+
   it("does not classify unrelated Codex failures as stale sessions", () => {
     expect(isCodexUnknownSessionError("", "model overloaded")).toBe(false);
   });
