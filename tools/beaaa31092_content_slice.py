@@ -314,7 +314,18 @@ def _family_judge_digest(evidence_rows: list[dict[str, Any]]) -> str | None:
     if explicit:
         if len(explicit) != len(evidence_rows):
             return None
-        return _sole(explicit)
+        # BEAAA-33673. An explicit ``judge_config_digest`` IS the judge identity, so
+        # it is returned as-is. ``_sole`` must not be used here: it answers "the one
+        # digest shared by every input", i.e. ``_digest(value)``, which on this
+        # branch digests an already-final digest a second time. The value it
+        # returned could never equal the ``judge_config_digest`` a control carries,
+        # so every control hit ``judge_config_digest_mismatch`` and no run using an
+        # explicit digest could admit a control at all. The fallback branch below is
+        # unaffected: there the inputs are field dicts, and digesting them is the
+        # whole point. No committed manifest sets this field, so no existing ledger
+        # moves.
+        unique = set(explicit)
+        return explicit[0] if len(unique) == 1 else None
     return _sole([{field: row.get(field) for field in JUDGE_CONFIG_FIELDS} for row in evidence_rows])
 
 
@@ -513,6 +524,7 @@ def _tier_decision(
     inventory_rows: list[dict[str, Any]],
     evidence: dict[str, dict[str, Any]],
     controls: list[dict[str, Any]] | None,
+    roster_round: str = RUN_MANIFEST_SHA256,
 ) -> tuple[dict[str, Any], set[str], dict[str, Any], list[dict[str, Any]]]:
     """Verdict-spread tier gate, then demote every family that does not clear it.
 
@@ -524,6 +536,13 @@ def _tier_decision(
     predicate evaluates, incumbents included. There is no grandfather branch and no
     allowlist - a standard adopted because the old one admits on luck cannot leave
     the lucky admissions standing.
+
+    BEAAA-33673: ``roster_round`` is the round label every roster row is observed
+    under. It defaults to this slice's own ``RUN_MANIFEST_SHA256`` so behaviour here
+    is unchanged, and exists so a second slice built on a different run manifest can
+    stamp its own provenance instead of this one's. It is deliberately one value per
+    build: a roster capture is a single sampling moment however many cases it
+    contains, which is exactly what ``MIN_MINORITY_SPAN`` is there to measure.
     """
     spread: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -554,7 +573,7 @@ def _tier_decision(
             })
             continue
         observe(row["family_id"], str(row["verdict"]).casefold(), 1,
-                RUN_MANIFEST_SHA256, row["stable_case_id"])
+                roster_round, row["stable_case_id"])
 
     control_report = _admit_controls(controls, inventory_rows, evidence, rows, observe)
     tier1 = _tier1_families(spread)

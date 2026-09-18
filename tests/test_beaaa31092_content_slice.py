@@ -963,3 +963,64 @@ def test_the_digest_keyed_rows_stay_unbindable_so_the_control_channel_is_untouch
         "disposition": "held_reported_not_scored",
         "hold_reasons": ["unsupported_verdict"],
     })
+
+
+# BEAAA-33673. An explicit judge_config_digest on the manifest evidence rows is the
+# judge identity already; the explicit branch of _family_judge_digest used to hand it
+# to _sole, which returns _digest(value) and so digested a final digest a second time.
+# The value it produced could not equal the digest a control carries, so on any run
+# that sets the field EVERY control was rejected for judge_config_digest_mismatch and
+# the control channel was unusable. The tests below are deliberately non-circular:
+# they compare against a literal, not against _family_judge_digest's own output, which
+# is why the existing suite agreed with the defect.
+
+def test_explicit_judge_digest_is_returned_verbatim_not_rehashed():
+    from tools.beaaa31092_content_slice import _digest, _family_judge_digest
+
+    explicit = "4b" + "0" * 62
+    rows = [{"judge_config_digest": explicit} for _ in range(3)]
+    result = _family_judge_digest(rows)
+    assert result == explicit
+    # The precise regression: the pre-fix branch returned the digest of the digest.
+    assert result != _digest(explicit)
+
+
+def test_explicit_judge_digests_that_disagree_have_no_single_configuration():
+    from tools.beaaa31092_content_slice import _family_judge_digest
+
+    rows = [{"judge_config_digest": "a" * 64}, {"judge_config_digest": "b" * 64}]
+    assert _family_judge_digest(rows) is None
+
+
+def test_partially_explicit_judge_digests_have_no_single_configuration():
+    from tools.beaaa31092_content_slice import _family_judge_digest
+
+    rows = [{"judge_config_digest": "a" * 64}, {"model_version": "vapi:test@api.vapi.ai"}]
+    assert _family_judge_digest(rows) is None
+
+
+def test_field_fallback_branch_still_digests_its_inputs():
+    from tools.beaaa31092_content_slice import _digest, _family_judge_digest
+
+    fields = {"corpus_version": "beaaa-18720-1.0.0", "case_version": "1",
+              "model_version": "vapi:test@api.vapi.ai"}
+    rows = [dict(fields), dict(fields)]
+    # Unchanged behaviour: these inputs are not digests, so digesting them is the point.
+    assert _family_judge_digest(rows) == _digest(fields)
+
+
+def test_a_control_matching_the_manifest_digest_is_admitted():
+    """End to end over the asymmetry: the control carries exactly the string the
+    manifest evidence rows carry, which is what a capture script can actually emit."""
+    from tools.beaaa31092_content_slice import _control_rejections, _family_judge_digest
+
+    explicit = "4b" + "0" * 62
+    judge_digest = _family_judge_digest([{"judge_config_digest": explicit}])
+    control = {
+        "family_id": "f", "verdict": "pass", "n": 1, "status": "complete",
+        "acquisition_basis": "target-measured", "target_calls": 1,
+        "recorded_target_response": "a response no roster row produced",
+        "judge_config_digest": explicit,
+    }
+    reasons = _control_rejections(control, {}, set(), judge_digest, {}, {})
+    assert "judge_config_digest_mismatch" not in reasons

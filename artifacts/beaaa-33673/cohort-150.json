@@ -1,0 +1,2413 @@
+{
+ "issue": "BEAAA-33673",
+ "cohort_size": 150,
+ "pool_size": 607,
+ "inventory_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+ "inventory_path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+ "master_sha": "3a640ad9",
+ "selection_rule": "largest-remainder proportional allocation across the 18 remainder families; within family ascending stable_case_id; no reselection, no top-up",
+ "rows": [
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.01",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "152000e630e98a4d4a3ec580bd9e7d1539f926a5a768b65f261779e981ed22dd",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.02",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "624e7b1954a93b3fa848c81511a7acb9fae214cc7c9c5622eabc92c8231c38a7",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.03",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "cbca4fafeb95da0868f65c398179a4e55fcb19351e5beb13ca61dc69167c3eb7",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.04",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "1b9f122b4b8811d7fe7570347fce76f484b9069f6c07214b3adea9346efd1849",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.05",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ca1d57388c691db7c04fa474d4e77e894ec4d49d88d39dede0cded955abd1877",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.06",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[5]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "2036e4fbeaa64a114ede8b7d21918b9ddeea6dd1fcc99462fa7e179bb182b6fb",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.07",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[6]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "72b1435d5e447b2fc5cc511dcb32c46a40bc5e931b6a64acad3d7687ef6bbfa2",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.08",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[7]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ffc43fe3f6f85199ea79af675fbaee9ef92dc9b3b7d91936f510b323836760d5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.09",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[8]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dde2fcc749ea2d38bfb0e5dc256d58be7035c7af4412d1d7e36c4f6470d042d9",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.10",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[9]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "b40a42e2bcac2672ef32aa80bb6f1c3e8561193ad0498c712704d1fd75dcb08c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.11",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[10]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "bc9899d508b2a0e4e708ede5274992696ce03dff3c514333c6cb10ba5bafd6bc",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.12",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[11]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "44a07af358dd6171def508be954830934e197fa735966b10dba76fc7f0fe0f74",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.13",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[12]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dde69a570bc52a4aeeb514b17b8ca4d016886b4b46800b0fdfa0fdf33ace5d45",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.14",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[13]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "bf0a15437f1ff8d85a5a250180429a735f415a5a513e81d1e3be499ca3b7d22b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.15",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[14]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "6e2208d6b7dd12f5ac94c353ef41840784cf491a330e3a71f615818061d29b7a",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.16",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[15]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e0f1609a923df50099d33dcb72759dce5807b3e05a641b10827d7425f3f4bf94",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.17",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[16]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "9878a8532126724eaf0f407557bfeacb99d665c2dca7ed19b0ae03881cfd4256",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.18",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[17]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "b4c0562952d44668fa3148a85c2cfb98a409d061710db8c1a2db0494ae1f2725",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.19",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[18]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e7b6aad5894aacaa97c6c6f0615357cc8ec602e180875b0ea257eea4927cae51",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.20",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[19]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "618c03d91ce9c26b2645c0aafab610f6426aaf96113705998665f91bb5beb448",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.21",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[20]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f6ed5d49fc3a88d1c748be73688f4fa3c0656d9b24018e92d40793b2f55cb122",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.22",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[21]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "78e42b8e158b19cb0816398cb0be7fb90c63bcb55aadbb38e01bf98a7b2295b8",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.23",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[22]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "d6f9de8f3f7c3005911d069f796b9558f8cebacc126742337a180901d9e9ff2d",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.24",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[23]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "cf2ec7433f50710ae12e8d51457ec8dc0523c3947a8babe56d8e280b2a5904f1",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.25",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[24]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a957306f4b9189498e4ceb387bfd7a91eb90801cbd0beb2d11fb9112397b0efa",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.26",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[25]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "2e8f3d268f713bfa7a339a2900a24eb9614ac898deb20cfe281edba7b04fcf7b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.27",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[26]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f59c330519b3c643e477de38085245d24fdd472fcf0f5754285e2b60e7c41ea1",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.28",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[27]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "2cab4e6ba69457f4fad38d2ee09414da85f8aed31e3d35772dab322cf5c76a78",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.29",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[28]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "01979759970ac69622d6c3aa4166bed1626d1920a7faddb303ca32a6002226ca",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f1.st.30",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F1_statute.probes[29]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f12f1c86e10e54388177f640b7924b776695ea150736ceb221d0097c5c37f50b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "hallucination_legal",
+   "stable_case_id": "hl.f2.cs.01",
+   "source_of_record": "rubric/probe_mappings/hallucination_legal.yaml",
+   "object_locator": "families.F2_case.probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f34fcd51574142e4e0be179469003647ec4375a7223bc81d292143611a8660b4",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.001",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e6bf8e086c22ddefd9758d6947d3796cd453174481d9db410e3491297c3c28e6",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.002",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a3b1d35b8915fdd359dcb0b0dc9ec50f560ab2fad9296644d50eb758bd701a22",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.003",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "fab7dfccc78f327afc7ef536c6b51b7aa1985d9608fcc7a64bcf0d264cd9d22e",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.004",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "af88fc8b8b606ed91b3d683345132435dfc88ced809bdf06ea35823d922e8100",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.005",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "928e2c95784523ebc2c7de7da71fd59fc4917b47aeeab66323c3488149f16e93",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.006",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[5]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "bcba21acccfa7ace20011ea6bf7a07b98543b02ac5c040a6f03ad8c731279649",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.007",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[6]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dcff632b029af85f37e7744101d0f7d4aaaea863a334054c8c8f2fe493a06ab5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.008",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[7]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "454fadfa0da5ef85a64f14d67eb83d9c172416ff785c7ea2eb153ac0c6ec6fbe",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.009",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[8]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "adadd8502cc598522736e155a250f4d7404a5e2b926f0bb1ac2a32e11e18c35f",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.010",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[9]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e3a952592a478a5c37460a9c9399f10298485fa4a32975949996211645c5af1c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.011",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[10]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "854fdd25bd1972579d968169c985ae4b90a23b44f9e35651b3a32349ac992d5e",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.012",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[11]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e5c68b1afcfd7ecb58c183153edf0e6c2ff5aea4e17707293370de831b379a8c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.013",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[12]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ac51866618cffaacbe59a3960a8aaa96b059ce3d41783035107ba56c688310e5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.014",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[13]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "76003560996312527cbcc7014425f2b0992b88a43d57f3fa86bfec00c664e5d2",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.015",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[14]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "547a071ade3935fadde8282c3d0066812cbcfa1c07b8f3d1c6c947a96146ce99",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.016",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[15]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0a1187d59c0eb4d5e620e4a08b0ca6c2bc31d03463e98e1c628a6e5cc887cf85",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.017",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[16]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "8c02f0778dcb20985f8e732caf1e77379553073612384ec11df4760950a23310",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.018",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[17]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "d7f6532a0b335d271875c785f706155fb15387aadb62083177e1a8ee15f23d5e",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.019",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[18]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f48ac5f306ece6c7304d114187cbff4385d7453fd331cb82db9717d55f72db6c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.020",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[19]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c899855e89eb70d14aac6a40e0f53674fe358e7815c0048c0ab238837dd9d634",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.021",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[20]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0c50feb5765bd41d5ad23fd2dc6282a6ecdfc165c5452048a165db3045abcee5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.022",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[21]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "038fca1a62357d96784df5d835064da646d20a74073b7ac65d49250da4749514",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.023",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[22]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "27422bc468e8da397a43425b9f129e3aed0764100bb3333148a020d943f5e03a",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.024",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[23]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "5558eb2f554b12389f4bd6f578879311d4afb0ce701f9ac63c5b7145b9f8f6da",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "confidence_calibration",
+   "stable_case_id": "cc.easy.025",
+   "source_of_record": "rubric/probe_mappings/confidence_calibration.yaml",
+   "object_locator": "corpus.items[24]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "55e4ccfb978ce30a8cfaa0b4c4b40e8f2be72f97455ba3960ee82eefcd9f8d89",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.001",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0e9ec6d7d394b6e1ed4ac35c13079a0244079542d56a7492d7c1fea3dc11009c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.002",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "3dc24160272415431527f32564f641eec0817850aa5a2059d511f1418cd9e17c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.003",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "908afed817ce7702fee57487fe4d6cdf629d7938f42edb182ac7398aa4e7e3f8",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.004",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dfd8d1c69d37fd6ca93fdba70e964c4c9b067726f1c7e89a042aed515ca0e52f",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.005",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "179619c3258e00e452524c1de91641a3309b2757aa3ab29e38683bbfabdc9c75",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.006",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[5]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "760925e8f7a379b8f527729fd9583e7a2284344caad3dd51b3301101692aa8e0",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.007",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[6]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "6c7663872243e74129836adf36de38803629eda7a2af458e71785b89d251d713",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.008",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[7]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "9ddff396a1e13f60e96e7df448b9b3534054c62b49d21952edb1c1fd695c6a33",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.009",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[8]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "912ede2f9d44a5417a9939696e8035bd1d058454c604c690276bf4ab714cc951",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.010",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[9]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "7d010e29b5fe75410f17588740d05ac867138531e3e5f41e1ee5207a228e6ce2",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.011",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[10]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "7e23b28b36217770ded9c7c533652eed08e3ec2c37714f4abb561b2f45ba9513",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.012",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[11]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ed411ea239eb909017c2501449250f715d966d5119a946e676d7b69ea6087362",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.013",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[12]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c6eddcc8a34c875b87fda6aff2f3ad8279991554bf14bf12da9da83db6a445e6",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.014",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[13]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "2dfd854f2d96eb040d0662215ff4762457f03b4461837bbdb538243e011967ea",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.015",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[14]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "791e377edf5fef6df1ad243a39392b3199b551743148ac09f7e58f7b98b28003",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.016",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[15]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "71ec42e4a179bbb656d002b66844e3260353288efa5a20d44c11f41d41b73c1b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.017",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[16]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "74bf66540b1d853a218923fc5fcd7bc57ced9f92ee085ee2c0a7e8d6f821161f",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.018",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[17]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f050fa4b2c86bef302c071249fb72b2e1ef4a388e198ee57e678d6d9a833edfe",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.019",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[18]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "cdcca2dd7d13e0d9a40e7b4589b102a5729ef247175e61f454251e7093a49a2c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "citation_integrity_legal",
+   "stable_case_id": "cil.f1.020",
+   "source_of_record": "rubric/probe_mappings/citation_integrity_legal.yaml",
+   "object_locator": "families.F1_existence.probes[19]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0730102fcae0ea374cbc8dfa6692c5c81c1d15f13d6de991e707a99a82790959",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.01",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[36]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "bcb29d76464b725b788139e5d822dd379dea5d08985e94c75016d0f7af1f5535",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.02",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[37]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f85b37286cb3d6d26bd1437415f327bbb61b152aa4a4860d0abe8b0ea9be67cd",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.03",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[38]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "7fdd05ccc7b83faaf9e913899b0d88a1f67137520007ce1e4198bb80823e8bce",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.04",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[39]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dada3fb2d1dfcc64ad3594e839ee72c8e382e5275b57e5281deaa0b10cceb7dd",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.05",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[40]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c5510f03dbbab0e941aee4a43fb02d6f17329c09c913b8e3b3e414dfe551e2ba",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.06",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[41]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dbfaa363a4c3d94609781ebed3d5043192c8e7c5565713ec86e0dacec5a1e9fc",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.07",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[42]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c6cff69834e3de740a8d4db4f2ebc676b63ffb55f9a9ccd25336fcb28f4b117d",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.08",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[43]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "be00f1dd4150caba0d92ac3714682b0f897f6dc36d5adfd5fe07f58aaf8ae177",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.09",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[44]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ac49ce93d9b6d8324cf2f82e57cccb998945d9dac5cae4e4180ab307038e7849",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.10",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[45]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "b2a54540b809cabc551b05b901236053607d13fda49bebdb8096d6d9b3838938",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.11",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[46]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "97414404860420e4dc2c26fca4c6a2c0bccca0a77da886f22f1fcdb52e29d00c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.ag.12",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[47]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "14adca6513c9d0a91e6df711d186eb2b828ec3546be6db80485aa91ce1a07fdc",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.dr.01",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[12]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a950afd54b17f36bb677bed28a44f7cc32f82ad314f65053cf8522ed1d465714",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.dr.02",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[13]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "da154ea4adc2811a71b30ea2b5961d515f3ede9b24a2f5adb47f407bd946efe3",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "counterfactual_stability",
+   "stable_case_id": "cs.pair.dr.03",
+   "source_of_record": "rubric/probe_mappings/counterfactual_stability.yaml",
+   "object_locator": "seed_pairs[14]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "8454f47da5a2035ae93e04d88edb59e0d3099d43a74971f3c92d3c6f749b6c34",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.01",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e6af04a2f6622a2d460ebeb1f101b11c696a1bbfff78bf904f8a43e21d06d6ec",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.02",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "b5363d1c13a3f9d0774754ac08f936b35768a77566e10f9182ef323001169f32",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.03",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "8d5e071ddc0b1590c9ad5efa734997b7c5d4bb31f26d53285d03675072ec7ec8",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.04",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a260038d5b2e855b64946733f50cab30ae8cb4852b1dd2b3aa593c49da318f3f",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.05",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "130b0cad398e04bbd8ebed2e03e37f539e9d18c49e4abd13d1e5bc595b6c2bf1",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.06",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[5]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0e810ed087516556a4e2303ba94612668e96871fa6571d3f1e6138c5f1149dc4",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.07",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[6]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "40a31788c76a78857fb5928a7f06fcece1c1f79e5fbe2352baa4a8c0bb72aa54",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.08",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[7]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "fa3373df956a45071874c8d434a90f5bdf84f44155a4a1a659b26f7d6fdce298",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.09",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[8]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "27d0de9999adeab371d81dd3b4a18609f2a8aac6737cfe2150ca6bef7f876a98",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.10",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[9]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "7e5cbf9ec91bb588bded4b2cf43d4af4f47270f5bd14bf78b755b78e148bd9b6",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.11",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[10]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0e745bf1d88441fd2f157b5768507a320beb274f659366347ee3ab7d4eab32b3",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.12",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[11]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "67f8763cfa6a97d9a91b954c213230974669e97a811bf83dfe5522fc17bb133c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.13",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[12]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "997a19ec96b95172f7157dc90be7ea27dda551aec715741f8f94b1ddcc355976",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.14",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[13]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "6c959dd24ec9ca044bc9407fdcef2972944243604843e8359e73823751898ca6",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "self_contradiction_pairs",
+   "stable_case_id": "sc.add_irrelevant.15",
+   "source_of_record": "rubric/probe_mappings/self_contradiction_pairs.yaml",
+   "object_locator": "add_irrelevant_pairs[14]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "42f3b2db9ee7b2314b96203ad71a0852e248bc849e6d762de5f82b1b1015d9f2",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-001",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "70ef9c0efee3b6478d99bca91e5ee00b4686259b7b8264052a214ee8f2d10511",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-002",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "3db003bc1f85a2431e34df610257c020fdbe299ebe49ae742fcc420a377f2694",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-003",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "533999255038ad1c716e03e53dd3d0675076741cd6ec77f9edcaaaa010d19d53",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-004",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "1e0f5d866a8bcd01eb5a57886c1bef94dd8390acc057907c5b07ba9fbd31f83c",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-005",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "98d6837e2392e8440ad9a7d7e432f3652181cbeac434ec767dce50fe86341d16",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-006",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[5]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f75b3c7aa14d1c4a60198cf5e9da83bcc7fdd88fc39b8521b90a82633e6a1f28",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_1_factuality_golden",
+   "stable_case_id": "P1.1-FAC-007",
+   "source_of_record": "rubric/probe_mappings/p1_1_factuality_golden.yaml",
+   "object_locator": "probes[6]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "fbb4bb88528922b0144c83ff3e26570f99b81367fd33f131819d58f25a4516e7",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "stable_case_id": "P1.3-CON-001",
+   "source_of_record": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "3314022158a100a7e7bc031300a41a15f3f2448e994eccdc745b9b98932263c5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "stable_case_id": "P1.3-CON-002",
+   "source_of_record": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "247ebb6c6a1c91ddf62666624f8bd1886187e3a0e51cc8f742568d236abe5a16",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "stable_case_id": "P1.3-CON-003",
+   "source_of_record": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "aa4c2b047050dad259d4d2ce1db2d5e72cbe2190af87e99868e8e2302e62a572",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "stable_case_id": "P1.3-CON-004",
+   "source_of_record": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+   "object_locator": "probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "0a97277bc5d6d98aff26c0a274385a1fd9cb44ac99631cae0575f71570049230",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_3_consistency_golden",
+   "stable_case_id": "P1.3-CON-005",
+   "source_of_record": "rubric/probe_mappings/p1_3_consistency_golden.yaml",
+   "object_locator": "probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "9203f5b5e91e185043ae11e753e5a661ed70a464ca72792a8d902c5a31090312",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_4_refusal_golden",
+   "stable_case_id": "P1.4-REF-001",
+   "source_of_record": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ec98f4ec6d7ba5b61a331f0371678772349f761216a28386a60af0391b325e1a",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_4_refusal_golden",
+   "stable_case_id": "P1.4-REF-002",
+   "source_of_record": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "6090b215da5de31b033ce60ee05915b5de2a98a626a070ebdf237d787ba48028",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_4_refusal_golden",
+   "stable_case_id": "P1.4-REF-003",
+   "source_of_record": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "3ab8979f94ddb072a8d339a1e2dd1ef0286f93b7c5184577e839385f029db918",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_4_refusal_golden",
+   "stable_case_id": "P1.4-REF-004",
+   "source_of_record": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+   "object_locator": "probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "86da9e68ef0bc77b718c8282603a1fff03c194da35ed47d4e7b0386527ac5b64",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_4_refusal_golden",
+   "stable_case_id": "P1.4-REF-005",
+   "source_of_record": "rubric/probe_mappings/p1_4_refusal_golden.yaml",
+   "object_locator": "probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "561911ed266c88d1b7e41592dabe771f90227853f0dab80b3ecc12a4def03806",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_5_calibration_golden",
+   "stable_case_id": "P1.5-CAL-001",
+   "source_of_record": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "d2fb13fc6bb7ab5563b57f0ef2735d8c7a5f4c0ef6ce9daa78d22b410fded369",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_5_calibration_golden",
+   "stable_case_id": "P1.5-CAL-002",
+   "source_of_record": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "5784cf170552db39e39c362f5cc7656e78cb7102ad6853d23d6e24ce677ecc5a",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_5_calibration_golden",
+   "stable_case_id": "P1.5-CAL-003",
+   "source_of_record": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c7d2b9d4d6b3b5bf9d1bf8b5d0295f3fffda0901669c3d0af169b42825fe86e5",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_5_calibration_golden",
+   "stable_case_id": "P1.5-CAL-004",
+   "source_of_record": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
+   "object_locator": "probes[3]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e9d89d6eceb29854bba93942ef85cf14b60e0c8eff905b962b2877d3bf238971",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p1_5_calibration_golden",
+   "stable_case_id": "P1.5-CAL-005",
+   "source_of_record": "rubric/probe_mappings/p1_5_calibration_golden.yaml",
+   "object_locator": "probes[4]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e8334d8ea468966621962638a631014479991e0f30f6f7f4852da40d7ef6cd61",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "peril_tool_grounded_factuality",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.062673d2b77717c9",
+   "source_of_record": "corpus/wave0/beaaa-15688-authored-scenarios.jsonl",
+   "object_locator": "line:12",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "ceeb2c177ad9d1b3f7b9491db65557660b538e6486321b7452363467ddbf4754",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "peril_tool_grounded_factuality",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.0c5a982cc38c362a",
+   "source_of_record": "corpus/wave0/beaaa-15688-authored-scenarios.jsonl",
+   "object_locator": "line:23",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "20c5a0c53268227ee7b33fa4d6f61c0dbc3f57c71322b7a6a4d8d244a49e944b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "peril_tool_grounded_factuality",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.15df53026f7e9678",
+   "source_of_record": "corpus/wave0/beaaa-15688-authored-scenarios.jsonl",
+   "object_locator": "line:15",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e7699bcc612c72d3bac53913f61e8d5bbe8b9a11b5f9f42b6b83ec4593cfc27a",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_1_demographic_parity_gap",
+   "stable_case_id": "P2.1-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "16305181430a9a3fa891058226b05a9d680d9da3ff28a3624afb728b3a6fa080",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_1_demographic_parity_gap",
+   "stable_case_id": "P2.1-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dc7b10c4f8739498299fc58a80e6f19164e37a5d316715bdbfc760bde334f38b",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_1_demographic_parity_gap",
+   "stable_case_id": "P2.1-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_1_demographic_parity_gap.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "dddc0e9ebad632bd5a6ba66d1e17bf39bc47d24ffb3600b0177e63087e4e5677",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_2_equal_opportunity_gap",
+   "stable_case_id": "P2.2-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "3658000e609d441d65c50fe6b8504ca6936f833846ce2be2f2d7966d935675fb",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_2_equal_opportunity_gap",
+   "stable_case_id": "P2.2-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "1d49ac265fb8aa3a2fd5e0d71e722b6a35e29f1ec93f02d7babd7613728d9e5d",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_2_equal_opportunity_gap",
+   "stable_case_id": "P2.2-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_2_equal_opportunity_gap.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "f7cbc5491baaafcf2f3b934666cdb8a7c1b6ecc5940fc8b4862e702181f68341",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "stable_case_id": "P2.3-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_3_counterfactual_stability.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "21ed1ec3ba3d1b8c7231315f49e1b4c6d16bf11648b85072543e01f2ce359e00",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "stable_case_id": "P2.3-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_3_counterfactual_stability.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "5a4c5fe68779ad420aa4ea0224abe9f0575a20415953eda13526f6b40f2a8098",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_3_counterfactual_stability",
+   "stable_case_id": "P2.3-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_3_counterfactual_stability.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "e30fc89fc9dc0b430c52c78f2d73f41a339e67f2d9652bcc42a931a5b8166164",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_4_eval_representation",
+   "stable_case_id": "P2.4-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_4_eval_representation.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "27427c4f98689a9e8d614c9d3f887c9f78b363eeb2a080d2ec6a9b909eb58c9e",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_4_eval_representation",
+   "stable_case_id": "P2.4-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_4_eval_representation.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "035ba6d369b7a61102236c36a0eba849c50f3552cc4a81bfd6e5c0e50abad27e",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_4_eval_representation",
+   "stable_case_id": "P2.4-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_4_eval_representation.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a138db40269d0b9cb05eea6438378671b4b00791aeb2d30623ce8f06eb70dbd2",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "stable_case_id": "P2.5-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "a8ee0a2892ed3aa76041dd1a6f3a240f10c3458a539b1e23c4667e762353fcdb",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "stable_case_id": "P2.5-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "c6f31ede3865623ca25ad52a435e013d529db001fb391a75ca68116ec5036855",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "stable_case_id": "P2.5-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_5_sentiment_skew_by_attribute.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "4c2b83f758014be0bfee4748ac874021babfa4674ab582e35c54558e1d1cd73d",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_6_mitigation_evidence",
+   "stable_case_id": "P2.6-BIAS-01",
+   "source_of_record": "rubric/probe_mappings/p2_6_mitigation_evidence.yaml",
+   "object_locator": "probes[0]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "1a1f2f127e6729a0db373da9c6c86f2d0fdd4a51d4998ce7a7d68fcd21668f89",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_6_mitigation_evidence",
+   "stable_case_id": "P2.6-BIAS-02",
+   "source_of_record": "rubric/probe_mappings/p2_6_mitigation_evidence.yaml",
+   "object_locator": "probes[1]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "7f8f9146748137fbe6581a4a2d21cfd0302efe5ae70eb41c84753a537a72e10d",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "p2_6_mitigation_evidence",
+   "stable_case_id": "P2.6-BIAS-03",
+   "source_of_record": "rubric/probe_mappings/p2_6_mitigation_evidence.yaml",
+   "object_locator": "probes[2]",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "6673ca5359a2e7e98c63d6ea349da10663848bef161dadce5bc6ecd44aa044fc",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  },
+  {
+   "family_id": "peril_data_containment",
+   "stable_case_id": "wave0.peril_data_containment.0494172b2e01d960",
+   "source_of_record": "corpus/wave0/beaaa-15688-authored-scenarios.jsonl",
+   "object_locator": "line:5",
+   "reporting_status": "reported_not_scored",
+   "dedupe_sha256": "29ef93596b6eff4e13303eb1625f8b1c3ff3794923290aa228ab57a8c3c23063",
+   "na_rule": "N/A requires applicability evidence and is never PASS",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ]
+  }
+ ],
+ "intra_cohort_dedupe_collisions": 0,
+ "pool_dedupe_collisions": 0
+}
