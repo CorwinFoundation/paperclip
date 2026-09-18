@@ -29,9 +29,10 @@ from harness.runner import ModelRunner, OpenRouterRunner
 
 SURFACE_CENSUS_PATH = Path(__file__).resolve().parent / "data" / "beaaa29961_surface_census.json"
 
-# The digest recorded on BEAAA-29961 when the CTO accepted the census.  A
-# mismatch means the routing input is not the artifact the board accepted.
-SURFACE_CENSUS_SHA256 = "65344773af06736e82abac03d9118c5d09e2be2767a9759b3dda566cd1865ced"
+# The digest of the accepted BEAAA-29961 census, re-pinned on BEAAA-33657 when
+# ``approval_preview_mutation_binding`` was corrected off ``prose``.  A mismatch
+# means the routing input is not the artifact the board accepted.
+SURFACE_CENSUS_SHA256 = "0e03d988012d0b08776d7475960e55c6351be11c9abc24a0157fa7f612e6b4e9"
 
 # Vapi is a zoo surface in the census and is excluded from the scheduled zoo
 # lane.  Nothing else in this module names it.
@@ -46,6 +47,10 @@ SURFACE_FLAGS = {
     "code_execution": "has_code_execution",
     "browser": "has_browser",
     "voice": "has_voice",
+    # No zoo target declares this and no capability manifest carries the flag:
+    # ``approval_preview_mutation_binding`` asserts over a preview-to-mutation
+    # API, which is not a surface anything we drive can present (BEAAA-33657).
+    "approval_binding": "has_approval_binding",
 }
 
 DEFAULT_ZOO_MODEL = "anthropic/claude-haiku-4.5"

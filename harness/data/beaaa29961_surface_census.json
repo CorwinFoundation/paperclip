@@ -98,7 +98,8 @@
   "counts": {
     "applicable": 138,
     "incomplete": 0,
-    "routed": 138,
+    "routed": 137,
+    "unroutable": 1,
     "verdict": 0
   },
   "families": [
@@ -164,12 +165,12 @@
     },
     {
       "family": "approval_preview_mutation_binding",
-      "reason": "compatible_targets=browser,coding,mcp,paperclip,rag,vapi",
+      "reason": "no_compatible_target:surfaces=approval_binding",
       "required_surfaces": [
-        "prose"
+        "approval_binding"
       ],
-      "status": "routed",
-      "target": "browser",
+      "status": "unroutable",
+      "target": null,
       "verdict": "pending"
     },
     {

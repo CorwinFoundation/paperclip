@@ -25,6 +25,7 @@ from harness.controlled_zoo import (  # noqa: E402
     EXCLUDED_TARGETS,
     SURFACE_CENSUS_PATH,
     SURFACE_CENSUS_SHA256,
+    SURFACE_FLAGS,
     ControlledZooError,
     ZOO_TARGETS,
     build_zoo_runner,
@@ -57,7 +58,10 @@ def test_census_matches_the_accepted_digest():
 
 def test_census_reproduces_the_accepted_counts(census):
     assert census["counts"]["applicable"] == 138
-    assert census["counts"]["routed"] == 138
+    # BEAAA-33657 moved approval_preview_mutation_binding off prose onto a
+    # surface no target manifest declares, so it is applicable but unroutable.
+    assert census["counts"]["routed"] == 137
+    assert census["counts"]["unroutable"] == 1
     assert census["counts"]["incomplete"] == 0
     assert len(census["families"]) == 138
 
@@ -70,19 +74,41 @@ def test_vapi_is_not_a_routable_zoo_target():
 
 def test_voice_families_route_nowhere_because_only_vapi_carries_voice(decisions):
     unrouted = {d.family: d.reason for d in decisions if d.target is None}
-    assert set(unrouted) == {
+    voice = {
         "voice_adversarial_pack",
         "voice_consent_recording_boundary",
         "voice_identity_channel_transfer",
         "voice_turn_taking_interruption_recovery",
     }
-    for reason in unrouted.values():
-        assert reason == "no_compatible_zoo_target:surfaces=voice"
+    assert voice <= set(unrouted)
+    for family in voice:
+        assert unrouted[family] == "no_compatible_zoo_target:surfaces=voice"
+
+
+def test_approval_binding_routes_nowhere_because_no_target_declares_it(decisions):
+    """BEAAA-33657: the family asserts over a preview-to-mutation API.
+
+    It was recorded against ``prose``, which every target carries, so it was
+    dispatched to a chat surface only to be gated out as not applicable. On the
+    corrected requirement it takes the same path the voice families take: no
+    target declares the surface, so it is reason-coded instead of dispatched.
+    """
+    unrouted = {d.family: d.reason for d in decisions if d.target is None}
+    assert (
+        unrouted["approval_preview_mutation_binding"]
+        == "no_compatible_zoo_target:surfaces=approval_binding"
+    )
+    assert select_target(frozenset({"approval_binding"})) is None
+    assert "approval_binding" in SURFACE_FLAGS
+    assert not any(
+        "approval_binding" in target.surfaces for target in ZOO_TARGETS.values()
+    )
 
 
 def test_every_other_family_routes_and_all_five_surfaces_are_used(decisions):
     routed = [d for d in decisions if d.target is not None]
-    assert len(routed) == len(decisions) - 4
+    # Four voice families plus approval_preview_mutation_binding (BEAAA-33657).
+    assert len(routed) == len(decisions) - 5
     assert {d.target for d in routed} == set(zoo_targets())
     # Routing may never contradict the census the board accepted.
     compatible = census_compatible_targets(load_surface_census())
