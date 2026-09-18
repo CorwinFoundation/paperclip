@@ -81,7 +81,31 @@ version: "1.3.0"
 # (tools/calibration-deltas/2026-07-05-v1.2.0-locked-vs-v1.2.0-relock.md).
 # Δ0 → CTO-unilateral per scanner-implementation-supervision-v1.md@v1.0 (no
 # score motion = no UW/CEO co-sign gate); UW notified on BEAAA-11915. ADR-0048.
-locked_through: "2026-08-04"
+# BEAAA-33707 (lock-lapse repair, CTO 2026-09-18): the 2026-08-04 window
+# lapsed on 2026-08-05 and ran 45 days stale, stamping rubric_locked_through on
+# every scan response (rubric/scoring.py:478) and on the trust page
+# (tools/trust_page/render.py:148). Re-locked to 2026-10-18 - a 30-day
+# monthly-cadence window on the same basis as the 2026-07-05 re-lock.
+# Content certification: rubric.yaml is byte-identical to 70b333d5 (2026-07-18,
+# "Fix active dimension count docs"); `git diff 70b333d5 origin/master --
+# rubric/rubric.yaml` is empty. This commit changes only this comment and the
+# locked_through date - no dim, weight, band, curve, or scoring-math change.
+# `locked_through` is non-scoring metadata: loaded at rubric/scoring.py:185 into
+# Rubric.locked_through, re-emitted at :478, and read by tools/trust_page for
+# the render envelope. No scoring path branches on it, so the golden N=5 delta
+# is d0 by construction and the golden expected_score.json fixtures move on
+# this one field only. d0 -> CTO-unilateral per the 2026-07-05 precedent (no
+# score motion = no UW/CEO co-sign gate). HoUW notified on BEAAA-33707.
+# For the record: rubric content DID land inside the 2026-07-05 -> 2026-08-04
+# window (a38d3195, 833c3b3b, f489b9fc, cdb04719, 70b333d5 - each gated on its
+# own merge). locked_through is a re-affirmation horizon, not evidence that no
+# change landed within the window. Outward copy should say "versioned and
+# locked through <date>", not "frozen" unqualified.
+# Version note: the BEAAA-11915 block above says "rubric 1.2.0" while `version:`
+# reads 1.3.0. The block is correct as authored - the file was 1.2.0 on
+# 2026-07-05; the bump to 1.3.0 post-dates it (a38d3195, 2026-07-10, P3.5/P3.6
+# activation). Not a stale note, no repair needed.
+locked_through: "2026-10-18"
 
 # v0.1.3 additive (BEAAA-130 rec A+B, 2026-05-08): top-level provenance block,
 # per-pillar `purpose` / `pack_sources` / `raw_mapping`, and per-dim `frameworks`

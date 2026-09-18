@@ -19,7 +19,7 @@ display surface for the score and the report card.
 - Scanner: `0.5.0` (`SCANNER_VERSION` in `scanners/__init__.py`;
   BEAAA-6190 v0.5 RC cut — release-cut stamp only, rubric + contract
   literals held per the version note in `scanners/__init__.py`)
-- Rubric: `1.3.0`, locked through `2026-08-04` (`rubric/rubric.yaml`;
+- Rubric: `1.3.0`, locked through `2026-10-18` (`rubric/rubric.yaml`;
   P3.5/P3.6 robustness dimensions activated with refreshed golden fixtures)
 - Contract: `are-scanner-api-v1@v1.3.0`
   (`contracts/are-scanner-api-v1.md` frontmatter + `CONTRACT_VERSION`;
