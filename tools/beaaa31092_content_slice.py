@@ -15,7 +15,7 @@ MANIFEST_SHA256 = "5b399d02d1229e99246ad709cf5213188e5f13f5b9cc49a4a26a4a5f0bb4c
 # BEAAA-31116 controlled rerun e1332067: the manifest that actually carries this
 # roster's target-measured rows. The BEAAA-30720 manifest above names refs inside
 # job a935915a and binds none of them, so it stays pinned for provenance only.
-RUN_MANIFEST_SHA256 = "f1f32147343717e506ae15ca351d8d0c0f02c1f3e8dbe9469d50d45ab42a59d7"
+RUN_MANIFEST_SHA256 = "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
 # BEAAA-31092 CEO ruling 2026-09-16: a family is score-eligible only if it returned
 # both verdicts against the live target. An all-fail family cannot be told apart
 # from a probe that always fails, so it is held until a positive control exists.
@@ -1290,6 +1290,14 @@ def main() -> int:
                              "without re-running the tier gate")
     parser.add_argument("--retier", type=Path, default=None,
                         help="re-apply the current tier gate to an existing ledger instead of rebuilding it")
+    # BEAAA-33992. The stamp used to be added to the artifact by hand after the
+    # build, which is how a file can end up quoting counts the code no longer
+    # produces. It is an argument now, so the artifact is derived end to end and
+    # the sha it names is the commit the build actually ran at.
+    parser.add_argument("--stamp-sha", default=None, help="commit sha this build ran at")
+    parser.add_argument("--stamp-at", default=None, help="ISO-8601 build timestamp for the stamp")
+    parser.add_argument("--stamp-issue", default=None, help="issue that authored this build")
+    parser.add_argument("--stamp-notice", default=None, help="reader-facing notice on the stamp")
     args = parser.parse_args()
     controls = json.loads(args.controls.read_text(encoding="utf-8")) if args.controls else None
     if args.redetermine is not None:
@@ -1301,6 +1309,16 @@ def main() -> int:
     else:
         ledger = build_ledger(args.inventory, args.manifest, args.evidence_dir, args.job_id, controls,
                               args.determinations)
+    if args.stamp_sha:
+        if not (args.stamp_at and args.stamp_issue and args.stamp_notice):
+            parser.error("--stamp-sha requires --stamp-at, --stamp-issue and --stamp-notice")
+        ledger["provenance_stamp"] = {
+            "built_at": args.stamp_at,
+            "built_at_sha": args.stamp_sha,
+            "built_by_issue": args.stamp_issue,
+            "notice": args.stamp_notice,
+            "stamped_by_issue": args.stamp_issue,
+        }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 0 if ledger["held"] == 0 else 2

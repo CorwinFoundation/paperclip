@@ -73,21 +73,36 @@ def test_missing_required_is_zero_and_the_manifest_is_bind_eligible(manifest: di
     assert manifest["bind_eligibility"] == "eligible"
 
 
-def test_the_unjustified_non_acquisition_rows_still_block_the_gate(manifest: dict) -> None:
-    """The gap the re-derivation does not close, pinned so it cannot go quiet.
+def test_the_twenty_four_rows_no_longer_block_the_gate(manifest: dict) -> None:
+    """The gap the re-derivation left open, closed by BEAAA-33992.
 
-    These twenty-four rows carry ``verdict: fail`` with no recorded target
-    response.  Until they are captured or dispositioned by a ruling, the
-    four-way acceptance-gate equality is false and the ledger cannot rebuild.
+    CTO ruling 2026-09-18 (``surface``): each of the twenty-four rows keeps its
+    fail-closed ``fail`` and carries the ``observational_rejection`` its own
+    evidence file already records, copied into ``na_evidence`` by the branch at
+    ``api/full_scan_executor.py:1313``.  ``api/full_scan_executor.py:1597``
+    already exempts a zero-judge-call ``fail`` that carries one, so these rows
+    were never in the BEAAA-33228 defect class - the manifest projection simply
+    dropped the field.  Both halves are pinned: the count stays at twenty-four
+    so none can be quietly dispositioned away, and the gate they used to block
+    now passes.
     """
     gate = manifest["acceptance_gate"]
-    assert manifest["counts"]["unjustified_non_acquisition"] == 24
-    assert manifest["counts"]["evidenced"] == 163
+    assert manifest["counts"]["unjustified_non_acquisition"] == 0
+    assert manifest["counts"]["evidenced"] == 187
+    surfaced = [
+        row for row in manifest["evidence_rows"]
+        if (row.get("na_evidence") or {}).get("observational_rejection")
+        and row.get("test_id") in {
+            "tool_misuse_unauthorized_call", "tool_misuse_scope_escape"}
+    ]
+    assert len(surfaced) == 24
+    assert all(row["verdict"] == "fail" for row in surfaced)
+    assert all(row["target_calls"] == 0 for row in surfaced)
     assert gate["canonical_reconciliation_equal"] is True
     assert gate["incomplete_false"] is True
     assert gate["zero_unapproved_missing_required"] is True
-    assert gate["expected_attempted_terminal_evidenced_equal"] is False
-    assert gate["passed"] is False
+    assert gate["expected_attempted_terminal_evidenced_equal"] is True
+    assert gate["passed"] is True
 
 
 def test_the_pin_tracks_the_committed_bytes() -> None:
@@ -120,9 +135,11 @@ def test_rederivation_is_idempotent(tmp_path: Path) -> None:
     summary = rederive(MANIFEST_PATH, DECLARATIONS_PATH, out)
     assert summary["changed"] == 0
     assert summary["missing_required"] == 0
-    assert summary["evidenced"] == 163
-    assert summary["unjustified_non_acquisition"] == 24
-    assert summary["acceptance_gate_passed"] is False
+    # BEAAA-33992 surfaced the other 24 rows' recorded observational rejection,
+    # so every row in the population is now evidenced.
+    assert summary["evidenced"] == 187
+    assert summary["unjustified_non_acquisition"] == 0
+    assert summary["acceptance_gate_passed"] is True
 
     produced = json.loads(out.read_text(encoding="utf-8"))
     committed = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))

@@ -35,7 +35,27 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # added and 0 removed, and the branch adds exactly 11 rows over that baseline:
     # the 8 executable cases plus 3 fixture_test_only fixture files. Prior pin
     # 774b614b...e715f came from BEAAA-33568.
-    "b4b6e143783185d591099ca9b04a8f3cc9a3b876d692c00066f989aa7e686331"
+    #
+    # Re-pinned for BEAAA-33992. This one moves NO row into or out of the
+    # registry and changes exactly one field on the rows it touches. Building the
+    # registry at origin/master (96c35b7f) and at this branch and diffing row by
+    # row: 0 added, 0 removed, 43 changed -- the 43 scored rank-2 rows, 22 in
+    # approval_freshness_replay and 21 in authorization_revocation_race -- and on
+    # every one of them the sole differing field is
+    # `execution_evidence_run_manifest_sha256`,
+    # ab9fdb03...92607cb -> d73af798...4efe3d7e6.
+    #
+    # That field is a provenance pointer the rows read off the rank-2 ledger's
+    # `run_manifest_sha256`, and the move is a repair: master's committed ledger
+    # named ab9fdb03 while the manifest committed beside it hashed f1f32147, so
+    # the pointer was stale before this branch touched it. It now names the bytes
+    # it is stored next to.
+    #
+    # `scoring_active`, `reporting_status`, `attestation_tier` and every evidence
+    # field are unmoved on all 2,498 rows, so no row entered the scored set and
+    # the BEAAA-33992 fence holds. Counts are unchanged at 2,361 / 2,361 / 2,360,
+    # asserted below. Prior pin b4b6e143...e686331 came from BEAAA-33810.
+    "dc6ec6ba0d116efd0d87d7baee57c58f6c787255516bf2b0a69d4895a4dfd588"
 )
 
 

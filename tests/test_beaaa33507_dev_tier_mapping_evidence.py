@@ -24,8 +24,14 @@ from tools.active_test_registry import (
 )
 
 LEDGER = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-ledger.json"
+# The manifest the committed rank-2 ledger was built against. It moved twice on
+# the same population: BEAAA-33970 re-derived the 26 capability-gated rows and
+# BEAAA-33992 surfaced the 24 observational rejections, and the ledger was
+# re-authored against the result. This value tracks the ledger's own
+# ``run_manifest_sha256``, so it is the one output-visible byte those two cards
+# move; the rows it stamps are unchanged.
 RUN_MANIFEST_SHA256 = (
-    "ab9fdb0304b614e0689536b5bb8bd4a933591c3a0543472f523a2097992607cb"
+    "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
 )
 
 

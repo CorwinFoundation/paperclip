@@ -21,51 +21,95 @@ def _committed() -> dict:
     return json.loads(drift.LEDGER.read_text(encoding="utf-8"))
 
 
-def test_the_rebuild_path_really_does_raise_on_the_pinned_manifest():
-    """The premise. If this ever stops raising, the tests below stop being about drift."""
-    from tools.beaaa31092_content_slice import build_ledger
+# BEAAA-33992. Every case below that patches ``build_ledger`` still has to hand
+# the check a root, because "no evidence export" is now its own early finding and
+# would otherwise mask what the case is actually about. The path is never read on
+# those paths - the builder is patched out - so a bare tmp dir is honest here.
+def _stub_root(tmp_path) -> Path:
+    root = tmp_path / "evidence-export"
+    root.mkdir()
+    return root
+
+
+def test_the_pinned_manifest_now_binds_and_an_unfit_one_still_raises():
+    """The premise, restated after BEAAA-33992 moved it.
+
+    This used to assert the pinned manifest was refused, which was the premise of
+    the cases below: an unrunnable rebuild. BEAAA-33970 cleared four unfitness
+    terms and BEAAA-33992 cleared the fifth, so the pinned manifest binds now and
+    asserting a refusal on it would pin a defect. The fail-closed behaviour is
+    asserted directly instead, on a manifest that really does disown itself.
+    """
+    from tools.beaaa31092_content_slice import _assert_manifest_fit_to_bind
+
+    manifest = json.loads(drift.RUN_MANIFEST.read_text(encoding="utf-8"))
+    assert _assert_manifest_fit_to_bind(manifest)["unfit_reasons"] == []
+
+    manifest["acceptance_gate"] = {**manifest["acceptance_gate"], "passed": False}
     with pytest.raises(ValueError, match="unfit to bind"):
-        build_ledger(drift.INVENTORY, drift.RUN_MANIFEST, controls=drift.CONTROLS)
+        _assert_manifest_fit_to_bind(manifest)
 
 
-def test_an_unrunnable_rebuild_is_reported_not_swallowed():
+def test_a_missing_evidence_export_is_one_explicit_finding(tmp_path):
+    """BEAAA-33992: the check must not mistake its own missing input for drift.
+
+    ``recorded_target_response`` is never carried by the manifest - it is read
+    from the evidence export the row names. Called without a root, every one of
+    the 187 rows holds ``missing_recorded_target_response`` and the rebuild scores
+    zero, which this check used to report as ~200 field differences against the
+    committed ledger. That is unreadable and it is not drift. One finding now,
+    and it names the flag that fixes it.
+    """
     findings = drift.check_ledger_reproducible()
+    assert findings == [drift.NOT_COMPARABLE], findings
+    assert "--evidence-root" in drift.NOT_COMPARABLE
+    assert drift.EVIDENCE_ROOT_ENV in drift.NOT_COMPARABLE
+
+
+def test_an_unrunnable_rebuild_is_reported_not_swallowed(monkeypatch, tmp_path):
+    """Fail-closed: a rebuild that raises is a finding, never a quiet pass."""
+    def _raise(*_args, **_kwargs):
+        raise ValueError("run manifest declares itself unfit to bind verdicts")
+
+    monkeypatch.setattr(drift, "build_ledger", _raise)
+    findings = drift.check_ledger_reproducible(evidence_root=_stub_root(tmp_path))
     assert findings, "the check passed while the rebuild path cannot run"
     assert any(f.startswith(drift.NOT_REPRODUCIBLE) for f in findings), findings
     raised = [f for f in findings if f.startswith(drift.NOT_REPRODUCIBLE)][0]
     assert "raised ValueError" in raised, raised
 
 
-def test_the_cli_exits_nonzero_while_the_rebuild_cannot_run(capsys):
+def test_the_cli_exits_nonzero_when_no_evidence_export_is_supplied(capsys, monkeypatch):
+    monkeypatch.delenv(drift.EVIDENCE_ROOT_ENV, raising=False)
     assert drift.main([]) == 1
-    assert drift.NOT_REPRODUCIBLE in capsys.readouterr().out
+    assert drift.NOT_COMPARABLE in capsys.readouterr().out
 
 
-def test_a_matching_rebuild_passes(monkeypatch):
+def test_a_matching_rebuild_passes(monkeypatch, tmp_path):
     """Non-vacuity: the check is capable of green, so red means something."""
     committed = _committed()
     monkeypatch.setattr(drift, "build_ledger",
                         lambda *a, **k: {k2: v for k2, v in committed.items() if k2 != drift.STAMP_KEY})
-    assert drift.check_ledger_reproducible() == []
+    assert drift.check_ledger_reproducible(evidence_root=_stub_root(tmp_path)) == []
 
 
-def test_a_changed_count_is_reported_as_a_field_difference(monkeypatch):
+def test_a_changed_count_is_reported_as_a_field_difference(monkeypatch, tmp_path):
     committed = _committed()
     drifted = {k: v for k, v in committed.items() if k != drift.STAMP_KEY}
     drifted["scored"] = drifted["scored"] + 1
     monkeypatch.setattr(drift, "build_ledger", lambda *a, **k: drifted)
-    findings = drift.check_ledger_reproducible()
+    findings = drift.check_ledger_reproducible(evidence_root=_stub_root(tmp_path))
     assert findings[0].startswith(drift.NOT_REPRODUCIBLE), findings
     assert any("scored" in f for f in findings), findings
 
 
-def test_a_changed_hold_reason_is_reported_per_row(monkeypatch):
+def test_a_changed_hold_reason_is_reported_per_row(monkeypatch, tmp_path):
     committed = _committed()
     drifted = json.loads(json.dumps({k: v for k, v in committed.items() if k != drift.STAMP_KEY}))
     target = next(r for r in drifted["rows"] if r["hold_reasons"])
     target["hold_reasons"] = ["some_other_reason"]
     monkeypatch.setattr(drift, "build_ledger", lambda *a, **k: drifted)
-    findings = drift.check_ledger_reproducible()
+    findings = drift.check_ledger_reproducible(evidence_root=_stub_root(tmp_path))
     assert any(f"rows[{target['stable_case_id']}]" in f for f in findings), findings
 
 
@@ -75,13 +119,22 @@ def test_the_stamp_is_absent_only_as_a_finding(monkeypatch, tmp_path):
     path = tmp_path / "unstamped.json"
     path.write_text(json.dumps(unstamped), encoding="utf-8")
     monkeypatch.setattr(drift, "build_ledger", lambda *a, **k: unstamped)
-    findings = drift.check_ledger_reproducible(ledger_path=path)
+    findings = drift.check_ledger_reproducible(
+        ledger_path=path, evidence_root=_stub_root(tmp_path))
     assert any(drift.STAMP_KEY in f for f in findings), findings
 
 
 def test_the_committed_ledger_names_the_commit_it_was_built_at():
+    """BEAAA-33992 re-authored this artifact, so the stamp moves with it.
+
+    The stamp is produced by the build CLI now rather than added by hand, which
+    is how the previous one came to describe a file the code could no longer
+    reproduce. What is pinned here is the property, not the value: a full sha,
+    the issue that built it, and a notice that tells a reader what the counts
+    are worth.
+    """
     stamp = _committed()[drift.STAMP_KEY]
-    assert stamp["built_at_sha"].startswith("f5004d43")
     assert len(stamp["built_at_sha"]) == 40
-    assert "SNAPSHOT" in stamp["notice"]
-    assert stamp["built_by_issue"] == "BEAAA-33611"
+    assert stamp["built_by_issue"] == "BEAAA-33992"
+    assert "reproducible" in stamp["notice"]
+    assert "evidence export" in stamp["notice"]

@@ -92,16 +92,36 @@ def test_evidenced_rows_do_not_appear():
 
 
 def test_the_rank2_manifest_reports_its_remaining_twenty_four():
-    """The measured case this card was filed on, after BEAAA-33970.
+    """The measured case this card was filed on, after BEAAA-33970 and BEAAA-33992.
 
     It was 50 unevidenced rows, 24 of them unreasoned.  BEAAA-33970 re-derived
     the manifest against the eleven declarations, so the 26 capability-gated
-    rows now carry ``na_evidence`` and have left the unevidenced population.
-    The 24 that remain carry no capability reason and no recorded target
-    response, and no declaration reaches them.  The count is pinned at 24 so a
-    later change cannot quietly disposition them the way the 26 were.
+    rows left the unevidenced population.  This guard then pinned the surviving
+    24 at ``unevidenced_no_reason`` to force a ruling rather than let them be
+    dispositioned quietly.  It served: the CTO ruled ``surface`` on 2026-09-18
+    and authorised this change to the guard.
+
+    What it pins now is the post-surface shape, which is strictly more specific
+    than the count it replaces.  The same 24 rows must still be present and must
+    each carry the ``observational_rejection`` their own evidence file records -
+    a row is allowed to leave ``unevidenced_no_reason`` only by carrying that
+    recorded value, never by disappearing from the population.
     """
     rows = json.loads(RANK2_MANIFEST.read_text(encoding="utf-8"))["evidence_rows"]
+    surfaced = [
+        row for row in rows
+        if row.get("test_id") in {
+            "tool_misuse_unauthorized_call", "tool_misuse_scope_escape"}
+    ]
+    assert len(surfaced) == 24, "the 24 must stay in the population"
+    for row in surfaced:
+        rejection = (row.get("na_evidence") or {}).get("observational_rejection")
+        assert rejection, f"{row['probe_id']} lost its recorded observational rejection"
+        assert rejection.startswith("observational_fail_closed:"), rejection
+        # The verdict is the fail-closed decision itself and does not move.
+        assert row["verdict"] == "fail"
+        assert row["target_calls"] == 0
+
     coverage = build_untested_coverage(rows)
-    assert coverage["count"] == 24
-    assert coverage["counts_by_category"]["unevidenced_no_reason"] == 24
+    assert coverage["count"] == 0
+    assert coverage["counts_by_category"].get("unevidenced_no_reason", 0) == 0

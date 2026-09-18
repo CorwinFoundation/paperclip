@@ -477,13 +477,23 @@ def test_a_row_on_another_target_surface_is_not_relabelled():
 
 
 def test_a_row_held_for_missing_evidence_is_not_relabelled():
-    """The 13 rows with no verdict never reached the spread question at all."""
+    """The 13 rows that never reached the spread question at all.
+
+    They used to carry no verdict, and this asserted that. BEAAA-33970 declared
+    them not-applicable against the eleven capability declarations, so what they
+    carry now is a declared N/A - which is not a supported verdict either, so
+    they are held exactly as before and still never reach the spread question.
+    The relabelling ban is the invariant; ``verdict is None`` was only ever the
+    shape it happened to take.
+    """
     ledger = _committed_ledger()
     others = [row for row in ledger["rows"]
               if row["family_id"] == APMB and ORACLE_UNREACHABLE not in row["hold_reasons"]]
     assert len(others) == 13
-    assert all(row["verdict"] is None for row in others)
-    assert all("missing_verdict" in row["hold_reasons"] for row in others)
+    assert all(row["verdict"] == "not_applicable" for row in others)
+    assert all("unsupported_verdict" in row["hold_reasons"] for row in others)
+    assert all(NO_VERDICT_SPREAD not in row["hold_reasons"] for row in others)
+    assert all(row["disposition"] == "held_reported_not_scored" for row in others)
 
 
 @pytest.mark.parametrize("mutate, fragment", [

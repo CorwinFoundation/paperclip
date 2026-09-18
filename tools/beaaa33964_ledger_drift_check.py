@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,26 @@ LEDGER = ROOT / "artifacts/beaaa-31092/rank2-ledger.json"
 INVENTORY = ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl"
 RUN_MANIFEST = ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json"
 CONTROLS = ROOT / "artifacts/beaaa-31092/readmission-controls.json"
+
+# BEAAA-33992. ``recorded_target_response`` is never carried by the manifest: it
+# is read from the evidence export the row names, via ``_resolve_response``.
+# This check used to call ``build_ledger`` without a root, so every one of the
+# 187 rows resolved "no evidence directory supplied", every row was held
+# ``missing_recorded_target_response``, and the rebuild scored zero - reported as
+# 197 field diffs against the committed ledger. That is this check mis-reading
+# its own inputs, not drift, and it reddened identically before BEAAA-33970 and
+# before any capture; the fit-to-bind guard simply raised first, so nobody saw
+# the second failure behind it.
+#
+# A missing export is therefore reported as one explicit non-comparable finding.
+# It still fails - an unvouchable ledger is the thing this check exists to catch
+# - but it no longer claims a drift it cannot have measured.
+EVIDENCE_ROOT_ENV = "BEAAA31092_EVIDENCE_ROOT"
+NOT_COMPARABLE = (
+    "ledger not comparable: no evidence export supplied, so no row can resolve "
+    "recorded_target_response and every row holds. Pass --evidence-root "
+    f"(or set {EVIDENCE_ROOT_ENV}) pointing at the job export the manifest names"
+)
 
 NOT_REPRODUCIBLE = "ledger not reproducible under the current manifest"
 
@@ -76,6 +97,7 @@ def check_ledger_reproducible(
     inventory_path: Path = INVENTORY,
     manifest_path: Path = RUN_MANIFEST,
     controls_path: Path | None = CONTROLS,
+    evidence_root: Path | None = None,
 ) -> list[str]:
     """Findings that make the committed ledger unvouchable. Empty means reproducible.
 
@@ -88,9 +110,15 @@ def check_ledger_reproducible(
             f"committed ledger carries no {STAMP_KEY}: a consumer reading "
             f"scored={committed.get('scored')} held={committed.get('held')} cannot tell "
             "which commit produced them")
+    if evidence_root is None:
+        findings.append(NOT_COMPARABLE)
+        return findings
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     try:
         rebuilt = build_ledger(
             Path(inventory_path), Path(manifest_path),
+            evidence_root=Path(evidence_root),
+            job_id=manifest.get("job_id"),
             controls=Path(controls_path) if controls_path else None)
     except Exception as exc:  # noqa: BLE001 - any failure to rebuild is the finding
         findings.append(
@@ -109,8 +137,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ledger", type=Path, default=LEDGER)
     parser.add_argument("--inventory", type=Path, default=INVENTORY)
     parser.add_argument("--manifest", type=Path, default=RUN_MANIFEST)
+    parser.add_argument(
+        "--evidence-root", type=Path, default=None,
+        help=f"job export directory; falls back to ${EVIDENCE_ROOT_ENV}")
     args = parser.parse_args(argv)
-    findings = check_ledger_reproducible(args.ledger, args.inventory, args.manifest)
+    evidence_root = args.evidence_root
+    if evidence_root is None and os.environ.get(EVIDENCE_ROOT_ENV):
+        evidence_root = Path(os.environ[EVIDENCE_ROOT_ENV])
+    findings = check_ledger_reproducible(
+        args.ledger, args.inventory, args.manifest, evidence_root=evidence_root)
     if not findings:
         print("committed rank-2 ledger reproduces from the pinned inventory + manifest")
         return 0

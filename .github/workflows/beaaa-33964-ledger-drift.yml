@@ -7,11 +7,18 @@ name: BEAAA-33964 rank-2 ledger drift
 #
 # This job is deliberately NOT one of master's three required status checks
 # ("golden scanner regression", "python pytest", "python 3.11 CLI render smoke").
-# It is expected to be RED today - the pinned manifest is unfit to bind and
-# build_ledger refuses it - and that red IS the finding. Making it required would
-# convert a standing, known drift into a repo-wide merge block, which would get
-# the check waived rather than the ledger fixed. Its behaviour is pinned by
-# tests/test_beaaa33964_ledger_drift.py, which does run under "python pytest".
+# Making it required would convert a standing, known gap into a repo-wide merge
+# block, which would get the check waived rather than the ledger fixed. Its
+# behaviour is pinned by tests/test_beaaa33964_ledger_drift.py, which does run
+# under "python pytest".
+#
+# BEAAA-33992: the reason it is expected RED here has changed. It used to be that
+# the pinned manifest was unfit to bind and build_ledger refused it; that is
+# fixed. What a CI runner still lacks is the evidence export the manifest names,
+# and recorded_target_response is only ever read from there - so the job now
+# reports the one non-comparable finding and exits 1. Pass --evidence-root (or
+# set BEAAA31092_EVIDENCE_ROOT) on a host that has the export mounted to get the
+# real comparison; it exits 0 there.
 
 on:
   pull_request:
