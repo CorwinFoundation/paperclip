@@ -275,6 +275,15 @@ def test_malformed_json_fails_closed(repo, tmp_path: Path, monkeypatch, capsys):
         ("SOME", "", ["tests"]),
         ("SOME", "garbage", ["tests"]),
         ("SOME", "[]", ["tests"]),
+        # eval-venv-only tests are dropped from explicit targets: pytest honours
+        # --ignore only for directory collection, so naming them would run them
+        # in a job with no inspect_ai installed.
+        (
+            "SOME",
+            '["tests/test_a.py", "tests/test_inspect_runner.py"]',
+            ["tests/test_a.py"],
+        ),
+        ("SOME", '["tests/unit/test_inspect_provenance_pin.py"]', ["tests"]),
     ],
 )
 def test_expand_reads_env(monkeypatch, mode, raw, expected):
@@ -294,3 +303,8 @@ def test_gate_table_names_only_real_tests():
         if not (ROOT / t).exists()
     ]
     assert missing == [], f"GATES names tests that do not exist: {missing}"
+
+
+def test_eval_venv_only_tests_are_named_by_the_evalvenv_gate():
+    """The drop-list must stay a subset of the gate that actually runs them."""
+    assert sel.EVAL_VENV_ONLY_TESTS <= set(sel.GATES["evalvenv"]["tests"])

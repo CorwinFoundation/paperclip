@@ -496,6 +496,22 @@ def _gates(mode: str, changed: list[str], tests: list[str]) -> dict[str, bool]:
 # ---------------------------------------------------------------------------
 
 
+# Tests that only pass inside an eval-framework venv (they import inspect_ai,
+# which the plain pytest job does not install). `tests.yml` already passes
+# `--ignore` for both, but pytest applies `--ignore` only while *collecting a
+# directory* — a file named explicitly on the command line is always collected.
+# The selector emits explicit file targets, so the ignore was silently bypassed
+# whenever a diff pulled these two into SELECTED_TESTS, and the job failed with
+# "inspect-ai not installed". They are run for real by the `eval venv (inspect)`
+# matrix job (see GATES["evalvenv"]), so dropping them here loses no coverage.
+EVAL_VENV_ONLY_TESTS: frozenset[str] = frozenset(
+    {
+        "tests/test_inspect_runner.py",
+        "tests/unit/test_inspect_provenance_pin.py",
+    }
+)
+
+
 def _expand() -> list[str]:
     mode = os.environ.get("SELECTION_MODE", "").strip()
     raw = os.environ.get("SELECTED_TESTS", "").strip()
@@ -508,6 +524,7 @@ def _expand() -> list[str]:
     except json.JSONDecodeError:
         return ["tests"]
     targets = [t for t in targets if isinstance(t, str) and t]
+    targets = [t for t in targets if t not in EVAL_VENV_ONLY_TESTS]
     return targets or ["tests"]
 
 
