@@ -230,6 +230,17 @@ def _resolve_response(evidence_root: Path | None, job_id: str | None, evidence_r
     basis, but not the response text: that lives in the evidence file the manifest
     names. Binding is therefore anchored on the manifest's own ``evidence_ref`` -
     never on a filename guess - and the ref's job id must match the exported job.
+
+    BEAAA-33741. That last clause was a docstring, not a control. The only job
+    comparison here was ``ref_job != job_id``: the ref's job against a string the
+    caller supplied, which ``build_ledger`` defaults to ``None``. Nothing compared
+    either one to the export actually being read, so a root exported from a
+    different job resolved every ref by relative path alone and bound another
+    run's responses - the filename guess the docstring disowns, arrived at through
+    the directory instead of the file. The export layout names the job in the
+    directory (``evidence/<job-id>/``), so the export's own identity is read from
+    there and the ref must name it. A root that is not a job export no longer
+    binds at all rather than binding whatever it happens to contain.
     """
     if evidence_root is None:
         return None, "no evidence directory supplied"
@@ -241,6 +252,9 @@ def _resolve_response(evidence_root: Path | None, job_id: str | None, evidence_r
     if job_id is not None and ref_job != job_id:
         return None, f"evidence ref belongs to job {ref_job}"
     root = evidence_root.resolve()
+    export_job = root.name
+    if export_job != ref_job:
+        return None, f"evidence root is job {export_job}, ref belongs to job {ref_job}"
     source = (root / relative).resolve()
     if root not in source.parents or not source.is_file() or source.is_symlink():
         return None, "evidence file missing from the exported job"
