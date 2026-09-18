@@ -246,3 +246,77 @@ def test_families_without_an_authored_reason_gain_no_key():
     )
     outcome = rce._not_applicable_outcome("tool_misuse_unauthorized_call", "c", resolved)
     assert "declared_not_applicable_reason" not in outcome["judge"]
+
+
+# --------------------------------------------------------------------------
+# Ported from PR #557, which implemented this same work item independently and
+# was closed in favour of this design (CTO ruling, 2026-09-17). Two assertions
+# survived that close. One ports as written; the other could not, and the note
+# under it says why.
+# --------------------------------------------------------------------------
+
+
+def test_deleting_the_any_of_reader_makes_the_family_unconditional_again(monkeypatch):
+    """Coverage that survives deleting the guard it covers is inert.
+
+    Every assertion above checks the gate behaves correctly. None of them fails
+    if the gate is removed, and a test that cannot detect its own subject going
+    missing is decoration. So: take the reading away and watch the pre-fix state
+    come back. With no any-of flags the family has no gate at all, the shared
+    resolver calls it unconditional, and the target's five declared ``False``s
+    stop being what decides the row -- which is exactly the state that sent
+    these 20 rows into ``registered case adapter not bound``.
+    """
+
+    declared = vcm.config_declared_flags(vcm.load_snapshot())
+    row = {"capability_manifest": declared}
+    assert rce._resolve_applicability(FAMILY, row).applicable is False
+
+    monkeypatch.setitem(rce._MAPPING_GATE_CACHE, FAMILY, (None, None))
+    assert rce._declared_applicability_gate(FAMILY) is None
+    assert rce._resolve_applicability(FAMILY, row).applicable is True
+
+
+_REFUSED_GATES = [
+    pytest.param(
+        {"applicable": True, "applies_when_any_declared_capability": ["code_generation"]},
+        id="pre_resolved_true",
+    ),
+    pytest.param(
+        {"applicable": False, "applies_when_any_declared_capability": []},
+        id="empty_name_list",
+    ),
+    pytest.param({"applicable": False}, id="no_list_at_all"),
+    pytest.param(
+        {"applies_when_any_declared_capability": ["code_generation"]},
+        id="no_boolean_at_all",
+    ),
+]
+
+
+@pytest.mark.parametrize("gate", _REFUSED_GATES)
+def test_the_reader_opens_only_on_a_false_boolean_over_a_named_list(
+    gate, tmp_path, monkeypatch
+):
+    """PR #557 asserted "a pre-resolved boolean gate still wins" against its own
+    design, where the boolean and the capability reading were alternatives. Here
+    they are not: ``applicable: false`` is the *precondition* for reading the
+    list, so that assertion inverts this gate rather than pinning it, and
+    porting it verbatim would gate out every target that declares the surface.
+
+    What is portable is the half of it this file did not cover: the reader
+    refuses every other combination of those two keys and leaves the family
+    exactly as it was. ``test_a_bare_string_applicability_gate_is_left_alone``
+    pins the wrong-type case; these pin the wrong-value ones.
+    """
+
+    synthetic = "beaaa30934_synthetic_family"
+    mappings = tmp_path / "rubric" / "probe_mappings"
+    mappings.mkdir(parents=True)
+    (mappings / f"{synthetic}.yaml").write_text(
+        yaml.safe_dump({"applicability_gate": gate}), encoding="utf-8"
+    )
+    monkeypatch.setattr(rce, "REPO_ROOT", tmp_path)
+    monkeypatch.delitem(rce._MAPPING_GATE_CACHE, synthetic, raising=False)
+
+    assert rce._mapping_applicability_gate(synthetic) == (None, None)
