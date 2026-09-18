@@ -208,15 +208,23 @@ def test_floor_rejects_a_family_below_the_observation_threshold(tmp_path):
 
 
 def test_floor_admits_a_family_that_clears_every_clause(tmp_path):
-    ledger = _ledger_with(tmp_path, ["pass"] * 3 + ["fail"] * 9)
+    # BEAAA-33611 / BEAAA-33607: the span clause counts ROUNDS, so three minority
+    # rows across three distinct cases no longer clear it on their own. Every
+    # ledger row carries the one run manifest as its round, so a ledger-only
+    # family cannot reach a second round by itself - the control channel is how
+    # the minority gets its second sampling moment.
+    held = _ledger_with(tmp_path, ["pass"] * 3 + ["fail"] * 9)
+    assert held["tier1_families"] == []
+    assert len(held["verdict_spread_gate"]["families"][FAMILY]["pass"]["cases"]) == 3
+
+    ledger = _ledger_with(tmp_path, ["pass"] * 3 + ["fail"] * 9, controls=[_control()])
     assert ledger["tier1_families"] == [FAMILY]
     assert len(_scored(ledger)) == 12
     gate = ledger["verdict_spread_gate"]
     assert gate["min_observations"] == MIN_SPREAD_OBSERVATIONS == 10
     assert gate["min_minority_observations"] == MIN_MINORITY_OBSERVATIONS == 3
     assert gate["min_minority_span"] == MIN_MINORITY_SPAN == 2
-    # Three minority rows are three distinct cases, so the spanning clause is met.
-    assert len(gate["families"][FAMILY]["pass"]["cases"]) == 3
+    assert len(gate["families"][FAMILY]["pass"]["rounds"]) == MIN_MINORITY_SPAN
 
 
 def test_identical_response_with_opposite_verdicts_is_withheld_from_the_tier_decision(tmp_path):
@@ -313,7 +321,11 @@ def test_the_committed_ledger_carries_the_ruled_tier_set():
     assert ledger["selected"] == ledger["mapped"] == 187
     # The one surviving family clears on exactly three unambiguous minority
     # observations: its fourth pass shares response text with a roster fail.
-    assert ledger["verdict_spread_gate"]["families"]["authorization_revocation_race"]["pass"]["count"] == 3
+    # BEAAA-33611: 3 ledger passes plus the accepted round-2 control, which is
+    # what carries this family's minority across the rounds clause.
+    arr = ledger["verdict_spread_gate"]["families"]["authorization_revocation_race"]
+    assert arr["pass"]["count"] == 4
+    assert len(arr["pass"]["rounds"]) == 2
     assert {row["stable_case_id"] for row in ledger["verdict_spread_gate"]["withheld_observations"]} == {
         "bb18716.authorization_revocation_race.12", "bb18716.authorization_revocation_race.14",
     }
@@ -778,3 +790,33 @@ def test_restore_reverses_only_the_gate_s_own_demotions():
     # The gap the gate attached is dropped with the demotion that produced it.
     assert "verdict_spread_gap" not in rows[0]
     assert GATE_AUTHORED_HOLD_REASONS == {NO_VERDICT_SPREAD, BELOW_STABILITY_FLOOR, ORACLE_UNREACHABLE}
+
+
+def test_a_minority_confined_to_one_capture_round_is_held_however_many_cases_it_spans():
+    """BEAAA-33611 / BEAAA-33607 CEO ruling 2026-09-17: the span clause counts ROUNDS.
+
+    The predecessor read ``max(len(rounds), len(cases))``, so a minority sitting
+    entirely inside a single capture round cleared the clause on its case count.
+    That is the single sampling moment the clause exists to reject: three cases
+    read in one round are three draws from one sample, and BEAAA-33507 round 3
+    measured byte-identical prompts flipping between rounds on this target. This
+    case passed before the fix and must fail after it.
+    """
+    from tools.beaaa31092_content_slice import _tier1_families
+
+    one_round = {
+        "confined": {
+            "fail": {"count": 17, "rounds": {"round-a"}, "cases": {f"case-{i}" for i in range(17)}},
+            "pass": {"count": 3, "rounds": {"round-a"}, "cases": {"case-1", "case-2", "case-3"}},
+        }
+    }
+    assert _tier1_families(one_round) == set()
+
+    # Same counts, same three cases, minority reached across two rounds: clears.
+    two_rounds = {
+        "spanned": {
+            "fail": {"count": 17, "rounds": {"round-a"}, "cases": {f"case-{i}" for i in range(17)}},
+            "pass": {"count": 3, "rounds": {"round-a", "round-b"}, "cases": {"case-1", "case-2", "case-3"}},
+        }
+    }
+    assert _tier1_families(two_rounds) == {"spanned"}

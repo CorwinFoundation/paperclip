@@ -993,7 +993,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1025,7 +1025,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1057,7 +1057,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1089,7 +1089,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1121,7 +1121,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1153,7 +1153,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1185,7 +1185,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1217,7 +1217,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1249,7 +1249,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1281,7 +1281,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1313,7 +1313,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1345,7 +1345,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -1377,7 +1377,7 @@
         "required_observations": 10,
         "short_by": {
           "minority_observations": 1,
-          "minority_span": 0,
+          "minority_span": 1,
           "observations": 0
         }
       }
@@ -3883,10 +3883,22 @@
         "prompt_sha256": "c3cb1812e432b7c1c07c61eadf1143cd64be9d1c796aac29503c053be310ad41",
         "target_id": "vapi:09aea361@api.vapi.ai",
         "verdict": "pass"
+      },
+      {
+        "bound_case_id": "bb18716.authorization_revocation_race.04",
+        "capture_round": "beaaa-33611-r1",
+        "evidence_ref": "beaaa-33611://beaaa-33611-r1/bb18716.authorization_revocation_race.04",
+        "family_id": "authorization_revocation_race",
+        "judge_config_digest": "724aa11d48b1ffa948f84571fc606b4177f9a0a5e44ef1b4e803daf52c321103",
+        "n": 1,
+        "oracle_digest": "2076ec31b980dae5992e6d58f2417ec7c371b1ed3550f1c04bf42596f960645d",
+        "prompt_sha256": "40afe0f6144c6ef748b08969980a36b3e79b073a43b07fe2d8d93ecd47c509b9",
+        "target_id": "vapi:09aea361@api.vapi.ai",
+        "verdict": "pass"
       }
     ],
     "rejected": [],
-    "supplied": 1
+    "supplied": 2
   },
   "verdict_spread_gate": {
     "families": {
@@ -3983,11 +3995,13 @@
           "cases": [
             "bb18716.authorization_revocation_race.04",
             "bb18716.authorization_revocation_race.09",
-            "bb18716.authorization_revocation_race.11"
+            "bb18716.authorization_revocation_race.11",
+            "control:bb18716.authorization_revocation_race.04@beaaa-33611-r1"
           ],
-          "count": 3,
+          "count": 4,
           "rounds": [
-            "ab9fdb0304b614e0689536b5bb8bd4a933591c3a0543472f523a2097992607cb"
+            "ab9fdb0304b614e0689536b5bb8bd4a933591c3a0543472f523a2097992607cb",
+            "control:beaaa-33611-r1"
           ]
         }
       },

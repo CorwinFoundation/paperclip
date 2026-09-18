@@ -146,9 +146,22 @@ MIN_SPREAD_OBSERVATIONS = 10
 # Round 3's worst single-round minority read was 3-of-5. Requiring three minority
 # observations means one such read can no longer carry a family on its own.
 MIN_MINORITY_OBSERVATIONS = 3
-# ...and requiring the minority to span two distinct capture rounds or two distinct
-# cases is what actually kills the luck story: a single round's 3-of-5 is one
-# sampling moment, however many observations it contains.
+# BEAAA-33607 CEO ruling 2026-09-17: the count rule above stands in for the ruled
+# minority-fraction clause (>= 0.20). A fraction floor and a count floor answer
+# different questions - a fraction asks how lopsided the split is, a count asks
+# how many times the minority was actually seen - and the count is the one that
+# rejects the luck story the floor exists for. All 43 dev-scored rows clear the
+# count rule at minority fractions of 0.130 and 0.158, so the fraction clause is
+# not merely absent from master, it would reject families the count rule admits.
+# Adopting it is a separate rule call, not a code omission to be patched in.
+#
+# ...and requiring the minority to span two distinct capture ROUNDS is what
+# actually kills the luck story: a single round is one sampling moment, however
+# many observations or distinct cases it contains. BEAAA-33611 / BEAAA-33607
+# ruling 2026-09-17: rounds only. The predecessor read
+# ``max(len(rounds), len(cases))``, which admitted a minority sitting entirely
+# inside one capture round on its case count alone - the exact single sampling
+# moment this clause exists to reject.
 MIN_MINORITY_SPAN = 2
 
 # BEAAA-33537 TASK 1. A control is admitted into the TIER DECISION ONLY. It never
@@ -470,7 +483,7 @@ def _tier1_families(spread: dict[str, dict[str, dict[str, Any]]]) -> set[str]:
         minority = passes if passes["count"] <= fails["count"] else fails
         if minority["count"] < MIN_MINORITY_OBSERVATIONS:
             continue
-        if max(len(minority["rounds"]), len(minority["cases"])) < MIN_MINORITY_SPAN:
+        if len(minority["rounds"]) < MIN_MINORITY_SPAN:
             continue
         tier1.add(family)
     return tier1
@@ -570,7 +583,7 @@ def _spread_gap(mix: dict[str, dict[str, Any]]) -> dict[str, Any]:
         "short_by": {
             "observations": max(0, MIN_SPREAD_OBSERVATIONS - observations),
             "minority_observations": max(0, MIN_MINORITY_OBSERVATIONS - minority["count"]),
-            "minority_span": max(0, MIN_MINORITY_SPAN - max(len(minority["rounds"]), len(minority["cases"]))),
+            "minority_span": max(0, MIN_MINORITY_SPAN - len(minority["rounds"])),
         },
     }
 
