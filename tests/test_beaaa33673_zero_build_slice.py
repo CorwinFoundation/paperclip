@@ -8,6 +8,9 @@ cohort, what it refuses to bind, and the manifest it builds from a live capture.
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -246,8 +249,9 @@ def test_a_single_roster_capture_is_one_round_however_many_cases(tmp_path):
 def test_roster_round_label_is_carried_into_the_gate(tmp_path):
     inventory = _write(tmp_path, "inv.jsonl",
                        [_inventory_row("a.01", "hallucination_legal")], jsonl=True)
-    capture = _write(tmp_path, "cap.jsonl",
-                     [_capture_record("a.01", "hallucination_legal")], jsonl=True)
+    record = _capture_record("a.01", "hallucination_legal")
+    record["capture_round"] = "beaaa-33673-rX"
+    capture = _write(tmp_path, "cap.jsonl", [record], jsonl=True)
     manifest = _write(tmp_path, "man.json",
                       Z.manifest_from_capture(capture, inventory, "probe-only"))
 
@@ -271,3 +275,80 @@ def test_slice_never_prices_the_rows_it_scores(tmp_path):
 
     assert ledger["underwriting_active"] is False
     assert ledger["priced_score_weight"] == 0.0
+
+
+def test_a_roster_round_naming_no_manifest_row_fails_closed(tmp_path):
+    """The BEAAA-33677 trap: the CLI bound the gate to a round the manifest never ran.
+
+    ``main`` never forwarded ``roster_round``, so pointing the module's CLI at a
+    later round's manifest silently observed every row under
+    ``beaaa-33673-r1``. The spread report came back populated and the gate never
+    failed. Pin the mismatch as an error, not a report.
+    """
+    inventory = _write(tmp_path, "inv.jsonl",
+                       [_inventory_row("a.01", "hallucination_legal")], jsonl=True)
+    record = _capture_record("a.01", "hallucination_legal")
+    record["capture_round"] = "beaaa-33677-r1"
+    capture = _write(tmp_path, "cap.jsonl", [record], jsonl=True)
+    manifest = _write(tmp_path, "man.json",
+                      Z.manifest_from_capture(capture, inventory, "probe-only"))
+
+    with pytest.raises(ValueError, match="does not name this manifest's evidence"):
+        Z.build_ledger(_cohort(tmp_path, ["a.01"]), inventory, manifest,
+                       roster_round=Z.ROSTER_ROUND)
+
+    ledger = Z.build_ledger(_cohort(tmp_path, ["a.01"]), inventory, manifest,
+                            roster_round="beaaa-33677-r1")
+    assert ledger["roster_capture_round"] == "beaaa-33677-r1"
+
+
+def test_the_cli_forwards_the_roster_round_it_was_given(tmp_path, capsys):
+    """Non-vacuity guard for the fix above: the flag must reach ``build_ledger``.
+
+    Asserting only that the ValueError fires would still pass if ``main`` kept
+    dropping the flag, because the default would keep matching the fixture. Drive
+    the real entry point with a round the default does not equal.
+    """
+    inventory = _write(tmp_path, "inv.jsonl",
+                       [_inventory_row("a.01", "hallucination_legal")], jsonl=True)
+    record = _capture_record("a.01", "hallucination_legal")
+    record["capture_round"] = "beaaa-33677-r1"
+    capture = _write(tmp_path, "cap.jsonl", [record], jsonl=True)
+    manifest = _write(tmp_path, "man.json",
+                      Z.manifest_from_capture(capture, inventory, "probe-only"))
+    out = tmp_path / "ledger.json"
+
+    argv = ["prog", "--cohort", str(_cohort(tmp_path, ["a.01"])), "--inventory", str(inventory),
+            "--manifest", str(manifest), "--roster-round", "beaaa-33677-r1",
+            "--output", str(out)]
+    with mock.patch.object(sys, "argv", argv):
+        assert Z.main() == 0
+    assert json.loads(out.read_text())["roster_capture_round"] == "beaaa-33677-r1"
+
+
+def test_the_committed_round_still_reproduces_from_its_capture_log(tmp_path):
+    """The chain must rebuild BEAAA-33673's committed manifest and ledger exactly.
+
+    Every guard in this file is a unit assertion over a fixture of my own making.
+    This one is not: it replays the real capture log of the round that is already
+    merged and scored, and compares against the artifacts that round shipped. A
+    change to the manifest builder, the ledger builder, the floor it imports, or
+    the control admission rule that quietly moves a scored count shows up here as
+    a byte difference on a known-good round rather than as a plausible number on
+    the next one.
+    """
+    root = Path(__file__).resolve().parents[1]
+    committed = root / "artifacts/beaaa-33673"
+    manifest = Z.manifest_from_capture(
+        committed / "roster-capture-log.jsonl", Z.PINNED_INVENTORY_PATH, "probe-only")
+    assert manifest == json.loads((committed / "run-manifest.json").read_text(encoding="utf-8"))
+
+    manifest_path = tmp_path / "man.json"
+    manifest_path.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n",
+                             encoding="utf-8")
+    ledger = Z.build_ledger(committed / "cohort-150.json", Z.PINNED_INVENTORY_PATH, manifest_path,
+                            controls=committed / "controls.json",
+                            roster_round="beaaa-33673-r1")
+
+    assert ledger == json.loads((committed / "ledger.json").read_text(encoding="utf-8"))
+    assert ledger["scored"] == 98 and ledger["held"] == 52 and ledger["selected"] == 150

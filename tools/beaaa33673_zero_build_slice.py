@@ -154,6 +154,30 @@ def manifest_from_capture(
     }
 
 
+def _assert_roster_round_matches_manifest(manifest: dict[str, Any], roster_round: str) -> None:
+    """The round label the gate observes under must name the rows the manifest carries.
+
+    ``roster_round`` is not decoration: ``_tier_decision`` keys every roster
+    observation by it, and the BEAAA-33611 span clause counts DISTINCT rounds. A
+    label that names no row in this manifest still produces a spread report - one
+    attributed to a round that never ran. That is a gate reporting without
+    failing, which is the shape of defect this program exists to not ship.
+
+    ``build_ledger``'s ``roster_round`` default and ``main``'s silent omission of
+    the flag made exactly that reachable: pointing the CLI at a later round's
+    manifest bound the gate to ``beaaa-33673-r1`` with no error. Fail closed on
+    the mismatch instead of trusting the caller to remember the flag.
+    """
+    rounds = {row.get("capture_round") for row in manifest.get("evidence_rows") or []}
+    rounds.discard(None)
+    if not rounds:
+        return  # a manifest that records no round makes no claim to contradict
+    if rounds != {roster_round}:
+        raise ValueError(
+            f"roster_round {roster_round!r} does not name this manifest's evidence: "
+            f"the manifest carries capture rounds {sorted(rounds)}")
+
+
 def _cohort_ids(cohort_path: Path) -> list[str]:
     cohort = json.loads(cohort_path.read_text(encoding="utf-8"))
     return [row["stable_case_id"] for row in cohort["rows"]]
@@ -171,6 +195,8 @@ def build_ledger(
     manifest_fitness = S._assert_manifest_fit_to_bind(manifest)
     if isinstance(controls, Path):
         controls = json.loads(controls.read_text(encoding="utf-8"))
+
+    _assert_roster_round_matches_manifest(manifest, roster_round)
 
     wanted = set(_cohort_ids(cohort_path))
     chosen = [row for row in inventory if row["stable_case_id"] in wanted]
@@ -270,9 +296,13 @@ def main() -> int:
     parser.add_argument("--inventory", type=Path, default=PINNED_INVENTORY_PATH)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--controls", type=Path, default=None)
+    parser.add_argument("--roster-round", default=ROSTER_ROUND,
+                        help="round label every roster observation is recorded under; "
+                             "must match the capture rounds the manifest carries")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    ledger = build_ledger(args.cohort, args.inventory, args.manifest, args.controls)
+    ledger = build_ledger(args.cohort, args.inventory, args.manifest, args.controls,
+                          roster_round=args.roster_round)
     args.output.write_text(json.dumps(ledger, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({key: ledger[key] for key in
                       ("selected", "mapped", "evidenced", "scored", "dropped_duplicate", "held",

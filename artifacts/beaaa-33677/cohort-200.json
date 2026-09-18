@@ -1,0 +1,2635 @@
+{
+ "capture_round": "beaaa-33677-r1",
+ "cohort_size": 200,
+ "consumed_by_prior_slices": 150,
+ "intra_cohort_dedupe_collisions": 0,
+ "inventory_path": "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
+ "inventory_sha256": "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+ "issue": "BEAAA-33677",
+ "master_sha": "b53f22fa",
+ "per_family_allocation": {
+  "citation_integrity_legal": 26,
+  "confidence_calibration": 33,
+  "counterfactual_stability": 20,
+  "hallucination_legal": 41,
+  "p1_1_factuality_golden": 10,
+  "p1_3_consistency_golden": 7,
+  "p1_4_refusal_golden": 7,
+  "p1_5_calibration_golden": 6,
+  "p2_1_demographic_parity_gap": 4,
+  "p2_2_equal_opportunity_gap": 4,
+  "p2_3_counterfactual_stability": 4,
+  "p2_4_eval_representation": 4,
+  "p2_5_sentiment_skew_by_attribute": 4,
+  "p2_6_mitigation_evidence": 4,
+  "peril_data_containment": 2,
+  "peril_tool_grounded_factuality": 4,
+  "self_contradiction_pairs": 20
+ },
+ "pool_dedupe_collisions": 0,
+ "pool_size": 457,
+ "rows": [
+  {
+   "dedupe_sha256": "c5cb36ea9cebbfce6e5b156ecdc2b24772fd64c4a191a320253c7ee41928e58f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.021"
+  },
+  {
+   "dedupe_sha256": "8e54ba527a6203c0b91de0c9f490396aefd9bcbcfdaba8f9e227602f40eb061d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.022"
+  },
+  {
+   "dedupe_sha256": "283ba9ce33be083dc49c73d8bdbefbe95f92b3c6907f1ee29b9cbd1a3273b0a4",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.023"
+  },
+  {
+   "dedupe_sha256": "ef9f6dbe7ff9cd3bb9bfa9a673c04be8f70f1ad736244dea4bd3467ac2b661fb",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.024"
+  },
+  {
+   "dedupe_sha256": "04c342e62a408c1c616d628420c410ab8884718b177aecd0a1c6202151026dd6",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.025"
+  },
+  {
+   "dedupe_sha256": "1ba39a1664c83fcc1c50e9b11afb8ff265bb63120670c0de497d1656912ca76c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.026"
+  },
+  {
+   "dedupe_sha256": "8603de92e84e615fb7476106e282dffb171ad6b27a6a1ef175f0e882f4e1ce4b",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.027"
+  },
+  {
+   "dedupe_sha256": "780b3e5a3c6ea2c9e1dd626e02e0a8101db5acca50963f8b70ea0eb749c6b284",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.028"
+  },
+  {
+   "dedupe_sha256": "3a1e7063c92b98f9b4d67d8a0ab082b8a9b86bbfb11916a9555bfb021108e309",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.029"
+  },
+  {
+   "dedupe_sha256": "cd58728da4b75f6f00fd4f15cc58c37c0ab42036f5425d591f17dbee243bc57c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.030"
+  },
+  {
+   "dedupe_sha256": "fe31fe6cb5a421dc43efffd290c2321e78ebab24fa192723d95f13e28d3133ea",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.031"
+  },
+  {
+   "dedupe_sha256": "70ca949d6bef345eae9377c6330065f36b335d7c52ab61bedd347ab635da8a95",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.032"
+  },
+  {
+   "dedupe_sha256": "62277da6e48f4923401ee99a1a8b0c31ef7604e3a4e2bb8c307606c97207b002",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.033"
+  },
+  {
+   "dedupe_sha256": "f08f1b13780dd0895a6df9289b2970f1cd315b73602e48bbef49a969c4cef7f9",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.034"
+  },
+  {
+   "dedupe_sha256": "971eb250109949296d7223501ba6e0f21413169207f817a8c626ed1551d1ac1c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.035"
+  },
+  {
+   "dedupe_sha256": "5b5d063af749b5755ffd315a6eae7abbe24847a375e38571699f0f48181a2b69",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.036"
+  },
+  {
+   "dedupe_sha256": "c543a67dc1dd126ebbc24b3c520349738ba45935171499d699c9e2ee9f068f66",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.037"
+  },
+  {
+   "dedupe_sha256": "fb3ec637ad8b7aa03efa38770b97711b34f61aae3616aa8eb3398a664c4448b2",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.038"
+  },
+  {
+   "dedupe_sha256": "b7b255f555d29660ae5150710b19012a2c8ebe552b87d6e34a6a11adfa43bf56",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.039"
+  },
+  {
+   "dedupe_sha256": "d1c6f9f9c1a43831fc5b4d1a10bee2ada40cd72aaa6dcfadd6a54805469303b3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.040"
+  },
+  {
+   "dedupe_sha256": "d6a10117aa85a6573f96bc531f292a9e7cfafbd592fd9e8e4e4a6a6008206a04",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.041"
+  },
+  {
+   "dedupe_sha256": "9791538bf333548f7dcda41ce4f5d3e4fcd32af9d40e258083bccb7c884909f7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.042"
+  },
+  {
+   "dedupe_sha256": "e545f22d40c0c17c3a3e3521e29d39f1dd53a93ce8fd2610fed594967e06f1bc",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.043"
+  },
+  {
+   "dedupe_sha256": "4662463678c43ba9160ee93bd82aeb78d2dc4e38abe535306cc64e6c2c4d767d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.044"
+  },
+  {
+   "dedupe_sha256": "2d02a3dd17d70a597723856310bcf87d076d7faffb37a13ecef3d7129775d127",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.045"
+  },
+  {
+   "dedupe_sha256": "af698155051850704d8fc4d7b9d0bffa44d91afb0b30b4cd2cfc2def33054989",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "citation_integrity_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cil.f1.046"
+  },
+  {
+   "dedupe_sha256": "df452532576c20108e660ee46c075666e7759185073ad9d8997378ce95b68a70",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.026"
+  },
+  {
+   "dedupe_sha256": "c47ffed16a0dc4ae102507376eafc673acda75d5607fa4b27d8b64a46d88b8d5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.027"
+  },
+  {
+   "dedupe_sha256": "e9fa632ad582f6ef2b502c27de68f0c7ea100075bb6b849054b38355387879ad",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.028"
+  },
+  {
+   "dedupe_sha256": "887b462149b4006d665dd3ac20702d73921b18d2cd3feb219a9fa3bd39cb6b50",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.029"
+  },
+  {
+   "dedupe_sha256": "b250079520316bbd29328c1c92100bcb4874606e4de07e95f9ee79cf2bb614b4",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.030"
+  },
+  {
+   "dedupe_sha256": "1891353485c2d1b7e7adfea83287827363e0ee41b77a9464c234d06e796ffe99",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.031"
+  },
+  {
+   "dedupe_sha256": "d711a976ac3e3cad9ca53f63634f016e82e21676d3822e93d66dea696af790ae",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.032"
+  },
+  {
+   "dedupe_sha256": "1e6782b98ded388993443a74ac06743e767fedf9b2c9638222b81b72a45c4552",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.033"
+  },
+  {
+   "dedupe_sha256": "8fa1c0047a4e34b6857e242be2d577ea9efee35adebb9afc571ac5906d6adfbd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.034"
+  },
+  {
+   "dedupe_sha256": "a61ff741605356b1c92cf3121617273dc0aad33383cdf8a2bb197fa59b8477bf",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.035"
+  },
+  {
+   "dedupe_sha256": "5abaadfdff1b07e3da746a52df4e3a92aa5f79a9f9f3745c3ba31a4a1c7a3284",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.036"
+  },
+  {
+   "dedupe_sha256": "91e1745db3872e6ad7ca7cb1758161354263ccda15faa096ad2b7e660f39a0ac",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.037"
+  },
+  {
+   "dedupe_sha256": "aa6741bb9c36416164207e2d3f37daab4128a326a77cbb8fde3fc48ebce21e32",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.038"
+  },
+  {
+   "dedupe_sha256": "37c6b1b1612506d0517347d221af3828757d3daa66e16e5c9caa5a68adf0ea19",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.039"
+  },
+  {
+   "dedupe_sha256": "a444df13eab36681f9596ae0ddabb34f30c3bbb520c726a5343bd5c5fe725f7f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.easy.040"
+  },
+  {
+   "dedupe_sha256": "041b5748c603179373acf562633ada81de5f17d0e74fe0983e0258bb23554877",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.001"
+  },
+  {
+   "dedupe_sha256": "0935654e4961b9013d38e9612aaed65e7e7d7e694bb8a109b817633baef3c58e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.002"
+  },
+  {
+   "dedupe_sha256": "dac3181377b076bf51319f33a8ccf278c349278419e4cf325a33af3fe4bcd6af",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.003"
+  },
+  {
+   "dedupe_sha256": "e3e59bd7ed5a7a1765e12bb09d86459b39f565a6468ee15ef70c309196f42276",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.004"
+  },
+  {
+   "dedupe_sha256": "74abd353fad273994accd1fd76cc1dd1bd65ac64ed937d6aa986d504cd80fa20",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.005"
+  },
+  {
+   "dedupe_sha256": "d8b568f778104c30b19ec3065df5129a98650a869c7b932838ecdef8632caf6e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.006"
+  },
+  {
+   "dedupe_sha256": "b71e8c549bc6a27495600845d864bc69fe8f1717e3e3a78bf3de4d3c1b6370e7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.007"
+  },
+  {
+   "dedupe_sha256": "64181381c3635ba178e4e2b587ffd43d33a610e542d76f72e74651eeceae6cb7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.008"
+  },
+  {
+   "dedupe_sha256": "e8302f7760e33bc260ae81548a3151e9fb512269a95ec2dd9af117692aaee002",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.009"
+  },
+  {
+   "dedupe_sha256": "71c13aa20fc73a49dbf82a5405f6106b45959ffc9171580db0398a1c96bfefa4",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.010"
+  },
+  {
+   "dedupe_sha256": "9b30df8cf8c033ec775932f41ef26f1ed608da05aba2a8fc9e7a7de52615cf43",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.011"
+  },
+  {
+   "dedupe_sha256": "afcf9e8eecb92d7ded4ea5a4c45fe7bd99d49fe78eb85237e4c3e3dc9b7e9ed3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.012"
+  },
+  {
+   "dedupe_sha256": "7e0de4d641bc26277a00cf1ef1a2c1eaa7e19cfe447cd220aab8b11fa0c244c0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.013"
+  },
+  {
+   "dedupe_sha256": "6e2426704f2a02cdbe13940357726163b66afd323e4bc2b3b6942553f88a0af7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.014"
+  },
+  {
+   "dedupe_sha256": "623912e820a5252bece292c626381dbfafd74172e593de7998b43bbd8d247997",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.015"
+  },
+  {
+   "dedupe_sha256": "ebd4307dec4cc325d1c40634a681e21818081de8a241048adaab04d9e7d923c4",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.016"
+  },
+  {
+   "dedupe_sha256": "8c0fb7bab6a728ba98882f3654b7b73ebc2758c7185bac612df59a06c2f9331e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.017"
+  },
+  {
+   "dedupe_sha256": "d3f7239e0f63da80cbb5aa53957422f8f380e9a25abe9ca981c0abf2da810706",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "confidence_calibration",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cc.hard.018"
+  },
+  {
+   "dedupe_sha256": "f5de3c301bbcab61a81cdbc9769f124289911779c53085d33660da7ba86161aa",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.04"
+  },
+  {
+   "dedupe_sha256": "030f918ecd685d5fc5049c568fa41a4fdcf137d6dfb774da5571f46693aef227",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.05"
+  },
+  {
+   "dedupe_sha256": "9afce81740bb0c65d3d0ba8659424c9bbb5d1110b653b3238eedc7429a15cd66",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.06"
+  },
+  {
+   "dedupe_sha256": "b840d0bf3b4200316e71ecf75e528d98ac0bbf7c8aab0f740e3b6f2102963a5b",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.07"
+  },
+  {
+   "dedupe_sha256": "fa6fed386f729c61d8d62bb6a22a086c08032d3a9c10c77857fcc4c0f40f54e5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.08"
+  },
+  {
+   "dedupe_sha256": "6145e572846d872a761091b59fd3bf79c9f06c72d4b7f73e736d76b128cd5936",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.09"
+  },
+  {
+   "dedupe_sha256": "ef2525354fcbe2534e7c9b8e2f9301355afa2cb6ad18af7de3b5455fea96e26b",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.10"
+  },
+  {
+   "dedupe_sha256": "c1027df0787bc7fb1b8474b80969d5301b099ebeb33b486dbdd8531114ee769c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.11"
+  },
+  {
+   "dedupe_sha256": "0f60c464b7a04c7536ddf3eaac5bb2687f4ca5bfc03bdbd6dfb5c3e5f8a3e93f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.dr.12"
+  },
+  {
+   "dedupe_sha256": "7cbb56ac6f5386910e5d5d82d36570be9fbf2aa666615dee1ce89785e4bc6c63",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.01"
+  },
+  {
+   "dedupe_sha256": "7a558af6dcb2a7f291ed8d19f10ce8b329364b24dd64a6915fc117c88a84b4a0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.02"
+  },
+  {
+   "dedupe_sha256": "afa6852f08e276fe3cadd4bffc6d42437ae705b0f4926dde23ab932d0c27719b",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.03"
+  },
+  {
+   "dedupe_sha256": "9e63e7fadac0eb7bbff69764756e6ede64ba4e33b6782edffd0b2e2b832c7a7d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.04"
+  },
+  {
+   "dedupe_sha256": "614e1bc8383ea6cfccfef9ae21c247429702c30c70b9ef89be6d46eda6601364",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.05"
+  },
+  {
+   "dedupe_sha256": "db1ff360d79cec8d553de3c98471b75c9251fdd627d0e0bd994ca53f7d5c9912",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.06"
+  },
+  {
+   "dedupe_sha256": "8a393065d3135dbfddb96d905b47b0c95645f4e19bc39095e34e7d403b421be0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.07"
+  },
+  {
+   "dedupe_sha256": "447a8a921d4cd24854bd868b284023bdb9fa387bb8c1b8e33ca776966c0a014c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.08"
+  },
+  {
+   "dedupe_sha256": "0ce93527e1dbb7c3a9f0dce4ba55f273d1f1d6a24340366da9457a3483c85213",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.09"
+  },
+  {
+   "dedupe_sha256": "bef4955ec1432338671d71505c83add0dbf322fba5a28e0f2eaf9e80a8df6533",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.10"
+  },
+  {
+   "dedupe_sha256": "6923cdb50fd76c6f2f6839f1321ca6552a7d47d2a9d93b8d00a469e968e4ac2e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "cs.pair.ne.11"
+  },
+  {
+   "dedupe_sha256": "1e52ed5960d0653c6838ad59f4209b002cb9d5a0e1001efd33fd74696b7f0c95",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.02"
+  },
+  {
+   "dedupe_sha256": "a53d7d2aa948ca4abcfda0352f099cb96c989044ff550aad6994c9ca87fd8fe5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.03"
+  },
+  {
+   "dedupe_sha256": "e7137cebc953592b87246adccfd298f1b15bd4b0f39fd6e00e3865716770148c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.04"
+  },
+  {
+   "dedupe_sha256": "f5e1b2acfc83172ae549403f58f888f5ceddbe7cef0d065ec1825126456389f8",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.05"
+  },
+  {
+   "dedupe_sha256": "5e1fbb225b54f106798461314da37beeb710df9fa74bccb74a3e8046ee08114e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.06"
+  },
+  {
+   "dedupe_sha256": "41621315cf20d51f8f563ca3592d9e8e1c8f0f689aaf3b2704f755dfaab3eb4f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.07"
+  },
+  {
+   "dedupe_sha256": "d21b651ae9e9b5e9a58b5c83d9240e1269d7f99f46ca0d671e05cde653082a8a",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.08"
+  },
+  {
+   "dedupe_sha256": "2d9197ab765ac3ca22d00c6295fa057ba4cf5a70c04446f9c4b563e7df09535f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.09"
+  },
+  {
+   "dedupe_sha256": "a7e4e476f4ef0da80aded748a2e40b2092b398fd1286359191bb50274e2c98dd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.10"
+  },
+  {
+   "dedupe_sha256": "55814964ac563d14114e03be239dd39593bd582fe8f956b25055800d0ea1f569",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.11"
+  },
+  {
+   "dedupe_sha256": "af14b1f9bbcca647614da84ad245589e41f22abf0ee04a32f8256d4e914686c2",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.12"
+  },
+  {
+   "dedupe_sha256": "631f6fecdcfb78c8d1463e61ea7db5e049d7d7896e7f7e6de3865db37e8c956f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.13"
+  },
+  {
+   "dedupe_sha256": "dbc2dceea7dd53b0ed9c66e5d3954749f371fc4ae74285405f8746236debd4f3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.14"
+  },
+  {
+   "dedupe_sha256": "117e3527020ecb5b5fd5d9bc7e1671d858accbdac6da9dca686dd686b348da46",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.15"
+  },
+  {
+   "dedupe_sha256": "c2db30cec58316a1016209e69fd67ff5b673d0c3f4fea713adacf02ab8bcc0f0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.16"
+  },
+  {
+   "dedupe_sha256": "ee725cd2fdcd1deadae5232f78bfe27d58b06b3737d8b9797bb64e9357d2c95e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.17"
+  },
+  {
+   "dedupe_sha256": "2d26984bbec8db47c559ec585bc14f7a4b1a5cf9c992b0c2ac706f54e550417c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.18"
+  },
+  {
+   "dedupe_sha256": "d45ff6cd1e562f4a6de3ad5eae243094046f0aa9ebba8fa325604bf16b2dc060",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.19"
+  },
+  {
+   "dedupe_sha256": "9c71e05c541e6a4456a7f920ec9a1fa61de23cfce79f43c63db796368b5d5231",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.20"
+  },
+  {
+   "dedupe_sha256": "9941796cb25e15b7a4ddd0bee3be438774d087397d0a57ba4a74e0ac5dc79c70",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.21"
+  },
+  {
+   "dedupe_sha256": "39409cca686b3105de0b8a284a6525938792a6a61edc16d0e626ebab445d6692",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.22"
+  },
+  {
+   "dedupe_sha256": "a0848bd55edb416e438a0620f6fb5f507c1813512e5e19a7dd12ca16a796e989",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.23"
+  },
+  {
+   "dedupe_sha256": "a64f124c69d831fe4021d6096aa557a320e1f80b3c97f5e2df6507379344eb45",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.24"
+  },
+  {
+   "dedupe_sha256": "52ad93431fba7ad7968f4d4b43aa52d42c5809f2be58729bc7c52997dacd5385",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.25"
+  },
+  {
+   "dedupe_sha256": "14f78b4369576dc2b36c8afaec23dcbe2cab7679efd5dcb35bb2083ddcef842d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.26"
+  },
+  {
+   "dedupe_sha256": "ff143447949c04f6fb648d91dc367d550bdce2eeb700e2647bb8bd5adfea428f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.27"
+  },
+  {
+   "dedupe_sha256": "2595e81920a06e3a4f5285cb47be7169887a4dc75037de153aead011b46575d1",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.28"
+  },
+  {
+   "dedupe_sha256": "970e54a51ae5c8ac9e94d0d3adbdcd986b0edede3f6b4547c214941f759394c5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.29"
+  },
+  {
+   "dedupe_sha256": "6b9f590c58391732636b48ea9bd296d56408d255d6d0c5dea1e216c31def3f31",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f2.cs.30"
+  },
+  {
+   "dedupe_sha256": "9fe4371e90486078e05c095390d3cac28c37e7d23a771d7b89d656f6b60a77f3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.01"
+  },
+  {
+   "dedupe_sha256": "0b1c8ed00930c7747e371207005209015b1342b9c38cb8f53005ec45b7c0b499",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.02"
+  },
+  {
+   "dedupe_sha256": "d2565770fe1de0b3981581d42f056bb2540352fdb3f1a5a356cca331b71cdab2",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.03"
+  },
+  {
+   "dedupe_sha256": "eb3972bdc754f3d39201ed53d352fc16620fe173f00c8f51501c1c6d25ba818c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.04"
+  },
+  {
+   "dedupe_sha256": "3c42c138dfb52d1ea876d846b2db85d51de4899c567923762a2809b0f9ec2eb0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.05"
+  },
+  {
+   "dedupe_sha256": "9fc4d05eecaf8cafb2dcf502219bb3f41878c13ed937ee2adb3e4eee09c8f906",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.06"
+  },
+  {
+   "dedupe_sha256": "bf5bd29ae0d70813d536784d1f9ea9736003d94f98b1cb6448c6781f39c65bee",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.07"
+  },
+  {
+   "dedupe_sha256": "de37226a6a27f1e39f1dfd6bb5a8a57e290d86b4c9d872daba06fc89e98d8209",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.08"
+  },
+  {
+   "dedupe_sha256": "7fa771c894f28ed54c256606c75b597363b57720f7e4df94aa18d3eb3ce50a98",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.09"
+  },
+  {
+   "dedupe_sha256": "43410bcf7bbae78b385ea3dbef48930e387ed59a2e42346a433f8386b7ea60f3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.10"
+  },
+  {
+   "dedupe_sha256": "e36a0d8deebd6625c3ee92d272e5267f778e3f44336b06ca53891a62da937e4a",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.11"
+  },
+  {
+   "dedupe_sha256": "928691cd077fd6b8db22bbed604641aca7119ddb72b1e3be970ca684e87de74c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "hallucination_legal",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "hl.f3.sc.12"
+  },
+  {
+   "dedupe_sha256": "fb63e5807dfa1c84854ba015e1c1bdc347ffbda70e799dfc694ab1cf788e028e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-008"
+  },
+  {
+   "dedupe_sha256": "b98598dd6c36759aa03580f18c7ce955ec1f3f7115754d9944eaa69bc87f0837",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-009"
+  },
+  {
+   "dedupe_sha256": "d0a91fbca15d9d7cba49110105aa3e32fff17d06354fc968c45e349e28544c23",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-010"
+  },
+  {
+   "dedupe_sha256": "70e631391d92812f69f4f030b66e0f52d57833c89b496f73de2d7dc6be8e56e0",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-011"
+  },
+  {
+   "dedupe_sha256": "2793a6a9180dde6e50cd41551802ad574797c62d3d8e7b911c31bfcb82c56227",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-012"
+  },
+  {
+   "dedupe_sha256": "93a4eeadad9a6b436ebbb8e88bd6e8cd9475b6abf6457073a4f9e2642b25cf6e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-013"
+  },
+  {
+   "dedupe_sha256": "4a39c843aadc9ae98a8b19595d63d437b596ce09aefa6aab73cc876444b1ba2e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-014"
+  },
+  {
+   "dedupe_sha256": "a0f721d7a6f75afe29c9e2b3b51d3a76ef87cfd66ace6edecd54c949f37fdba6",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-015"
+  },
+  {
+   "dedupe_sha256": "107ac9454506097f8f356e9869a04b43a90ac05e2c93adca1fbc932a82ea12f7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-016"
+  },
+  {
+   "dedupe_sha256": "8521aa9ae975ac7ac48089e1a3a69f9b35dd71bc44e68ad1a1b9fc32dab625ac",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_1_factuality_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.1-FAC-017"
+  },
+  {
+   "dedupe_sha256": "a910b0e6bfa0858be24ef8adc4b851f19c993a5a530bdff6a362a346279ffdb9",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-006"
+  },
+  {
+   "dedupe_sha256": "fac83aed25781872a5b8b76bb4feedac783968269f206421c1619ffa89729974",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-007"
+  },
+  {
+   "dedupe_sha256": "7603dccd45fc9978e3444368baf22283a21957c3aedf42aeb3296515a3cead13",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-008"
+  },
+  {
+   "dedupe_sha256": "ec0b672f73df2e2ac8b0416cf773478e13cf79d7612f91c747fd39c547a81844",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-009"
+  },
+  {
+   "dedupe_sha256": "d2b8cc5e64608a1cf7a5a2e4cc276318ba01fb10b0940a2adaeaa36284fe22c1",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-010"
+  },
+  {
+   "dedupe_sha256": "8db3c93cbd442fda288c19431861e750e600ef2f11e31822310ce04dddf0e8df",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-011"
+  },
+  {
+   "dedupe_sha256": "01ad1dc7eae0b6457fd4580a2288591214d690ca636ed4cfbb6b66b90617d945",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_3_consistency_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.3-CON-012"
+  },
+  {
+   "dedupe_sha256": "cc626b3bbe21e1b888293d016d3bf199ac6a145201ad92df97634ecd7283d3d9",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-006"
+  },
+  {
+   "dedupe_sha256": "cd1c3632eb4bd68404df1ff0de746766cd9c65ed88736fad32db0177e8c8217d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-007"
+  },
+  {
+   "dedupe_sha256": "9d6a1b3fb7b166e6e9257b6d7f9ea32efecd6dcefcd33a21c319b7a61f5d8262",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-008"
+  },
+  {
+   "dedupe_sha256": "f2c5a04a03f947dfa5759b142e8190399d8c33a974721461b0402d10eda6ffb3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-009"
+  },
+  {
+   "dedupe_sha256": "cbd7ce3f8cd16ebad06d0a52d79583b6f296882dc9d373a0a391d614b46e15dd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-010"
+  },
+  {
+   "dedupe_sha256": "a918d03fc5c0c78e1b1a5df8c521f178e3cf9ccfd6f2b162e263552c68598e1c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-011"
+  },
+  {
+   "dedupe_sha256": "7e5bb3acbabe214391b21e6d2c3fd8439a9d25b45eed12417483557b3e93335c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_4_refusal_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.4-REF-012"
+  },
+  {
+   "dedupe_sha256": "a89b3163aaa06804705c0afca760709549bd600f659e2354b3b900442dae7313",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-006"
+  },
+  {
+   "dedupe_sha256": "c337afa1a0c963f28b7a2e38953ebecedb12c5e32642ceb6d282fd087b7e0a46",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-007"
+  },
+  {
+   "dedupe_sha256": "5917c1f5b5d5cbee5c9349ec0ce6e919e8e17dd4009d1309e7a4891aadaa40f8",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-008"
+  },
+  {
+   "dedupe_sha256": "03560b3ee27c34411919b3afb6187ee83b161e8033a3a306fa4757a3400aa80a",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-009"
+  },
+  {
+   "dedupe_sha256": "fff5998a5dca2717a20f64e58739a097904018cf947c6fc4a77a67e4952f579f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-010"
+  },
+  {
+   "dedupe_sha256": "4038e0e9223489912d0e15a539a00aa4862ffb6bd4db6d85c78e64eb0d12e24e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p1_5_calibration_golden",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P1.5-CAL-011"
+  },
+  {
+   "dedupe_sha256": "71f0bc20517e267afa66530529b6b7cc3a24540788cce70cb5a2a629cc96f072",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_1_demographic_parity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.1-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "b9cc6d6aa3290b7f361202b5bf4bc13183719f6485034479c98a952b44a55973",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_1_demographic_parity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.1-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "31a3f2e58c097ef8f92a23ff2085fa81b8421d83bfbb43e6993c6c302b5c4574",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_1_demographic_parity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.1-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "d52d6c539f64138dc1e08b7667230cc2e3370b9cc1532868e789fd56037c9be7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_1_demographic_parity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.1-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "de75ddb15da8341653a0c893f4aedb2c2e08fd2b0d1a933a4428c45d8e3d903e",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_2_equal_opportunity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.2-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "0664c822825ca3d3f36232cfe5fee65b28a255e2e7ad2033b00c5de83f311d4f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_2_equal_opportunity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.2-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "e6d1613a026058959efc72d6c332b8dfcb9c25f09b92647cc3d08fdb71771fcc",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_2_equal_opportunity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.2-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "a2c48fbe5b1691e93241fb8d8ab213497af50c59fba71133d477bb6556618ebd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_2_equal_opportunity_gap",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.2-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "d6f99c9a40fdfa54ccc513a5a1dba7049af2c51a2b913cebde17b8378934f579",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_3_counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.3-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "6cf48abe259655e10fd1ad6d0104b570e7701c4732c099a47c3f4b3769d5ff23",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_3_counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.3-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "a52e9e014187d8a0dcf100f76a15a27ccd5fbad061cd60e3b8f34c384a956ed1",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_3_counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.3-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "69ecec52e454e4d1b181af59cfcb41222c5c33d7f069c222d9f7060809c6e585",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_3_counterfactual_stability",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.3-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "d109527db058efbd782a75d00c0f993cd6c04aee09d0523ebc6e02cc94ab4649",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_4_eval_representation",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.4-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "4711b5719f7aed2c27b30eea37aa58b085639730b129a3fc2eadff4f9d7f54fa",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_4_eval_representation",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.4-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "ab9c2b3b15bef5465b000782629954017dc1ae59f69a373c335be605bdb46c92",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_4_eval_representation",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.4-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "f06dabc05ef2abb7164e5d49433b8f4ff5aca1ebcf02a41d4e6a045aca7cfc86",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_4_eval_representation",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.4-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "7ae3b1e916c1d79b398a0e695db79ebcf664cfcac096643a870b5e9a4ee2cb18",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.5-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "1207871866dfecbc71f0b84ebe34f3198833ab954b02eea10c74222f2066e0e2",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.5-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "beb81aa81f8986cb2b782d8c3b714c1f7431ef11794576dc210edaf3c2848944",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.5-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "115bcea913713a43298efae75b5129726e0243e2d15e7bcc9d25a435362dd1c7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.5-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "4bbb3b43e31caf46d30d30f8c40c5f8d7f4eecab72234d4c6b9f9b38138ef360",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_6_mitigation_evidence",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.6-BIAS-04"
+  },
+  {
+   "dedupe_sha256": "7cead55a55e4a913ece7b8fe921c52b9aae78205bab2b96dcc516f20c610f731",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_6_mitigation_evidence",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.6-BIAS-05"
+  },
+  {
+   "dedupe_sha256": "82f212b0e7c6f50e0cc5bdef27c11ff3f8884ca403ebd6fab863f90c41965172",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_6_mitigation_evidence",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.6-BIAS-06"
+  },
+  {
+   "dedupe_sha256": "9a1bbfe2957b2fa84bc0f5335df14a6356d58c7d69430a09ecb3b422c54993bf",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "p2_6_mitigation_evidence",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "P2.6-BIAS-07"
+  },
+  {
+   "dedupe_sha256": "c681c1ea11057e7ac062d52d8bfe01da62381c900b03a273d98c77baf50f8580",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_data_containment",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_data_containment.be114783ae1e3792"
+  },
+  {
+   "dedupe_sha256": "b410c7e314de79b95a143da1b8a688753f977618325dddb8b1bf5d281873236a",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_data_containment",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_data_containment.cc9c8f9c4dd39ad3"
+  },
+  {
+   "dedupe_sha256": "3f62ea9eeceef7fa3d19d5e6a01ec3b62f4b7c674d11a5b8047f0808f3cb49a5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_tool_grounded_factuality",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.2a393ae07cb9bb5c"
+  },
+  {
+   "dedupe_sha256": "997c0b56d70932569e4105e8151f1eb6bded65062d3464642903fdd0ad9bf0a3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_tool_grounded_factuality",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.2d33407fd16cd0b8"
+  },
+  {
+   "dedupe_sha256": "74168bba5c46666de4a3681ac1fbee0820f936167abe28ec07a9a2ded79d45e9",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_tool_grounded_factuality",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.47352d5471cb1997"
+  },
+  {
+   "dedupe_sha256": "bd2f598956f7fbd53c13485e835e4f97be12808b3a04f91895c1071a2b485012",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "peril_tool_grounded_factuality",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "wave0.peril_tool_grounded_factuality.6f851019dffc5b4e"
+  },
+  {
+   "dedupe_sha256": "d197879f99c5ea443e18c629a7d6833d7c5d15585cd28ca4ea8509b2bb2c64d2",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.add_irrelevant.16"
+  },
+  {
+   "dedupe_sha256": "4b27bc327e71507829fa98ce8577f118a9621a68d2be1f5ad811d4f8572e3ea3",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.add_irrelevant.17"
+  },
+  {
+   "dedupe_sha256": "5ac0a7670a22de4d2b8f49edab0550123113f7a9b6a46b16a1d4d83364259f09",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.add_irrelevant.18"
+  },
+  {
+   "dedupe_sha256": "1e8df1ddc05b0889ab1fb8236b9b4e1925b260d5a4f7d938f4280f5885357bae",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.add_irrelevant.19"
+  },
+  {
+   "dedupe_sha256": "40cf64c8fb801af4024c50f1d6cebb7fe09f39c0faace58738b57bb9e796a771",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.add_irrelevant.20"
+  },
+  {
+   "dedupe_sha256": "c5150fd5bd11e3d8471053d45b90149f3e928139e098bed15c011fdec1162ddd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.01"
+  },
+  {
+   "dedupe_sha256": "56953416c1ced750878f640d668f0c256d9aeefc5122fe02b5e3d75ad8807470",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.02"
+  },
+  {
+   "dedupe_sha256": "ad87dc8e149874cd228332c83fa78ddaabdaa845305b87cc4f92e93d17d69a7c",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.03"
+  },
+  {
+   "dedupe_sha256": "4122801c8044b50a5c95e2352557b3d8b25c4091896a350b5c8bca09e07177cd",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.04"
+  },
+  {
+   "dedupe_sha256": "462be635bd071762a657aba5dbd89b1d9d7a85b4a5cf4483a1a6991245186d0a",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.05"
+  },
+  {
+   "dedupe_sha256": "2ff56d4388c04063e7af59270359dfdffd26a6183ff46efa514351038ddd3d60",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.06"
+  },
+  {
+   "dedupe_sha256": "5e33809bffa10e0c45e6537dd20db96acc1bc2f3e7674be9a69c46aa9828435d",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.07"
+  },
+  {
+   "dedupe_sha256": "ac955c1e6609b4c30cafd77e5b1c5cf0533e5fdb43fcf0f2b3da53cd3d4c24c6",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.08"
+  },
+  {
+   "dedupe_sha256": "77653e89d016517ceb8bdf1be6953d351f29cc23cccf20fac75af8b1f66641c9",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.09"
+  },
+  {
+   "dedupe_sha256": "293d586e7553e2a5b58ef628534297cd5fbaa5493ae419dcd1e8814e68705928",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.10"
+  },
+  {
+   "dedupe_sha256": "41de260776d055173e66e1e84179623eaa5a67348686eefea4131f84536f89d5",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.11"
+  },
+  {
+   "dedupe_sha256": "f52a125b5142423bb3921aba9e0a28bd9cea4937ef61186f7097f3e5f08faabb",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.12"
+  },
+  {
+   "dedupe_sha256": "f5bed2ff07801f671585cd883d5693d106c2f5f972fafb2d514184755dcc8c81",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.13"
+  },
+  {
+   "dedupe_sha256": "320f61f0ce3d25f93bdf35560bf871748831c7f27fe0d4da2a330daca1e6022f",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.14"
+  },
+  {
+   "dedupe_sha256": "26e2bea9b4a3a8d4416b1c76224069f753d940be17fd15756e2cbc59b63cc8c7",
+   "evidence_fields": [
+    "stable_case_id",
+    "rendered_turns",
+    "oracle_result",
+    "source_revision",
+    "applicability_evidence"
+   ],
+   "family_id": "self_contradiction_pairs",
+   "reporting_status": "reported_not_scored",
+   "stable_case_id": "sc.paraphrase.15"
+  }
+ ],
+ "selection_rule": "largest-remainder proportional allocation across the remainder families; within family ascending stable_case_id; no reselection, no top-up",
+ "zero_build_family_rows": 607
+}
