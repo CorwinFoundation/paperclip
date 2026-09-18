@@ -984,6 +984,67 @@ def _control_binding_inputs(
     return chosen, _manifest_evidence(json.loads(manifest.decode("utf-8")))
 
 
+# BEAAA-33661 clause 3, CEO ratified 2026-09-18. A full-scan run manifest carries
+# its own fitness verdict: ``incomplete``, ``analysis_status``, ``bind_eligibility``
+# and the BEAAA-21446 ``acceptance_gate``. The manifest pinned at
+# ``RUN_MANIFEST_SHA256`` sets ``incomplete: true``,
+# ``bind_eligibility: "blocked_base_suite_incomplete"`` and
+# ``acceptance_gate.passed: false`` - it declares itself unfit to bind - and
+# ``build_ledger`` read 187 verdicts out of it anyway, carrying 9 of them into the
+# scored population. The guard below refuses that silently-unfit read.
+#
+# Scope, stated rather than implied: the trigger is an AFFIRMATIVE self-disownment.
+# A manifest that carries none of these fields is not treated as unfit, because
+# absence is not a declaration and every synthetic manifest in the test suite is
+# silent on all four. This control catches a manifest that says it is unfit, not
+# one that is unfit and silent.
+FIT_ANALYSIS_STATUS = "analysis_complete"
+FIT_BIND_ELIGIBILITY = "eligible"
+
+
+def _manifest_unfitness(manifest: dict[str, Any]) -> list[str]:
+    """The ways this run manifest declares itself unfit to bind verdicts."""
+    reasons = []
+    if manifest.get("incomplete") is True:
+        reasons.append("incomplete")
+    status = str(manifest.get("analysis_status") or "")
+    if status and status != FIT_ANALYSIS_STATUS:
+        reasons.append(f"analysis_status:{status}")
+    eligibility = manifest.get("bind_eligibility")
+    if eligibility is not None and str(eligibility) != FIT_BIND_ELIGIBILITY:
+        reasons.append(f"bind_eligibility:{eligibility}")
+    gate = manifest.get("acceptance_gate")
+    if isinstance(gate, dict) and gate.get("passed") is False:
+        reasons.append("acceptance_gate_not_passed")
+    missing = (manifest.get("counts") or {}).get("missing_required")
+    if missing:
+        reasons.append(f"missing_required:{missing}")
+    return reasons
+
+
+def _assert_manifest_fit_to_bind(
+    manifest: dict[str, Any], acknowledgement: str | None
+) -> dict[str, Any]:
+    """Refuse to bind verdicts out of a manifest that disowns itself.
+
+    The acknowledgement is deliberately a caller-supplied reference rather than a
+    boolean: rebuilding the pinned BEAAA-31092 ledger has to keep reading this
+    manifest to reproduce the 43/144 split byte for byte, so the escape hatch has
+    to exist. Making it name an issue puts the decision in the artefact instead of
+    in a default, and the reasons are stamped onto the ledger either way, so no
+    downstream reader can consume a ledger without seeing that its binding
+    manifest was unfit.
+    """
+    reasons = _manifest_unfitness(manifest)
+    if reasons and not acknowledgement:
+        raise ValueError(
+            "run manifest declares itself unfit to bind verdicts "
+            f"({', '.join(reasons)}); build_ledger will not read verdicts out of "
+            "it. Supply unfit_manifest_ack=<issue ref> to bind anyway, which "
+            "stamps the reasons onto the ledger.")
+    return {"unfit_reasons": reasons, "acknowledged_by": acknowledgement or None}
+
+
 def build_ledger(
     inventory_path: Path,
     manifest_path: Path,
@@ -991,9 +1052,11 @@ def build_ledger(
     job_id: str | None = None,
     controls: list[dict[str, Any]] | Path | None = None,
     determinations: list[dict[str, Any]] | Path | None = None,
+    unfit_manifest_ack: str | None = None,
 ) -> dict[str, Any]:
     inventory = _jsonl(inventory_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_fitness = _assert_manifest_fit_to_bind(manifest, unfit_manifest_ack)
     if isinstance(controls, Path):
         controls = json.loads(controls.read_text(encoding="utf-8"))
     chosen = [row for row in inventory if row.get("family_id") in SLICE_FAMILIES]
@@ -1057,6 +1120,7 @@ def build_ledger(
         "inventory_sha256": INVENTORY_SHA256,
         "source_manifest_sha256": MANIFEST_SHA256,
         "run_manifest_sha256": RUN_MANIFEST_SHA256,
+        "manifest_fitness": manifest_fitness,
         "tier1_families": sorted(tier1),
         "tier2_held_families": sorted(set(spread) - tier1),
         "verdict_spread_gate": _gate_report(spread, withheld),
@@ -1086,6 +1150,9 @@ def main() -> int:
     parser.add_argument("--determinations", type=Path, default=None,
                         help="JSON list of surface-fit determinations; hold vocabulary only, "
                              "defaults to the pinned artifacts/beaaa-31092/surface-determinations.json")
+    parser.add_argument("--acknowledge-unfit-manifest", default=None, metavar="ISSUE_REF",
+                        help="bind verdicts out of a manifest that declares itself unfit "
+                             "(BEAAA-33661 clause 3); the reasons are stamped onto the ledger")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--redetermine", type=Path, default=None,
                         help="apply the pinned surface determinations to an existing ledger "
@@ -1102,7 +1169,7 @@ def main() -> int:
                                args.determinations, args.manifest, args.inventory)
     else:
         ledger = build_ledger(args.inventory, args.manifest, args.evidence_dir, args.job_id, controls,
-                              args.determinations)
+                              args.determinations, args.acknowledge_unfit_manifest)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 0 if ledger["held"] == 0 else 2

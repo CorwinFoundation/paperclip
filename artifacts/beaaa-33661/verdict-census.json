@@ -1,0 +1,61 @@
+{
+  "by_framework": {
+    "content_candidate:agree": 85,
+    "content_candidate:disagree": 75,
+    "day1_report_only:agree": 12,
+    "promptfoo:agree": 13,
+    "promptfoo:disagree": 2
+  },
+  "by_ledger_disposition": {
+    "<not_in_ledger>:agree": 25,
+    "<not_in_ledger>:disagree": 2,
+    "held_reported_not_scored:agree": 51,
+    "held_reported_not_scored:disagree": 66,
+    "scored:agree": 34,
+    "scored:disagree": 9
+  },
+  "casefold_only_disagreements": 0,
+  "cause_buckets": {
+    "content_candidate:manifest_row_truncated_no_verdict": 26,
+    "content_candidate:manifest_verdict_defaulted_on_unmeasured_case": 24,
+    "content_candidate:result_triple_flip": 25,
+    "promptfoo:result_triple_flip": 2
+  },
+  "issue": "BEAAA-33661",
+  "manifest_job_id": "e1332067-ac21-4711-9462-8abeeb0e2254",
+  "manifest_path": "artifacts/beaaa-31092/rank2-run-manifest.json",
+  "manifest_self_declared": {
+    "acceptance_gate": {
+      "canonical_reconciliation_equal": true,
+      "incomplete_false": false,
+      "passed": false,
+      "zero_unapproved_missing_required": false
+    },
+    "analysis_status": "analysis_incomplete",
+    "bind_eligibility": "blocked_base_suite_incomplete",
+    "incomplete": true,
+    "missing_required": 26
+  },
+  "misbound_rows": {
+    "promptfoo": 15
+  },
+  "rows_compared": 187,
+  "scored_row_disagreement_causes": {
+    "content_candidate:result_triple_flip": 9
+  },
+  "self_consistency": {
+    "content_candidate:manifest_row_disagrees_with_its_own_numeric_result": 50,
+    "promptfoo:evidence_file_disagrees_with_its_own_score": 15,
+    "promptfoo:manifest_row_disagrees_with_its_own_numeric_result": 15
+  },
+  "unreadable_evidence_refs": 0,
+  "verdict_pairs": {
+    "manifest=<absent> file=fail": 21,
+    "manifest=<absent> file=pass": 5,
+    "manifest=PASS file=FAIL": 1,
+    "manifest=fail file=pass": 23,
+    "manifest=fail file=unresolved": 24,
+    "manifest=not_applicable file=FAIL": 1,
+    "manifest=pass file=fail": 2
+  }
+}

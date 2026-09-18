@@ -10,6 +10,9 @@ def test_rank_2_slice_fails_closed_without_recorded_responses():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-30720-manifest.json",
+        # BEAAA-33661 clause 3: this pinned manifest declares itself unfit to bind,
+        # so reading verdicts out of it is now an explicit, stamped decision.
+        unfit_manifest_ack="BEAAA-33661",
     )
     assert ledger["selected"] == ledger["mapped"] == 187
     assert ledger["evidenced"] == ledger["scored"] == 0
@@ -29,6 +32,9 @@ def test_every_selected_row_has_manifest_verdict_and_unique_identity():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-30720-manifest.json",
+        # BEAAA-33661 clause 3: this pinned manifest declares itself unfit to bind,
+        # so reading verdicts out of it is now an explicit, stamped decision.
+        unfit_manifest_ack="BEAAA-33661",
     )
     assert len({row["stable_case_id"] for row in ledger["rows"]}) == 187
     assert len({row["dedupe_sha256"] for row in ledger["rows"]}) == 187
@@ -935,6 +941,7 @@ def test_param_tamper_rows_read_their_withheld_verdict_not_absent_evidence():
     ledger = build_ledger(
         ROOT / "artifacts/beaaa-18720/unified-probe-inventory.jsonl",
         ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json",
+        unfit_manifest_ack="BEAAA-33661",  # BEAAA-33661 clause 3
     )
     tampered = [row for row in ledger["rows"] if row["family_id"] == "tool_misuse_param_tamper"]
     assert len(tampered) == 12
