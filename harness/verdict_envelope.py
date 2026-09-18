@@ -415,7 +415,10 @@ def compute_verdict_envelope(
 
     # Substrate side — optimistic-loaded (priors as-emitted in pillars).
     substrate_eligible, substrate_eligibility_reasons = _evaluate_substrate_eligible(score_response)
-    substrate_are_total = int(score_response.get("bmi", score_response.get("are_total", 0)))
+    # BEAAA-7073: canonical key first. `bmi` is a legacy alias bound to the same
+    # int, so this is delta-zero today; ordering it this way keeps it delta-zero if
+    # the alias is ever dropped.
+    substrate_are_total = int(score_response.get("are_total", score_response.get("bmi", 0)))
     substrate_gov_subscore = round(float(pillars.get("GOVERNANCE", {}).get("score", 0.0)), 4)
 
     # Substrate side — worst-case-loaded twin (priors collapsed per UW #2).

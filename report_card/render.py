@@ -722,9 +722,13 @@ def render(
         _d_bmi, _d_band, _d_pillars = _compute_display_weighted(
             score_response["pillars"], rubric, display_pillar_weights
         )
+        # BEAAA-7073: `are_total` is set alongside its `bmi` alias so the
+        # display-weighted dict cannot carry a reweighted total beside a stale
+        # un-reweighted one. Nothing reads this key here today, so delta-zero.
         _display_sr: dict[str, Any] = {
             **score_response,
             "bmi": _d_bmi,
+            "are_total": _d_bmi,
             "band": _d_band,
             "pillars": _d_pillars,
         }
