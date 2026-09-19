@@ -125,7 +125,7 @@ def test_the_stamp_is_absent_only_as_a_finding(monkeypatch, tmp_path):
 
 
 def test_the_committed_ledger_names_the_commit_it_was_built_at():
-    """BEAAA-33992 re-authored this artifact, so the stamp moves with it.
+    """BEAAA-34042 re-authored this artifact, so the stamp moves with it.
 
     The stamp is produced by the build CLI now rather than added by hand, which
     is how the previous one came to describe a file the code could no longer
@@ -135,7 +135,11 @@ def test_the_committed_ledger_names_the_commit_it_was_built_at():
     """
     stamp = _committed()[drift.STAMP_KEY]
     assert len(stamp["built_at_sha"]) == 40
-    assert stamp["built_by_issue"] == "BEAAA-33992"
+    # The value moves whenever the artifact is legitimately rebuilt - BEAAA-33992,
+    # then BEAAA-34042 when the roster round became derived from each row's own
+    # evidence_ref. Pinning it is the point: a stamp naming an issue that did not
+    # build this file is exactly the staleness this test exists to catch.
+    assert stamp["built_by_issue"] == "BEAAA-34042"
     assert "reproducible" in stamp["notice"]
     assert "evidence export" in stamp["notice"]
 

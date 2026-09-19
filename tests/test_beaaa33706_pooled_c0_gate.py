@@ -390,26 +390,46 @@ def test_round_1_yield_is_reported_under_both_gates():
     assert per_round["beaaa-33708-r1"]["yield_under_the_pooled_gate"] == 0.845
 
 
-def test_per_row_round_keying_is_what_carries_the_pooled_result(monkeypatch):
-    """Non-vacuity: collapsing the union onto one label moves rows, so the keying is load-bearing.
+def test_per_row_round_keying_is_what_carries_the_pooled_result():
+    """Non-vacuity: collapsing the rounds moves 60 rows, so the keying is load-bearing.
 
     A pooled gate that produced the same answer however its rows were keyed would
-    mean the span clause was not reading the union at all. Collapsing is only
-    reachable here by disabling the declaration check, which is itself the point:
-    the check refuses to observe a row under a round it did not run in.
+    mean the span clause was not reading the union at all.
+
+    BEAAA-34042 changed WHERE a collapse has to be applied to demonstrate that, and
+    the change is the point. A row's round is now derived from its own evidence_ref
+    (``_capture_round_for``), so collapsing the caller's DECLARATION no longer moves
+    anything - asserted below, because a caller who could collapse rounds could also
+    invent them, and inventing rounds is the one way to satisfy the span clause
+    without measuring anything. The declaration check still refuses the collapsed
+    cohort first; the derivation is what makes the refusal non-load-bearing.
+
+    So the collapse is applied to the rows themselves: a manifest whose evidence
+    really was captured in one round. That is the honest counterfactual, and it
+    still moves the same 60 rows the caller-side collapse used to move.
     """
     ledger, proof = P.build_pooled_ledger()
     pooled = P.pool_inputs(P.C0_ROUNDS, proof["families_left_split"])
     collapsed_declaration = Z.RosterCohort(
         cohort_id="collapsed",
         rounds_by_case={case: "one-label" for case in pooled["roster_cohort"].rounds_by_case})
+
+    # The declaration check refuses to observe a row under a round it did not run in.
     with pytest.raises(ValueError, match="a round they did not run in"):
         Z.build_ledger_from_objects(pooled["cohort_ids"], S._jsonl(Z.PINNED_INVENTORY_PATH),
                                     pooled["manifest"], pooled["controls"],
                                     roster_round=collapsed_declaration)
-    monkeypatch.setattr(Z, "_assert_roster_round_matches_manifest", lambda *args, **kwargs: None)
+
+    # Genuinely one round: the rows' own capture identity is collapsed, so the
+    # declaration now matches the manifest and is accepted on its merits.
+    one_round_manifest = {
+        **pooled["manifest"],
+        "evidence_rows": [{**row, "capture_round": "one-label",
+                           "evidence_ref": f"one-label/{row['stable_case_id']}"}
+                          for row in pooled["manifest"]["evidence_rows"]],
+    }
     collapsed = Z.build_ledger_from_objects(pooled["cohort_ids"], S._jsonl(Z.PINNED_INVENTORY_PATH),
-                                            pooled["manifest"], pooled["controls"],
+                                            one_round_manifest, pooled["controls"],
                                             roster_round=collapsed_declaration)
     # Was 247 scored and a 35-row gap over two rounds; 414 and 54 with round 2 in;
     # 456 and 60 with round 3. The gap has widened at every round, so per-row round
@@ -417,6 +437,28 @@ def test_per_row_round_keying_is_what_carries_the_pooled_result(monkeypatch):
     assert collapsed["scored"] == 456
     assert ledger["scored"] - collapsed["scored"] == 60
     assert set(ledger["tier1_families"]) - set(collapsed["tier1_families"]) == {"counterfactual_stability"}
+
+
+def test_a_collapsed_declaration_over_real_rounds_changes_nothing(monkeypatch):
+    """BEAAA-34042: the caller's label is inert for every row the gate can count.
+
+    This is the assertion the test above used to make in reverse. Disabling the
+    declaration check used to let a caller collapse a three-round union onto one
+    label and drop 60 rows; now the rows carry their own rounds, so the same
+    bypassed check produces the pooled ledger unchanged. A caller cannot move the
+    span clause in either direction.
+    """
+    ledger, proof = P.build_pooled_ledger()
+    pooled = P.pool_inputs(P.C0_ROUNDS, proof["families_left_split"])
+    collapsed_declaration = Z.RosterCohort(
+        cohort_id="collapsed",
+        rounds_by_case={case: "one-label" for case in pooled["roster_cohort"].rounds_by_case})
+    monkeypatch.setattr(Z, "_assert_roster_round_matches_manifest", lambda *args, **kwargs: None)
+    relabelled = Z.build_ledger_from_objects(pooled["cohort_ids"], S._jsonl(Z.PINNED_INVENTORY_PATH),
+                                             pooled["manifest"], pooled["controls"],
+                                             roster_round=collapsed_declaration)
+    assert relabelled["scored"] == ledger["scored"]
+    assert relabelled["tier1_families"] == ledger["tier1_families"]
 
 
 def test_no_tier1_minority_is_entirely_control_supplied_in_the_union():

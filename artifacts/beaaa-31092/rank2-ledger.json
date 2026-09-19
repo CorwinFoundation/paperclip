@@ -11,11 +11,11 @@
   "mapped": 187,
   "priced_score_weight": 0.0,
   "provenance_stamp": {
-    "built_at": "2026-09-18T21:17:29Z",
-    "built_at_sha": "7843eed5c49c7d4f58598c274cbc4cbbd3ccf38a",
-    "built_by_issue": "BEAAA-33992",
-    "notice": "Rebuilt from the pinned inventory + run manifest at built_at_sha with the job e1332067 evidence export. Unlike the BEAAA-33611 SNAPSHOT this replaces, these counts are reproducible: tools/beaaa33964_ledger_drift_check.py --evidence-root <export> exits 0 against this file. recorded_target_response is only ever read from that export, so a rebuild without it holds every row and is not a comparison.",
-    "stamped_by_issue": "BEAAA-33992"
+    "built_at": "2026-09-18T23:20:00Z",
+    "built_at_sha": "819c2aa8788a7e5bcc2300c7944c092120db4b1e",
+    "built_by_issue": "BEAAA-34042",
+    "notice": "Rebuilt from the pinned inventory + run manifest with the job e1332067 evidence export, and still reproducible from them alone. Identical to the BEAAA-33992 build on every row and every count; the only change is that verdict_spread_gate records the roster round as the capture job that produced the evidence (e1332067) rather than the manifest sha that describes it, because BEAAA-34042 derives a row's round from its own evidence_ref. Round 2 of the cac family is NOT in this file - it pools in the separate artifacts/beaaa-34042/rank2-pooled-ledger.json, so this one keeps reproducing from the pinned inputs.",
+    "stamped_by_issue": "BEAAA-34042"
   },
   "rows": [
     {
@@ -4139,7 +4139,7 @@
           ],
           "count": 20,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         },
         "pass": {
@@ -4151,7 +4151,7 @@
           "count": 3,
           "rounds": [
             "control:beaaa-33568-r1",
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4173,7 +4173,7 @@
           ],
           "count": 12,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4199,7 +4199,7 @@
           ],
           "count": 16,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         },
         "pass": {
@@ -4212,7 +4212,7 @@
           "count": 4,
           "rounds": [
             "control:beaaa-33611-r1",
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4233,7 +4233,7 @@
           ],
           "count": 11,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         },
         "pass": {
@@ -4244,7 +4244,7 @@
           ],
           "count": 3,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4272,7 +4272,7 @@
           ],
           "count": 18,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4295,7 +4295,7 @@
           ],
           "count": 13,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4316,7 +4316,7 @@
           ],
           "count": 11,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         },
         "pass": {
@@ -4326,7 +4326,7 @@
           ],
           "count": 2,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       },
@@ -4346,7 +4346,7 @@
           ],
           "count": 10,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         },
         "pass": {
@@ -4355,7 +4355,7 @@
           ],
           "count": 1,
           "rounds": [
-            "d73af79809d25e339abee16e3d3b8fa5b692e9a0e4349d505d39fd54efe3d7e6"
+            "e1332067-ac21-4711-9462-8abeeb0e2254"
           ]
         }
       }

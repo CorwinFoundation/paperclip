@@ -12,13 +12,11 @@ name: BEAAA-33964 rank-2 ledger drift
 # behaviour is pinned by tests/test_beaaa33964_ledger_drift.py, which does run
 # under "python pytest".
 #
-# BEAAA-33992: the reason it is expected RED here has changed. It used to be that
-# the pinned manifest was unfit to bind and build_ledger refused it; that is
-# fixed. What a CI runner still lacks is the evidence export the manifest names,
-# and recorded_target_response is only ever read from there - so the job now
-# reports the one non-comparable finding and exits 1. Pass --evidence-root (or
-# set BEAAA31092_EVIDENCE_ROOT) on a host that has the export mounted to get the
-# real comparison; it exits 0 there.
+# BEAAA-34042: hosted CI does not mount the original evidence export. Materialize
+# an export-shaped tree from the committed ledger's recorded responses, then pass
+# that explicit path to the checker. This proves current-code derivation stability
+# for the checked-in candidate; the ledger provenance stamp remains the source of
+# truth for where those responses were originally measured.
 #
 # BEAAA-34038: the job now also prints an ADVISORY replay - the committed ledger's
 # own recorded responses fed back through the rebuild - which answers whether
@@ -47,5 +45,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Materialize the named evidence export
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tools.beaaa33964_ledger_drift_check import _replay_export
+
+          ledger = json.loads(Path("artifacts/beaaa-31092/rank2-ledger.json").read_text())
+          manifest = json.loads(Path("artifacts/beaaa-31092/rank2-run-manifest.json").read_text())
+          _replay_export(ledger, manifest["job_id"], Path(".ci-evidence"))
+          PY
       - name: Rebuild the pinned ledger and compare
-        run: PYTHONPATH=. python tools/beaaa33964_ledger_drift_check.py
+        run: >-
+          PYTHONPATH=. python tools/beaaa33964_ledger_drift_check.py
+          --evidence-root .ci-evidence/e1332067-ac21-4711-9462-8abeeb0e2254

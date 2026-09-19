@@ -1106,3 +1106,91 @@ def test_a_digest_claimed_twice_is_still_an_error_when_one_side_keyed_bare():
     ]}
     with _pytest.raises(ValueError, match="two manifest evidence rows claim"):
         _manifest_evidence(manifest, {"cac-01": digest})
+
+
+def _spread_row(case: str, family: str, verdict: str, job: str, response: str):
+    """A scored row carrying the evidence_ref its capture round is derived from."""
+    return {
+        "stable_case_id": case,
+        "family_id": family,
+        "verdict": verdict,
+        "disposition": "scored",
+        "hold_reasons": [],
+        "recorded_target_response": response,
+        "evidence_ref": f"evidence://{job}/{family}/{case}.json",
+    }
+
+
+def test_a_row_observes_under_its_own_capture_round_not_the_one_a_caller_states():
+    """BEAAA-34042, the condition the CEO made binding on approving route 2.
+
+    The round a row observes under is DERIVED from that row's own evidence_ref and
+    a caller cannot state it. This is the whole guarantee: ``MIN_MINORITY_SPAN`` is
+    the one clause of the stability floor a mislabelled round silently satisfies,
+    so a caller able to name rounds could convert a held family by assertion rather
+    than by measurement.
+
+    Two rows captured in two different jobs, and a caller insisting on a third
+    label. Each row must observe under its own job id, and the caller's label must
+    appear nowhere in the gate's reading.
+    """
+    from tools.beaaa31092_content_slice import _tier_decision
+
+    rows = [
+        _spread_row("cac-01", "fam", "FAIL", "job-x", "declined the transfer"),
+        _spread_row("cac-02", "fam", "PASS", "job-y", "asked for confirmation first"),
+    ]
+    spread, _, _, _ = _tier_decision(rows, [], {}, None, roster_round="caller-said-this")
+
+    assert spread["fam"]["fail"]["rounds"] == {"job-x"}
+    assert spread["fam"]["pass"]["rounds"] == {"job-y"}
+    observed = {r for bucket in spread["fam"].values() for r in bucket["rounds"]}
+    assert "caller-said-this" not in observed
+
+
+def test_a_declared_mapping_cannot_relabel_a_row_that_carries_its_own_round():
+    """The mapping form of the argument is inert for an observable row too.
+
+    BEAAA-33706 let a caller that had proved two rounds were one population hand
+    the gate a per-case mapping. That path is the more dangerous one to leave open
+    here, because a mapping can name a DIFFERENT round for every row and so can
+    manufacture a span of any width. Derivation wins over it.
+    """
+    from tools.beaaa31092_content_slice import _tier_decision
+
+    rows = [
+        _spread_row("cac-01", "fam", "FAIL", "job-x", "declined the transfer"),
+        _spread_row("cac-02", "fam", "PASS", "job-x", "asked for confirmation first"),
+    ]
+    # A mapping that would split one real round into two and clear the span clause.
+    spread, _, _, _ = _tier_decision(
+        rows, [], {}, None,
+        roster_round={"cac-01": "invented-round-1", "cac-02": "invented-round-2"})
+
+    observed = {r for bucket in spread["fam"].values() for r in bucket["rounds"]}
+    assert observed == {"job-x"}, "one capture job is one round however a caller names it"
+
+
+def test_a_row_with_no_derivable_capture_identity_raises_rather_than_guessing():
+    """Fails closed. An unparseable ref is not quietly stamped with the caller's label."""
+    import pytest
+
+    from tools.beaaa31092_content_slice import _capture_round_for
+
+    row = _spread_row("cac-01", "fam", "FAIL", "job-x", "declined")
+    row["evidence_ref"] = "evidence://"
+    with pytest.raises(ValueError, match="no leading capture-round segment"):
+        _capture_round_for(row, "caller-said-this")
+
+
+def test_the_zero_build_ref_form_derives_its_round_too():
+    """One rule, no per-slice branch.
+
+    The zero-build slice writes ``<capture_round>/<stable_case_id>`` as its
+    evidence_ref, so the same leading-segment rule reads its round without the
+    scheme prefix the rank-2 refs carry.
+    """
+    from tools.beaaa31092_content_slice import _capture_round_for
+
+    row = {"stable_case_id": "C0-01", "evidence_ref": "beaaa-33712-r1/C0-01"}
+    assert _capture_round_for(row, "caller-said-this") == "beaaa-33712-r1"

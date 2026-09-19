@@ -547,6 +547,47 @@ def _tier1_families(spread: dict[str, dict[str, dict[str, Any]]]) -> set[str]:
     return tier1
 
 
+CAPTURE_ROUND_SCHEME = "evidence://"
+
+
+def _capture_round_for(row: dict[str, Any], fallback: "str | Mapping[str, str]") -> str:
+    """The round a row was captured in, DERIVED from that row's own evidence_ref.
+
+    BEAAA-34042, CEO ruling 2026-09-18, a binding condition of the approval rather
+    than an implementation preference: the round a row observes under is derived
+    from the row, never stated by a caller. A caller-supplied round label is the
+    same weakness as a manifest that declares itself fit to bind - it lets the
+    thing being checked assert its own answer - and ``MIN_MINORITY_SPAN`` is the
+    one clause of the stability floor a mislabelled round can silently satisfy.
+
+    Both slices that reach this gate already carry the round as the leading segment
+    of ``evidence_ref``, so there is one rule and no per-slice branch:
+
+      rank-2      ``evidence://<job_id>/<family>/<case>.json``  -> ``<job_id>``
+      zero-build  ``<capture_round>/<stable_case_id>``          -> ``<capture_round>``
+
+    ``fallback`` is consulted ONLY for a row carrying no evidence_ref, which is a
+    row that failed a fail-closed check and never reaches ``observe`` anyway. So
+    for every row this gate can actually count, the derivation wins and the
+    caller's argument is inert - which is the property the test asserts directly:
+    a row whose capture identity is X observes under X even when a caller passes Y.
+
+    Fails closed. A row with neither a derivable capture identity nor a fallback
+    that names it raises rather than observing under a guessed round.
+    """
+    ref = row.get("evidence_ref")
+    if isinstance(ref, str) and ref:
+        body = ref[len(CAPTURE_ROUND_SCHEME):] if ref.startswith(CAPTURE_ROUND_SCHEME) else ref
+        derived = body.split("/", 1)[0]
+        if derived:
+            return derived
+        raise ValueError(
+            f"row {row.get('stable_case_id')!r} carries evidence_ref {ref!r} with no "
+            "leading capture-round segment; the round a row observes under is derived "
+            "from its own evidence, and an unparseable ref cannot be guessed at")
+    return _roster_round_for(fallback, row["stable_case_id"])
+
+
 def _roster_round_for(roster_round: "str | Mapping[str, str]", stable_case_id: str) -> str:
     """The round one roster observation is recorded under.
 
@@ -601,6 +642,14 @@ def _tier_decision(
     of the clause above - the rounds really were distinct sampling moments, and the
     one value per build still holds for every caller that does not declare a union.
     A case the mapping does not name fails closed in ``_roster_round_for``.
+
+    BEAAA-34042, CEO ruling 2026-09-18: ``roster_round`` is no longer what an
+    observable row is stamped with. Every row that reaches ``observe`` has an
+    ``evidence_ref`` - it is a required evidence field, so a row without one is
+    already held - and ``_capture_round_for`` derives the round from that ref.
+    The argument survives only as the fail-closed fallback for a row with no
+    derivable capture identity, and is therefore inert for every row this gate
+    counts. A caller can no longer state the round of an observation.
     """
     spread: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -631,7 +680,7 @@ def _tier_decision(
             })
             continue
         observe(row["family_id"], str(row["verdict"]).casefold(), 1,
-                _roster_round_for(roster_round, row["stable_case_id"]), row["stable_case_id"])
+                _capture_round_for(row, roster_round), row["stable_case_id"])
 
     control_report = _admit_controls(controls, inventory_rows, evidence, rows, observe)
     tier1 = _tier1_families(spread)
