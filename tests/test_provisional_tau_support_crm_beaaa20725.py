@@ -251,7 +251,12 @@ def test_scenarios_bind_to_authoritative_report_only_registry_rows():
     registry = json.loads(
         Path("tools/probe-registry/authoritative_registry.json").read_text(encoding="utf-8")
     )
-    rows = {row["stable_id"]: row for row in registry["rows"] if row["bucket"] == "report_only"}
+    rows = {
+        row["stable_id"]: row
+        for row in registry["rows"]
+        if row["bucket"] == "report_only"
+        and row["mode"] == "report_only_local_mock_tool_harness_v1"
+    }
     assert set(rows) == {scenario.stable_id for scenario in SCENARIOS}
     assert all(row["rubric_point_id"] is None for row in rows.values())
     assert all(row["categories"]["registered"] for row in rows.values())

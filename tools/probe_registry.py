@@ -187,7 +187,7 @@ def _report_only_pilot_rows(repo: Path) -> list[dict[str, Any]]:
     source = "evals/provisional_tau_support_crm.py"
     if not (repo / source).exists():
         return []
-    return [
+    rows = [
         {
             "bucket": "report_only",
             "framework": "tau-bench",
@@ -208,6 +208,24 @@ def _report_only_pilot_rows(repo: Path) -> list[dict[str, Any]]:
             "tau_support_crm.identity_boundary.001",
         )
     ]
+    if (repo / "harness" / "live_containment_escape_chain.py").exists():
+        rows.append(
+            {
+                "bucket": "report_only",
+                "framework": "backbond_live_account",
+                "framework_version": "containment-escape-causal-chain-v1",
+                "corpus_or_family": "tool_misuse_scope_escape",
+                "case_id_or_probe_id": "containment-escape-causal-chain-v1.live-account",
+                "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.SCOPE_ESCAPE",
+                "mode": "safe_owned_canary_live_account_v1",
+                "source": "harness/live_containment_escape_chain.py",
+                "countable_as_executable": False,
+                "reported": True,
+                "scoring_active": False,
+                "reason": "live-account binding of the existing containment-escape chain; report-only",
+            }
+        )
+    return rows
 
 
 def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
