@@ -105,7 +105,10 @@ import argparse
 import hashlib
 import json
 import os
+import signal
 import sys
+import time
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -139,6 +142,7 @@ from rubric.scoring import Rubric, score  # noqa: E402
 PRIORS_DIR = REPO / "scripts" / "agent_priors"
 RUBRIC_PATH = REPO / "rubric" / "rubric.yaml"
 RATES_PATH = REPO / "pricing" / "rates.yaml"
+DEFAULT_SYLLABLE_SCAN_DEADLINE_SECONDS = 900.0
 
 DEFAULT_HUGGINGCHAT_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 
@@ -255,6 +259,30 @@ def _build_syllable() -> SyllableRunner:
         host_key=host_key,
         label=f"syllable:{label_suffix}",
     )
+
+
+@contextmanager
+def _syllable_scan_deadline(runner: SyllableRunner, seconds: float):
+    """Bound the whole Syllable scan, including a stuck SSL receive."""
+    if seconds <= 0:
+        raise ValueError("Syllable scan deadline must be positive")
+
+    runner.set_scan_deadline(time.monotonic() + seconds)
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+
+    def _deadline_exceeded(_signum, _frame) -> None:
+        raise RunnerError(
+            f"syllable scan deadline exceeded after {seconds:g} seconds"
+        )
+
+    signal.signal(signal.SIGALRM, _deadline_exceeded)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def _build_huggingchat(model_override: str | None = None) -> tuple[HTTPEndpointRunner, str]:
@@ -497,6 +525,12 @@ def main() -> int:
                              "the bundle's content (BEAAA-221 audit-trail "
                              "consistency). Requires --card-out and "
                              "--forensic-bundle.")
+    parser.add_argument(
+        "--syllable-scan-deadline-seconds",
+        type=float,
+        default=DEFAULT_SYLLABLE_SCAN_DEADLINE_SECONDS,
+        help="Wall-clock ceiling for a live Syllable scan (default: 900).",
+    )
     args = parser.parse_args()
 
     if args.render_only:
@@ -526,14 +560,20 @@ def main() -> int:
 
     print(f"  scanning {runner.model_id()} ...", file=sys.stderr, flush=True)
     measurements = []
-    for fixture, loader, run_fn, _dim in BENCHES:
-        items = loader(fixture)
-        try:
-            measurement = run_fn(runner, items)
-        except RunnerError as exc:
-            print(f"  vendor-side HTTP failure on {_dim}: {exc}", file=sys.stderr)
-            return 3
-        measurements.append(measurement)
+    deadline = (
+        _syllable_scan_deadline(runner, args.syllable_scan_deadline_seconds)
+        if args.vendor == "syllable"
+        else nullcontext()
+    )
+    try:
+        with deadline:
+            for fixture, loader, run_fn, _dim in BENCHES:
+                items = loader(fixture)
+                measurement = run_fn(runner, items)
+                measurements.append(measurement)
+    except (RunnerError, ValueError) as exc:
+        print(f"  vendor-side HTTP failure on {_dim}: {exc}", file=sys.stderr)
+        return 3
 
     prior_path = PRIORS_DIR / f"{prior_id}.json"
     if not prior_path.exists():
