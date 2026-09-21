@@ -38,7 +38,13 @@ def test_two_sandbox_installs_converge(tmp_path):
     invoke(tmp_path)
     assert tree(tmp_path) == first
     assert first["etc/backbond/appliance-ingest.env"][1] == 0o600
+    assert b"BACKBOND_TENANT_ID=backbond\n" in first["etc/backbond/appliance-ingest.env"][0]
     assert first["etc/backbond/appliance-enrollment.json"][1] == 0o640
+    assert first["usr/local/sbin/backbond-listener-status"][1] == 0o755
+    assert first["etc/sudoers.d/backbond-listener-status"][1] == 0o440
+    assert first["etc/sudoers.d/backbond-listener-status"][0] == (
+        b"beai-agent ALL=(root) NOPASSWD: /usr/local/sbin/backbond-listener-status\n"
+    )
     assert stat.S_IMODE((tmp_path / "etc/backbond").stat().st_mode) == 0o750
     unit = first["etc/systemd/system/backbond-appliance-ingest.service"][0].decode()
     migrations = [part.split("/")[-1] for part in unit.split() if part.startswith("/opt/backbond/migrations/")]
@@ -61,6 +67,16 @@ def test_root_install_sets_runtime_ownership_and_enroll_pythonpath():
     assert 'PYTHONPATH="$OPT/appliance-0.1.0" BACKBOND_CONFIG=' in script
     assert 'chown backbond:backbond "$VAR/appliance.key"' in script
     assert 'chmod 0600 "$VAR/appliance.key"' in script
+
+
+def test_status_helper_is_fixed_count_only_surface():
+    helper = (REPO / "ops/paperclip/numbat/backbond-listener-status.sh").read_text()
+    assert '[ "$#" = 0 ]' in helper
+    assert "/etc/backbond/appliance-ingest.env" in helper
+    assert '"$base/healthz"' in helper
+    assert '"$base/metrics"' in helper
+    assert "journalctl" not in helper
+    assert "cat /" not in helper
 
 
 def test_receiver_enrolls_every_entry_in_a_list(tmp_path):

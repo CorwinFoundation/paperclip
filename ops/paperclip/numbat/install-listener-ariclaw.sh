@@ -10,6 +10,8 @@ OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"
 UNITS="$ROOT/etc/systemd/system"
+LOCAL_SBIN="$ROOT/usr/local/sbin"
+SUDOERS="$ROOT/etc/sudoers.d"
 BACKUP="$VAR/install-backups"
 APPLIANCE_ID="${BACKBOND_APPLIANCE_ID:-ariclaw-1}"
 TENANT_ID="${BACKBOND_TENANT_ID:-backbond}"
@@ -48,7 +50,7 @@ if [ -z "$ROOT" ]; then
   getent group backbond >/dev/null || groupadd --system backbond
   id backbond >/dev/null 2>&1 || useradd --system --gid backbond --home-dir /var/lib/backbond --shell /usr/sbin/nologin backbond
 fi
-install -d -m 0755 "$OPT" "$UNITS"
+install -d -m 0755 "$OPT" "$UNITS" "$LOCAL_SBIN" "$SUDOERS"
 if [ -z "$ROOT" ]; then
   install -d -o root -g backbond -m 0750 "$ETC"
   install -d -o backbond -g backbond -m 0750 "$VAR"
@@ -85,6 +87,7 @@ EOF
 put "$ETC/appliance-ingest.env" 0600 root:root <<EOF
 BACKBOND_INGEST_TOKEN=$TOKEN
 BACKBOND_SHIP_TOKEN=$TOKEN
+BACKBOND_TENANT_ID=$TENANT_ID
 EOF
 
 if [ "${BACKBOND_INSTALL_SKIP_RUNTIME:-0}" = 1 ]; then
@@ -110,6 +113,11 @@ PY
 put "$ETC/appliance-enrollment.json" 0640 root:backbond < "$ETC/appliance-enrollment.json.tmp"; rm -f "$ETC/appliance-enrollment.json.tmp"
 
 put "$UNITS/backbond-appliance-ingest.service" 0644 root:root < "$REPO/ops/paperclip/numbat/backbond-appliance-ingest.service"
+put "$LOCAL_SBIN/backbond-listener-status" 0755 root:root < "$REPO/ops/paperclip/numbat/backbond-listener-status.sh"
+put "$SUDOERS/backbond-listener-status" 0440 root:root <<'EOF'
+beai-agent ALL=(root) NOPASSWD: /usr/local/sbin/backbond-listener-status
+EOF
+if [ -z "$ROOT" ]; then visudo -cf "$SUDOERS/backbond-listener-status" >/dev/null; fi
 put "$UNITS/backbond-appliance.service" 0644 root:root <<'EOF'
 [Unit]
 Description=BackBond AriClaw no-content appliance
@@ -143,4 +151,5 @@ printf 'INSTALLED listener and five-minute appliance timer\n'
 printf 'CHECK systemctl is-active backbond-appliance-ingest.service backbond-appliance.timer\n'
 printf 'HEALTH curl -fsS http://127.0.0.1:8787/healthz\n'
 printf 'METRICS curl -fsS -H "Authorization: Bearer <token>" -H "X-BackBond-Tenant: %s" http://127.0.0.1:8787/metrics\n' "$TENANT_ID"
+printf 'STATUS sudo /usr/local/sbin/backbond-listener-status\n'
 printf 'ROLLBACK systemctl disable --now backbond-appliance.timer backbond-appliance.service backbond-appliance-ingest.service; restore files from %s\n' "$BACKUP"
