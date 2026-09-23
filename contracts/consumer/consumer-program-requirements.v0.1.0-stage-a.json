@@ -1,0 +1,507 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "artifact_metadata": {
+    "owner": "Head of Underwriting & AI Risk",
+    "artifact_type": "underwriting",
+    "status": "draft",
+    "updated_at": "2026-09-21",
+    "source_refs": [
+      "BEAAA-34391",
+      "BEAAA-34387#SPEC_SOURCE_PART-1-8",
+      "sha256:0a096e6ae962176e88379a6d9e4a8afee838a66434f0b673137885dd6add3c46",
+      "are-scanner-api-v1.md"
+    ],
+    "claim_or_decision": "Defines a mock-only Stage A consumer program configuration and executable scenario truth table without activating or promising protection.",
+    "verification": "Source specification reconstructed to 55,455 bytes and its declared SHA-256 matched; JSON syntax and internal references are validated separately. Legal structure, capacity, authority, rates, backing, jurisdiction, claims operations, and funding remain unresolved for Stage C.",
+    "approvals": [],
+    "version": "0.1.0-stage-a",
+    "supersedes": null,
+    "self_audit": {
+      "single_purpose": "Give engineering deterministic program, eligibility, evidence, limit, and scenario rules for a truthful Stage A demonstration.",
+      "audience_and_next_action": "Engineering implements mock configuration and scenarios; Legal, Claims, Finance, and the capacity owner later supply the explicitly missing Stage C values.",
+      "scanner_contract_and_evidence": "References are-scanner-api-v1.md; no quote or active protection decision is produced and incomplete assessment evidence remains unknown.",
+      "loss_ratio_implication": "None calculated; this draft contains no validated consumer rate, frequency, severity, premium, or loss-ratio assumption.",
+      "rate_filing_implication": "No rate change or filed rate is proposed; any live price or protection structure requires Legal and Compliance confirmation.",
+      "terms_consistency": "Covered-event candidates, prerequisites, exclusions, reservations, historical rights, and claim review states are separated.",
+      "canonical_language_check": "Uses BackBond, BackBond Scanner, and BackBond Score only in their canonical meanings; mock protection is not described as live.",
+      "glossary_check": "passed",
+      "carrier_rule_check": "passed; no carrier claim or characterization is made",
+      "founder_or_ceo_risk": "Illustrative 30-day and USD 500 values are fenced to demo mode and cannot activate Stage C."
+    }
+  },
+  "schema_name": "backbond.consumer_program_requirements",
+  "schema_version": "0.1.0-stage-a",
+  "release_boundary": "draft",
+  "external_scope": "out",
+  "protection_path": {
+    "decision_status": "tbd",
+    "permitted_scenarios": [
+      "warranty_first",
+      "direct_to_insurance"
+    ],
+    "selected_scenario": null,
+    "live_protection": false
+  },
+  "stage_a_mock_configuration": {
+    "configuration_id": "consumer-purchase-correctness-demo-001",
+    "mode": "concept_demo",
+    "activation_allowed": false,
+    "customer_visible_status": "demo_not_activated",
+    "jurisdiction": null,
+    "currency": "USD",
+    "starter_period_days": 30,
+    "illustrative_program_period_limit_minor": 50000,
+    "illustrative_maximum_eligible_exposure_per_task_minor": 50000,
+    "deductible_rule": null,
+    "paid_price_minor": null,
+    "covered_workflows": [
+      "purchase_correctness",
+      "duplicate_execution"
+    ],
+    "deferred_workflows": [
+      "booking_correctness",
+      "missed_cancellation",
+      "general_email_liability",
+      "privacy_loss_reimbursement",
+      "phone_call_liability",
+      "financial_trading",
+      "medical_or_legal_advice",
+      "unlimited_agent_actions"
+    ],
+    "mock_authority_reference": "demo-only:no-authority",
+    "mock_backing_reference": "demo-only:no-backing",
+    "receipt_label": "Simulated receipt — no live protection",
+    "referral_benefits_enabled": false,
+    "notes": [
+      "The 30-day period and USD 500 limit are illustrative inputs from the build specification, not approved benefits or prices.",
+      "A successful demonstration cannot change activation_allowed or live_protection."
+    ]
+  },
+  "decision_domains": {
+    "assessment_readiness": {
+      "allowed_states": [
+        "eligible_for_program_review",
+        "needs_instrumentation",
+        "needs_remediation",
+        "unsupported"
+      ],
+      "required_fields": [
+        "profile_version",
+        "deployment_fingerprint",
+        "test_case_ids",
+        "applicability",
+        "evidence_grade",
+        "result",
+        "missing_checks",
+        "observed_control_owner",
+        "assessment_time",
+        "valid_until"
+      ],
+      "rules": [
+        "Assessment applies only to the named deployment, configuration, permissions, tools, and execution path.",
+        "Unknown or missing checks remain explicit and cannot be converted to pass.",
+        "Counts, corpus size, successful demonstrations, or aggregate BackBond Score cannot establish rate, activation, or claim entitlement.",
+        "Report-only, fixture-only, imported, synthetic-only, transport-invalid, and unexecuted tests cannot be represented as live executed passes."
+      ]
+    },
+    "enrollment_activation": {
+      "allowed_states": [
+        "draft",
+        "eligible",
+        "activation_pending",
+        "active",
+        "expired",
+        "cancelled"
+      ],
+      "stage_a_forced_state": "draft",
+      "activation_prerequisites": [
+        "selected_and_approved_legal_structure",
+        "approved_jurisdiction",
+        "valid_backing_and_authority_reference",
+        "accepted_program_and_offer_versions",
+        "eligible_named_deployment_and_configuration",
+        "required_permissions_and_connection_health",
+        "durable_activation_authority_receipt",
+        "atomic_limit_and_cohort_reservation",
+        "funded_and_supportable_cohort_capacity",
+        "claims_and_disbursement_operations_ready"
+      ],
+      "unknown_result": "activation_pending",
+      "prohibited_inferences": [
+        "signup_does_not_start_effective_period",
+        "connection_does_not_activate_protection",
+        "assessment_pass_does_not_activate_protection",
+        "provider_timeout_does_not_create_active_status",
+        "payment_or_subscription_does_not_itself_create_protection"
+      ]
+    },
+    "task_protection": {
+      "allowed_states": [
+        "pending",
+        "confirmed",
+        "not_eligible",
+        "ended"
+      ],
+      "confirmation_prerequisites": [
+        "active_enrollment_at_occurrence",
+        "governing_program_version_resolved",
+        "immutable_registered_mandate_version",
+        "valid_human_or_verified_host_authorization",
+        "supported_workflow_and_integration",
+        "task_within_effective_window",
+        "atomic_limit_reservation_succeeded",
+        "cohort_stop_new_business_not_active",
+        "confirmation_durably_recorded"
+      ],
+      "historical_rights_rule": "A later outage, disconnection, cancellation, or expiry stops new confirmations as applicable but does not erase a previously confirmed obligation or claim access under its governing terms."
+    },
+    "claim_entitlement": {
+      "allowed_states": [
+        "submitted",
+        "evidence_needed",
+        "reviewing",
+        "approved",
+        "declined",
+        "payment_pending",
+        "paid",
+        "closed",
+        "appealed"
+      ],
+      "intake_rule": "Accept notice when evidence is incomplete or an adapter missed an event; request information or route to review instead of denying at intake.",
+      "mandate_deviation_rule": "Wrong amount, SKU, date, recipient, or execution count may be the mistake under review. Deviation from the mandate is not by itself a denial reason.",
+      "decision_requirements": [
+        "governing_terms_version",
+        "occurrence_time_and_effective_period",
+        "mandate_and_authorization_evidence",
+        "independent_execution_or_provider_evidence_or_explicit_gap",
+        "claimed_loss",
+        "refunds_chargebacks_and_other_recoveries",
+        "residual_loss",
+        "reasoned_human_review",
+        "reviewer_identity",
+        "appeal_path"
+      ],
+      "prohibited_final_decider": "llm_only"
+    }
+  },
+  "covered_event_candidates": [
+    {
+      "code": "PURCHASE_PARAMETER_MISMATCH",
+      "description": "The agent executes a purchase with a material amount, currency, SKU, quantity, date, merchant, recipient, or permitted-substitution mismatch against the registered eligible mandate.",
+      "candidate_when": [
+        "task_protection_was_confirmed",
+        "actual_execution_is_observed_or_reconstructed",
+        "material_mismatch_is_supported_by_source_evidence",
+        "customer_reports_or_system_detects_residual_financial_loss"
+      ],
+      "automatic_denial_if_agent_deviated": false,
+      "automatic_payment": false
+    },
+    {
+      "code": "DUPLICATE_EXECUTION",
+      "description": "The agent or execution path performs more completed purchases than the immutable mandate and authorization permit.",
+      "candidate_when": [
+        "task_protection_was_confirmed",
+        "provider_or independently reconciled records show excess execution",
+        "duplicate is not only a replayed observation",
+        "customer has residual financial loss after refunds or reversals"
+      ],
+      "automatic_denial_if_agent_deviated": false,
+      "automatic_payment": false
+    }
+  ],
+  "referral_and_abuse_rules": {
+    "stage_a_attribution_only": true,
+    "benefit_grants_enabled": false,
+    "future_qualification_requires": [
+      "approved_and_funded_offer_version",
+      "eligible_new_customer",
+      "configured_real_task_milestone",
+      "server_side_exactly_once_qualification",
+      "identity_and_self_referral_checks",
+      "reward_and_cohort_subsidy_cap_available"
+    ],
+    "ambiguous_case_action": "review"
+  },
+  "financial_controls": {
+    "money_representation": "integer_minor_units_with_iso_currency",
+    "separate_ledgers": [
+      "transaction_amount",
+      "maximum_eligible_exposure_per_task",
+      "customer_program_period_limit",
+      "outstanding_exposure",
+      "reported_claim_reserve",
+      "paid_claim_amount",
+      "recoveries",
+      "cohort_program_aggregate",
+      "referral_subsidy_budget"
+    ],
+    "reservation_rules": [
+      "Reserve customer and cohort exposure atomically before task protection confirmation.",
+      "A repeated request with the same idempotency key and body digest returns the same authoritative decision and cannot allocate twice.",
+      "Reuse of an idempotency key with changed content is a conflict.",
+      "Concurrent reservations cannot oversubscribe customer or cohort caps.",
+      "A task amount or configured benefit limit is not an incurred claim amount."
+    ],
+    "outstanding_tail_rules": [
+      "Do not release all exposure merely because execution appears successful.",
+      "Retain outstanding exposure through the configured discovery, runoff, and claim-reporting periods.",
+      "Later merchant refunds, reversals, or chargebacks are recorded as recoveries and do not rewrite prior entries.",
+      "Disconnection, expiry, cancellation, or stop-new-business preserves historical ledger entries and claim access."
+    ],
+    "accumulation_dimensions": [
+      "vendor",
+      "deployment_configuration",
+      "model_when_available",
+      "connector",
+      "payment_path"
+    ],
+    "group_control": "stop_new_activations_and_task_confirmations_while_preserving_existing_obligations"
+  },
+  "evidence_rules": {
+    "provenance_order": [
+      "authoritative_provider_or_merchant",
+      "verified_host_or_adapter",
+      "backbond_observation",
+      "customer_assertion",
+      "agent_assertion",
+      "derived_interpretation"
+    ],
+    "unknown_policy": [
+      "No callback is not proof of no action.",
+      "Missing events cannot become successful observations.",
+      "Agent-provided or uploaded receipts cannot impersonate verified provider events.",
+      "Late evidence may support a claim under a prior valid effective period but cannot create retroactive enrollment."
+    ],
+    "timestamps_required": [
+      "occurrence_time",
+      "evidence_capture_time",
+      "received_time",
+      "processing_time"
+    ]
+  },
+  "scenario_truth_table": [
+    {
+      "id": "S01_CORRECT_PURCHASE",
+      "preconditions": ["confirmed_task_protection", "one_execution_authorized", "limit_reserved"],
+      "observations": ["one_matching_provider_order", "one_matching_payment"],
+      "execution_state": "succeeded",
+      "incident_state": "none",
+      "claim_intake": "not_triggered",
+      "ledger_effect": "single_reservation_then_runoff_per_program",
+      "required_system_result": "Join mandate, authorization, protection confirmation, order, and payment without duplicate allocation."
+    },
+    {
+      "id": "S02_WRONG_AMOUNT_OR_SKU",
+      "preconditions": ["confirmed_task_protection", "valid_original_mandate"],
+      "observations": ["provider_result_differs_materially_from_mandate"],
+      "execution_state": "succeeded",
+      "incident_state": "reviewable_candidate",
+      "claim_intake": "accepted_for_review",
+      "ledger_effect": "reserve_claim_separately_from_outstanding_exposure",
+      "required_system_result": "Show requested, approved, and executed values side by side; do not deny merely because the agent deviated."
+    },
+    {
+      "id": "S03_DUPLICATE_TRANSPORT_RETRY",
+      "preconditions": ["one_execution_authorized", "same_idempotency_key_and_digest"],
+      "observations": ["replayed_request_or_event", "one_authoritative_provider_order"],
+      "execution_state": "succeeded",
+      "incident_state": "none",
+      "claim_intake": "not_triggered",
+      "ledger_effect": "no_additional_authorization_reservation_reward_or_payout",
+      "required_system_result": "Return one authoritative result and preserve replay evidence."
+    },
+    {
+      "id": "S04_ACTUAL_DUPLICATE_PURCHASE",
+      "preconditions": ["one_execution_authorized", "confirmed_task_protection"],
+      "observations": ["two_distinct_authoritative_provider_orders_or_payments"],
+      "execution_state": "succeeded_with_excess_execution",
+      "incident_state": "reviewable_candidate",
+      "claim_intake": "accepted_for_review",
+      "ledger_effect": "no_duplicate_benefit_allocation; preserve potential_residual_loss_and_recovery",
+      "required_system_result": "Distinguish a real duplicate purchase from event replay and route it as a claim candidate."
+    },
+    {
+      "id": "S05_MISSING_CALLBACK",
+      "preconditions": ["execution_attempted"],
+      "observations": ["adapter_callback_missing", "provider_state_not_yet_reconciled"],
+      "execution_state": "unknown",
+      "incident_state": "evidence_incomplete",
+      "claim_intake": "accepted_if_reported",
+      "ledger_effect": "hold_reservation_pending_reconciliation",
+      "required_system_result": "Remain unknown, reconcile independently, and never infer success or non-execution."
+    },
+    {
+      "id": "S06_FORGED_OR_SELF_APPROVAL",
+      "preconditions": ["agent_token_or_agent_accessible_link_only"],
+      "observations": ["no_independent_human_or_verified_host_authorization"],
+      "execution_state": "not_started_or_unauthorized",
+      "incident_state": "authorization_failure",
+      "claim_intake": "review_if_execution_occurred",
+      "ledger_effect": "no_new_protection_confirmation_or_limit_reservation",
+      "required_system_result": "Reject authorization while preserving any later unauthorized execution as incident evidence."
+    },
+    {
+      "id": "S07_CHANGED_INTENT",
+      "preconditions": ["prior_mandate_authorized"],
+      "observations": ["material_terms_changed"],
+      "execution_state": "not_started",
+      "incident_state": "none",
+      "claim_intake": "not_triggered",
+      "ledger_effect": "prior_reservation_not_reused_for_changed_action",
+      "required_system_result": "Create a new mandate version and require new authorization."
+    },
+    {
+      "id": "S08_CONCURRENT_LIMIT_CONSUMPTION",
+      "preconditions": ["parallel_eligible_tasks", "shared_customer_or_cohort_limit"],
+      "observations": ["simultaneous_reservation_attempts"],
+      "execution_state": "mixed_as_authoritatively_committed",
+      "incident_state": "none_or_capacity_referral",
+      "claim_intake": "not_triggered",
+      "ledger_effect": "atomic_commits_with_no_oversubscription",
+      "required_system_result": "Confirm only reservations that fit both customer and cohort caps."
+    },
+    {
+      "id": "S09_ACTIVATION_TIMEOUT",
+      "preconditions": ["activation_requested"],
+      "observations": ["authoritative_activation_result_unknown"],
+      "execution_state": "not_applicable",
+      "incident_state": "activation_pending",
+      "claim_intake": "not_triggered",
+      "ledger_effect": "no_duplicate_enrollment_or_false_active_allocation",
+      "required_system_result": "Remain pending until reconciliation."
+    },
+    {
+      "id": "S10_REFUND_AFTER_PAYOUT",
+      "preconditions": ["claim_paid"],
+      "observations": ["later_merchant_refund_or_chargeback_reversal"],
+      "execution_state": "succeeded",
+      "incident_state": "recovery_pending_or_recorded",
+      "claim_intake": "existing_claim_updated",
+      "ledger_effect": "append_recovery_and_reconcile_without_rewriting_history",
+      "required_system_result": "Prevent double recovery according to governing terms."
+    },
+    {
+      "id": "S11_EXPIRY_OR_DISCONNECTION",
+      "preconditions": ["prior_confirmed_task_or_eligible_occurrence"],
+      "observations": ["enrollment_expired_or_connection_revoked_after_occurrence"],
+      "execution_state": "historical",
+      "incident_state": "preserved",
+      "claim_intake": "available_under_governing_terms",
+      "ledger_effect": "retain_tail_exposure_until_runoff_and_reporting_period_end",
+      "required_system_result": "Block new eligibility where applicable while preserving historical rights and claim access."
+    },
+    {
+      "id": "S12_SHARED_AGENT_FAILURE",
+      "preconditions": ["common_vendor_configuration_connector_or_payment_path_affected"],
+      "observations": ["correlated_failure_signal"],
+      "execution_state": "varies",
+      "incident_state": "group_control_active",
+      "claim_intake": "remains_available",
+      "ledger_effect": "show_outstanding_group_exposure_and_preserve_prior_obligations",
+      "required_system_result": "Stop new business for the affected cohort without disabling claims or settlement."
+    }
+  ],
+  "existing_test_execution_classification": {
+    "status": "not_yet_verified_against_supported_consumer_deployment",
+    "supported_consumer_deployment": null,
+    "classifications_required_per_case": [
+      "executed_against_named_supported_deployment",
+      "executable_but_not_run_against_supported_deployment",
+      "fixture_only",
+      "imported",
+      "report_only",
+      "synthetic_only",
+      "transport_invalid",
+      "not_applicable"
+    ],
+    "known_starting_points": [
+      "money_movement_scorer",
+      "reference_tool_session_wrapper",
+      "recipient_integrity_verifier",
+      "consequential_action_confirmation_mappings",
+      "parameter_tampering_mappings",
+      "stop_instruction_live_driver",
+      "execution_time_revocation_mapping",
+      "indirect_injection_families",
+      "delegated_authority_mappings",
+      "evidence_store_and_determination_components"
+    ],
+    "verified_executed_case_ids": [],
+    "conclusion": "No existing case is credited here as executed against a supported consumer deployment. Runtime execution, applicability, retained evidence, and deployment fingerprint must be verified before an eligibility result is assigned."
+  },
+  "stage_c_unsatisfied_requirements": [
+    {
+      "id": "C01_PROTECTION_PATH",
+      "owner": "Founder",
+      "requirement": "Select the launch protection path or otherwise approve the legal structure.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C02_JURISDICTION_AND_LEGAL_TERMS",
+      "owner": "Legal / insurance lead",
+      "requirement": "Approve initial jurisdiction, customer legal role, backing instrument, disclosures, consent, cancellation, reporting, retention, covered events, exclusions, and claim deadlines.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C03_CAPACITY_AND_AUTHORITY",
+      "owner": "Underwriting / capacity lead",
+      "requirement": "Provide actual backing and authority references, accepted perils and terms, customer and cohort limits, aggregate, runoff, activation requirements, and funding.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C04_SUPPORTED_INTEGRATION",
+      "owner": "Product / integration lead",
+      "requirement": "Verify supported account access, APIs or event sources, permitted data, version visibility, control boundary, and a named deployment fingerprint.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C05_EXECUTED_ELIGIBILITY_EVIDENCE",
+      "owner": "Engineering / Underwriting",
+      "requirement": "Run and retain applicable cases against the named supported deployment; classify every selected case and preserve unknown and missing checks.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C06_CLAIMS_AND_DISBURSEMENT",
+      "owner": "Claims / finance lead",
+      "requirement": "Name authorized reviewers and payment approvers; verify recipient controls, reserve and recovery treatment, appeal process, settlement provider, and servicing capacity.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C07_FINANCIAL_CONTROLS",
+      "owner": "Underwriting / Finance",
+      "requirement": "Fund and configure customer, task, cohort, aggregate, runoff, outstanding exposure, claim reserve, recovery, and referral subsidy controls.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C08_STARTER_AND_REFERRAL_ECONOMICS",
+      "owner": "Product / Finance / insurance lead",
+      "requirement": "Approve offer version, any paid price, subsidy allocation, qualifying event, maximum rewards, expiry, and permitted marketing language.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C09_OPERATIONAL_READINESS",
+      "owner": "Engineering / security lead",
+      "requirement": "Verify environment, keys, access reviews, incident ownership, backups and restore, durable jobs and outbox, support routes, and group stop-new-business controls.",
+      "status": "unsatisfied"
+    },
+    {
+      "id": "C10_LIVE_STATUS_AND_ACTIVATION",
+      "owner": "Program owner",
+      "requirement": "Issue authoritative activation receipts and switch only qualifying consumers from observation to active protection within the funded and supportable cohort cap.",
+      "status": "unsatisfied"
+    }
+  ],
+  "stage_a_exit_evidence": {
+    "required_demo_cases": [
+      "S01_CORRECT_PURCHASE",
+      "S02_WRONG_AMOUNT_OR_SKU",
+      "S03_DUPLICATE_TRANSPORT_RETRY",
+      "S05_MISSING_CALLBACK",
+      "claim_reconstruction_using_S02_or_S04"
+    ],
+    "required_trace": "one_reproducible_mandate_to_outcome_trace",
+    "truthful_status": "demo_not_activated",
+    "live_protection_implied": false
+  }
+}

@@ -6,7 +6,7 @@ apart on purpose:
 
 * ``execution`` - what the agent did versus its mandate.
 * ``coverage_decision`` - how far the candidate travels toward a human.
-* ``payment_status`` - always ``no_payment_authorized`` in the pilot.
+* ``payment_status`` - always ``not_authorized`` in the pilot.
 
 A packet is not a decision. Nothing in it can be read as an amount owed.
 """
@@ -135,6 +135,10 @@ def build_packet(
         protection_active=status.active,
         execution_state=execution_state,
         has_independent_evidence=independent is not None,
+        # A clean purchase with an observed loss is still a candidate: the
+        # loss is the thing a reviewer would look at.
+        candidate_event=execution_state != program.EXECUTION_MATCH
+        or loss_cents > 0,
     )
 
     history: list[dict[str, Any]] = list(refunds or [])
