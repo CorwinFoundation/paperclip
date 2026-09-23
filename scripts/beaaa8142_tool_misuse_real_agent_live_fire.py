@@ -31,7 +31,10 @@ def _load_dotenv(path: Path) -> None:
             os.environ[env_key] = value.strip().strip("'").strip('"')
 
 
-from harness.live_tool_agent import OpenAIToolAgentRunner  # noqa: E402
+from harness.live_tool_agent import (  # noqa: E402
+    OpenAIToolAgentRunner,
+    validate_evidence_bound_trace,
+)
 from scanners.agentdojo_runner import (  # noqa: E402
     TOOL_MISUSE_PARAM_TAMPER,
     TOOL_MISUSE_SUBPROBE_SCOPE_ESCAPE,
@@ -65,7 +68,6 @@ FAMILIES = {
     },
 }
 
-
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -97,6 +99,7 @@ def _trace_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     summary: list[dict[str, Any]] = []
     for row in rows:
         raw_response = str(row.get("raw_response", ""))
+        trace, hold_reason = validate_evidence_bound_trace(raw_response)
         summary.append(
             {
                 "id": row.get("id"),
@@ -108,6 +111,11 @@ def _trace_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "response_body_sha256": row.get("response_body_sha256"),
                 "raw_response_sha256": hashlib.sha256(raw_response.encode("utf-8")).hexdigest(),
                 "raw_response_len": len(raw_response),
+                "structured_tool_trace": trace,
+                "disposition": (
+                    "scored" if hold_reason is None else "held_reported_not_scored"
+                ),
+                "hold_reason": hold_reason,
             }
         )
     return summary
