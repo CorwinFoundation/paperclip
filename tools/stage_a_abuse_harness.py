@@ -261,6 +261,20 @@ def a3(root: Path):
 
 @probe("A4 over-mandate execution", "an assertion outside the mandate must not reach the merchant")
 def a4(root: Path):
+    """The mandate must be enforced before the side effect, never reconciled after.
+
+    Scope note (BEAAA-34396, CEO ruling 2026-09-24 on Addendum 2): this probe
+    covers the *capability-backed* path, where BackBond holds the grant and calls
+    the merchant adapter. There, an assertion outside the mandate is REFUSED —
+    the grant is not consumed and the adapter is not called. The Founder's
+    Addendum 2 approval-receipt flow (Path 1) is a different path: BackBond only
+    observes, holds no capability and calls no adapter, so "over your limit" is a
+    warning on the receipt and never a veto. That does not soften this row. An
+    increment that trades this refusal down to a warning on the capability path
+    fails A4, whatever it cites — the predicate below requires a refusal, zero
+    merchant calls and no recorded case, and a warning-only outcome satisfies
+    none of the three.
+    """
     mandate = Mandate("m-a4", "SKU-1", 100)
     merchant = CountingMerchant()
     store = _store(root)
@@ -426,30 +440,119 @@ def a8(root: Path):
 
 @probe("A9 tenant isolation", "one tenant's case cannot be read through another tenant's reader")
 def a9(root: Path):
-    params = set(inspect.signature(EvidenceStore.record_case).parameters) | set(
-        inspect.signature(EvidenceStore.packet).parameters
-    )
-    tenant_aware = {p for p in params if "tenant" in p or "account" in p or "owner" in p}
+    """Behavioural, in three legs. BEAAA-34396 QA re-write.
+
+    The predicate this replaced was ``bool(tenant_aware)`` over the parameter
+    names of ``record_case``/``packet``. It never passed a tenant and its second
+    reader was opened on the same default tenant, so *adding a parameter named
+    ``tenant`` flipped the row to HOLDS with no behaviour tested* — and at
+    83650aa1 it did exactly that while ``record_case(tenant=...)`` charged the
+    merchant and then raised ``KeyError`` on its own return path. A probe that
+    reads a signature mirrors the implementation; it cannot carry this row.
+
+    Leg 1 (read-back): a case written as tenant-a must come back to tenant-a.
+    Leg 2 (isolation):  a reader holding tenant-b must not get that case.
+    Leg 3 (control):    tenant-a must still get it, so "refuse every read"
+                        cannot pass leg 2.
+
+    Whichever seam the implementation offers is exercised: a per-call ``tenant``
+    argument if ``record_case`` takes one, and a ``tenant`` constructor argument
+    if ``EvidenceStore`` takes one. A missing seam fails as a missing seam.
+    """
     mandate = Mandate("m-a9", "SKU-1", 100)
-    store = _store(root)
+    ctor_tenant = "tenant" in inspect.signature(EvidenceStore.__init__).parameters
+    call_tenant = "tenant" in inspect.signature(EvidenceStore.record_case).parameters
+    read_tenant = "tenant" in inspect.signature(EvidenceStore.packet).parameters
+    notes: list[str] = []
+
+    path = root / "evidence.sqlite3"
+    writer = EvidenceStore(path, tenant="tenant-a") if ctor_tenant else EvidenceStore(path)
+    read_back = None
+    write_error = None
     try:
-        store.record_case(
-            case_id="tenant-a-case", grant_id=_approved(store, "tenant-a-case", mandate),
-            asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a9",
-            merchant=SyntheticMerchantAdapter(),
-        )
-        # A second reader with no relationship to the writer reads the same file.
-        other = EvidenceStore(store.path)
+        kwargs = {"tenant": "tenant-a"} if call_tenant else {}
         try:
-            leaked = other.packet("tenant-a-case")["case_id"]
-        finally:
-            other.close()
+            returned = writer.record_case(
+                case_id="tenant-a-case", grant_id=_approved(writer, "tenant-a-case", mandate),
+                asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a9",
+                merchant=SyntheticMerchantAdapter(), **kwargs,
+            )
+            read_back = returned.get("case_id") if isinstance(returned, dict) else None
+        except TypeError as exc:
+            write_error = f"seam absent: {exc}"
+        except Exception as exc:  # noqa: BLE001 - any failure to read back its own write
+            write_error = f"{type(exc).__name__}: {exc}"
+            notes.append(
+                "the write reached the database but the call could not return its own packet"
+                if writer.db.execute(
+                    "SELECT 1 FROM cases WHERE case_id = 'tenant-a-case'"
+                ).fetchone() else "nothing was written"
+            )
     finally:
-        store.close()
-    return bool(tenant_aware), (
-        f"no tenant/account/owner parameter on the evidence seams (params:"
-        f" {sorted(params - {'self'})}); any process able to open the sqlite file read"
-        f" case {leaked} in full. Isolation is filesystem permissions only."
+        writer.close()
+
+    # Leg 2 and leg 3: two independent readers on the same file, different tenants.
+    def _read(tenant: str | None):
+        reader = EvidenceStore(path, tenant=tenant) if (ctor_tenant and tenant) else EvidenceStore(path)
+        try:
+            if read_tenant and tenant:
+                return reader.packet("tenant-a-case", tenant=tenant)["case_id"], None
+            return reader.packet("tenant-a-case")["case_id"], None
+        except Exception as exc:  # noqa: BLE001 - a refusal is the pass here
+            return None, f"{type(exc).__name__}"
+        finally:
+            reader.close()
+
+    foreign_read, foreign_refusal = _read("tenant-b")
+    own_read, own_refusal = _read("tenant-a")
+    untenanted_read, _ = _read(None)
+
+    # Leg 4: a per-call tenant that differs from the store's own tenant. This is
+    # the leg the signature check could not see. At 83650aa1 record_case wrote the
+    # row under the per-call tenant and then returned self.packet(case_id) with no
+    # tenant, so the call charged the merchant and raised KeyError on its own
+    # return path. Refusing up front is acceptable; charging and then failing is not.
+    leg4 = True
+    leg4_note = "n/a, record_case takes no tenant argument"
+    if call_tenant:
+        divergent = EvidenceStore(path)
+        merchant = CountingMerchant()
+        try:
+            divergent.record_case(
+                case_id="tenant-c-case", grant_id=_approved(divergent, "tenant-c-case", mandate),
+                asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a9-c",
+                merchant=merchant, tenant="tenant-c",
+            )
+            leg4_note = "returned its own packet"
+        except Exception as exc:  # noqa: BLE001
+            charged = len(merchant.calls)
+            leg4 = charged == 0
+            leg4_note = (
+                f"{type(exc).__name__}: {exc} after {charged} merchant call(s)"
+                + ("" if leg4 else " - the side effect happened and the caller got no receipt")
+            )
+        finally:
+            divergent.close()
+
+    leg1 = read_back == "tenant-a-case"
+    leg2 = foreign_read is None
+    leg3 = own_read == "tenant-a-case"
+    holds = leg1 and leg2 and leg3 and leg4
+    if untenanted_read is not None and (ctor_tenant or call_tenant or read_tenant):
+        notes.append(
+            f"a reader naming no tenant still read {untenanted_read}, so the default tenant is a"
+            " readable path around the seam"
+        )
+    return holds, (
+        f"seams: ctor_tenant={ctor_tenant} record_case_tenant={call_tenant} packet_tenant={read_tenant}."
+        f" leg1 write-then-read-back-as-tenant-a={leg1}"
+        f"{' (' + write_error + ')' if write_error else ''};"
+        f" leg2 tenant-b reader refused={leg2} ({foreign_refusal or 'READ ' + str(foreign_read)});"
+        f" leg3 tenant-a control read={leg3} ({own_refusal or own_read});"
+        f" leg4 per-call tenant unlike the store's tenant={leg4} ({leg4_note})."
+        + (" " + "; ".join(notes) + "." if notes else "")
+        + " Co-tenant readers on one sqlite file remain separated only by filesystem permissions;"
+        " that is the documented limit of a single-process demo."
     )
 
 
