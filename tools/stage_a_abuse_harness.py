@@ -2,8 +2,16 @@
 pre-BEAAA-35331 ``record_case(approval_token=..., approval_verifier=...)``
 signature and no longer runs end to end. The abuse cases it described are
 now asserted as capability tests in
-``tests/test_beaaa34389_defect1_running_app.py``; QA run 3 uses
-``qa_probe_9d1d851e.py``. Left in place as the record of what was measured.
+``tests/test_beaaa34389_defect1_running_app.py``. Left in place as the
+record of what was measured, not as a runnable instrument.
+
+Do not point QA at ``qa_probe_9d1d851e.py``: it is written against the old
+``issuer.approve() -> (token, verifier)`` signature and stops at line 44 with
+``ValueError: too many values to unpack``. ``qa_probe_beaaa35331.py`` at the
+repo root is the implementer's convenience port of the same SA1-SA8 cases to
+the ``grant_id`` boundary; it is not independent evidence. Rebuilding this
+harness against the new boundary is QA's, per the BEAAA-35331 ruling of
+2026-09-24T12:27Z.
 """
 
 """Independent abuse-case harness for the Stage A purchase-protection seams (BEAAA-34396).
