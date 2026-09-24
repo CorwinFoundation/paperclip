@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .approval import approve_mandate, build_issuer
 from .core import EvidenceStore, Mandate, SyntheticMerchantAdapter
+from .path1 import run_path1_cases
 
 
 def main() -> None:
@@ -44,6 +45,9 @@ def main() -> None:
     output = {"mode": "DEMO", "database": str(path), "cases": [reopened.packet(p["case_id"]) for p in packets],
               "duplicate_authoritative_executions": reopened.execution_count("idem-duplicate")}
     reopened.close()
+    # Path 1: BackBond observes and records the user's approval. Includes the
+    # two non-recoverable-loss cases from the Founder ruling, section 2.
+    output["path1_cases"] = run_path1_cases(path.with_name(path.name + ".path1"))
     print(json.dumps(output, indent=2, sort_keys=True))
 
 

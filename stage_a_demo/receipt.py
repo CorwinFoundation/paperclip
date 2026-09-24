@@ -69,6 +69,29 @@ class ProposedAction:
     deposit_cents: int = 0
     cancellation_terms: str = ""
     non_recoverable: bool = False
+    # The cancellation terms, captured as independent evidence at delegation
+    # time rather than reconstructed from memory after a loss (Founder ruling
+    # section 2). ``cancellation_deadline`` is the moment after which the money
+    # stops being recoverable; ``terms_captured_at`` and ``terms_evidence_ref``
+    # say when we read that, and off what.
+    cancellation_deadline: str | None = None
+    terms_captured_at: str | None = None
+    terms_evidence_ref: str = ""
+    # True when the task the user approved is an obligation to act by the
+    # deadline — cancel this booking, not buy this thing. Missing the deadline
+    # on one of these is itself the loss.
+    is_cancellation_obligation: bool = False
+
+    def terms_evidence(self) -> dict[str, Any]:
+        """What we knew about getting the money back, and when we knew it."""
+        return {
+            "text": self.cancellation_terms,
+            "deadline": self.cancellation_deadline,
+            "deposit_cents": self.deposit_cents,
+            "non_recoverable": self.non_recoverable,
+            "captured_at": self.terms_captured_at,
+            "evidence_ref": self.terms_evidence_ref,
+        }
 
     def matches(self, outcome: "ExecutedOutcome") -> bool:
         """Did the thing that happened match the thing the user approved?"""
@@ -102,6 +125,13 @@ class ExecutedOutcome:
     amount_cents: int
     evidence_ref: str = ""
     independent: bool = True
+    # False when the approved action was never performed. An omission is a real
+    # outcome: a delegated cancellation that never happened is exactly the loss
+    # the user is exposed to.
+    performed: bool = True
+    # When independent evidence was read. Compared against the cancellation
+    # deadline to decide whether the money is still recoverable.
+    observed_at: str = ""
 
 
 def assess_warnings(action: ProposedAction, limit_cents: int | None) -> list[str]:
@@ -128,6 +158,11 @@ def amount_at_risk_cents(action: ProposedAction) -> int:
     """
     if action.non_recoverable:
         return action.amount_cents
+    if action.is_cancellation_obligation:
+        # Cancelling costs nothing, so the action's own amount is zero. What is
+        # at risk is the deposit on the booking being cancelled, which stops
+        # being recoverable once the deadline passes.
+        return action.deposit_cents
     return min(action.deposit_cents, action.amount_cents)
 
 
@@ -175,6 +210,9 @@ CLAIM_COVERED_OUTCOME_DIFFERS = "covered_outcome_differs_from_approved"
 CLAIM_COVERED_EXECUTED_AGAINST_STOP = "covered_executed_against_stop"
 CLAIM_COVERED_NO_APPROVAL = "covered_executed_without_an_answered_check"
 CLAIM_INCOMPLETE_NO_INDEPENDENT_EVIDENCE = "incomplete_no_independent_evidence"
+# The two non-recoverable-loss shapes named in the Founder ruling, section 2.
+CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE = "covered_missed_cancellation_deadline"
+CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW = "not_yet_a_loss_still_within_cancellation_window"
 
 
 def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> dict[str, Any]:
@@ -191,6 +229,8 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
         "amount_at_risk_cents": receipt.amount_at_risk_cents,
         "evidence_source": receipt.evidence_source,
         "approved_action": asdict(receipt.proposed_action),
+        # What we knew about getting the money back, and when we read it.
+        "cancellation_terms_evidence": receipt.proposed_action.terms_evidence(),
         "outcome": asdict(outcome) if outcome else None,
         "differences": [],
     }
@@ -215,6 +255,29 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
         return {**base, "outcome_state": "MATCH" if matched else "MISMATCH",
                 "claim": CLAIM_COVERED_NO_APPROVAL,
                 "covered": receipt.amount_at_risk_cents > 0}
+
+    action = receipt.proposed_action
+    if action.is_cancellation_obligation and not outcome.performed:
+        # The user delegated an obligation to act by a deadline — cancel this
+        # booking — and it was never performed. The loss here is an omission,
+        # so there is nothing to match; what decides it is the deadline in the
+        # terms captured at delegation time.
+        #
+        # Timestamps are compared as strings, which is correct for the
+        # Zulu-suffixed ISO-8601 the receipt stores and nothing else.
+        past_deadline = bool(
+            action.cancellation_deadline
+            and outcome.observed_at
+            and outcome.observed_at > action.cancellation_deadline
+        )
+        if past_deadline:
+            return {**base, "outcome_state": "NOT_PERFORMED",
+                    "claim": CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
+                    "covered": receipt.amount_at_risk_cents > 0}
+        # Still inside the window: the money is recoverable, so nothing is lost
+        # yet. Recorded, not denied, and not covered.
+        return {**base, "outcome_state": "NOT_PERFORMED",
+                "claim": CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW, "covered": False}
 
     if matched:
         # Approved X, X happened. Not a covered event, and the record shows the
