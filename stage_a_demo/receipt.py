@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 # What the user answered on the thread BackBond can see.
@@ -91,6 +91,38 @@ class ProposedAction:
     # on one of these is itself the loss.
     is_cancellation_obligation: bool = False
 
+    @property
+    def is_delegated_cancellation(self) -> bool:
+        """Whether this is an obligation to act by a deadline.
+
+        ``is_cancellation_obligation`` is the caller's own word for it, and a
+        self-attested flag can only add a reading, never remove one. An action
+        that costs nothing, carries a captured deadline and sits on a deposit
+        is that obligation whatever the flag says, so leaving the flag unset
+        cannot make a missed deadline settle as an approved non-loss.
+        """
+        return self.is_cancellation_obligation or (
+            self.amount_cents == 0
+            and bool(self.cancellation_deadline)
+            and self.deposit_cents > 0
+        )
+
+    @property
+    def deadline_capture_defect(self) -> str | None:
+        """A deadline we wrote down but cannot order, named where it was made.
+
+        A stamp with no zone denotes a different instant in every offset, so it
+        cannot be ordered against an observation. That is a defect in what we
+        captured at delegation time, not something the observation did wrong,
+        and the claim path reads it as ours rather than as a missing
+        observation.
+        """
+        if not self.cancellation_deadline:
+            return None
+        if observation_instant(self.cancellation_deadline) is not None:
+            return None
+        return "cancellation_deadline_not_orderable"
+
     def terms_evidence(self) -> dict[str, Any]:
         """What we knew about getting the money back, and when we knew it."""
         return {
@@ -100,6 +132,7 @@ class ProposedAction:
             "non_recoverable": self.non_recoverable,
             "captured_at": self.terms_captured_at,
             "evidence_ref": self.terms_evidence_ref,
+            "capture_defect": self.deadline_capture_defect,
         }
 
     def matches(self, outcome: "ExecutedOutcome") -> bool:
@@ -167,6 +200,29 @@ def observation_instant(stamp: str | None) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
+# The widest UTC offsets in civil use. A zone-less local time denotes its
+# earliest instant at UTC+14 and its latest at UTC-12.
+WIDEST_UTC_OFFSET = timedelta(hours=14)
+
+
+def earliest_possible_instant(stamp: str | None) -> datetime | None:
+    """The earliest instant a stamp could denote, for a stamp carrying no zone.
+
+    Used only where the ambiguity is ours to carry: a deadline we failed to
+    capture with a zone. Reading it at its earliest possible instant resolves
+    our own capture defect against us, never against the user.
+    """
+    if not stamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(stamp.replace("z", "Z").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed
+    return parsed.replace(tzinfo=timezone.utc) - WIDEST_UTC_OFFSET
+
+
 def assess_warnings(action: ProposedAction, limit_cents: int | None) -> list[str]:
     """The two advisory judgments, in a fixed order. Never a veto.
 
@@ -189,13 +245,16 @@ def amount_at_risk_cents(action: ProposedAction) -> int:
     the terms say non-recoverable. Section 2 of the ruling: a covered event is
     money the user cannot get back.
     """
-    if action.non_recoverable:
-        return action.amount_cents
-    if action.is_cancellation_obligation:
+    if action.is_delegated_cancellation:
         # Cancelling costs nothing, so the action's own amount is zero. What is
         # at risk is the deposit on the booking being cancelled, which stops
-        # being recoverable once the deadline passes.
-        return action.deposit_cents
+        # being recoverable once the deadline passes. ``non_recoverable`` is a
+        # label on that same deposit, so it is read first here and can only
+        # raise the exposure - a warning about the money must never be the
+        # reason less of it is at risk.
+        return max(action.deposit_cents, action.amount_cents)
+    if action.non_recoverable:
+        return action.amount_cents
     return min(action.deposit_cents, action.amount_cents)
 
 
@@ -250,6 +309,9 @@ CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW = "not_yet_a_loss_still_within_c
 # was met, or nothing orderable says when it was looked at.
 CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED = "incomplete_performance_only_self_reported"
 CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION = "incomplete_no_orderable_observation_time"
+# The deadline passed with the act undone, but nothing captured at delegation
+# time says what it cost. A claim cannot name a covered loss and pay zero.
+CLAIM_INCOMPLETE_NO_CAPTURED_AMOUNT_AT_RISK = "incomplete_no_captured_amount_at_risk"
 
 
 def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> dict[str, Any]:
@@ -293,7 +355,7 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
                 "covered": receipt.amount_at_risk_cents > 0}
 
     action = receipt.proposed_action
-    if action.is_cancellation_obligation:
+    if action.is_delegated_cancellation:
         settled = _review_cancellation_obligation(receipt, outcome, base)
         if settled is not None:
             return settled
@@ -345,19 +407,41 @@ def _review_cancellation_obligation(
                 "claim": CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED, "covered": False}
 
     observed = observation_instant(outcome.observed_at)
-    deadline = observation_instant(action.cancellation_deadline)
-    if observed is None or deadline is None:
+    if observed is None:
         # Nothing orderable was observed. That is not evidence the money is
         # still recoverable, and it is not evidence it is gone (harness A8).
         return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
                 "claim": CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, "covered": False}
 
+    deadline = observation_instant(action.cancellation_deadline)
+    if deadline is None:
+        # We have an orderable observation and an unorderable deadline. That is
+        # our capture defect, not a missing observation, so it is recorded as
+        # ours and the ambiguity is resolved at the earliest instant the
+        # deadline could denote. A deadline we failed to write down properly is
+        # never the reason a user's loss reads as no loss at all.
+        capture_defect = action.deadline_capture_defect or "cancellation_deadline_not_captured"
+        record = {**record, "record_defects": [*record["record_defects"], capture_defect]}
+        deadline = earliest_possible_instant(action.cancellation_deadline)
+        if deadline is None:
+            return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
+                    "claim": CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, "covered": False}
+
     if observed > deadline:
         # The deadline passed with the act undone: this is the money the user
         # cannot get back, whatever the record says about the approval.
+        if receipt.amount_at_risk_cents <= 0:
+            # Nothing captured at delegation time says what the omission cost.
+            # Naming this a covered loss while paying zero would be a claim
+            # string that contradicts its own verdict, so it settles as the
+            # capture defect it is.
+            return {**record, "outcome_state": "NOT_PERFORMED",
+                    "claim": CLAIM_INCOMPLETE_NO_CAPTURED_AMOUNT_AT_RISK,
+                    "record_defects": [*record["record_defects"], "amount_at_risk_not_captured"],
+                    "covered": False}
         return {**record, "outcome_state": "NOT_PERFORMED",
                 "claim": CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
-                "covered": receipt.amount_at_risk_cents > 0}
+                "covered": True}
 
     # Still inside the window: the deposit is recoverable, so nothing is lost
     # yet. Recorded, not denied, and not covered — a missing approval is a
