@@ -193,7 +193,7 @@ def _validate_vendor_count_artifact(artifact: Mapping[str, Any]) -> None:
     if set(artifact) != allowed:
         raise EgressGateError("vendor count fields mismatch")
     if (
-        artifact.get("pack_version") not in {"0.1.0", "0.1.1", "0.1.2", "0.2.0"}
+        artifact.get("pack_version") not in {"0.1.0", "0.1.1", "0.1.2", "0.2.0", "0.2.1"}
         or artifact.get("pattern_set") != "anomaly-spec-v1.0"
     ):
         raise EgressGateError("vendor count version mismatch")
@@ -217,7 +217,7 @@ def _validate_vendor_count_artifact(artifact: Mapping[str, Any]) -> None:
     for r in rows:
         if set(r) - {"code", "count", "rate_per_100", "method", "reason"} or r.get(
             "method"
-        ) not in {"deterministic", "lexical", "judge", "not_measurable"}:
+        ) not in {"deterministic", "deterministic_claim_only", "lexical", "judge", "not_measurable"}:
             raise EgressGateError("invalid vendor count row")
         if r.get("method") == "not_measurable" and (
             r.get("count") is not None or r.get("rate_per_100") is not None

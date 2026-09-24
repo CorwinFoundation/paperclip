@@ -1,4 +1,4 @@
-# backbond-count 0.2.0
+# backbond-count 0.2.1
 
 **What to export:** generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, or the VAPI-shape stub. Real VAPI support follows when Ari supplies the dump.
 
@@ -11,6 +11,8 @@ To count A1 and trace-backed A3, choose `--judge openai|anthropic|azure|ollama` 
 **The one exception, stated plainly:** if you configure a judge, the pack posts the conversation text of each candidate to the endpoint *you* named in `--judge-base-url`, using *your* key. That is the only network operation the pack can perform, it goes to your chosen provider and never to us, and `--judge none` performs none of it. Under `--judge none` the pack makes no network call of any kind.
 
 **How to verify:** `--self-check` validates 100 synthetic conversations and the published A1=not measurable, A2=1, A3=not measurable, A4=1, A5=1 counts. `--show-what-leaves` prints exact bytes and writes nothing.
+
+**What 0.2.1 changed (BEAAA-35407):** A4 no longer reports `deterministic` on an export that carries no tool or retrieval turn. On a trace-less export the method is `deterministic_claim_only` and the row states that the claim is counted but the absence of a prior tool result is not evidenced - the count is a claim census, not a verified miss. A4 also now recognises two forms it scored zero on: verbs outside the original eight-verb list (`I have issued the refund`) and the agentless passive (`your refund has been processed`). The passive form rejects policy statements that share its shape (`refunds are processed within 5 business days`) and requires a bound subject. Measured on the seeded set in `tests/test_vendor_count.py`: recall 3/10 -> 10/10 on the seeded positives, with false positives unchanged at 0/10 on the seeded negatives.
 
 **What 0.2.0 changed (BEAAA-33127):** the judge slot is implemented - `--judge openai|anthropic|azure|ollama` against a vendor-supplied base URL, key and model at temperature zero, with the prompt shipped as the readable `JUDGE_PROMPT` constant and its real hash emitted in `prompt_sha256` (0.1.x hashed a placeholder literal). A3 is now counted when the export carries retrieval or tool traces and a judge is configured; it stays `not measurable` otherwise, with the reason saying which case applies. A1's "materially different" test routes through the same judge.
 

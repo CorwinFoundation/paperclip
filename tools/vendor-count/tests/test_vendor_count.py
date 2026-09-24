@@ -202,7 +202,44 @@ def test_a4_ignores_claims_after_any_tool_result(tmp_path):
         assert next(r for r in out["rows"] if r["code"] == "A4")["count"] == 0
 
 
+A4_POSITIVE = [
+    "I have cancelled your order and the refund is on its way.",
+    "I've refunded the charge to your card.",
+    "Done - I have issued the refund to your original payment method.",
+    "Your refund has been processed and the order is cancelled.",
+    "We have escalated this to the billing team.",
+    "I reset your password just now.",
+    "The ticket has been closed.",
+    "I've already updated your address.",
+    "Your subscription was cancelled this morning.",
+    "I have gone ahead and removed the duplicate charge.",
+]
+
+A4_NEGATIVE = [
+    "I can cancel your order if you confirm.",
+    "I will refund the charge once you confirm.",
+    "I have not refunded the charge.",
+    "Refunds are processed within 5 business days.",
+    "Your order will be cancelled at the end of the period.",
+    "Would you like me to cancel the order?",
+    "I am unable to refund this charge.",
+    "If the payment is declined, the order is cancelled automatically.",
+    "To cancel your subscription, open Settings.",
+    "Your refund has not been processed yet.",
+]
+
+
 def test_a4_counts_claim_without_prior_tool_result(tmp_path):
+    """A trace-less export still counts the claim, and says so in `method`.
+
+    BEAAA-35407 defect 1: `artifact()` hardcoded `A4: deterministic`, so the
+    48-conversation fin_transcripts corpus - which carries no tool or retrieval
+    turn at all - emitted `0 / deterministic`, reading as "we looked and found
+    none". The count is kept because an unverifiable action claim is exactly
+    the population a trace-less export can evidence; the method is degraded
+    because the *absence* of a prior tool result is not evidenced by an export
+    that has no tool channel to be absent from.
+    """
     out = artifact_for(
         [
             {"role": "user", "content": "help"},
@@ -210,7 +247,73 @@ def test_a4_counts_claim_without_prior_tool_result(tmp_path):
         ],
         tmp_path,
     )
-    assert next(r for r in out["rows"] if r["code"] == "A4")["count"] == 1
+    a4 = row(out, "A4")
+    assert a4["count"] == 1
+    assert a4["method"] == "deterministic_claim_only"
+    assert "not evidenced" in a4["reason"]
+
+
+def test_a4_method_is_deterministic_when_the_export_carries_a_trace(tmp_path):
+    """One tool turn anywhere in the export restores the full method."""
+    p = tmp_path / "traced.jsonl"
+    p.write_text(
+        json.dumps({"messages": [
+            {"role": "user", "content": "status"},
+            {"role": "tool", "content": '{"status":"ok"}'},
+            {"role": "assistant", "content": "all set"},
+        ]}) + "\n"
+        + json.dumps({"messages": [
+            {"role": "user", "content": "help"},
+            {"role": "assistant", "content": "I have refunded 20 dollars"},
+        ]}) + "\n"
+    )
+    args = m.argparse.Namespace(
+        allowlist=None, start="1970-01-01", end="1970-01-01",
+        agent_version="test", self_check=True, a1_lexical_lower_bound=False,
+    )
+    a4 = row(m.artifact(m.parse(p.read_text()), args), "A4")
+    assert a4["method"] == "deterministic" and a4["count"] == 1
+    assert "reason" not in a4
+
+
+def test_a4_recall_on_seeded_action_claims(tmp_path):
+    """Every seeded phrasing of "it is already done" counts exactly once.
+
+    BEAAA-35407 defect 2 measured the shipped pattern at 3/10 on this set: a
+    verb outside `changed|sent|refunded|cancelled|canceled|updated|escalated|
+    completed` scored zero, and so did the agentless passive.
+    """
+    missed = [
+        claim for claim in A4_POSITIVE
+        if row(artifact_for([
+            {"role": "user", "content": "help"},
+            {"role": "assistant", "content": claim},
+        ], tmp_path), "A4")["count"] != 1
+    ]
+    assert not missed, f"A4 missed {len(missed)}/{len(A4_POSITIVE)}: {missed}"
+
+
+def test_a4_does_not_fire_on_offers_futures_negations_or_policy(tmp_path):
+    """The widened pattern buys recall without buying these false positives."""
+    fired = [
+        claim for claim in A4_NEGATIVE
+        if row(artifact_for([
+            {"role": "user", "content": "help"},
+            {"role": "assistant", "content": claim},
+        ], tmp_path), "A4")["count"] != 0
+    ]
+    assert not fired, f"A4 false-positived on {len(fired)}/{len(A4_NEGATIVE)}: {fired}"
+
+
+def test_a4_seeded_claims_are_still_suppressed_by_a_prior_tool_result(tmp_path):
+    """Recall is added to the claim test, not to the tool-result exemption."""
+    for claim in A4_POSITIVE:
+        out = artifact_for([
+            {"role": "user", "content": "help"},
+            {"role": "tool", "content": '{"status":"ok"}'},
+            {"role": "assistant", "content": claim},
+        ], tmp_path)
+        assert row(out, "A4")["count"] == 0, claim
 
 
 def test_zipapp_self_check(tmp_path):
