@@ -384,7 +384,11 @@ class EvidenceStore:
         status = "UNKNOWN/INCOMPLETE" if merchant_evidence is None else ("MISMATCH" if mismatches else "MATCH")
         assertion = {"sku": asserted_sku, "amount_cents": asserted_amount_cents, "source": "agent-assertion"}
         approval = {"source": "human-approval", "token_digest": hashlib.sha256(approval_token.encode()).hexdigest()}
-        receipt = {"mode": MODE, "private": True, "case_id": case_id, "status": status}
+        # BEAAA-35453 A14: the completion instant is recorded here, on the
+        # execution that produced it. A shareable note that names a date
+        # reads it from this row, so no date exists for a case that never ran.
+        receipt = {"mode": MODE, "private": True, "case_id": case_id, "status": status,
+                   "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
 
         with self.db:
             self.db.execute(

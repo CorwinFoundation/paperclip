@@ -329,13 +329,19 @@ def test_demo_surfaces_state_no_coverage(tmp_path, monkeypatch):
     receipt = ui.execute_case("correct", db, grant)
     assert receipt["protection"]["protection_active"] is False
     assert receipt["protection"]["statement"] == act.NO_COVERAGE_STATEMENT
-    assert set(receipt["invitation"]) == {
+    # BEAAA-35453 A13: reading the receipt delivers no shareable note. The
+    # note is built only when the user asks for one, and it carries the same
+    # protection statement.
+    assert receipt["invitation"] is None
+    shared = ui.invitation_decision("correct", "create", db)
+    assert set(shared["payload"]) == {
         "brand",
         "mode",
         "category",
         "completed",
         "invitation_code",
     }
+    assert shared["protection"] == act.NO_COVERAGE_STATEMENT
     for action in ("create", "keep_private", "done"):
         assert (
             ui.invitation_transition("MATCH", action)["protection"]

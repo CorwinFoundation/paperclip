@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import secrets
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -59,24 +60,44 @@ def protection_statement(surface: str) -> str:
     return str(protection_block(surface)["statement"])
 
 
-def invitation_payload() -> dict[str, str]:
+def _completion_date(completed_at: str | None) -> str:
+    """Render the recorded completion instant. No execution, no date."""
+    if not completed_at:
+        return "Not recorded"
+    try:
+        stamp = time.strptime(completed_at, "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        return "Not recorded"
+    return time.strftime("%d %b %Y", stamp)
+
+
+def invitation_payload(completed_at: str | None = None) -> dict[str, str]:
+    # BEAAA-35453 A14: `completed` is read from the execution that produced the
+    # result, never from a constant. A case that did not execute has no date,
+    # and the gate below refuses to build a note for it at all.
     return {
         "brand": "BackBond",
         "mode": "Demo · not activated",
         "category": "Household purchase",
-        "completed": "21 Sep 2026",
+        "completed": _completion_date(completed_at),
         "invitation_code": "DEMO-7F2K",
     }
 
 
-def invitation_transition(result_status: str, action: str) -> dict[str, object]:
+def invitation_transition(
+    result_status: str, action: str, completed_at: str | None = None
+) -> dict[str, object]:
     # Referral attribution never implies coverage: the referral surface
     # states protection only from the activation gate.
     disclosure = protection_statement("referral")
     if action == "create":
         if result_status not in VERIFIED_INVITATION_STATUSES:
             return {"state": "unavailable", "payload": None, "protection": disclosure}
-        return {"state": "created", "payload": invitation_payload(), "protection": disclosure}
+        return {
+            "state": "created",
+            "payload": invitation_payload(completed_at),
+            "protection": disclosure,
+        }
     if action == "keep_private":
         return {"state": "kept_private", "payload": None, "protection": disclosure}
     if action == "done":
@@ -174,7 +195,11 @@ def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str,
                     {"label": "Agent result", "value": "Refused before execution", "source": "Agent reported"},
                     {"label": "Merchant result", "value": "Not contacted", "source": "Missing"},
                 ],
-                "invitation": invitation_payload(),
+                # BEAAA-35453 A13/A14: nothing executed, so there is nothing to
+                # share and no completion to name. The invitation is built only
+                # by /api/invitation, and only when the user asks for one.
+                "invitation": None,
+                "completed_at": None,
                 "backend_packet": None,
                 "authoritative_executions": 0,
             }
@@ -201,6 +226,7 @@ def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
     packet = None
     authoritative_executions = None
     approved = False
+    completed_at = None
     if case in BACKEND_CASES:
         idem = BACKEND_CASES[case][5]
         store = EvidenceStore(db_path)
@@ -215,6 +241,7 @@ def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
         title = FIXTURES[case][1]
         provenance = "Missing" if packet["sources"]["independent_merchant_evidence"] is None else "Verified event"
         approved = packet["sources"]["approval"].get("source") == "human-approval"
+        completed_at = _recorded_completion(packet)
     return {
         "mode": "Demo · not activated",
         "protection": protection_block("receipt"),
@@ -231,10 +258,43 @@ def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
             {"label": "Agent result", "value": "One simulated item", "source": "Agent reported"},
             {"label": "Merchant result", "value": "Available" if provenance != "Missing" else "Not received", "source": provenance},
         ],
-        "invitation": invitation_payload(),
+        # BEAAA-35453 A13: reading a receipt is not asking to share it. The
+        # shareable artifact is built only by /api/invitation, and only for the
+        # action the user chose. `completed_at` is the recorded execution
+        # instant the note would name, or None when nothing executed.
+        "invitation": None,
+        "completed_at": completed_at,
         "backend_packet": packet,
         "authoritative_executions": authoritative_executions,
     }
+
+
+def _recorded_completion(packet: dict[str, object]) -> str | None:
+    """The instant the execution that produced this packet was recorded."""
+    execution = packet.get("execution") or {}
+    if not isinstance(execution, dict):
+        return None
+    try:
+        recorded = json.loads(str(execution.get("receipt_json") or "{}"))
+    except ValueError:
+        return None
+    value = recorded.get("completed_at") if isinstance(recorded, dict) else None
+    return str(value) if value else None
+
+
+def invitation_decision(case: str, action: str, db_path: str | Path) -> dict[str, object]:
+    """Carry the user's sharing choice to the server. BEAAA-35453 A13/A14.
+
+    The status the gate judges is read from what this server recorded, never
+    taken from the request, so a caller cannot ask for a note by asserting its
+    own result. A case with no recorded execution raises
+    :class:`CaseNotExecuted` before any note is considered.
+    """
+    result = receipt_fixture(case, db_path)
+    completed_at = result.get("completed_at")
+    return invitation_transition(
+        str(result["status"]), action, str(completed_at) if completed_at else None
+    )
 
 
 def render_page() -> str:
@@ -265,7 +325,11 @@ function renderState(){{const text=`Step ${{step+1}} of 6`;document.querySelecto
 function focusTitle(){{document.querySelector('#step-title').focus()}}function resetFlow(){{step=0;currentResult=null;approvalDenied=false;document.querySelector('#receipt').classList.add('hidden');document.querySelector('#approval').textContent='Not approved';renderState();focusTitle()}}function denyApproval(){{approvalDenied=true;currentResult=null;document.querySelector('#approval').textContent='Denied · task cancelled';renderState();document.querySelector('#status').focus()}}function next(){{if(approvalDenied||step===5){{resetFlow();return}}step+=1;if(step===3)document.querySelector('#approval').textContent='Awaiting your approval';if(step===4)approveMandate('correct','approval-step').then(g=>{{approvalGrant=g;document.querySelector('#approval').textContent=g?'Approved for mandate v1':'Approval failed · nothing ran'}});renderState();if(step===5)loadReceipt('correct');focusTitle()}}
 async function approveMandate(name,origin){{const r=await fetch('/api/approve',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{case:name,origin:origin}})}});if(!r.ok)return null;return (await r.json()).grant}}
 async function loadReceipt(name){{let r;if(backendCases.includes(name)){{const grant=approvalGrant||await approveMandate(name,'fixture-explorer');approvalGrant=null;if(!grant){{document.querySelector('#status').classList.add('error');document.querySelector('#status').innerHTML='<strong>Not approved</strong><br>Nothing ran and nothing was recorded.';return}}r=await fetch('/api/receipt',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{case:name,grant:grant}})}});}}else{{r=await fetch('/api/receipt?case='+encodeURIComponent(name));}}const d=await r.json();if(!r.ok){{document.querySelector('#status').classList.add('error');document.querySelector('#status').innerHTML='<strong>Not approved</strong><br>Nothing ran and nothing was recorded.';return}}currentResult=d;document.querySelector('#receipt').classList.remove('hidden');document.querySelector('#outcome').textContent=d.title;document.querySelector('#evidence').innerHTML=d.evidence.map(e=>`<div class="evidence"><span><strong>${{e.label}}</strong><br>${{e.value}}</span><span class="source">${{e.source}}</span></div>`).join('');document.querySelector('#invite').classList.add('hidden');document.querySelector('#invite').innerHTML='';document.querySelector('#invite-state').textContent=d.status==='MATCH'?'No invitation created.':'Invitation unavailable for this result.';document.querySelector('#create-invitation').disabled=d.status!=='MATCH';document.querySelector('#status').classList.toggle('error',['ERROR','DENIED','EXPIRED','DISCONNECTED','UNSUPPORTED','MISMATCH'].includes(d.status));document.querySelector('#status').innerHTML=`<strong>${{d.title}}</strong><br>Fixture: ${{name.replaceAll('-',' ')}}`;document.querySelector('#receipt').focus()}}
-function createInvitation(){{if(!currentResult||currentResult.status!=='MATCH')return;const invitation=document.querySelector('#invite');invitation.innerHTML=Object.entries(currentResult.invitation).map(([k,v])=>`<dt>${{k.replaceAll('_',' ')}}</dt><dd>${{v}}</dd>`).join('');invitation.classList.remove('hidden');document.querySelector('#invite-state').textContent='Invitation created. Only the fields shown above will be shared.';document.querySelector('#create-invitation').disabled=true;document.querySelector('#keep-private').focus()}}function keepPrivate(){{document.querySelector('#invite').classList.add('hidden');document.querySelector('#invite').innerHTML='';document.querySelector('#invite-state').textContent='Kept private. No invitation was created or shared.';document.querySelector('#create-invitation').disabled=!currentResult||currentResult.status!=='MATCH';document.querySelector('#primary').focus()}}
+const inviteStates={{created:'Invitation created. Only the fields shown above will be shared.',kept_private:'Kept private. No invitation was created or shared.',unavailable:'Invitation unavailable for this result.',reset:'No invitation created.'}};
+async function decideInvitation(action){{if(!currentResult)return null;const r=await fetch('/api/invitation',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{case:currentResult.case,action:action}})}});if(!r.ok)return {{state:'unavailable',payload:null}};return await r.json()}}
+function renderInvitation(d){{const invitation=document.querySelector('#invite');const payload=d&&d.payload;invitation.innerHTML=payload?Object.entries(payload).map(([k,v])=>`<dt>${{k.replaceAll('_',' ')}}</dt><dd>${{v}}</dd>`).join(''):'';invitation.classList.toggle('hidden',!payload);document.querySelector('#invite-state').textContent=inviteStates[(d&&d.state)||'unavailable'];document.querySelector('#create-invitation').disabled=!!payload}}
+async function createInvitation(){{renderInvitation(await decideInvitation('create'));document.querySelector('#keep-private').focus()}}
+async function keepPrivate(){{renderInvitation(await decideInvitation('keep_private'));document.querySelector('#primary').focus()}}
 document.querySelector('#primary').addEventListener('click',next);document.querySelector('#deny-approval').addEventListener('click',denyApproval);document.querySelector('#fixture-button').addEventListener('click',()=>loadReceipt(fixture.value));document.querySelector('#create-invitation').addEventListener('click',createInvitation);document.querySelector('#keep-private').addEventListener('click',keepPrivate);renderState();
 </script></body></html>"""
 
@@ -337,6 +401,17 @@ class DemoHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/receipt":
                 grant = payload.get("grant")
                 self._send_json(execute_case(case, self.db_path, str(grant) if grant else None))
+                return
+            if parsed.path == "/api/invitation":
+                # The sharing choice, carried to the server. Read-only: it
+                # approves nothing, executes nothing and records nothing.
+                action = str(payload.get("action", ""))
+                try:
+                    self._send_json(
+                        invitation_decision(case or "correct", action, self.db_path)
+                    )
+                except ValueError as exc:
+                    self._send_json({"error": "unsupported_action", "detail": str(exc)}, 400)
                 return
             self.send_error(404)
         except ApprovalRequired as exc:
