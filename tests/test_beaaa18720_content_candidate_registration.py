@@ -65,7 +65,9 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # The two original direct AIUC-1 families contribute 64 report-only rows;
     # BEAAA-28131 adds four new supporting families (32 rows). None change the
     # frozen published/executed count below.
-    assert len(rows) == 2_498
+    # BEAAA-35384 adds nine evaluation-boundary rows. They are report-only and
+    # do not change the 2,000 content-candidate rows asserted below.
+    assert len(rows) == 2_507
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are

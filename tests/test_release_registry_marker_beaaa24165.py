@@ -55,7 +55,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # field are unmoved on all 2,498 rows, so no row entered the scored set and
     # the BEAAA-33992 fence holds. Counts are unchanged at 2,361 / 2,361 / 2,360,
     # asserted below. Prior pin b4b6e143...e686331 came from BEAAA-33810.
-    "dc6ec6ba0d116efd0d87d7baee57c58f6c787255516bf2b0a69d4895a4dfd588"
+    # Re-pinned for BEAAA-35384: nine evaluation_boundary_credential_use rows
+    # were added as reported-not-scored with zero weight. Executable counts
+    # remain unchanged; only the normalized registry bytes move.
+    "20eb444906ad427921256e46e8c3f9cf17851e43e25a82c2ec3e2e457eb8ba7c"
 )
 
 
@@ -81,7 +84,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # this exclusion proof. The pii_attestation.evidence_pack row is now bound
     # through the production adapter. Binding the two demographic-parity rows
     # reduces the exclusion proof by two more.
-    assert len(marker["excluded_rows"]) == 137
+    # The nine BEAAA-35384 rows are report-only and therefore extend the
+    # excluded-row proof without changing executable counts.
+    assert len(marker["excluded_rows"]) == 146
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",
