@@ -2,6 +2,8 @@
 
 **What to export:** generic OpenAI messages JSONL, OTEL/OpenLLMetry JSONL, or the VAPI-shape stub. Real VAPI support follows when Ari supplies the dump.
 
+**Install, offline:** either `pip install backbond_count-0.2.1-py3-none-any.whl --no-index` or run the single-file `backbond-count.pyz` with any Python 3.11+. Both are verified on a machine with no index reachable. Installing from the *source tree* offline does not work - `pip install .` needs its build backend, which a fresh virtualenv does not carry - so use the wheel or the zipapp, and read the source alongside them.
+
 **Command:** `backbond-count export.jsonl --judge none --from 2026-09-01 --to 2026-09-14 --agent-version "prompt v14" --show-what-leaves`. Run `backbond-count --self-check` first.
 
 To count A1 and trace-backed A3, choose `--judge openai|anthropic|azure|ollama` and supply `--judge-base-url`, `--judge-api-key`, and `--judge-model`. The endpoint and key belong to the vendor; the pack has no BackBond endpoint. The temperature-zero prompt is the readable `JUDGE_PROMPT` constant and its exact hash is emitted in `prompt_sha256`. Pin a model version where possible; judge outcomes may vary if the provider changes a model behind a stable name. `--judge none` remains byte-deterministic and performs no network operation.
