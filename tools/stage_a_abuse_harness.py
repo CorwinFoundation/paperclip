@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -22,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from stage_a_demo import activation as act  # noqa: E402
 from stage_a_demo import approval as approval_mod  # noqa: E402
 from stage_a_demo.approval import approve_mandate  # noqa: E402
 from stage_a_demo.core import (  # noqa: E402
@@ -32,6 +34,34 @@ from stage_a_demo.core import (  # noqa: E402
     Mandate,
     SyntheticMerchantAdapter,
 )
+
+_ACTIVATION_RECORDS = {
+    "governing_legal_structure": {
+        "record_id": "legal-1", "program_version": "", "status": "in_good_standing",
+        "entity_name": "BackBond Program Co", "jurisdiction": "Delaware, US"},
+    "executed_backing_authority": {
+        "record_id": "backing-1", "program_version": "", "status": "executed",
+        "counterparty": "Backing Counterparty", "executed_at": "2026-09-01T00:00:00Z",
+        "document_sha256": "a" * 64},
+    "funded_financial_security": {
+        "record_id": "funding-1", "program_version": "", "status": "funded",
+        "instrument": "segregated account", "funded_amount_cents": 5_000_000,
+        "funded_at": "2026-09-02T00:00:00Z"},
+    "approved_versioned_terms": {
+        "record_id": "terms-1", "program_version": "", "status": "approved",
+        "terms_version": "terms-1.0.0", "approved_at": "2026-09-03T00:00:00Z",
+        "expires_at": "2027-09-23T12:00:00Z"},
+    "named_claims_and_payment_humans": {
+        "record_id": "humans-1", "program_version": "", "status": "named",
+        "claims_reviewer": "Named Reviewer", "payment_approver": "Named Approver"},
+    "approved_consumer_disclosure_set": {
+        "record_id": "disclosures-1", "program_version": "", "status": "approved",
+        "disclosure_set_id": "disclosures-1.0.0", "approved_at": "2026-09-04T00:00:00Z"},
+}
+"""A complete activation-record set, mirroring the one in
+tests/test_beaaa35012_activation_gate.py. Inlined rather than imported: the
+harness drives stage_a_demo from outside and must not depend on the suite."""
+
 
 RESULTS: list[dict] = []
 
@@ -559,7 +589,79 @@ def sa10(root: Path):
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, sa8, sa9, sa10]
+@probe(
+    "A12 receipt protection is bound to execution time",
+    "a receipt cannot start claiming coverage that did not exist when it executed",
+)
+def a12(root: Path):
+    """The read-time protection binding, measured rather than reasoned about.
+
+    ``EvidenceStore.packet`` computes the protection block when the packet is
+    READ, from whatever the activation registry says at that moment, and the
+    ``cases`` table stores no activation record, terms version or program
+    version. So a case executed with no coverage in existence reads back as
+    covered once records appear later. BEAAA-35133 defect A, re-measured here at
+    a SHA four commits past the one it was filed against.
+
+    Not a re-grade of the activation gate: ``check_activation`` is asked for its
+    verdict and believed. What is under test is whether the receipt is bound to
+    the verdict that was true when the merchant was called.
+    """
+    records_dir = root / "activation-records"
+    keep = os.environ.get(act.ACTIVATION_RECORDS_ENV)
+    os.environ[act.ACTIVATION_RECORDS_ENV] = str(records_dir)  # absent -> not active
+    try:
+        mandate = Mandate("m-a12", "SKU-1", 100)
+        store = _store(root)
+        try:
+            at_execution = store.record_case(
+                case_id="a12", grant_id=_approved(store, "a12", mandate),
+                asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a12",
+                merchant=SyntheticMerchantAdapter(),
+            )["protection"]
+        finally:
+            store.close()
+
+        # Coverage is activated afterwards. The recorded case is never touched.
+        program_version = act.default_program_version()
+        records = json.loads(json.dumps(_ACTIVATION_RECORDS))
+        for record in records.values():
+            record["program_version"] = program_version
+        records_dir.mkdir(parents=True, exist_ok=True)
+        (records_dir / f"{program_version}.json").write_text(json.dumps(records))
+        gate_now = act.check_activation(program_version, act.FileRegistry(str(records_dir))).active
+
+        store = EvidenceStore(root / "evidence.sqlite3")
+        try:
+            on_read = store.packet("a12")["protection"]
+            columns = [
+                d[0] for d in store.db.execute("SELECT * FROM cases LIMIT 0").description
+            ]
+        finally:
+            store.close()
+    finally:
+        if keep is None:
+            os.environ.pop(act.ACTIVATION_RECORDS_ENV, None)
+        else:
+            os.environ[act.ACTIVATION_RECORDS_ENV] = keep
+
+    retro = at_execution["protection_active"] is False and on_read["protection_active"] is True
+    bound_columns = [c for c in columns if "activation" in c or "terms" in c or "program" in c]
+    return not retro, (
+        f"at execution protection_active={at_execution['protection_active']};"
+        f" activation gate after records appear={gate_now};"
+        f" same case re-read protection_active={on_read['protection_active']}"
+        f" record={on_read['activation_record_id']} terms={on_read['terms_version']};"
+        f" retroactive_claim={retro}. The cases table carries no binding column"
+        f" (activation/terms/program: {bound_columns or 'none'}), so protection is"
+        f" recomputed at read time from whatever the registry says then."
+        f" The fixture retargets every record at {program_version!r}: keeping the test"
+        f" module's own program version makes the gate refuse on version and the probe"
+        f" report a false negative"
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10]
 
 
 def main() -> int:
