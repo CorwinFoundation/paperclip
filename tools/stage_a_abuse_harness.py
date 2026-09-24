@@ -316,6 +316,8 @@ def a4(root: Path):
 @probe("A5 evidence tampering", "a recorded case is append-only; its sources cannot be rewritten")
 def a5(root: Path):
     store = _store(root)
+    rewrite_merchant = CountingMerchant()
+    refusal = None
     try:
         first = Mandate("m-a5-real", "SKU-1", 100)
         before = store.record_case(
@@ -325,22 +327,33 @@ def a5(root: Path):
         )
         # Same case_id, different mandate, its own human approval, fresh key.
         second = Mandate("m-a5-rewritten", "SKU-COVER-UP", 1)
-        store.record_case(
-            case_id="a5", grant_id=_approved(store, "a5", second), asserted_sku="SKU-COVER-UP",
-            asserted_amount_cents=1, idempotency_key="a5-two",
-            merchant=SyntheticMerchantAdapter(),
-        )
+        try:
+            store.record_case(
+                case_id="a5", grant_id=_approved(store, "a5", second), asserted_sku="SKU-COVER-UP",
+                asserted_amount_cents=1, idempotency_key="a5-two",
+                merchant=rewrite_merchant,
+            )
+        except PermissionError as exc:
+            # BEAAA-35357: the ledger is append-only, so the rewrite is refused
+            # rather than recorded. A refusal is the requirement holding; the
+            # probe still measures that the first case survived it intact.
+            refusal = f"PermissionError: {exc}"
         after = store.packet("a5")
     finally:
         store.close()
     rewritten = before["sources"]["mandate"] != after["sources"]["mandate"]
     stale_exec = after["execution"]["idempotency_key"] == "a5-one"
-    return not rewritten, (
-        f"case a5 mandate went {before['sources']['mandate']['mandate_id']} ->"
-        f" {after['sources']['mandate']['mandate_id']} (rewritten={rewritten}) via"
-        f" INSERT OR REPLACE; packet still reports execution"
-        f" {after['execution']['idempotency_key']} (stale={stale_exec}), so the packet pairs"
-        f" one case's evidence with another case's receipt"
+    raw_calls = getattr(rewrite_merchant, "calls", None)
+    rewrite_calls = len(raw_calls) if isinstance(raw_calls, list) else raw_calls
+    paired = (not rewritten) and stale_exec
+    return (not rewritten) and refusal is not None, (
+        f"second record under case_id a5 -> refused: {refusal or 'NOT REFUSED'};"
+        f" merchant calls on the rewrite attempt={rewrite_calls};"
+        f" mandate stayed {after['sources']['mandate']['mandate_id']} (rewritten={rewritten});"
+        f" packet reports execution {after['execution']['idempotency_key']}"
+        f" (matches the surviving case={paired}). The ledger is append-only and the"
+        f" refusal lands before the merchant, so neither the evidence nor the charge"
+        f" happens twice under one case"
     )
 
 
@@ -569,8 +582,10 @@ def a9(root: Path):
         f" leg3 tenant-a control read={leg3} ({own_refusal or own_read});"
         f" leg4 per-call tenant unlike the store's tenant={leg4} ({leg4_note})."
         + (" " + "; ".join(notes) + "." if notes else "")
-        + " Co-tenant readers on one sqlite file remain separated only by filesystem permissions;"
-        " that is the documented limit of a single-process demo."
+        + " Co-tenant readers share one sqlite file;"
+        " the reader now carries its own owner and the owner travels with the case"
+        " row (BEAAA-35357), so a co-tenant reader on the same file is refused"
+        " rather than separated by filesystem permissions alone."
     )
 
 

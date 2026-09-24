@@ -233,8 +233,12 @@ class SyntheticMerchantAdapter:
 class EvidenceStore:
     """Restart-safe local ledger and evidence-reader/claims-review seam."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, *, tenant: str | None = None) -> None:
         self.path = str(path)
+        # BEAAA-35357 A9: the reader is scoped to one owner at construction.
+        # There is no per-call tenant argument anywhere on this class, so a
+        # caller cannot name a different owner on the way past.
+        self.tenant = tenant
         self.db = sqlite3.connect(self.path, timeout=30.0)
         self.db.row_factory = sqlite3.Row
         # Concurrent demo requests are two connections against one file:
@@ -271,6 +275,9 @@ class EvidenceStore:
         cols = {row[1] for row in self.db.execute("PRAGMA table_info(cases)")}
         if "protection_json" not in cols:
             self.db.execute("ALTER TABLE cases ADD COLUMN protection_json TEXT")
+            self.db.commit()
+        if "tenant" not in cols:
+            self.db.execute("ALTER TABLE cases ADD COLUMN tenant TEXT")
             self.db.commit()
 
     def record_case(
@@ -357,6 +364,14 @@ class EvidenceStore:
         # The activation state in force when this case is recorded. Persisted
         # with the case so the receipt never restates today's program status as
         # though it had been true at purchase time (BEAAA-35133 A).
+        # BEAAA-35357 A5: the case ledger is append-only. A second record under
+        # an existing case_id is refused here, before the merchant is called, so
+        # neither the evidence nor the charge happens twice under one case.
+        if self.db.execute("SELECT 1 FROM cases WHERE case_id = ?", (case_id,)).fetchone() is not None:
+            raise PermissionError(
+                f"case {case_id} is already recorded; the case ledger is append-only"
+            )
+
         protection = surface_protection_state(
             "receipt", default_program_version(), default_registry()
         )
@@ -373,10 +388,10 @@ class EvidenceStore:
 
         with self.db:
             self.db.execute(
-                "INSERT OR REPLACE INTO cases (case_id, mode, mandate_json, approval_json,"
+                "INSERT INTO cases (case_id, tenant, mode, mandate_json, approval_json,"
                 " assertion_json, merchant_json, status, mismatch_json, protection_json)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (case_id, MODE, json.dumps(asdict(mandate), sort_keys=True), json.dumps(approval, sort_keys=True),
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (case_id, self.tenant, MODE, json.dumps(asdict(mandate), sort_keys=True), json.dumps(approval, sort_keys=True),
                  json.dumps(assertion, sort_keys=True), json.dumps(merchant_evidence, sort_keys=True) if merchant_evidence else None,
                  status, json.dumps(mismatches, sort_keys=True), json.dumps(protection, sort_keys=True)),
             )
@@ -605,6 +620,20 @@ class EvidenceStore:
         )
         return review
 
+    def _enforce_owner(self, row: sqlite3.Row, case_id: str) -> None:
+        """Refuse a read of a case recorded under another owner.
+
+        BEAAA-35357 A9: co-tenant readers on one file were separated only by
+        filesystem permissions. The owner now travels with the row and the
+        reader carries its own, so a second store opened on the same file
+        cannot read a case it does not own.
+        """
+        recorded = row["tenant"] if "tenant" in row.keys() else None
+        if recorded != self.tenant:
+            raise PermissionError(
+                f"case {case_id} belongs to another owner; this reader is scoped to {self.tenant!r}"
+            )
+
     def approval_count(self, case_id: str) -> int:
         return self.db.execute("SELECT COUNT(*) FROM approvals WHERE case_id = ?", (case_id,)).fetchone()[0]
 
@@ -632,6 +661,7 @@ class EvidenceStore:
         row = self.db.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
         if row is None:
             raise KeyError(case_id)
+        self._enforce_owner(row, case_id)
         execution = self.db.execute(
             "SELECT idempotency_key, ledger_allocation, receipt_json FROM executions WHERE case_id = ? ORDER BY id LIMIT 1",
             (case_id,),
