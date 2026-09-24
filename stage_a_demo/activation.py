@@ -38,6 +38,12 @@ class RecordRequirement:
     required_status: str
     required_fields: tuple[str, ...]
     expiry_required: bool = False
+    # The field on the record that says when this record came into force. A
+    # window with an end and no beginning cannot tell "not yet in force" from
+    # "in force", so a loss that predates the programme reads as covered
+    # (BEAAA-35482 X2). Records that carry no instant of their own leave this
+    # None and are bounded by the records that do.
+    start_field: str | None = None
 
 
 REQUIRED_RECORDS: tuple[RecordRequirement, ...] = (
@@ -50,17 +56,20 @@ REQUIRED_RECORDS: tuple[RecordRequirement, ...] = (
         "executed_backing_authority",
         "executed",
         ("counterparty", "executed_at", "document_sha256"),
+        start_field="executed_at",
     ),
     RecordRequirement(
         "funded_financial_security",
         "funded",
         ("instrument", "funded_amount_cents", "funded_at"),
+        start_field="funded_at",
     ),
     RecordRequirement(
         "approved_versioned_terms",
         "approved",
         ("terms_version", "approved_at"),
         expiry_required=True,
+        start_field="approved_at",
     ),
     RecordRequirement(
         "named_claims_and_payment_humans",
@@ -71,6 +80,7 @@ REQUIRED_RECORDS: tuple[RecordRequirement, ...] = (
         "approved_consumer_disclosure_set",
         "approved",
         ("disclosure_set_id", "approved_at"),
+        start_field="approved_at",
     ),
 )
 
@@ -146,7 +156,12 @@ def _check_record(
     program_version: str,
     now: datetime,
 ) -> list[str]:
-    """Return reason codes. Empty list means the record satisfies the gate."""
+    """Return reason codes. Empty list means the record satisfies the gate.
+
+    Bounded at both ends: a record that has not started yet is no more in force
+    than one that has expired, and the before-activation direction is the one
+    that manufactures coverage rather than denying it.
+    """
     key = requirement.key
     if record is None:
         return [f"{key}:missing"]
@@ -170,6 +185,15 @@ def _check_record(
     if key == "funded_financial_security":
         if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
             reasons.append(f"{key}:not_funded")
+
+    if requirement.start_field is not None:
+        raw_start = record.get(requirement.start_field)
+        if raw_start is not None:
+            started = _parse_timestamp(raw_start)
+            if started is None:
+                reasons.append(f"{key}:malformed_start")
+            elif started > now:
+                reasons.append(f"{key}:not_yet_in_force")
 
     expires_at = record.get("expires_at")
     if expires_at is None:

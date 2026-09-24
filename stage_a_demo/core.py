@@ -616,6 +616,19 @@ class EvidenceStore:
         """
         if self.receipt_for(task_id) is None:
             raise CheckNotApproved(f"no pre-execution receipt for task {task_id}")
+        pinned = self.db.execute(
+            "SELECT protection_at_execution_json FROM approval_receipts WHERE task_id = ?",
+            (task_id,),
+        ).fetchone()
+        if pinned is not None and pinned["protection_at_execution_json"]:
+            # Same objection the receipt guard answers, applied to the block
+            # that decides which window a loss belongs to. A stored window that
+            # a later call can move to a different executed_at is not evidence
+            # of when the loss happened (BEAAA-35482 X7).
+            raise PermissionError(
+                f"task {task_id} already has a coverage window pinned at execution; "
+                "the window a loss is judged against is not rewritten"
+            )
         # Pin the coverage window as it stood at execution, while we are still
         # standing at that moment. Recomputing it later depends on a registry
         # that can move; a stored block cannot.
