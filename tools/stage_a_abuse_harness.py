@@ -18,6 +18,8 @@ import sqlite3
 import sys
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +30,7 @@ from stage_a_demo import activation as act  # noqa: E402
 from stage_a_demo import approval as approval_mod  # noqa: E402
 from stage_a_demo.approval import approve_mandate  # noqa: E402
 from stage_a_demo import path1 as path1_mod  # noqa: E402
+from stage_a_demo import ui as ui_mod  # noqa: E402
 from stage_a_demo.receipt import (  # noqa: E402
     ANSWER_OK,
     ANSWER_SKIPPED,
@@ -126,6 +129,52 @@ def _stored_token(store: EvidenceStore, grant_id: str) -> str:
 
 def _store(root: Path) -> EvidenceStore:
     return EvidenceStore(root / "evidence.sqlite3")
+
+
+def _serve(root: Path):
+    """Start the real demo server the way ``python -m stage_a_demo`` does.
+
+    Port 0 so the probe never collides with a running demo. The sharing seam
+    lives on the HTTP surface, not in a helper, so it has to be measured from
+    a client rather than by calling the module functions the suite calls.
+    """
+    server = ui_mod.build_server("127.0.0.1", 0, root / "ui.sqlite3")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}"
+
+
+def _api(base: str, path: str, body: dict | None = None):
+    """One request. Returns (status_code, decoded body or None)."""
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        base + path, data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST" if body is not None else "GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read()
+            status = resp.status
+    except urllib.error.HTTPError as exc:
+        raw, status = exc.read(), exc.code
+    try:
+        return status, json.loads(raw.decode())
+    except ValueError:
+        return status, None
+
+
+def _receipt_over_http(base: str, case: str):
+    """Drive one fixture end to end and return what the screen receives.
+
+    Mirrors the page's own JS: backend cases approve first and POST the grant;
+    the rest are read with GET. No invitation step is performed, because the
+    API has none.
+    """
+    if case in ui_mod.BACKEND_CASES:
+        _, granted = _api(base, "/api/approve", {"case": case, "origin": "fixture-explorer"})
+        grant = (granted or {}).get("grant")
+        return _api(base, "/api/receipt", {"case": case, "grant": grant})
+    return _api(base, f"/api/receipt?case={case}")
 
 
 @probe("A1 agent-self-approval", "an execution-side caller cannot mint an approval the server accepts")
@@ -1025,7 +1074,117 @@ def p1_4(root: Path):
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4]
+
+@probe("A13 sharing is opt-in",
+       "a shareable invitation exists only after the user asks for one")
+def a13(root: Path):
+    """The consent gate exists and nothing on the served path reaches it.
+
+    ``ui.invitation_transition`` is a correct gate: it withholds the payload
+    for an unverified result and for ``keep_private``. It is also called from
+    nowhere but ``tests/`` - no route, no line of the page's script. The route
+    the screen actually uses, ``/api/receipt``, attaches a complete invitation
+    to every response, and ``keepPrivate()`` hides a ``<dl>`` that already has
+    the payload in the tab. So the opt-in is a DOM state, not a decision the
+    server ever learns: there is no route that could carry one.
+
+    Control leg first, so this row cannot be satisfied by an app that simply
+    never builds an invitation: the gate must still HAND OVER the payload on
+    an explicit create against a verified result.
+    """
+    gate_create = ui_mod.invitation_transition("MATCH", "create")
+    gate_unverified = ui_mod.invitation_transition("MISMATCH", "create")
+    gate_private = ui_mod.invitation_transition("MATCH", "keep_private")
+    gate_two_sided = (
+        gate_create["payload"] is not None
+        and gate_unverified["payload"] is None
+        and gate_private["payload"] is None
+    )
+
+    server, base = _serve(root)
+    try:
+        status, body = _receipt_over_http(base, "correct")
+        delivered = (body or {}).get("invitation")
+        opt_in_route, _ = _api(base, "/api/invitation", {"action": "create"})
+        keep_private_route, _ = _api(base, "/api/invitation", {"action": "keep_private"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    no_artifact_before_consent = not delivered
+    holds = gate_two_sided and no_artifact_before_consent
+    return holds, (
+        f"gate two-sided (create->payload, unverified->None, keep_private->None)={gate_two_sided};"
+        f" /api/receipt {status} for 'correct' delivered invitation fields="
+        f"{sorted(delivered) if isinstance(delivered, dict) else delivered};"
+        f" opt-in route POST /api/invitation -> {opt_in_route},"
+        f" keep-private route -> {keep_private_route}."
+        + ("" if holds else
+           " The shareable artifact is on the wire before any choice, and there is no"
+           " route that could carry the choice, so 'Keep private' cannot reach the"
+           " server at all. The gate that would withhold it is called only from tests.")
+    )
+
+
+@probe("A14 a completion note needs a completion",
+       "nothing shareable may assert a purchase that did not execute")
+def a14(root: Path):
+    """What the ungated path says about cases that never ran.
+
+    Two results where the demo is explicit that nothing happened: 'over-mandate'
+    is REFUSED before the merchant is reached (A4) and 'denied' was never
+    approved. Both come back carrying the same invitation the MATCH case gets,
+    whose ``completed`` field names a date. Shared, that note asserts a finished
+    household purchase behind a purchase that was refused.
+
+    The date is also a constant - the same ``21 Sep 2026`` for a case executed
+    now - so it is not a stale-clock bug, the note is simply not derived from
+    the execution at all.
+
+    Control leg: the gate, where it is called, already refuses a non-MATCH
+    status. The requirement is reachable; the served path does not reach it.
+    """
+    gate_blocks_unverified = all(
+        ui_mod.invitation_transition(status, "create")["payload"] is None
+        for status in ("REFUSED", "DENIED", "MISMATCH", "UNKNOWN/INCOMPLETE")
+    )
+
+    server, base = _serve(root)
+    try:
+        observed = {}
+        for case in ("over-mandate", "denied", "correct"):
+            _, body = _receipt_over_http(base, case)
+            body = body or {}
+            invitation = body.get("invitation") or {}
+            observed[case] = (
+                body.get("status"),
+                body.get("authoritative_executions"),
+                invitation.get("completed"),
+            )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    claimed_without_running = [
+        case for case in ("over-mandate", "denied")
+        if observed[case][2] is not None
+    ]
+    holds = gate_blocks_unverified and not claimed_without_running
+    return holds, (
+        f"gate refuses unverified statuses={gate_blocks_unverified};"
+        + "".join(
+            f" {case}: status={observed[case][0]} executions={observed[case][1]}"
+            f" shared_completed={observed[case][2]!r};"
+            for case in ("over-mandate", "denied", "correct")
+        )
+        + (" served path matches the gate." if holds else
+           f" {len(claimed_without_running)} result(s) that never executed"
+           f" ({', '.join(claimed_without_running)}) still ship a shareable note dated"
+           f" {observed['over-mandate'][2]!r} - the same constant the executed case gets.")
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4, a13, a14]
 
 
 def main() -> int:
