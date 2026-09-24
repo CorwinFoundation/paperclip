@@ -157,9 +157,11 @@ def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str,
         except PermissionError as exc:
             raise ApprovalRequired(str(exc)) from exc
         if case == "duplicate":
-            # The duplicate fixture retries the request. The grant is single use,
-            # so the retry is refused; the idempotency key independently admits
-            # one execution. Either way the merchant is reached once.
+            # The duplicate fixture retries the request under the same key, so
+            # the store answers it from the execution it already recorded
+            # (BEAAA-35354 A6). A grant that is genuinely spent is still
+            # refused, which the except below still catches. Either way the
+            # merchant is reached once.
             try:
                 store.record_case(**kwargs)
             except PermissionError:

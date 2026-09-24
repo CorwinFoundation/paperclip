@@ -36,9 +36,17 @@ _PROCESS_ISSUER: HumanApprovalIssuer | None = None
 def _process_issuer() -> HumanApprovalIssuer:
     """The one approval authority for this process.
 
-    Resolved from process configuration once, then reused. The execution path
-    cannot substitute it, which is what makes an approval row it minted with an
-    issuer of its own refuse to record (BEAAA-35331 SA7).
+    Resolved from process configuration once, then reused. Nothing in the
+    execution path passes an issuer in, which is what makes an approval row it
+    minted with an issuer of its own refuse to record (BEAAA-35331 SA7).
+
+    What that does not mean (BEAAA-35354 SA10): in-process code can rebind
+    ``_PROCESS_ISSUER`` to an authority of its own and read the secret at
+    ``_process_issuer()._secret``. That holds for any in-process capability in
+    Python and no in-process change closes it. The substitution this resists is
+    substitution across a process boundary, which Stage A does not yet have:
+    the human-side module and the execution path run in the same interpreter.
+    Treat that as the demo's boundary limit, not as isolation it has.
     """
     global _PROCESS_ISSUER
     if _PROCESS_ISSUER is None:

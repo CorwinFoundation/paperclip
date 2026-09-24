@@ -333,13 +333,22 @@ def a6(root: Path):
         count = store.execution_count("a6")
     finally:
         store.close()
-    return count == 1 and len(merchant.calls) == 1, (
+    # A retry has to come back with the receipt, not just fail to reach the
+    # merchant twice: the probe passed on the merchant count alone while the
+    # retry was answering PermissionError (BEAAA-35354 A6).
+    returned_receipt = set(retries) == {"packet"}
+    reading = (
+        "every retry returned the idempotent packet, so a client whose request"
+        " timed out gets its receipt back (BEAAA-35354 A6)"
+        if returned_receipt
+        else "exactly-once holds at the merchant, but the retry does not return the"
+        " idempotent packet: record_case consumes the grant before it looks at the"
+        " idempotency key, so a client retrying a timed-out request gets a"
+        " PermissionError rather than its receipt"
+    )
+    return count == 1 and len(merchant.calls) == 1 and returned_receipt, (
         f"4 retries of one idempotency key -> execution_count={count},"
-        f" merchant calls={len(merchant.calls)}, outcomes={retries}."
-        f" Exactly-once holds at the merchant, but the retry no longer returns the"
-        f" idempotent packet: record_case consumes the grant before it looks at the"
-        f" idempotency key, so a client retrying a timed-out request gets a"
-        f" PermissionError rather than its receipt"
+        f" merchant calls={len(merchant.calls)}, outcomes={retries}. {reading}"
     )
 
 
@@ -542,12 +551,13 @@ def sa8(root: Path):
     "a spent approval stays spent even against a caller that can write the DB",
 )
 def sa9(root: Path):
-    """Single use now rests on one mutable integer.
+    """Whether single use survives a caller that can rewrite the flag.
 
-    ``record_case`` consumes the grant by setting ``approvals.consumed = 1``, in
-    the same database the execution path writes its own cases to. SA8 is closed
-    because forging a token needs the process secret. Resetting a flag needs no
-    secret at all.
+    ``record_case`` marks ``approvals.consumed = 1`` in the same database the
+    execution path writes its own cases to. SA8 is closed because forging a
+    token needs the process secret; resetting a flag needs no secret at all, so
+    this probe resets it and executes again. The reading is in the output, not
+    in this docstring.
     """
     mandate = Mandate("m-sa9", "SKU-1", 100)
     merchant = CountingMerchant()

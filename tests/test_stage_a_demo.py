@@ -8,6 +8,17 @@ from stage_a_demo.approval import _process_issuer, approve_mandate
 from stage_a_demo.core import ApprovalVerifier, EvidenceStore, HumanApprovalIssuer, Mandate, SyntheticMerchantAdapter
 
 
+class _CountingMerchant(SyntheticMerchantAdapter):
+    """Counts how many times the execution path reached the merchant."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def purchase(self, **kwargs):
+        self.calls += 1
+        return super().purchase(**kwargs)
+
+
 class StageADemoTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -42,16 +53,8 @@ class StageADemoTests(unittest.TestCase):
         self.assertEqual("SKU-1", packet["sources"]["mandate"]["sku"])
 
     def test_duplicate_retry_has_one_execution(self):
-        class CountingMerchant(SyntheticMerchantAdapter):
-            def __init__(self):
-                self.calls = 0
-
-            def purchase(self, **kwargs):
-                self.calls += 1
-                return super().purchase(**kwargs)
-
         store = EvidenceStore(self.path)
-        merchant = CountingMerchant()
+        merchant = _CountingMerchant()
         mandate = Mandate("m-c1", "SKU-1", 100)
         # An approved retry: a second grant, the same idempotency key. The
         # merchant must still be reached once.
@@ -62,10 +65,15 @@ class StageADemoTests(unittest.TestCase):
             merchant=merchant)
         store.record_case(grant_id=first, **kwargs)
         store.record_case(grant_id=second, **kwargs)
-        # A spent grant is refused outright: single use is not weakened by replay.
-        with self.assertRaises(PermissionError):
-            store.record_case(grant_id=first, **kwargs)
+        # Retrying the spent grant under the same key is a retry, not a second
+        # execution: it reads back the one receipt (BEAAA-35354 A6).
+        self.assertEqual(store.packet("c1"), store.record_case(grant_id=first, **kwargs))
         self.assertEqual(1, store.execution_count("idem-1"))
+        self.assertEqual(1, merchant.calls)
+        # Single use is what refuses a real second execution: a fresh key on the
+        # spent grant is rejected, and the merchant is still reached once.
+        with self.assertRaises(PermissionError):
+            store.record_case(grant_id=first, **{**kwargs, "idempotency_key": "idem-1b"})
         self.assertEqual(1, merchant.calls)
 
     def test_un_consuming_the_approvals_row_does_not_revive_the_grant(self):
@@ -146,6 +154,51 @@ class StageADemoTests(unittest.TestCase):
         # It is bound to its own grant too, so a genuine token replayed under a
         # second approvals row is not attested (BEAAA-35331 SA8b).
         self.assertFalse(authority.attests(mandate, "grant-c1-replay", token))
+
+    def test_retrying_a_timed_out_request_returns_its_receipt(self):
+        """BEAAA-35354 A6. The idempotency read has to come before the consume.
+
+        BEAAA-35331 moved consumption to the top of ``record_case``, ahead of
+        the idempotency lookup, so a client retrying a timed-out request with
+        the same key met ``PermissionError`` instead of its receipt. Exactly
+        once still held at the merchant, so the demo hid it; on a payment path
+        a retry after a timeout is the most ordinary thing a client does.
+        """
+        merchant = _CountingMerchant()
+        store = EvidenceStore(self.path)
+        mandate = Mandate("m-a6", "SKU-1", 100)
+        grant = approve_mandate(store, case_id="c-a6", mandate=mandate)
+        call = dict(case_id="c-a6", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, merchant=merchant)
+        first = store.record_case(idempotency_key="idem-a6", **call)
+        retry = store.record_case(idempotency_key="idem-a6", **call)
+        self.assertEqual("MATCH", first["status"])
+        self.assertEqual(first, retry)
+        self.assertEqual(1, merchant.calls)
+
+        # Single use is untouched: a second execution under a fresh key is
+        # still refused, and the merchant is still reached once (SA9).
+        with self.assertRaises(PermissionError):
+            store.record_case(idempotency_key="idem-a6-2", **call)
+        self.assertEqual(1, merchant.calls)
+
+    def test_an_idempotency_key_stays_bound_to_the_case_it_executed(self):
+        """BEAAA-35354 A6. Replaying a key under another case is a conflict.
+
+        The retry read runs before any approval check, so it must not hand back
+        a receipt for a case the caller did not name.
+        """
+        merchant = _CountingMerchant()
+        store = EvidenceStore(self.path)
+        grant = approve_mandate(store, case_id="c-a6b", mandate=Mandate("m-a6b", "SKU-1", 100))
+        store.record_case(case_id="c-a6b", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="idem-a6b", merchant=merchant)
+        other = approve_mandate(store, case_id="c-a6c", mandate=Mandate("m-a6c", "SKU-1", 100))
+        with self.assertRaises(PermissionError):
+            store.record_case(case_id="c-a6c", grant_id=other, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="idem-a6b", merchant=merchant)
+        self.assertEqual(1, merchant.calls)
+        self.assertIsNone(store.packet_or_none("c-a6c"))
 
     def test_missing_independent_evidence_never_succeeds(self):
         packet = self.record(EvidenceStore(self.path), evidence=False)

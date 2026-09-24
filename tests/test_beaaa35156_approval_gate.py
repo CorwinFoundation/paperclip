@@ -79,8 +79,13 @@ class StageADemoApprovalGateTests(unittest.TestCase):
         self.assertTrue(body["approved"])
         self.assertEqual({"label": "Human approval", "value": "Approved for mandate v1", "source": "Verified event"}, body["evidence"][0])
 
+        # Re-sending the same request is a retry, not a second execution: the
+        # UI sends one idempotency key per case, so it reads back the receipt
+        # it already has (BEAAA-35354 A6). The ledger does not move, which is
+        # what "spends it once" means here.
         replayed = self.request("/api/receipt", {"case": "correct", "grant": grant})
-        self.assertEqual(403, replayed[0])
+        self.assertEqual(200, replayed[0])
+        self.assertEqual(body, replayed[1])
         self.assertEqual((1, 1), self.ledger())
 
     def test_a_forged_grant_executes_nothing(self):

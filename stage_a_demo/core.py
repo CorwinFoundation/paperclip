@@ -69,6 +69,12 @@ def _verifier_for_recorded_approval(mandate: Mandate, approval_token: str) -> Ap
 
     Module-private on purpose: the public classmethod it replaces let a caller
     build a verifier around a token of its own choosing (BEAAA-35331 SA5).
+
+    The underscore is a convention, not a boundary (BEAAA-35354 SA10). A caller
+    in this process can import this and build a verifier around any token it
+    likes. That is harmless because no route accepts a verifier from a caller:
+    ``record_case`` rebuilds its own from the approval row it just consumed, so
+    a verifier built outside has nothing to be handed to.
     """
     return ApprovalVerifier(
         {_mandate_fingerprint(mandate): hashlib.sha256(approval_token.encode()).hexdigest()},
@@ -239,7 +245,17 @@ class EvidenceStore:
         recorded token, and checks that token against the process-level approval
         authority. No verifier, token, secret or signing key crosses this
         boundary.
+
+        BEAAA-35354 A6: the idempotent retry is answered before the grant is
+        consumed. A client whose first request timed out re-sends it with the
+        same key and gets its receipt; consuming first turned that ordinary
+        retry into a refusal, because the grant it is retrying is the grant the
+        first attempt already spent.
         """
+        replay = self._replay_for_idempotency_key(idempotency_key, case_id)
+        if replay is not None:
+            return replay
+
         approval = self._consume_approval(grant_id, case_id)
         if approval is None:
             if self._approval_state(grant_id, case_id) == APPROVAL_REVOKED:
@@ -254,12 +270,6 @@ class EvidenceStore:
         if not _process_approval_authority_attests(mandate, grant_id, approval_token):
             raise PermissionError("approval was not minted by the human-side approval authority")
 
-        existing = self.db.execute(
-            "SELECT case_id FROM executions WHERE idempotency_key = ?", (idempotency_key,)
-        ).fetchone()
-        if existing is not None:
-            return self._await_packet(existing["case_id"])
-
         # Reserve and commit before the merchant side effect so replay cannot
         # reach the merchant a second time.
         try:
@@ -269,12 +279,11 @@ class EvidenceStore:
                     (idempotency_key, case_id, f"allocation-{idempotency_key}", json.dumps({"state": "reserved"})),
                 )
         except sqlite3.IntegrityError:
-            existing = self.db.execute(
-                "SELECT case_id FROM executions WHERE idempotency_key = ?", (idempotency_key,)
-            ).fetchone()
-            if existing is None:
+            # A concurrent request reserved the same key first.
+            replay = self._replay_for_idempotency_key(idempotency_key, case_id)
+            if replay is None:
                 raise
-            return self._await_packet(existing["case_id"])
+            return replay
 
         mismatches: list[dict[str, Any]] = []
         if asserted_sku != mandate.sku:
@@ -373,6 +382,23 @@ class EvidenceStore:
             "approval_token": row["approval_token"],
             "origin": row["origin"],
         }
+
+    def _replay_for_idempotency_key(self, idempotency_key: str, case_id: str) -> dict[str, Any] | None:
+        """The receipt an earlier request already reserved under this key.
+
+        ``None`` when the key is new, which is the ordinary first-execution
+        path. A key already bound to a different case is a conflict, not a
+        replay: this read runs ahead of every approval check (BEAAA-35354 A6),
+        so it must never hand back a receipt for a case the caller did not name.
+        """
+        existing = self.db.execute(
+            "SELECT case_id FROM executions WHERE idempotency_key = ?", (idempotency_key,)
+        ).fetchone()
+        if existing is None:
+            return None
+        if existing["case_id"] != case_id:
+            raise PermissionError("idempotency key is already bound to a different case")
+        return self._await_packet(existing["case_id"])
 
     def _approval_state(self, grant_id: str, case_id: str) -> int | None:
         row = self.db.execute(
