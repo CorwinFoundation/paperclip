@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Any
 
 # What the user answered on the thread BackBond can see.
@@ -48,6 +49,14 @@ WARNING_OVER_LIMIT = "over_limit"
 # pilot adds the mailbox thread. Kept explicit so a demo row can never be read
 # as though it had come off a real thread.
 EVIDENCE_SOURCE_FIXTURE = "fixture"
+
+# Who says a delegated obligation was carried out. The acting agent's own word
+# is the claim, not evidence for it: the same self-assertion the approval path
+# already refuses (harness A1/SA8), on the outcome side. Only a counterparty
+# confirmation - the merchant's cancellation notice, a refund on the card -
+# closes an omission.
+PERFORMANCE_SELF_REPORTED = "acting_agent"
+PERFORMANCE_COUNTERPARTY_CONFIRMED = "counterparty_confirmation"
 
 
 class CheckNotApproved(PermissionError):
@@ -130,8 +139,32 @@ class ExecutedOutcome:
     # the user is exposed to.
     performed: bool = True
     # When independent evidence was read. Compared against the cancellation
-    # deadline to decide whether the money is still recoverable.
+    # deadline to decide whether the money is still recoverable. An ISO-8601
+    # stamp carrying a zone; anything else cannot be ordered against a deadline
+    # and is read as no observation at all.
     observed_at: str = ""
+    # Who attests that a delegated obligation was performed. Defaults to the
+    # acting agent, which is a self-assertion and never closes an omission.
+    performed_source: str = PERFORMANCE_SELF_REPORTED
+
+
+def observation_instant(stamp: str | None) -> datetime | None:
+    """The instant an ISO-8601 stamp denotes, or None if it cannot be ordered.
+
+    Timestamps decide money here, so they are compared as instants and never as
+    strings. ``2026-10-11T09:00:00-08:00`` sorts below ``2026-10-11T12:00:00Z``
+    as text and is five hours past it in fact. A stamp with no zone denotes a
+    different instant in every offset, so it is not orderable against a Zulu
+    deadline at all; neither is one that does not parse, nor an empty one. All
+    of those read as "nothing was observed", never as a side.
+    """
+    if not stamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(stamp.replace("z", "Z").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
 
 
 def assess_warnings(action: ProposedAction, limit_cents: int | None) -> list[str]:
@@ -213,6 +246,10 @@ CLAIM_INCOMPLETE_NO_INDEPENDENT_EVIDENCE = "incomplete_no_independent_evidence"
 # The two non-recoverable-loss shapes named in the Founder ruling, section 2.
 CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE = "covered_missed_cancellation_deadline"
 CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW = "not_yet_a_loss_still_within_cancellation_window"
+# An omission that cannot be settled: nothing independent says the obligation
+# was met, or nothing orderable says when it was looked at.
+CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED = "incomplete_performance_only_self_reported"
+CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION = "incomplete_no_orderable_observation_time"
 
 
 def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> dict[str, Any]:
@@ -233,6 +270,10 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
         "cancellation_terms_evidence": receipt.proposed_action.terms_evidence(),
         "outcome": asdict(outcome) if outcome else None,
         "differences": [],
+        # Record defects are reported alongside the claim rather than folded
+        # into it: a missing approval is always on the record even when the
+        # money turns out to be recoverable.
+        "record_defects": [],
     }
 
     if outcome is None or not outcome.independent:
@@ -251,33 +292,16 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
                 "claim": CLAIM_COVERED_EXECUTED_AGAINST_STOP,
                 "covered": receipt.amount_at_risk_cents > 0}
 
+    action = receipt.proposed_action
+    if action.is_cancellation_obligation:
+        settled = _review_cancellation_obligation(receipt, outcome, base)
+        if settled is not None:
+            return settled
+
     if receipt.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED):
         return {**base, "outcome_state": "MATCH" if matched else "MISMATCH",
                 "claim": CLAIM_COVERED_NO_APPROVAL,
                 "covered": receipt.amount_at_risk_cents > 0}
-
-    action = receipt.proposed_action
-    if action.is_cancellation_obligation and not outcome.performed:
-        # The user delegated an obligation to act by a deadline — cancel this
-        # booking — and it was never performed. The loss here is an omission,
-        # so there is nothing to match; what decides it is the deadline in the
-        # terms captured at delegation time.
-        #
-        # Timestamps are compared as strings, which is correct for the
-        # Zulu-suffixed ISO-8601 the receipt stores and nothing else.
-        past_deadline = bool(
-            action.cancellation_deadline
-            and outcome.observed_at
-            and outcome.observed_at > action.cancellation_deadline
-        )
-        if past_deadline:
-            return {**base, "outcome_state": "NOT_PERFORMED",
-                    "claim": CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
-                    "covered": receipt.amount_at_risk_cents > 0}
-        # Still inside the window: the money is recoverable, so nothing is lost
-        # yet. Recorded, not denied, and not covered.
-        return {**base, "outcome_state": "NOT_PERFORMED",
-                "claim": CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW, "covered": False}
 
     if matched:
         # Approved X, X happened. Not a covered event, and the record shows the
@@ -288,3 +312,56 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
     # unrecoverable (ruling section 2).
     return {**base, "outcome_state": "MISMATCH", "claim": CLAIM_COVERED_OUTCOME_DIFFERS,
             "covered": receipt.amount_at_risk_cents > 0}
+
+
+def _review_cancellation_obligation(
+    receipt: ApprovalReceipt, outcome: ExecutedOutcome, base: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Settle a delegated obligation to act by a deadline, or return None.
+
+    The user delegated an act — cancel this booking — and the loss shape is an
+    omission, so there is nothing to match against: a cancellation is amount 0
+    and its description is the approved one echoed back. What decides it is the
+    deadline in the terms captured at delegation time, and whether anything
+    other than the acting party says the act happened.
+
+    Returns None only when performance is confirmed by a counterparty, in which
+    case the ordinary outcome-matching path applies.
+    """
+    action = receipt.proposed_action
+    defects = (
+        [f"check_{receipt.answer.lower()}"]
+        if receipt.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED)
+        else []
+    )
+    record = {**base, "record_defects": defects}
+
+    if outcome.performed:
+        if outcome.performed_source == PERFORMANCE_COUNTERPARTY_CONFIRMED:
+            return None
+        # The party that was supposed to act is the only one saying it acted.
+        # That is the claim, not evidence for it, and it cannot close a loss.
+        return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
+                "claim": CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED, "covered": False}
+
+    observed = observation_instant(outcome.observed_at)
+    deadline = observation_instant(action.cancellation_deadline)
+    if observed is None or deadline is None:
+        # Nothing orderable was observed. That is not evidence the money is
+        # still recoverable, and it is not evidence it is gone (harness A8).
+        return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
+                "claim": CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, "covered": False}
+
+    if observed > deadline:
+        # The deadline passed with the act undone: this is the money the user
+        # cannot get back, whatever the record says about the approval.
+        return {**record, "outcome_state": "NOT_PERFORMED",
+                "claim": CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
+                "covered": receipt.amount_at_risk_cents > 0}
+
+    # Still inside the window: the deposit is recoverable, so nothing is lost
+    # yet. Recorded, not denied, and not covered — a missing approval is a
+    # record defect and does not by itself make refundable money unrecoverable
+    # (Founder ruling, section 2).
+    return {**record, "outcome_state": "NOT_PERFORMED",
+            "claim": CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW, "covered": False}

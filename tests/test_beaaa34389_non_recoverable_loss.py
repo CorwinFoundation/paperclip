@@ -22,10 +22,14 @@ from stage_a_demo import path1
 from stage_a_demo.core import EvidenceStore
 from stage_a_demo.receipt import (
     ANSWER_OK,
+    ANSWER_SKIPPED,
     CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
-    CLAIM_COVERED_OUTCOME_DIFFERS,
+    CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION,
+    CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED,
     CLAIM_NOT_COVERED_APPROVED,
+    CLAIM_COVERED_OUTCOME_DIFFERS,
     CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW,
+    PERFORMANCE_COUNTERPARTY_CONFIRMED,
     WARNING_NON_RECOVERABLE,
     ApprovalReceipt,
     ExecutedOutcome,
@@ -119,6 +123,77 @@ class NonRecoverableLossTests(unittest.TestCase):
                 self.assertEqual(task_id, store.claim_for(task_id)["task_id"])
         finally:
             store.close()
+
+
+class OmissionClaimPathTests(unittest.TestCase):
+    """The four ways the omission path decided money from what the caller said.
+
+    Found by BEAAA-34396's Path 1 probes at 348c3bc0b, which are report-only;
+    these pin the same invariants where a regression fails a build.
+    """
+
+    def _review(self, *, answer=ANSWER_OK, performed=False, observed_at="",
+                performed_source=None, action=None):
+        action = action or path1.CANCELLATION_OBLIGATION
+        receipt = ApprovalReceipt(
+            receipt_id="r-omission", task_id="omission", proposed_action=action, answer=answer,
+            checked_at="2026-10-10T09:00:00Z",
+            answered_at=None if answer == ANSWER_SKIPPED else "2026-10-10T09:05:00Z",
+            recorded_at="2026-10-10T09:05:05Z", limit_cents=path1.DEMO_LIMIT_CENTS,
+            warnings=assess_warnings(action, path1.DEMO_LIMIT_CENTS))
+        extra = {} if performed_source is None else {"performed_source": performed_source}
+        outcome = ExecutedOutcome(
+            action.description, action.merchant, 0, evidence_ref="inbox-read",
+            performed=performed, observed_at=observed_at, **extra)
+        return review_claim(receipt, outcome)
+
+    def test_the_deadline_is_decided_by_the_instant_not_the_spelling(self):
+        """Deadline 12:00:00Z, read either side of it in three legal spellings."""
+        # 09:00 in -08:00 is 17:00Z: five hours past the deadline, and sorts
+        # below it as text.
+        past = self._review(observed_at="2026-10-11T09:00:00-08:00")
+        self.assertEqual(CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE, past["claim"])
+        self.assertTrue(past["covered"])
+        # 13:00 in +14:00 is 23:00Z the day before: thirteen hours short of it,
+        # and sorts above it as text.
+        inside = self._review(observed_at="2026-10-11T13:00:00+14:00")
+        self.assertEqual(CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW, inside["claim"])
+        self.assertFalse(inside["covered"])
+        # The deadline itself, lowercase zone: not past it.
+        at = self._review(observed_at="2026-10-11T12:00:00z")
+        self.assertFalse(at["covered"])
+
+    def test_an_unorderable_or_missing_observation_settles_nothing(self):
+        for stamp in ("", "2026-10-14T00:00:00", "not-a-timestamp"):
+            with self.subTest(observed_at=stamp):
+                review = self._review(observed_at=stamp)
+                self.assertEqual("UNKNOWN/INCOMPLETE", review["outcome_state"])
+                self.assertEqual(CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, review["claim"])
+                self.assertFalse(review["covered"])
+
+    def test_the_acting_party_cannot_clear_its_own_omission(self):
+        """performed=True on the agent's own word is the claim, not evidence."""
+        self_reported = self._review(performed=True, observed_at="2026-10-11T12:30:00Z")
+        self.assertEqual("UNKNOWN/INCOMPLETE", self_reported["outcome_state"])
+        self.assertEqual(CLAIM_INCOMPLETE_PERFORMANCE_SELF_REPORTED, self_reported["claim"])
+        self.assertFalse(self_reported["covered"])
+        # A counterparty confirmation does close it, and the claim then reads as
+        # the ordinary approved-and-done case rather than a loss.
+        confirmed = self._review(performed=True, observed_at="2026-10-11T12:30:00Z",
+                                 performed_source=PERFORMANCE_COUNTERPARTY_CONFIRMED)
+        self.assertEqual(CLAIM_NOT_COVERED_APPROVED, confirmed["claim"])
+        self.assertFalse(confirmed["covered"])
+
+    def test_a_missing_approval_does_not_make_refundable_money_a_loss(self):
+        inside = self._review(answer=ANSWER_SKIPPED, observed_at="2026-10-10T18:00:00Z")
+        self.assertFalse(inside["covered"])
+        self.assertEqual(CLAIM_NOT_YET_A_LOSS_WITHIN_CANCELLATION_WINDOW, inside["claim"])
+        # The record defect is reported next to the claim, never lost in it.
+        self.assertIn("check_skipped", inside["record_defects"])
+        past = self._review(answer=ANSWER_SKIPPED, observed_at="2026-10-11T12:30:00Z")
+        self.assertTrue(past["covered"])
+        self.assertEqual(CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE, past["claim"])
+        self.assertIn("check_skipped", past["record_defects"])
 
 
 class EntrypointTests(unittest.TestCase):
