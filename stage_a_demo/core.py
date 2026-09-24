@@ -24,30 +24,49 @@ class Mandate:
     amount_cents: int
 
 
+APPROVAL_ORIGINS = ("approval-step", "fixture-explorer")
+
+_VERIFIER_CAPABILITY = object()
+
+
 class ApprovalVerifier:
     """Execution-side capability. Holds only one-way digests of human approvals.
 
-    This class never receives the approval secret. Its state is ``sha256(token)``
-    per approved mandate, which is not invertible, so a caller that obtains a
-    verifier still cannot produce a token any verifier accepts. Constructing one
-    requires explicit grants; there is no default. BEAAA-34389 defect 1.
+    BEAAA-35331: a caller can no longer construct one, hand one in, or obtain
+    one from the issuer. The trusted verifier is rebuilt inside
+    :meth:`EvidenceStore.record_case` from the approval row the human-side step
+    recorded, so no verifier and no token crosses the call boundary into the
+    execution path. Its state is ``sha256(token)`` per approved mandate, which
+    is not invertible. BEAAA-34389 defect 1 remainder.
     """
 
-    def __init__(self, grants: dict[str, str]) -> None:
+    def __init__(self, grants: dict[str, str], *, capability: object | None = None) -> None:
+        if capability is not _VERIFIER_CAPABILITY:
+            raise TypeError(
+                "ApprovalVerifier cannot be constructed by a caller; the trusted verifier is "
+                "rebuilt internally from the recorded approval"
+            )
         if not isinstance(grants, dict):
             raise TypeError("ApprovalVerifier requires an explicit grant mapping")
         self._grants = dict(grants)
-
-    @classmethod
-    def for_recorded_approval(cls, mandate: Mandate, approval_token: str) -> "ApprovalVerifier":
-        """Rebuild the verifying half from an approval this server already recorded."""
-        return cls({_mandate_fingerprint(mandate): hashlib.sha256(approval_token.encode()).hexdigest()})
 
     def verify(self, mandate: Mandate, token: str) -> bool:
         expected = self._grants.get(_mandate_fingerprint(mandate))
         if expected is None:
             return False
         return secrets.compare_digest(expected, hashlib.sha256(token.encode()).hexdigest())
+
+
+def _verifier_for_recorded_approval(mandate: Mandate, approval_token: str) -> ApprovalVerifier:
+    """Rebuild the verifying half from an approval this server already recorded.
+
+    Module-private on purpose: the public classmethod it replaces let a caller
+    build a verifier around a token of its own choosing (BEAAA-35331 SA5).
+    """
+    return ApprovalVerifier(
+        {_mandate_fingerprint(mandate): hashlib.sha256(approval_token.encode()).hexdigest()},
+        capability=_VERIFIER_CAPABILITY,
+    )
 
 
 class HumanApprovalIssuer:
@@ -65,9 +84,32 @@ class HumanApprovalIssuer:
             )
         self._secret = secret
 
-    def approve(self, mandate: Mandate) -> tuple[str, ApprovalVerifier]:
-        token = _approval_digest(self._secret, mandate)
-        return token, ApprovalVerifier.for_recorded_approval(mandate, token)
+    def approve(self, mandate: Mandate, grant_id: str) -> str:
+        """Mint one approval token, bound to the grant that will carry it.
+
+        Binding to ``grant_id`` is what stops a genuine token being replayed
+        under a second approvals row written straight to the database
+        (BEAAA-35331 SA8b): the digest of a grant id the issuer never saw
+        cannot be produced without the secret. Returns no verifier; the
+        execution path rebuilds that itself from the recorded approval.
+        """
+        return _approval_digest(self._secret, mandate, grant_id)
+
+    def attests(self, mandate: Mandate, grant_id: str, approval_token: str) -> bool:
+        """True when this issuer, and not some other, minted that token for that grant."""
+        return secrets.compare_digest(_approval_digest(self._secret, mandate, grant_id), approval_token)
+
+
+def _process_approval_authority_attests(mandate: Mandate, grant_id: str, approval_token: str) -> bool:
+    """Ask the process-level approval authority whether it minted this token.
+
+    Resolved from process configuration, never from a caller argument: this is
+    what stops the execution side recording an approval it minted itself with
+    an issuer of its own (BEAAA-35331 SA7).
+    """
+    from .approval import _process_issuer  # human-side module, start-up wiring
+
+    return _process_issuer().attests(mandate, grant_id, approval_token)
 
 
 def _mandate_fingerprint(mandate: Mandate) -> str:
@@ -75,9 +117,9 @@ def _mandate_fingerprint(mandate: Mandate) -> str:
     return hashlib.sha256(f"mandate:{body}".encode()).hexdigest()
 
 
-def _approval_digest(secret: str, mandate: Mandate) -> str:
+def _approval_digest(secret: str, mandate: Mandate, grant_id: str) -> str:
     body = json.dumps(asdict(mandate), sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(f"{secret}:{body}".encode()).hexdigest()
+    return hashlib.sha256(f"{secret}:{grant_id}:{body}".encode()).hexdigest()
 
 
 class SyntheticMerchantAdapter:
@@ -129,17 +171,33 @@ class EvidenceStore:
         self,
         *,
         case_id: str,
-        mandate: Mandate,
-        approval_token: str,
+        grant_id: str,
         asserted_sku: str,
         asserted_amount_cents: int,
         idempotency_key: str,
-        approval_verifier: ApprovalVerifier,
         merchant: SyntheticMerchantAdapter,
         independent_evidence: bool = True,
     ) -> dict[str, Any]:
-        if not approval_verifier.verify(mandate, approval_token):
+        """Execute one approved case.
+
+        BEAAA-35331: the caller supplies a ``grant_id`` and nothing else that is
+        authorisation-shaped. This method consumes the approval row itself,
+        re-validates its origin at consume time, rebuilds the verifier from the
+        recorded token, and checks that token against the process-level approval
+        authority. No verifier, token, secret or signing key crosses this
+        boundary.
+        """
+        approval = self._consume_approval(grant_id, case_id)
+        if approval is None:
+            raise PermissionError("no unspent human approval grant for this case")
+        if approval["origin"] not in APPROVAL_ORIGINS:
+            raise PermissionError(f"approval origin is not recognised: {approval['origin']}")
+        mandate = approval["mandate"]
+        approval_token = approval["approval_token"]
+        if not _verifier_for_recorded_approval(mandate, approval_token).verify(mandate, approval_token):
             raise PermissionError("human approval token is invalid")
+        if not _process_approval_authority_attests(mandate, grant_id, approval_token):
+            raise PermissionError("approval was not minted by the human-side approval authority")
 
         existing = self.db.execute(
             "SELECT case_id FROM executions WHERE idempotency_key = ?", (idempotency_key,)
@@ -192,7 +250,7 @@ class EvidenceStore:
             )
         return self.packet(case_id)
 
-    def record_approval(
+    def _record_approval(
         self,
         *,
         grant_id: str,
@@ -200,8 +258,19 @@ class EvidenceStore:
         mandate: Mandate,
         approval_token: str,
         origin: str,
+        issuer: HumanApprovalIssuer,
     ) -> str:
-        """Store one human approval grant. Only the human-side step calls this."""
+        """Store one human approval grant. Reached only through
+        ``stage_a_demo.approval.approve_mandate``; the execution path has no
+        public entry point to the approvals table (BEAAA-35331 SA7)."""
+        if not isinstance(issuer, HumanApprovalIssuer):
+            raise PermissionError("recording an approval requires the human-side issuer capability")
+        if origin not in APPROVAL_ORIGINS:
+            raise PermissionError(f"approval origin is not recognised: {origin}")
+        if not issuer.attests(mandate, grant_id, approval_token):
+            raise PermissionError("approval token was not minted by the issuer presented")
+        if not _process_approval_authority_attests(mandate, grant_id, approval_token):
+            raise PermissionError("approval was not minted by the human-side approval authority")
         with self.db:
             self.db.execute(
                 "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin) VALUES (?, ?, ?, ?, ?)",
@@ -209,7 +278,7 @@ class EvidenceStore:
             )
         return grant_id
 
-    def consume_approval(self, grant_id: str, case_id: str) -> dict[str, Any] | None:
+    def _consume_approval(self, grant_id: str, case_id: str) -> dict[str, Any] | None:
         """Spend a grant once. Returns None when there is no unspent grant."""
         with self.db:
             spent = self.db.execute(

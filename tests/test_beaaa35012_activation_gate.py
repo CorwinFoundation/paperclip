@@ -12,6 +12,7 @@ import pytest
 from stage_a_demo import activation as act
 from stage_a_demo import ui
 from stage_a_demo.approval import build_issuer
+from stage_a_demo.approval import approve_mandate
 from stage_a_demo.core import (
     EvidenceStore,
     HumanApprovalIssuer,
@@ -305,16 +306,14 @@ def test_no_coverage_string_is_exact():
 def test_receipt_packet_states_protection_from_the_gate(tmp_path, monkeypatch):
     monkeypatch.setenv(act.ACTIVATION_RECORDS_ENV, str(tmp_path / "absent"))
     mandate = Mandate("mandate-gate-v1", "SKU-LAMP", 4800)
-    token, verifier = HumanApprovalIssuer("test-only-approval-secret").approve(mandate)
     store = EvidenceStore(tmp_path / "evidence.db")
+    grant = approve_mandate(store, case_id="gate", mandate=mandate)
     packet = store.record_case(
         case_id="gate",
-        mandate=mandate,
-        approval_token=token,
+        grant_id=grant,
         asserted_sku="SKU-LAMP",
         asserted_amount_cents=4800,
         idempotency_key="idem-gate",
-        approval_verifier=verifier,
         merchant=SyntheticMerchantAdapter(),
     )
     store.close()
@@ -326,7 +325,7 @@ def test_receipt_packet_states_protection_from_the_gate(tmp_path, monkeypatch):
 def test_demo_surfaces_state_no_coverage(tmp_path, monkeypatch):
     monkeypatch.setenv(act.ACTIVATION_RECORDS_ENV, str(tmp_path / "absent"))
     db = tmp_path / "ui.db"
-    grant = ui.approve_case("correct", db, issuer=build_issuer("test-only-approval-secret"))["grant"]
+    grant = ui.approve_case("correct", db, issuer=build_issuer())["grant"]
     receipt = ui.execute_case("correct", db, grant)
     assert receipt["protection"]["protection_active"] is False
     assert receipt["protection"]["statement"] == act.NO_COVERAGE_STATEMENT

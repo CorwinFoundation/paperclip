@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .approval import build_issuer
+from .approval import approve_mandate, build_issuer
 from .core import EvidenceStore, Mandate, SyntheticMerchantAdapter
 
 
@@ -27,14 +27,17 @@ def main() -> None:
     ]
     packets = []
     for case_id, mandate, sku, amount, has_evidence, idem in cases:
-        token, verifier = human.approve(mandate)
-        packets.append(store.record_case(case_id=case_id, mandate=mandate, approval_token=token,
+        # Human step: mint and record one grant. Only its id reaches execution.
+        grant = approve_mandate(store, case_id=case_id, mandate=mandate, issuer=human)
+        packets.append(store.record_case(case_id=case_id, grant_id=grant,
             asserted_sku=sku, asserted_amount_cents=amount, idempotency_key=idem,
-            approval_verifier=verifier, merchant=merchant, independent_evidence=has_evidence))
+            merchant=merchant, independent_evidence=has_evidence))
         if case_id == "duplicate":
-            store.record_case(case_id=case_id, mandate=mandate, approval_token=token,
+            # An approved retry: a fresh grant, the same idempotency key.
+            grant = approve_mandate(store, case_id=case_id, mandate=mandate, issuer=human)
+            store.record_case(case_id=case_id, grant_id=grant,
                 asserted_sku=sku, asserted_amount_cents=amount, idempotency_key=idem,
-                approval_verifier=verifier, merchant=merchant, independent_evidence=has_evidence)
+                merchant=merchant, independent_evidence=has_evidence)
     store.close()
     reopened = EvidenceStore(path)
     output = {"mode": "DEMO", "database": str(path), "cases": [reopened.packet(p["case_id"]) for p in packets],

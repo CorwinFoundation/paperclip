@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from stage_a_demo.approval import build_issuer
+from stage_a_demo.approval import approve_mandate, build_issuer
 from stage_a_demo.core import (
     EvidenceStore,
     HumanApprovalIssuer,
@@ -146,16 +146,15 @@ def run_task(
     core_mandate = Mandate(
         mandate_record.mandate_id, mandate_record.sku, mandate_record.amount_cents
     )
-    token, verifier = human.approve(core_mandate)
     case_id = f"case-{intent.intent_id}"
+    # Human step, then execution. Only the grant id crosses the boundary.
+    grant = approve_mandate(store, case_id=case_id, mandate=core_mandate, issuer=human)
     receipt_packet = store.record_case(
         case_id=case_id,
-        mandate=core_mandate,
-        approval_token=token,
+        grant_id=grant,
         asserted_sku=planned.sku,
         asserted_amount_cents=planned.amount_cents,
         idempotency_key=f"idem-{intent.intent_id}",
-        approval_verifier=verifier,
         merchant=merchant,
         independent_evidence=independent_evidence,
     )

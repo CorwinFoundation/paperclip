@@ -24,6 +24,7 @@ import urllib.request
 from pathlib import Path
 
 from stage_a_demo import approval, ui
+from stage_a_demo.approval import _process_issuer, approve_mandate
 from stage_a_demo.core import (
     ApprovalVerifier,
     EvidenceStore,
@@ -104,48 +105,118 @@ class RunningAppSelfApprovalTests(unittest.TestCase):
         finally:
             store.close()
 
-    def test_caller_minted_tokens_are_rejected_by_the_running_issuers_verifier(self):
+    def test_caller_minted_tokens_are_rejected_by_the_running_approval_authority(self):
         mandate = ui._mandate_for("correct")
-        _, running_verifier = self.running_issuer().approve(mandate)
+        authority = self.running_issuer()
         for guess in (RETIRED_DEFAULT, "secret", "demo", "a" * 64):
             self.assertFalse(
-                running_verifier.verify(mandate, HumanApprovalIssuer(guess).approve(mandate)[0]),
-                f"the running app's verifier accepted a token minted with {guess!r}",
+                authority.attests(mandate, "grant-x", HumanApprovalIssuer(guess).approve(mandate, "grant-x")),
+                f"the running app's approval authority accepted a token minted with {guess!r}",
             )
-            self.assertFalse(running_verifier.verify(mandate, _approval_digest(guess, mandate)))
+            self.assertFalse(authority.attests(mandate, "grant-x", _approval_digest(guess, mandate, "grant-x")))
 
-    def test_holding_the_running_verifier_does_not_confer_minting(self):
+    def test_the_verifying_half_is_not_obtainable_by_a_caller(self):
+        """BEAAA-35331 SA5/SA6: approving returns no verifier and none can be built."""
         mandate = ui._mandate_for("correct")
-        _, verifier = self.running_issuer().approve(mandate)
-        for value in vars(verifier).values():
-            candidates = [value] if isinstance(value, str) else []
-            if isinstance(value, dict):
-                candidates = [k for k in value if isinstance(k, str)] + [
-                    v for v in value.values() if isinstance(v, str)
-                ]
-            for candidate in candidates:
-                forged = HumanApprovalIssuer(candidate).approve(mandate)[0]
-                self.assertFalse(
-                    verifier.verify(mandate, forged),
-                    "verifier state was sufficient to mint an accepted token",
-                )
+        token = self.running_issuer().approve(mandate, "grant-x")
+        self.assertIsInstance(token, str)
+        self.assertFalse(hasattr(ApprovalVerifier, "for_recorded_approval"))
+        with self.assertRaises(TypeError):
+            ApprovalVerifier({"any": "mapping"})
 
     def test_self_approved_execution_is_refused(self):
+        """BEAAA-35331 SA4/SA7: no caller-supplied verifier, no caller-written grant."""
         mandate = Mandate("m-attacker-v1", "SKU-EXPENSIVE", 999_900)
-        _, human_verifier = self.running_issuer().approve(mandate)
-        attacker_token = HumanApprovalIssuer(RETIRED_DEFAULT).approve(mandate)[0]
+        attacker_token = HumanApprovalIssuer(RETIRED_DEFAULT).approve(mandate, "grant-self-token")
         store = EvidenceStore(Path(self.tmp.name) / "attack.sqlite3")
+
+        class CallerSuppliedVerifier:
+            def verify(self, *_args, **_kwargs):
+                return True
+
         try:
+            # SA4: record_case has no verifier or token parameter to hijack.
+            with self.assertRaises(TypeError):
+                store.record_case(
+                    case_id="attacker", grant_id="grant-attacker",
+                    asserted_sku="SKU-EXPENSIVE", asserted_amount_cents=999_900,
+                    idempotency_key="idem-attacker", merchant=SyntheticMerchantAdapter(),
+                    approval_verifier=CallerSuppliedVerifier(), approval_token="not-a-token",
+                )
+            # SA7: the execution side has no public way to write an approvals row,
+            # and the private one refuses a foreign issuer and an invented origin.
+            self.assertFalse(hasattr(store, "record_approval"))
+            self.assertFalse(hasattr(store, "consume_approval"))
+            with self.assertRaises(PermissionError):
+                store._record_approval(
+                    grant_id="grant-attacker", case_id="attacker", mandate=mandate,
+                    approval_token=attacker_token, origin="agent-invented-origin",
+                    issuer=HumanApprovalIssuer(RETIRED_DEFAULT),
+                )
             with self.assertRaises(PermissionError):
                 store.record_case(
-                    case_id="attacker", mandate=mandate, approval_token=attacker_token,
+                    case_id="attacker", grant_id="grant-attacker",
                     asserted_sku="SKU-EXPENSIVE", asserted_amount_cents=999_900,
-                    idempotency_key="idem-attacker", approval_verifier=human_verifier,
-                    merchant=SyntheticMerchantAdapter(),
+                    idempotency_key="idem-attacker", merchant=SyntheticMerchantAdapter(),
                 )
             self.assertEqual(0, store.execution_count("idem-attacker"))
+            self.assertEqual(0, store.case_count())
         finally:
             store.close()
+
+    def test_a_self_written_approvals_row_does_not_execute(self):
+        """BEAAA-35331 SA7: a row written straight into the table still refuses.
+
+        Origin is re-validated at consume time, and the token is checked against
+        the process approval authority, so neither a self-chosen token nor an
+        invented origin reaches an execution.
+        """
+        mandate = Mandate("m-attacker-v2", "SKU-EXPENSIVE", 999_900)
+        store = EvidenceStore(Path(self.tmp.name) / "attack2.sqlite3")
+        try:
+            import json as _json
+            from dataclasses import asdict
+
+            def insert(grant_id, token, origin):
+                with store.db:
+                    store.db.execute(
+                        "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin)"
+                        " VALUES (?, ?, ?, ?, ?)",
+                        (grant_id, "attacker", _json.dumps(asdict(mandate), sort_keys=True), token, origin),
+                    )
+
+            # Self-chosen token on an allowed origin: refused by the authority check.
+            insert("grant-self-token", "agent-chosen-token", "approval-step")
+            with self.assertRaises(PermissionError):
+                store.record_case(case_id="attacker", grant_id="grant-self-token",
+                    asserted_sku="SKU-EXPENSIVE", asserted_amount_cents=999_900,
+                    idempotency_key="idem-a2", merchant=SyntheticMerchantAdapter())
+            # Authority-minted token on an invented origin: refused at consume time.
+            insert("grant-bad-origin", _process_issuer().approve(mandate, "grant-bad-origin"), "agent-invented-origin")
+            with self.assertRaises(PermissionError):
+                store.record_case(case_id="attacker", grant_id="grant-bad-origin",
+                    asserted_sku="SKU-EXPENSIVE", asserted_amount_cents=999_900,
+                    idempotency_key="idem-a3", merchant=SyntheticMerchantAdapter())
+            self.assertEqual(0, store.case_count())
+        finally:
+            store.close()
+
+    def test_nothing_authorisation_shaped_crosses_into_execution(self):
+        """BEAAA-35331: the execution entry points take a grant id and nothing else."""
+        params = set(inspect.signature(EvidenceStore.record_case).parameters)
+        self.assertIn("grant_id", params)
+        self.assertEqual(set(), params & {"approval_token", "approval_verifier", "mandate", "issuer", "secret"})
+        exec_params = set(inspect.signature(ui.execute_case).parameters)
+        self.assertEqual(set(), exec_params & {"issuer", "approval_token", "approval_verifier"})
+
+    def test_the_approved_path_through_the_ui_still_executes(self):
+        """The supported human path still works end to end after the narrowing."""
+        approved = ui.approve_case("correct", self.db, "approval-step", issuer=self.running_issuer())
+        receipt = ui.execute_case("correct", self.db, approved["grant"])
+        self.assertEqual("MATCH", receipt["status"])
+        # The grant is single use.
+        with self.assertRaises(ui.ApprovalRequired):
+            ui.execute_case("incorrect", self.db, approved["grant"])
 
     def test_the_request_path_cannot_reach_a_signing_capability(self):
         source = inspect.getsource(ui)

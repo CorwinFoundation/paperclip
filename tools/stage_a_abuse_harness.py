@@ -1,3 +1,11 @@
+"""NOTE (BEAAA-35331): this report-only harness is written against the
+pre-BEAAA-35331 ``record_case(approval_token=..., approval_verifier=...)``
+signature and no longer runs end to end. The abuse cases it described are
+now asserted as capability tests in
+``tests/test_beaaa34389_defect1_running_app.py``; QA run 3 uses
+``qa_probe_9d1d851e.py``. Left in place as the record of what was measured.
+"""
+
 """Independent abuse-case harness for the Stage A purchase-protection seams (BEAAA-34396).
 
 Report-only. Every probe drives the real stage_a_demo code from the outside and

@@ -133,7 +133,7 @@ class StageADemoApprovalGateTests(unittest.TestCase):
         with self.assertRaises(ApprovalRequired):
             execute_case("correct", self.db_path, None)
         with self.assertRaises(ApprovalRequired):
-            approve_case("denied", self.db_path, issuer=build_issuer("test-only-approval-secret"))
+            approve_case("denied", self.db_path, issuer=build_issuer())
         self.assertEqual((0, 0), self.ledger())
 
 

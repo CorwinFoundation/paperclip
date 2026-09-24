@@ -13,9 +13,9 @@ from .activation import (
     referral_disclosure,
     surface_protection_state,
 )
-from .approval import build_issuer
+from .approval import approve_mandate, build_issuer
 from .core import (
-    ApprovalVerifier,
+    APPROVAL_ORIGINS,
     EvidenceStore,
     Mandate,
     SyntheticMerchantAdapter,
@@ -92,9 +92,6 @@ class CaseNotExecuted(Exception):
         self.case = case
 
 
-APPROVAL_ORIGINS = ("approval-step", "fixture-explorer")
-
-
 def _mandate_for(case: str) -> Mandate:
     mandate_sku, mandate_amount = BACKEND_CASES[case][0], BACKEND_CASES[case][1]
     return Mandate(f"mandate-{case}-v1", mandate_sku, mandate_amount)
@@ -120,46 +117,53 @@ def approve_case(
     if origin not in APPROVAL_ORIGINS:
         raise ApprovalRequired(f"unknown approval origin: {origin}")
     mandate = _mandate_for(case)
-    approval_token, _verifier = issuer.approve(mandate)
-    grant_id = f"grant-{secrets.token_hex(8)}"
     store = EvidenceStore(db_path)
     try:
-        store.record_approval(
-            grant_id=grant_id, case_id=case, mandate=mandate, approval_token=approval_token, origin=origin
+        grant_id = approve_mandate(
+            store, case_id=case, mandate=mandate, issuer=issuer, origin=origin
         )
+    except PermissionError as exc:
+        raise ApprovalRequired(str(exc)) from exc
     finally:
         store.close()
     return {"grant": grant_id, "case": case, "mandate_version": "v1", "origin": origin}
 
 
 def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str, object]:
-    """Run one approved case. Holds only the verifying half of the capability."""
+    """Run one approved case.
+
+    The execution path holds no verifier, no token and no signing capability.
+    It hands the store a grant id; the store consumes the approval, re-checks
+    its origin and rebuilds the verifier itself. BEAAA-35331.
+    """
     if case not in BACKEND_CASES:
         return receipt_fixture(case, db_path)
     if not grant:
         raise ApprovalRequired(f"{case} needs an approval grant before it can execute")
     store = EvidenceStore(db_path)
     try:
-        approval = store.consume_approval(grant, case)
-        if approval is None:
-            raise ApprovalRequired(f"no unspent approval grant for {case}")
         _, _, asserted_sku, asserted_amount, has_evidence, idem = BACKEND_CASES[case]
         kwargs = dict(
             case_id=case,
-            mandate=approval["mandate"],
-            approval_token=approval["approval_token"],
+            grant_id=grant,
             asserted_sku=asserted_sku,
             asserted_amount_cents=asserted_amount,
             idempotency_key=idem,
-            approval_verifier=ApprovalVerifier.for_recorded_approval(
-                approval["mandate"], approval["approval_token"]
-            ),
             merchant=SyntheticMerchantAdapter(),
             independent_evidence=has_evidence,
         )
-        store.record_case(**kwargs)
-        if case == "duplicate":
+        try:
             store.record_case(**kwargs)
+        except PermissionError as exc:
+            raise ApprovalRequired(str(exc)) from exc
+        if case == "duplicate":
+            # The duplicate fixture retries the request. The grant is single use,
+            # so the retry is refused; the idempotency key independently admits
+            # one execution. Either way the merchant is reached once.
+            try:
+                store.record_case(**kwargs)
+            except PermissionError:
+                pass
     finally:
         store.close()
     return receipt_fixture(case, db_path)
