@@ -68,6 +68,45 @@ class StageADemoTests(unittest.TestCase):
         self.assertEqual(1, store.execution_count("idem-1"))
         self.assertEqual(1, merchant.calls)
 
+    def test_un_consuming_the_approvals_row_does_not_revive_the_grant(self):
+        """BEAAA-35354 SA9. Single use does not rest on a column the execution
+        path can write.
+
+        The probe approved one 100 cent mandate, executed it, ran
+        ``UPDATE approvals SET consumed = 0``, and executed again with a fresh
+        idempotency key: the merchant was reached twice off one human approval.
+        """
+        class CountingMerchant(SyntheticMerchantAdapter):
+            def __init__(self):
+                self.amounts = []
+
+            def purchase(self, **kwargs):
+                self.amounts.append(kwargs["amount_cents"])
+                return super().purchase(**kwargs)
+
+        store = EvidenceStore(self.path)
+        merchant = CountingMerchant()
+        mandate = Mandate("m-c1", "SKU-1", 100)
+        grant = approve_mandate(store, case_id="c1", mandate=mandate)
+        kwargs = dict(case_id="c1", asserted_sku="SKU-1", asserted_amount_cents=100, merchant=merchant)
+        self.assertEqual("MATCH", store.record_case(grant_id=grant, idempotency_key="idem-1", **kwargs)["status"])
+
+        # The execution path's own handle, writing the flag single use used to
+        # rest on. The grant stays spent anyway.
+        with store.db:
+            store.db.execute("UPDATE approvals SET consumed = 0 WHERE grant_id = ?", (grant,))
+        self.assertEqual(0, store.db.execute(
+            "SELECT consumed FROM approvals WHERE grant_id = ?", (grant,)).fetchone()[0])
+        with self.assertRaises(PermissionError):
+            store.record_case(grant_id=grant, idempotency_key="idem-2", **kwargs)
+        self.assertEqual([100], merchant.amounts)
+        self.assertEqual(0, store.execution_count("idem-2"))
+        # A second connection to the same file is no way round it either.
+        second = EvidenceStore(self.path)
+        with self.assertRaises(PermissionError):
+            second.record_case(grant_id=grant, idempotency_key="idem-3", **kwargs)
+        self.assertEqual([100], merchant.amounts)
+
     def test_execution_callers_cannot_mint_or_obtain_human_capability(self):
         """BEAAA-34389 defect 1, BEAAA-35331. Asserts capability, not names.
 

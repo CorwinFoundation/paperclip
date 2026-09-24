@@ -90,6 +90,10 @@ class HumanApprovalIssuer:
                 "HumanApprovalIssuer requires a non-empty injected approval secret; there is no default"
             )
         self._secret = secret
+        # Which grants this authority has already spent. Lives with the
+        # minting half, so the execution path holds no handle to it
+        # (BEAAA-35354 SA9).
+        self._spent: set[str] = set()
 
     def approve(self, mandate: Mandate, grant_id: str) -> str:
         """Mint one approval token, bound to the grant that will carry it.
@@ -106,6 +110,27 @@ class HumanApprovalIssuer:
         """True when this issuer, and not some other, minted that token for that grant."""
         return secrets.compare_digest(_approval_digest(self._secret, mandate, grant_id), approval_token)
 
+    def spend(self, mandate: Mandate, grant_id: str, approval_token: str) -> bool:
+        """Spend a grant against this authority's own ledger. Single use.
+
+        BEAAA-35354 SA9: before this, single use rested on the ``consumed``
+        column of the approvals row, which the execution path can write through
+        the handle it already has. One ``UPDATE approvals SET consumed = 0``
+        revived a genuine grant for unlimited reuse. The authoritative
+        spent-grant record now sits here, beside the secret, on the human side
+        of the boundary the execution path cannot reach, so reviving the row
+        does not revive the grant.
+
+        False when the token is not this authority's, or when this authority
+        has already spent that grant.
+        """
+        if not self.attests(mandate, grant_id, approval_token):
+            return False
+        if grant_id in self._spent:
+            return False
+        self._spent.add(grant_id)
+        return True
+
 
 def _process_approval_authority_attests(mandate: Mandate, grant_id: str, approval_token: str) -> bool:
     """Ask the process-level approval authority whether it minted this token.
@@ -117,6 +142,19 @@ def _process_approval_authority_attests(mandate: Mandate, grant_id: str, approva
     from .approval import _process_issuer  # human-side module, start-up wiring
 
     return _process_issuer().attests(mandate, grant_id, approval_token)
+
+
+def _process_approval_authority_spends(mandate: Mandate, grant_id: str, approval_token: str) -> bool:
+    """Ask the process-level approval authority to spend this grant, once.
+
+    Same resolution path as :func:`_process_approval_authority_attests`, and
+    the same reason: the answer comes from process configuration, never from a
+    caller argument or from a row the execution path can write
+    (BEAAA-35354 SA9).
+    """
+    from .approval import _process_issuer  # human-side module, start-up wiring
+
+    return _process_issuer().spend(mandate, grant_id, approval_token)
 
 
 def _mandate_fingerprint(mandate: Mandate) -> str:
@@ -305,7 +343,18 @@ class EvidenceStore:
         return grant_id
 
     def _consume_approval(self, grant_id: str, case_id: str) -> dict[str, Any] | None:
-        """Spend a grant once. Returns None when there is no unspent grant."""
+        """Spend a grant once. Returns None when there is no unspent grant.
+
+        Two independent records have to agree that the grant is unspent: the
+        ``consumed`` column on the approvals row, which survives a restart, and
+        the process approval authority's own spent-grant ledger, which the
+        execution path has no handle to. Flipping the column back with plain
+        SQL no longer revives the grant, because the authority that minted the
+        token still remembers spending it (BEAAA-35354 SA9). Either record
+        saying spent is enough to refuse; the column is kept so a grant spent
+        before a restart stays spent when the secret is injected and tokens
+        outlive the process.
+        """
         with self.db:
             spent = self.db.execute(
                 "UPDATE approvals SET consumed = ? WHERE grant_id = ? AND case_id = ? AND consumed = ?",
@@ -316,8 +365,11 @@ class EvidenceStore:
             row = self.db.execute(
                 "SELECT mandate_json, approval_token, origin FROM approvals WHERE grant_id = ?", (grant_id,)
             ).fetchone()
+        mandate = Mandate(**json.loads(row["mandate_json"]))
+        if not _process_approval_authority_spends(mandate, grant_id, row["approval_token"]):
+            return None
         return {
-            "mandate": Mandate(**json.loads(row["mandate_json"])),
+            "mandate": mandate,
             "approval_token": row["approval_token"],
             "origin": row["origin"],
         }
