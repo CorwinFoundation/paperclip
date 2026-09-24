@@ -16,6 +16,7 @@ from .receipt import (
     ExecutedOutcome,
     ProposedAction,
     TermsNotCaptured,
+    observation_instant,
     review_claim,
 )
 from .activation import (
@@ -260,7 +261,7 @@ class EvidenceStore:
             );
             CREATE TABLE IF NOT EXISTS approval_receipts (
               task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
-              outcome_json TEXT, executed_at TEXT
+              outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT
             );
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
@@ -279,6 +280,10 @@ class EvidenceStore:
             self.db.commit()
         if "tenant" not in cols:
             self.db.execute("ALTER TABLE cases ADD COLUMN tenant TEXT")
+            self.db.commit()
+        receipt_cols = {row[1] for row in self.db.execute("PRAGMA table_info(approval_receipts)")}
+        if "protection_at_execution_json" not in receipt_cols:
+            self.db.execute("ALTER TABLE approval_receipts ADD COLUMN protection_at_execution_json TEXT")
             self.db.commit()
 
     def record_case(
@@ -611,17 +616,52 @@ class EvidenceStore:
         """
         if self.receipt_for(task_id) is None:
             raise CheckNotApproved(f"no pre-execution receipt for task {task_id}")
+        # Pin the coverage window as it stood at execution, while we are still
+        # standing at that moment. Recomputing it later depends on a registry
+        # that can move; a stored block cannot.
+        at_execution = self._protection_in_force_at(executed_at)
         with self.db:
             self.db.execute(
-                "UPDATE approval_receipts SET outcome_json = ?, executed_at = ? WHERE task_id = ?",
-                (json.dumps(asdict(outcome), sort_keys=True) if outcome else None, executed_at, task_id),
+                "UPDATE approval_receipts SET outcome_json = ?, executed_at = ?, "
+                "protection_at_execution_json = ? WHERE task_id = ?",
+                (json.dumps(asdict(outcome), sort_keys=True) if outcome else None, executed_at,
+                 json.dumps(at_execution, sort_keys=True), task_id),
             )
         return self.claim_for(task_id)
+
+    @staticmethod
+    def _protection_in_force_at(executed_at: str | None) -> dict[str, Any]:
+        """The protection state at the moment of the event, not at read time.
+
+        The activation gate is time-bound, so "was this covered" and "is the
+        programme active now" are different questions with different answers.
+        Reading only the second one presents a loss that happened while covered
+        beside an expired block, and a loss that predates activation beside a
+        live one (BEAAA-34396 W4/W5). This answers the first.
+
+        It never touches the verdict. Whether the claim is covered still comes
+        from the receipt and the outcome alone, and a receipt still never
+        implies coverage (harness A10/A12).
+        """
+        instant = observation_instant(executed_at)
+        if instant is None:
+            # An execution time we cannot order cannot be placed against a
+            # window. Said plainly rather than defaulted to either side.
+            return {"surface": "receipt", "ordered": False,
+                    "reason": "executed_at_not_orderable", "executed_at": executed_at,
+                    "protection_active": None, "activation_record_id": None}
+        block = surface_protection_state(
+            "receipt", default_program_version(), default_registry(), now=instant
+        )
+        block["ordered"] = True
+        block["executed_at"] = executed_at
+        return block
 
     def claim_for(self, task_id: str) -> dict[str, Any]:
         """Reconstruct the claim for one task from its stored receipt alone."""
         row = self.db.execute(
-            "SELECT receipt_json, outcome_json, executed_at FROM approval_receipts WHERE task_id = ?",
+            "SELECT receipt_json, outcome_json, executed_at, protection_at_execution_json "
+            "FROM approval_receipts WHERE task_id = ?",
             (task_id,),
         ).fetchone()
         if row is None:
@@ -638,6 +678,19 @@ class EvidenceStore:
         review["protection"] = surface_protection_state(
             "receipt", default_program_version(), default_registry()
         )
+        # The window in force when the event happened. Written once, at
+        # execution, so it is evidence rather than a re-derivation against a
+        # registry that has moved since. Rows recorded before this column
+        # existed are recomputed at read time and say so.
+        if row["protection_at_execution_json"]:
+            at_execution = json.loads(row["protection_at_execution_json"])
+            at_execution["recorded_at_execution"] = True
+        elif row["executed_at"]:
+            at_execution = self._protection_in_force_at(row["executed_at"])
+            at_execution["recorded_at_execution"] = False
+        else:
+            at_execution = None
+        review["protection_at_execution"] = at_execution
         return review
 
     def _enforce_owner(self, row: sqlite3.Row, case_id: str) -> None:
