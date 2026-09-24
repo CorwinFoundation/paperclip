@@ -10,12 +10,14 @@ import unittest
 from stage_a_demo.receipt import (
     ANSWER_OK,
     CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE,
+    CLAIM_COVERED_OUTCOME_DIFFERS,
     CLAIM_INCOMPLETE_NO_CAPTURED_AMOUNT_AT_RISK,
     CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION,
     ApprovalReceipt,
     ExecutedOutcome,
     ProposedAction,
     amount_at_risk_cents,
+    captured_deadline_instant,
     review_claim,
 )
 
@@ -83,6 +85,23 @@ class TheObligationFlagIsSelfAttested(unittest.TestCase):
         self.assertTrue(claim["covered"])
         self.assertEqual(claim["amount_at_risk_cents"], DEPOSIT)
 
+    def test_a_mismatch_is_not_swallowed_by_the_omission_path(self):
+        """BEAAA-34396 R4. The derived reading routed any zero-cost action with
+        a deadline and a deposit through the omission path, which is entered
+        before the approved-versus-executed comparison. A hold delivered on the
+        wrong dates then settled as self-reported performance instead of as the
+        mismatch it is."""
+        hold = action(is_cancellation_obligation=False,
+                      description="Hold Hotel Ester, 12-15 Oct, 2 guests",
+                      cancellation_terms="pay at property, deposit held")
+        delivered = ExecutedOutcome("Hotel Ester, 19-22 Oct, 2 guests", "bookings.example", 0,
+                                    evidence_ref="confirmation-wrong-dates", performed=True,
+                                    observed_at="2026-10-11T09:41:00Z")
+        claim = settle(hold, delivered)
+        self.assertEqual(claim["claim"], CLAIM_COVERED_OUTCOME_DIFFERS)
+        self.assertTrue(claim["covered"])
+        self.assertEqual(claim["amount_at_risk_cents"], DEPOSIT)
+
     def test_an_ordinary_purchase_is_not_swept_in(self):
         purchase = ProposedAction(description="Buy the thing", merchant="shop.example",
                                   amount_cents=12_000, deposit_cents=2_000,
@@ -107,9 +126,27 @@ class AnUnorderableDeadlineIsOurDefect(unittest.TestCase):
         self.assertTrue(claim["covered"])
         self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])
 
-    def test_an_observation_before_every_possible_instant_is_not_a_loss(self):
+    def test_an_observation_before_the_deadline_as_written_is_not_a_loss(self):
         claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
                        outcome(observed_at="2026-10-10T21:00:00Z"))
+        self.assertFalse(claim["covered"])
+
+    def test_the_deadline_is_read_as_written_and_not_shifted_earlier(self):
+        """BEAAA-34396 R1. Reading a zone-less deadline at the earliest instant
+        it could denote turned a fourteen-hour band before the captured stamp
+        into covered losses, on bookings still inside their window."""
+        self.assertEqual(captured_deadline_instant("2026-10-11T12:00:00").isoformat(),
+                         "2026-10-11T12:00:00+00:00")
+        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
+                       outcome(observed_at="2026-10-11T00:00:00Z"))
+        self.assertFalse(claim["covered"])
+        self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])
+
+    def test_a_deadline_that_is_prose_is_never_guessed_into_an_instant(self):
+        self.assertIsNone(captured_deadline_instant("before the end of the week"))
+        claim = settle(action(cancellation_deadline="before the end of the week"),
+                       outcome(observed_at="2026-10-11T23:00:00Z"))
+        self.assertEqual(claim["claim"], CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION)
         self.assertFalse(claim["covered"])
 
     def test_a_zone_less_observation_is_still_nothing_observed(self):

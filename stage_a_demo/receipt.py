@@ -200,17 +200,45 @@ def observation_instant(stamp: str | None) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
+def captured_deadline_instant(stamp: str | None) -> datetime | None:
+    """The instant a captured deadline denotes, reading a zone-less stamp at UTC.
+
+    A deadline is ours to capture, so a missing zone is our defect and never
+    makes the deadline vanish: it is read as written, at UTC, and the defect is
+    recorded on the claim beside it. That is the only reading the captured text
+    supports. Guessing an offset in either direction would decide money on a
+    zone nobody wrote down - too early and a live booking settles as a loss,
+    too late and a real loss settles as none.
+
+    An observation is not treated this way. Nothing was observed at a time we
+    cannot order, so an un-zoned observation stays unorderable.
+    """
+    zoned = observation_instant(stamp)
+    if zoned is not None:
+        return zoned
+    if not stamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(stamp)
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=timezone.utc)
+
+
 # The widest UTC offsets in civil use. A zone-less local time denotes its
 # earliest instant at UTC+14 and its latest at UTC-12.
 WIDEST_UTC_OFFSET = timedelta(hours=14)
 
 
 def earliest_possible_instant(stamp: str | None) -> datetime | None:
-    """The earliest instant a stamp could denote, for a stamp carrying no zone.
+    """The earliest instant a zone-less stamp could denote, at UTC+14.
 
-    Used only where the ambiguity is ours to carry: a deadline we failed to
-    capture with a zone. Reading it at its earliest possible instant resolves
-    our own capture defect against us, never against the user.
+    Reports the width of the ambiguity a zone-less stamp carries. It is not
+    what settles a claim: BEAAA-34396 round two showed that reading a deadline
+    at its earliest possible instant turns a fourteen-hour band on either side
+    of the captured stamp into covered losses, while on the stamp's plain
+    reading the deposit is still refundable. Leaning a capture defect that hard
+    against the record manufactures claims instead of preventing denials.
     """
     if not stamp:
         return None
@@ -355,7 +383,12 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
                 "covered": receipt.amount_at_risk_cents > 0}
 
     action = receipt.proposed_action
-    if action.is_delegated_cancellation:
+    if action.is_delegated_cancellation and matched:
+        # The omission path exists because a cancellation has nothing to match
+        # against: it is amount 0 and echoes the approved description back. An
+        # outcome that genuinely differs from what the user approved does have
+        # something to match against, and that mismatch is the claim - the
+        # obligation reading must not swallow it (BEAAA-34396 R4).
         settled = _review_cancellation_obligation(receipt, outcome, base)
         if settled is not None:
             return settled
@@ -415,14 +448,14 @@ def _review_cancellation_obligation(
 
     deadline = observation_instant(action.cancellation_deadline)
     if deadline is None:
-        # We have an orderable observation and an unorderable deadline. That is
-        # our capture defect, not a missing observation, so it is recorded as
-        # ours and the ambiguity is resolved at the earliest instant the
-        # deadline could denote. A deadline we failed to write down properly is
-        # never the reason a user's loss reads as no loss at all.
+        # We have an orderable observation and a deadline with no zone. That is
+        # our capture defect, not a missing observation: it is recorded as ours
+        # and the deadline is read as written, at UTC. A deadline we failed to
+        # write down properly is never the reason a user's loss reads as no
+        # loss at all, and never the reason a live booking reads as one.
         capture_defect = action.deadline_capture_defect or "cancellation_deadline_not_captured"
         record = {**record, "record_defects": [*record["record_defects"], capture_defect]}
-        deadline = earliest_possible_instant(action.cancellation_deadline)
+        deadline = captured_deadline_instant(action.cancellation_deadline)
         if deadline is None:
             return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
                     "claim": CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, "covered": False}
