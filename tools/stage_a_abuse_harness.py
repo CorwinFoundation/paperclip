@@ -208,17 +208,54 @@ def a2(root: Path):
 
 @probe("A3 revocation", "a human can revoke an approval and stop later executions")
 def a3(root: Path):
+    """Exercised, not matched by name.
+
+    Until BEAAA-35133 this probe passed or failed on whether any callable had
+    "revoke" in its name, and its message asserted the negative regardless. A
+    name is not a behaviour: `revoke_approval` could exist and do nothing. So
+    revoke a real grant and see whether the merchant is reachable afterwards.
+    """
     surfaces = {
         name
         for obj in (HumanApprovalIssuer, ApprovalVerifier, EvidenceStore)
         for name, _ in inspect.getmembers(obj, callable)
         if not name.startswith("_")
     }
-    revocation = {s for s in surfaces if "revoke" in s or "revocation" in s or "expire" in s}
-    fields = set(inspect.signature(EvidenceStore.record_case).parameters)
-    return bool(revocation), (
-        f"no revocation surface on the Stage A seams (callables: {sorted(surfaces)});"
-        f" record_case takes no expiry/nonce parameter (params: {sorted(fields - {'self'})})"
+    named = sorted(s for s in surfaces if "revoke" in s or "revocation" in s or "expire" in s)
+    merchant = CountingMerchant()
+    store = _store(root)
+    try:
+        mandate = Mandate("m-a3", "SKU-1", 100)
+        grant = _approved(store, "a3", mandate)
+        revoked = store.revoke_approval(grant) if hasattr(store, "revoke_approval") else None
+        try:
+            store.record_case(
+                case_id="a3", grant_id=grant, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="a3-after-revoke",
+                merchant=merchant,
+            )
+            after = "EXECUTED"
+        except PermissionError as exc:
+            after = f"refused: {exc}"
+
+        # Revoking a grant that was already spent must not unwind the purchase.
+        spent = _approved(store, "a3b", mandate)
+        store.record_case(
+            case_id="a3b", grant_id=spent, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a3b", merchant=merchant,
+        )
+        revoke_after_spend = store.revoke_approval(spent)
+        still_there = store.packet_or_none("a3b") is not None
+    finally:
+        store.close()
+    holds = bool(named) and after.startswith("refused") and still_there
+    return holds, (
+        f"revocation surface={named or 'none'}; revoke_approval on an unspent grant"
+        f" returned {revoked}, and executing it afterwards -> {after};"
+        f" merchant calls={len(merchant.calls)} (the one legitimate purchase);"
+        f" revoking an already-spent grant returned {revoke_after_spend} and the recorded"
+        f" case survives={still_there}, so revocation stops future executions without"
+        f" unwinding a purchase that already happened"
     )
 
 
@@ -537,8 +574,10 @@ def sa9(root: Path):
         f"first execution status={first['status']};"
         f" after UPDATE approvals SET consumed=0 -> {replayed};"
         f" merchant calls={len(merchant.calls)} amounts={[c['amount_cents'] for c in merchant.calls]}."
-        f" The token stays valid forever and single use is enforced by a flag the"
-        f" execution path can rewrite through the handle it already holds"
+        f" Closed by BEAAA-35354: the process-level authority spends the grant in its own"
+        f" memory as well as in the row, so rewriting the flag is no longer sufficient."
+        f" The DB flag still carries single use across a restart, and the issuer's memory"
+        f" carries it against a caller that can write the DB; neither alone is enough"
     )
 
 
@@ -637,6 +676,14 @@ def a12(root: Path):
             columns = [
                 d[0] for d in store.db.execute("SELECT * FROM cases LIMIT 0").description
             ]
+            # Positive control. Without it, a packet that simply always reported
+            # "no coverage" would pass this probe while carrying no binding at
+            # all, which is the false pass this harness exists to catch.
+            live = store.record_case(
+                case_id="a12-live", grant_id=_approved(store, "a12-live", Mandate("m-a12b", "SKU-1", 100)),
+                asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a12-live",
+                merchant=SyntheticMerchantAdapter(),
+            )["protection"]
         finally:
             store.close()
     finally:
@@ -646,18 +693,23 @@ def a12(root: Path):
             os.environ[act.ACTIVATION_RECORDS_ENV] = keep
 
     retro = at_execution["protection_active"] is False and on_read["protection_active"] is True
-    bound_columns = [c for c in columns if "activation" in c or "terms" in c or "program" in c]
-    return not retro, (
+    control = live["protection_active"] is True and bool(live["activation_record_id"])
+    bound = [c for c in columns if "protection" in c or "activation" in c or "terms" in c]
+    return (not retro) and control, (
         f"at execution protection_active={at_execution['protection_active']};"
         f" activation gate after records appear={gate_now};"
         f" same case re-read protection_active={on_read['protection_active']}"
         f" record={on_read['activation_record_id']} terms={on_read['terms_version']};"
-        f" retroactive_claim={retro}. The cases table carries no binding column"
-        f" (activation/terms/program: {bound_columns or 'none'}), so protection is"
-        f" recomputed at read time from whatever the registry says then."
-        f" The fixture retargets every record at {program_version!r}: keeping the test"
-        f" module's own program version makes the gate refuse on version and the probe"
-        f" report a false negative"
+        f" retroactive_claim={retro}."
+        f" Positive control, a case executed WHILE coverage is live:"
+        f" protection_active={live['protection_active']}"
+        f" record={live['activation_record_id']} terms={live['terms_version']}"
+        f" -> control_holds={control}, so a packet that simply always said"
+        f" 'no coverage' could not pass this probe."
+        f" Binding columns on cases: {bound or 'none'}."
+        f" Fixture note: every record is retargeted at {program_version!r}; keeping the"
+        f" test module's own program version makes the gate refuse on version mismatch"
+        f" and the probe report a false negative"
     )
 
 
