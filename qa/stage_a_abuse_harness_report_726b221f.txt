@@ -1,0 +1,36 @@
+Stage A abuse-case harness (report-only)
+probes=11 requirement_holds=5 requirement_fails=6
+------------------------------------------------------------------------------
+[FAILS] A1 agent-self-approval
+    requirement: an execution-side caller cannot mint a token the verifier accepts
+    observed:    agent-constructed HumanApprovalIssuer() minted a token; independent ApprovalVerifier() accepted=True; record_case -> MATCH (both classes default to the same shared secret, so the human/execution split is nominal, not cryptographic)
+[FAILS] A2 mandate replay
+    requirement: one human approval authorises at most one execution
+    observed:    one approval of mandate m-a2 drove 5 merchant executions (500 cents total against a 100 cent mandate); the token carries no nonce, expiry or single-use record
+[FAILS] A3 revocation
+    requirement: a human can revoke an approval and stop later executions
+    observed:    no revocation surface on the Stage A seams (callables: ['approve', 'close', 'execution_count', 'packet', 'record_case', 'verify']); record_case takes no expiry/nonce parameter (params: ['approval_token', 'approval_verifier', 'asserted_amount_cents', 'asserted_sku', 'case_id', 'idempotency_key', 'independent_evidence', 'mandate', 'merchant'])
+[FAILS] A4 over-mandate execution
+    requirement: an assertion outside the mandate must not reach the merchant
+    observed:    agent asserted 999900 cents against a 100 cent mandate; merchant was called 1 time(s) at amount_cents=999900; packet status=MISMATCH with 2 reviewable mismatch(es). The mandate is reconciled after the side effect, never enforced before it.
+[FAILS] A5 evidence tampering
+    requirement: a recorded case is append-only; its sources cannot be rewritten
+    observed:    case a5 mandate went m-a5-real -> m-a5-rewritten (rewritten=True) via INSERT OR REPLACE; packet still reports execution a5-one (stale=True), so the packet pairs one case's evidence with another case's receipt
+[HOLDS] A6 duplicate events
+    requirement: a retried idempotency key executes exactly once
+    observed:    4 retries -> execution_count=1, merchant calls=1
+[HOLDS] A7 concurrent reservations
+    requirement: racing callers on one key reserve the limit once
+    observed:    6 concurrent callers on key a7 -> execution rows=1, merchant calls=1, raised=none
+[HOLDS] A8 missing evidence fails closed
+    requirement: no independent evidence must never read as verified
+    observed:    status=UNKNOWN/INCOMPLETE, receipt.status=UNKNOWN/INCOMPLETE, merchant evidence=None, claims_review links=['mandate', 'approval', 'agent_assertion']
+[FAILS] A9 tenant isolation
+    requirement: one tenant's case cannot be read through another tenant's reader
+    observed:    no tenant/account/owner parameter on the evidence seams (params: ['approval_token', 'approval_verifier', 'asserted_amount_cents', 'asserted_sku', 'case_id', 'idempotency_key', 'independent_evidence', 'mandate', 'merchant']); any process able to open the sqlite file read case tenant-a-case in full. Isolation is filesystem permissions only.
+[HOLDS] A10 coverage not inferred from a receipt
+    requirement: protection state comes only from the activation gate
+    observed:    MATCH receipt (private=True) reports protection={'protection_active': False, 'program_version': 'stage-a-demo', 'statement': 'Demo or observation only. No protection, reimbursement or coverage is active.', 'missing_records': ['governing_legal_structure', 'executed_backing_authority', 'funded_financial_security', 'approved_versioned_terms', 'named_claims_and_payment_humans', 'approved_consumer_disclosure_set'], 'reasons': ['governing_legal_structure:missing', 'executed_backing_authority:missing', 'funded_financial_security:missing', 'approved_versioned_terms:missing', 'named_claims_and_payment_humans:missing', 'approved_consumer_disclosure_set:missing'], 'activation_record_id': None, 'terms_version': None, 'surface': 'receipt'}
+[HOLDS] A11 private receipt redaction
+    requirement: a private receipt carries no shareable approval secret
+    observed:    raw approval token present in packet=False, in cases table=False; stored approval keys=['source', 'token_digest']
