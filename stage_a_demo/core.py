@@ -14,6 +14,7 @@ from .activation import (
     default_program_version,
     default_registry,
     surface_protection_state,
+    unrecorded_protection_state,
 )
 
 
@@ -25,6 +26,12 @@ class Mandate:
 
 
 APPROVAL_ORIGINS = ("approval-step", "fixture-explorer")
+
+# Lifecycle of one approval grant. A grant leaves ``UNSPENT`` exactly once, and
+# only the transition to ``CONSUMED`` authorises a purchase (BEAAA-35133 B).
+APPROVAL_UNSPENT = 0
+APPROVAL_CONSUMED = 1
+APPROVAL_REVOKED = 2
 
 _VERIFIER_CAPABILITY = object()
 
@@ -152,7 +159,8 @@ class EvidenceStore:
             CREATE TABLE IF NOT EXISTS cases (
               case_id TEXT PRIMARY KEY, mode TEXT NOT NULL, mandate_json TEXT NOT NULL,
               approval_json TEXT NOT NULL, assertion_json TEXT NOT NULL,
-              merchant_json TEXT, status TEXT NOT NULL, mismatch_json TEXT NOT NULL
+              merchant_json TEXT, status TEXT NOT NULL, mismatch_json TEXT NOT NULL,
+              protection_json TEXT
             );
             CREATE TABLE IF NOT EXISTS approvals (
               grant_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, mandate_json TEXT NOT NULL,
@@ -166,6 +174,13 @@ class EvidenceStore:
             """
         )
         self.db.commit()
+        self._add_missing_columns()
+
+    def _add_missing_columns(self) -> None:
+        cols = {row[1] for row in self.db.execute("PRAGMA table_info(cases)")}
+        if "protection_json" not in cols:
+            self.db.execute("ALTER TABLE cases ADD COLUMN protection_json TEXT")
+            self.db.commit()
 
     def record_case(
         self,
@@ -189,6 +204,8 @@ class EvidenceStore:
         """
         approval = self._consume_approval(grant_id, case_id)
         if approval is None:
+            if self._approval_state(grant_id, case_id) == APPROVAL_REVOKED:
+                raise PermissionError("human approval grant was revoked")
             raise PermissionError("no unspent human approval grant for this case")
         if approval["origin"] not in APPROVAL_ORIGINS:
             raise PermissionError(f"approval origin is not recognised: {approval['origin']}")
@@ -227,6 +244,13 @@ class EvidenceStore:
         if asserted_amount_cents != mandate.amount_cents:
             mismatches.append({"field": "amount_cents", "mandate": mandate.amount_cents, "assertion": asserted_amount_cents})
 
+        # The activation state in force when this case is recorded. Persisted
+        # with the case so the receipt never restates today's program status as
+        # though it had been true at purchase time (BEAAA-35133 A).
+        protection = surface_protection_state(
+            "receipt", default_program_version(), default_registry()
+        )
+
         merchant_evidence = None
         if independent_evidence:
             merchant_evidence = merchant.purchase(
@@ -239,10 +263,12 @@ class EvidenceStore:
 
         with self.db:
             self.db.execute(
-                "INSERT OR REPLACE INTO cases VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO cases (case_id, mode, mandate_json, approval_json,"
+                " assertion_json, merchant_json, status, mismatch_json, protection_json)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (case_id, MODE, json.dumps(asdict(mandate), sort_keys=True), json.dumps(approval, sort_keys=True),
                  json.dumps(assertion, sort_keys=True), json.dumps(merchant_evidence, sort_keys=True) if merchant_evidence else None,
-                 status, json.dumps(mismatches, sort_keys=True)),
+                 status, json.dumps(mismatches, sort_keys=True), json.dumps(protection, sort_keys=True)),
             )
             self.db.execute(
                 "UPDATE executions SET receipt_json = ? WHERE idempotency_key = ?",
@@ -282,8 +308,8 @@ class EvidenceStore:
         """Spend a grant once. Returns None when there is no unspent grant."""
         with self.db:
             spent = self.db.execute(
-                "UPDATE approvals SET consumed = 1 WHERE grant_id = ? AND case_id = ? AND consumed = 0",
-                (grant_id, case_id),
+                "UPDATE approvals SET consumed = ? WHERE grant_id = ? AND case_id = ? AND consumed = ?",
+                (APPROVAL_CONSUMED, grant_id, case_id, APPROVAL_UNSPENT),
             )
             if spent.rowcount != 1:
                 return None
@@ -295,6 +321,27 @@ class EvidenceStore:
             "approval_token": row["approval_token"],
             "origin": row["origin"],
         }
+
+    def _approval_state(self, grant_id: str, case_id: str) -> int | None:
+        row = self.db.execute(
+            "SELECT consumed FROM approvals WHERE grant_id = ? AND case_id = ?", (grant_id, case_id)
+        ).fetchone()
+        return None if row is None else int(row["consumed"])
+
+    def revoke_approval(self, grant_id: str) -> bool:
+        """Withdraw an approval that has not been spent yet.
+
+        The path for a human who changes their mind. False when there is nothing
+        to withdraw: no such grant on this ledger, already spent, or already
+        revoked. Revocation never unwinds a purchase that already happened
+        (BEAAA-35133 B).
+        """
+        with self.db:
+            cur = self.db.execute(
+                "UPDATE approvals SET consumed = ? WHERE grant_id = ? AND consumed = ?",
+                (APPROVAL_REVOKED, grant_id, APPROVAL_UNSPENT),
+            )
+        return cur.rowcount == 1
 
     def approval_count(self, case_id: str) -> int:
         return self.db.execute("SELECT COUNT(*) FROM approvals WHERE case_id = ?", (case_id,)).fetchone()[0]
@@ -327,6 +374,10 @@ class EvidenceStore:
             "SELECT idempotency_key, ledger_allocation, receipt_json FROM executions WHERE case_id = ? ORDER BY id LIMIT 1",
             (case_id,),
         ).fetchone()
+        recorded_state = row["protection_json"] if "protection_json" in row.keys() else None
+        recorded_protection = (
+            json.loads(recorded_state) if recorded_state else unrecorded_protection_state("receipt")
+        )
         sources = {
             "mandate": json.loads(row["mandate_json"]),
             "approval": json.loads(row["approval_json"]),
@@ -341,11 +392,10 @@ class EvidenceStore:
             "sources": sources,
             "execution": dict(execution) if execution else None,
             "claims_review": {"source_links": [key for key, value in sources.items() if value is not None]},
-            # Protection status comes only from the activation gate. It is
-            # never inferred from this receipt, its status, or its evidence.
-            "protection": surface_protection_state(
-                "receipt", default_program_version(), default_registry()
-            ),
+            # Protection status comes only from the activation gate, as it stood
+            # when this case was recorded. It is never recomputed at read time
+            # and never inferred from this receipt, its status, or its evidence.
+            "protection": recorded_protection,
         }
 
     def execution_count(self, idempotency_key: str) -> int:

@@ -199,6 +199,22 @@ def _not_active(
     )
 
 
+def unrecorded_protection_state(
+    surface: str, *, reason: str = "protection_state_not_recorded"
+) -> dict[str, Any]:
+    """Protection block for a surface that has no recorded activation state.
+
+    A receipt written before activation state was persisted with the case has no
+    evidence of coverage, and absence of evidence is never coverage: this always
+    reads as not active. BEAAA-35133 defect A.
+    """
+    block = _not_active(
+        "unrecorded", missing=REQUIRED_RECORD_KEYS, reasons=(reason,)
+    ).as_dict()
+    block["surface"] = surface
+    return block
+
+
 def _activation_record_id(program_version: str, records: Mapping[str, Any]) -> str:
     material = json.dumps(
         {key: records[key].get("record_id") for key in REQUIRED_RECORD_KEYS},
