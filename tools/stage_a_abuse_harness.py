@@ -26,7 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from stage_a_demo import activation as act  # noqa: E402
 from stage_a_demo import approval as approval_mod  # noqa: E402
 from stage_a_demo.approval import approve_mandate  # noqa: E402
-from stage_a_demo.core import (  # noqa: E402
+from stage_a_demo.core import (
+    MandateExceeded,  # noqa: E402
     APPROVAL_ORIGINS,
     ApprovalVerifier,
     EvidenceStore,
@@ -280,18 +281,35 @@ def a4(root: Path):
     store = _store(root)
     try:
         grant = _approved(store, "a4", mandate)
-        packet = store.record_case(
-            case_id="a4", grant_id=grant, asserted_sku="SKU-PREMIUM",
-            asserted_amount_cents=999_900, idempotency_key="a4", merchant=merchant,
-        )
+        refusal = None
+        packet = None
+        try:
+            packet = store.record_case(
+                case_id="a4", grant_id=grant, asserted_sku="SKU-PREMIUM",
+                asserted_amount_cents=999_900, idempotency_key="a4", merchant=merchant,
+            )
+        except MandateExceeded as exc:
+            refusal = str(exc)
+        recorded = store.packet_or_none("a4")
+        # A refusal that spends the human's one approval is not a clean refusal:
+        # the grant has to survive for an assertion that is within the mandate.
+        grant_still_unspent = store._approval_preview(grant, "a4") is not None
     finally:
         store.close()
     charged = merchant.calls[0]["amount_cents"] if merchant.calls else None
-    return not merchant.calls, (
-        f"agent asserted 999900 cents against a 100 cent mandate; merchant was called"
-        f" {len(merchant.calls)} time(s) at amount_cents={charged}; packet status="
-        f"{packet['status']} with {len(packet['reviewable_mismatches'])} reviewable mismatch(es)."
-        f" The mandate is reconciled after the side effect, never enforced before it."
+    holds = bool(refusal) and not merchant.calls and recorded is None and grant_still_unspent
+    if holds:
+        return True, (
+            f"agent asserted 999900 cents against a 100 cent mandate; refused before the side"
+            f" effect with {refusal!r}; merchant calls=0; no case recorded; the grant is still"
+            f" unspent. Enforced before the side effect, not reconciled after it."
+        )
+    return False, (
+        f"agent asserted 999900 cents against a 100 cent mandate; refusal={refusal!r};"
+        f" merchant was called {len(merchant.calls)} time(s) at amount_cents={charged};"
+        f" recorded case={'none' if recorded is None else recorded['status']};"
+        f" grant still unspent={grant_still_unspent}."
+        f" Expected a refusal, zero merchant calls, no recorded case and an unspent grant."
     )
 
 

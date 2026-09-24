@@ -20,7 +20,8 @@ def main() -> None:
     merchant = SyntheticMerchantAdapter()
     cases = [
         ("correct", Mandate("m-correct", "SKU-1", 1200), "SKU-1", 1200, True, "idem-correct"),
-        ("mismatch", Mandate("m-mismatch", "SKU-2", 2500), "SKU-X", 2600, True, "idem-mismatch"),
+        # Within the mandate: the agent spent less than it was allowed to. Reviewable, not refused.
+        ("mismatch", Mandate("m-mismatch", "SKU-2", 2500), "SKU-2", 2400, True, "idem-mismatch"),
         ("duplicate", Mandate("m-duplicate", "SKU-3", 900), "SKU-3", 900, True, "idem-duplicate"),
         ("incomplete", Mandate("m-incomplete", "SKU-4", 400), "SKU-4", 400, False, "idem-incomplete"),
         ("reconstruct", Mandate("m-reconstruct", "SKU-5", 5100), "SKU-5", 5100, True, "idem-reconstruct"),

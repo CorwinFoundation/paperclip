@@ -43,6 +43,42 @@ APPROVAL_REVOKED = 2
 _VERIFIER_CAPABILITY = object()
 
 
+class MandateExceeded(PermissionError):
+    """An assertion outside the mandate reached the capability-backed path.
+
+    Raised before the grant is consumed and before the merchant adapter is
+    called, so an over-mandate attempt spends nothing and records nothing
+    (BEAAA-34396 A4).
+
+    This refusal belongs to the path where BackBond *holds the capability*. It
+    is not the Path 1 posture: there BackBond only observes, holds no
+    capability and calls no adapter, so "over your limit" is a warning written
+    on the approval receipt and never a veto. The two postures are deliberately
+    separate and separately tested — see
+    ``tests/test_beaaa34389_two_enforcement_postures.py``. Trading this refusal
+    down into a warning would fail A4 whatever it cites.
+    """
+
+
+def _mandate_overreach(
+    mandate: Mandate, asserted_sku: str, asserted_amount_cents: int
+) -> list[dict[str, Any]]:
+    """What about this assertion falls outside the approved mandate.
+
+    A different SKU is outside it. So is a larger amount. A *smaller* amount is
+    within what the human approved — the agent spent less than it was allowed
+    to — so it is recorded as a reviewable difference rather than refused.
+    """
+    outside: list[dict[str, Any]] = []
+    if asserted_sku != mandate.sku:
+        outside.append({"field": "sku", "mandate": mandate.sku, "assertion": asserted_sku})
+    if asserted_amount_cents > mandate.amount_cents:
+        outside.append(
+            {"field": "amount_cents", "mandate": mandate.amount_cents, "assertion": asserted_amount_cents}
+        )
+    return outside
+
+
 class ApprovalVerifier:
     """Execution-side capability. Holds only one-way digests of human approvals.
 
@@ -267,6 +303,21 @@ class EvidenceStore:
         if replay is not None:
             return replay
 
+        # Enforce the mandate before the side effect, never reconcile after it.
+        # This runs ahead of _consume_approval on purpose: a refused attempt
+        # must leave the grant unspent, so the human's single approval is still
+        # there to be used on an assertion that is actually within it.
+        previewed = self._approval_preview(grant_id, case_id)
+        if previewed is not None:
+            outside = _mandate_overreach(previewed, asserted_sku, asserted_amount_cents)
+            if outside:
+                raise MandateExceeded(
+                    "assertion falls outside the approved mandate: "
+                    + "; ".join(
+                        f"{d['field']} approved {d['mandate']!r}, asserted {d['assertion']!r}" for d in outside
+                    )
+                )
+
         approval = self._consume_approval(grant_id, case_id)
         if approval is None:
             if self._approval_state(grant_id, case_id) == APPROVAL_REVOKED:
@@ -296,9 +347,10 @@ class EvidenceStore:
                 raise
             return replay
 
+        # Anything outside the mandate was already refused above, so what is
+        # left is variance within it — the agent spent less than it was allowed
+        # to. That is recorded for review, not refused.
         mismatches: list[dict[str, Any]] = []
-        if asserted_sku != mandate.sku:
-            mismatches.append({"field": "sku", "mandate": mandate.sku, "assertion": asserted_sku})
         if asserted_amount_cents != mandate.amount_cents:
             mismatches.append({"field": "amount_cents", "mandate": mandate.amount_cents, "assertion": asserted_amount_cents})
 
@@ -361,6 +413,22 @@ class EvidenceStore:
                 (grant_id, case_id, json.dumps(asdict(mandate), sort_keys=True), approval_token, origin),
             )
         return grant_id
+
+    def _approval_preview(self, grant_id: str, case_id: str) -> Mandate | None:
+        """The mandate on an unspent grant, read without spending it.
+
+        Needed so an over-mandate assertion can be refused *before* the grant is
+        consumed (BEAAA-34396 A4). Read-only: it flips no flag and touches no
+        ledger, and every authority check still runs at consume time, so this
+        adds no route to authorise anything.
+        """
+        row = self.db.execute(
+            "SELECT mandate_json FROM approvals WHERE grant_id = ? AND case_id = ? AND consumed = ?",
+            (grant_id, case_id, APPROVAL_UNSPENT),
+        ).fetchone()
+        if row is None:
+            return None
+        return Mandate(**json.loads(row["mandate_json"]))
 
     def _consume_approval(self, grant_id: str, case_id: str) -> dict[str, Any] | None:
         """Spend a grant once. Returns None when there is no unspent grant.

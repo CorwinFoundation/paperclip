@@ -40,6 +40,8 @@ class Telemetry:
     mandate_deviations: int = 0
     receipts_produced: int = 0
     covered_event_candidates_raised: int = 0
+    # Actions outside the mandate stopped before the adapter was called.
+    executions_refused: int = 0
     states_shown: list[UserFacingState] = field(default_factory=list)
 
     def show(
@@ -72,6 +74,7 @@ class Telemetry:
             "mandate_deviations": self.mandate_deviations,
             "receipts_produced": self.receipts_produced,
             "covered_event_candidates_raised": self.covered_event_candidates_raised,
+            "executions_refused": self.executions_refused,
             "user_facing_states_shown": len(self.states_shown),
         }
 

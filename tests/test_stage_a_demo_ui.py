@@ -41,7 +41,7 @@ class StageADemoUITests(unittest.TestCase):
         self.assertIn("Passive Monitor observation does not authorize", page)
 
     def test_every_required_fixture_is_directly_reachable(self):
-        required = {"correct", "incorrect", "duplicate", "missing-evidence", "reconstructed-claim", "unsupported", "disconnected", "expired", "denied", "error"}
+        required = {"correct", "incorrect", "duplicate", "missing-evidence", "reconstructed-claim", "over-mandate", "unsupported", "disconnected", "expired", "denied", "error"}
         self.assertEqual(required, set(FIXTURES))
         for name in required:
             self.assertEqual(name, self.open_case(name)["case"])

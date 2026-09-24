@@ -15,6 +15,7 @@ from .activation import (
 )
 from .approval import approve_mandate, build_issuer
 from .core import (
+    MandateExceeded,
     APPROVAL_ORIGINS,
     EvidenceStore,
     Mandate,
@@ -32,12 +33,15 @@ FIXTURES = {
     "disconnected": ("DISCONNECTED", "The connection ended before the task finished.", "Missing"),
     "expired": ("EXPIRED", "Approval expired before execution.", "Missing"),
     "denied": ("DENIED", "The task was not approved and did not run.", "Missing"),
+    "over-mandate": ("REFUSED", "That is outside what you approved, so it did not run.", "Missing"),
     "error": ("ERROR", "We could not complete that step.", "Missing"),
 }
 
 BACKEND_CASES = {
     "correct": ("SKU-LAMP", 4800, "SKU-LAMP", 4800, True, "idem-correct"),
-    "incorrect": ("SKU-LAMP", 4800, "SKU-LAMP-WRONG", 4900, True, "idem-incorrect"),
+    "incorrect": ("SKU-LAMP", 4800, "SKU-LAMP", 4700, True, "idem-incorrect"),
+    # Outside the mandate: refused before the merchant is reached (A4).
+    "over-mandate": ("SKU-LAMP", 4800, "SKU-LAMP-PREMIUM", 99_900, True, "idem-over-mandate"),
     "duplicate": ("SKU-LAMP", 4800, "SKU-LAMP", 4800, True, "idem-duplicate"),
     "missing-evidence": ("SKU-LAMP", 4800, "SKU-LAMP", 4800, False, "idem-missing"),
     "reconstructed-claim": ("SKU-LAMP", 4800, "SKU-LAMP", 4800, True, "idem-reconstructed"),
@@ -154,6 +158,26 @@ def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str,
         )
         try:
             store.record_case(**kwargs)
+        except MandateExceeded as refusal:
+            # Capability path: refused before the grant was spent and before the
+            # merchant was called. Nothing executed, so there is no packet.
+            return {
+                "mode": "Demo · not activated",
+                "protection": protection_block("receipt"),
+                "receipt_label": "Nothing ran",
+                "case": case,
+                "status": "REFUSED",
+                "title": FIXTURES[case][1],
+                "refusal": str(refusal),
+                "evidence": [
+                    {"label": "Human approval", "value": "Still unspent", "source": "Verified event"},
+                    {"label": "Agent result", "value": "Refused before execution", "source": "Agent reported"},
+                    {"label": "Merchant result", "value": "Not contacted", "source": "Missing"},
+                ],
+                "invitation": invitation_payload(),
+                "backend_packet": None,
+                "authoritative_executions": 0,
+            }
         except PermissionError as exc:
             raise ApprovalRequired(str(exc)) from exc
         if case == "duplicate":

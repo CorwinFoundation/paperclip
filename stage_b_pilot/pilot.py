@@ -18,6 +18,7 @@ from typing import Any
 
 from stage_a_demo.approval import approve_mandate, build_issuer
 from stage_a_demo.core import (
+    MandateExceeded,
     EvidenceStore,
     HumanApprovalIssuer,
     Mandate,
@@ -40,9 +41,12 @@ class TaskRun:
     mandate: MandateRecord
     planned: PlannedAction
     deviations: list[dict[str, Any]]
-    receipt_packet: dict[str, Any]
+    receipt_packet: dict[str, Any] | None
     covered_event_candidate: ClaimsReviewPacket | None
     observed_loss_cents: int
+    # Set when the capability-backed path refused an action outside the
+    # mandate. A refused run has no receipt: nothing executed.
+    execution_refused: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -55,7 +59,8 @@ class TaskRun:
             },
             "mandate_deviations": self.deviations,
             "observed_loss_cents": self.observed_loss_cents,
-            "receipt": {
+            "execution_refused": self.execution_refused,
+            "receipt": None if self.receipt_packet is None else {
                 "case_id": self.receipt_packet["case_id"],
                 "status": self.receipt_packet["status"],
                 "execution": self.receipt_packet["execution"],
@@ -149,15 +154,43 @@ def run_task(
     case_id = f"case-{intent.intent_id}"
     # Human step, then execution. Only the grant id crosses the boundary.
     grant = approve_mandate(store, case_id=case_id, mandate=core_mandate, issuer=human)
-    receipt_packet = store.record_case(
-        case_id=case_id,
-        grant_id=grant,
-        asserted_sku=planned.sku,
-        asserted_amount_cents=planned.amount_cents,
-        idempotency_key=f"idem-{intent.intent_id}",
-        merchant=merchant,
-        independent_evidence=independent_evidence,
-    )
+    # Two enforcement postures, kept apart on purpose (CEO ruling 2026-09-24).
+    # This is the path where BackBond holds the capability and calls the
+    # adapter, so an action outside the mandate is REFUSED before the grant is
+    # consumed and before the merchant is reached. It is not the Path 1
+    # posture, where BackBond only observes and "over your limit" is a warning
+    # on the approval receipt. See stage_a_demo.receipt.
+    try:
+        receipt_packet = store.record_case(
+            case_id=case_id,
+            grant_id=grant,
+            asserted_sku=planned.sku,
+            asserted_amount_cents=planned.amount_cents,
+            idempotency_key=f"idem-{intent.intent_id}",
+            merchant=merchant,
+            independent_evidence=independent_evidence,
+        )
+    except MandateExceeded as refusal:
+        telemetry.executions_refused += 1
+        telemetry.show(
+            "execution_refused",
+            mode=MODE,
+            headline=f"Refused before the side effect: {refusal}",
+            protection_active=status.active,
+            protection_statement=status.statement,
+        )
+        # Nothing executed, so there is no loss and nothing to claim. On this
+        # path the user is protected by the refusal, not by a later payout.
+        return TaskRun(
+            intent=intent,
+            mandate=mandate_record,
+            planned=planned,
+            deviations=deviations,
+            receipt_packet=None,
+            covered_event_candidate=None,
+            observed_loss_cents=0,
+            execution_refused=str(refusal),
+        )
     telemetry.receipts_produced += 1
     telemetry.show(
         "receipt_produced",

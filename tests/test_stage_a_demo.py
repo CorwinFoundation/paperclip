@@ -5,6 +5,7 @@ from pathlib import Path
 
 from stage_a_demo import core
 from stage_a_demo.approval import _process_issuer, approve_mandate
+from stage_a_demo.core import MandateExceeded
 from stage_a_demo.core import ApprovalVerifier, EvidenceStore, HumanApprovalIssuer, Mandate, SyntheticMerchantAdapter
 
 
@@ -46,11 +47,22 @@ class StageADemoTests(unittest.TestCase):
         reopened = EvidenceStore(self.path)
         self.assertEqual("MATCH", reopened.packet("c1")["status"])
 
-    def test_mismatch_is_reviewable_with_sources(self):
-        packet = self.record(EvidenceStore(self.path), sku="WRONG", amount=101)
+    def test_mismatch_within_the_mandate_is_reviewable_with_sources(self):
+        """Spending less than approved is reviewable. Spending more is refused.
+
+        BEAAA-34396 A4: anything outside the mandate never reaches this point,
+        so the only difference a recorded case can carry is variance inside it.
+        """
+        packet = self.record(EvidenceStore(self.path), amount=90)
         self.assertEqual("MISMATCH", packet["status"])
-        self.assertEqual({"amount_cents", "sku"}, {m["field"] for m in packet["reviewable_mismatches"]})
+        self.assertEqual({"amount_cents"}, {m["field"] for m in packet["reviewable_mismatches"]})
         self.assertEqual("SKU-1", packet["sources"]["mandate"]["sku"])
+
+    def test_an_assertion_outside_the_mandate_is_refused_before_the_merchant(self):
+        store = EvidenceStore(self.path)
+        with self.assertRaises(MandateExceeded):
+            self.record(store, sku="WRONG", amount=101)
+        self.assertIsNone(store.packet_or_none("c1"))
 
     def test_duplicate_retry_has_one_execution(self):
         store = EvidenceStore(self.path)

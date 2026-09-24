@@ -92,7 +92,25 @@ class SeededScenarioTests(unittest.TestCase):
         self.assertIsNone(clean["covered_event_candidate"])
         self.assertEqual(clean["observed_loss_cents"], 0)
 
-    def test_covered_mistake_reaches_the_claims_packet(self) -> None:
+    def test_a_deviation_on_the_capability_path_is_refused_not_claimed(self) -> None:
+        """CEO ruling 2026-09-24: two enforcement postures, kept apart.
+
+        Stage B is the path where BackBond holds the grant and calls the
+        adapter, so an action outside the mandate is refused before the side
+        effect. There is no receipt and no covered event, because nothing
+        executed and nothing was lost. The covered-event demonstration belongs
+        to the Path 1 receipt posture, where BackBond only observes — see
+        test_a_covered_event_is_demonstrated_on_the_observation_path below.
+        """
+        scenario = self.output["scenarios"]["covered_mistake"]
+        self.assertIsNotNone(scenario["execution_refused"])
+        self.assertIn("outside the approved mandate", scenario["execution_refused"])
+        self.assertIsNone(scenario["receipt"])
+        self.assertIsNone(scenario["covered_event_candidate"])
+        self.assertEqual(0, scenario["observed_loss_cents"])
+        self.assertTrue(scenario["mandate_deviations"])
+
+    def _disabled_covered_mistake_reaches_the_claims_packet(self) -> None:
         packet = self.output["scenarios"]["covered_mistake"]["covered_event_candidate"]
         self.assertIsNotNone(packet)
         for key in (
@@ -114,20 +132,68 @@ class SeededScenarioTests(unittest.TestCase):
             packet["limits"]["per_event_cents"], program.LIMITS.per_event_cents
         )
 
-    def test_execution_coverage_and_payment_stay_separate(self) -> None:
-        packet = self.output["scenarios"]["covered_mistake"]["covered_event_candidate"]
-        self.assertEqual(packet["execution"]["state"], program.EXECUTION_MISMATCH)
-        self.assertEqual(
-            packet["coverage_decision"], program.INELIGIBLE_PROTECTION_NOT_ACTIVE
+    def test_a_clean_run_still_produces_a_receipt_with_no_coverage_claimed(self) -> None:
+        """The within-mandate scenario is untouched by the refusal."""
+        scenario = self.output["scenarios"]["clean"]
+        self.assertIsNone(scenario["execution_refused"])
+        self.assertIsNotNone(scenario["receipt"])
+        self.assertEqual(scenario["receipt"]["status"], program.EXECUTION_MATCH)
+        self.assertFalse(scenario["receipt"]["protection"]["protection_active"])
+        self.assertIsNone(scenario["covered_event_candidate"])
+
+    def test_a_covered_event_is_demonstrated_on_the_observation_path(self) -> None:
+        """Where BackBond cannot refuse, the deviation becomes a covered event.
+
+        Same product, the other posture. No capability, no adapter: the user's
+        own agent executed, BackBond recorded the approval beforehand and
+        matched the outcome against it afterwards.
+        """
+        import tempfile as _tempfile
+
+        from stage_a_demo.receipt import (
+            ANSWER_OK,
+            CLAIM_COVERED_OUTCOME_DIFFERS,
+            ApprovalReceipt,
+            ExecutedOutcome,
+            ProposedAction,
+            assess_warnings,
         )
-        self.assertEqual(packet["payment_status"], program.NO_PAYMENT_AUTHORIZED)
+
+        tmp = _tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = EvidenceStore(Path(tmp.name) / "observed.sqlite3")
+        self.addCleanup(store.close)
+
+        action = ProposedAction(
+            description="Desk lamp", merchant="synthetic-merchant",
+            amount_cents=4_800, deposit_cents=4_800,
+            cancellation_terms="Non-refundable once dispatched", non_recoverable=True,
+        )
+        store.record_pre_execution_receipt(ApprovalReceipt(
+            receipt_id="r-observed", task_id="observed", proposed_action=action,
+            answer=ANSWER_OK, checked_at="2026-09-24T01:07:00Z",
+            answered_at="2026-09-24T01:09:00Z", recorded_at="2026-09-24T01:09:05Z",
+            limit_cents=10_000, warnings=assess_warnings(action, 10_000),
+        ))
+        review = store.record_outcome(
+            "observed",
+            ExecutedOutcome("Premium desk lamp", "synthetic-merchant", 99_900, "conf-9"),
+            executed_at="2026-09-24T01:41:00Z",
+        )
+        self.assertEqual(CLAIM_COVERED_OUTCOME_DIFFERS, review["claim"])
+        self.assertTrue(review["covered"])
+        # A covered event still never implies an active program or a payment.
+        self.assertFalse(review["protection"]["protection_active"])
 
     def test_telemetry_counts_are_readable_and_correct(self) -> None:
         counts = self.output["telemetry"]["counts"]
         self.assertEqual(counts["tasks_delegated"], 2)
         self.assertEqual(counts["mandate_deviations"], 1)
-        self.assertEqual(counts["receipts_produced"], 2)
-        self.assertEqual(counts["covered_event_candidates_raised"], 1)
+        # The deviated task is refused before the adapter, so it produces no
+        # receipt and raises no candidate on this path.
+        self.assertEqual(counts["executions_refused"], 1)
+        self.assertEqual(counts["receipts_produced"], 1)
+        self.assertEqual(counts["covered_event_candidates_raised"], 0)
         self.assertEqual(
             counts["user_facing_states_shown"],
             len(self.output["telemetry"]["user_facing_states"]),
@@ -185,12 +251,12 @@ class GateAndTelemetryTests(unittest.TestCase):
             telemetry=telemetry,
             status=status,
         )
-        packet = run.covered_event_candidate
-        self.assertIsNotNone(packet)
-        self.assertEqual(
-            packet.coverage_decision, program.ELIGIBLE_FOR_HUMAN_REVIEW
-        )
-        self.assertEqual(packet.payment_status, program.NO_PAYMENT_AUTHORIZED)
+        # Active records do not buy the agent permission to exceed the mandate:
+        # the refusal is a capability boundary, not a coverage decision.
+        self.assertIsNotNone(run.execution_refused)
+        self.assertIsNone(run.covered_event_candidate)
+        self.assertIsNone(run.receipt_packet)
+        self.assertEqual(1, telemetry.executions_refused)
 
     def test_telemetry_rejects_an_untruthful_state(self) -> None:
         telemetry = Telemetry()
