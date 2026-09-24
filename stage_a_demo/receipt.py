@@ -63,6 +63,14 @@ class CheckNotApproved(PermissionError):
     """Execution was attempted without an OK on the receipt."""
 
 
+class TermsNotCaptured(ValueError):
+    """The terms on the action are not in a state a receipt can be written on.
+
+    Raised at capture time, before anything executes, so the agent re-reads the
+    terms rather than BackBond guessing later what they meant.
+    """
+
+
 @dataclass(frozen=True)
 class ProposedAction:
     """The action exactly as the agent put it to the user, with its terms.
@@ -122,6 +130,16 @@ class ProposedAction:
         if observation_instant(self.cancellation_deadline) is not None:
             return None
         return "cancellation_deadline_not_orderable"
+
+    def capture_defects(self) -> list[str]:
+        """Everything wrong with the terms as captured, in a fixed order.
+
+        Read at capture time by the receipt-writing gate. A defect here is not
+        something the user did: it is the record we wrote about their booking
+        being unusable for deciding money later, which is ours to catch before
+        execution rather than to interpret after a loss (BEAAA-34396 R1).
+        """
+        return [d for d in (self.deadline_capture_defect,) if d]
 
     def terms_evidence(self) -> dict[str, Any]:
         """What we knew about getting the money back, and when we knew it."""

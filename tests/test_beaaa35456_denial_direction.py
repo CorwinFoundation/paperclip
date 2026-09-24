@@ -5,7 +5,11 @@ Every case here settles the same missed deadline. Before the fix each one read
 as no loss at all, for a different reason: a label on the money, a flag left
 unset, or a deadline we ourselves failed to capture with a zone.
 """
+import tempfile
 import unittest
+from pathlib import Path
+
+from stage_a_demo.core import EvidenceStore
 
 from stage_a_demo.receipt import (
     ANSWER_OK,
@@ -17,6 +21,7 @@ from stage_a_demo.receipt import (
     ExecutedOutcome,
     ProposedAction,
     amount_at_risk_cents,
+    TermsNotCaptured,
     captured_deadline_instant,
     review_claim,
 )
@@ -44,11 +49,14 @@ def outcome(**kw):
     return ExecutedOutcome(**base)
 
 
+def make_receipt(act, task_id="t-test"):
+    return ApprovalReceipt("r-test", task_id, act, ANSWER_OK,
+                           "2026-10-10T09:00:00Z", "2026-10-10T09:05:00Z",
+                           "2026-10-10T09:05:05Z")
+
+
 def settle(act, out):
-    receipt = ApprovalReceipt("r-test", "t-test", act, ANSWER_OK,
-                              "2026-10-10T09:00:00Z", "2026-10-10T09:05:00Z",
-                              "2026-10-10T09:05:05Z")
-    return review_claim(receipt, out)
+    return review_claim(make_receipt(act), out)
 
 
 class NonRecoverableLabelNeverLowersTheRisk(unittest.TestCase):
@@ -170,6 +178,57 @@ class AClaimStringMatchesItsOwnVerdict(unittest.TestCase):
             with self.subTest(action=act.description, flag=act.is_cancellation_obligation):
                 claim = settle(act, outcome())
                 self.assertEqual(claim["claim"].startswith("covered_"), claim["covered"])
+
+
+class TermsAreValidatedAtCapture(unittest.TestCase):
+    """BEAAA-34396 R1, closed at source. Leaning an un-zoned deadline either way
+    at claim time is a guess about a field BackBond captured itself: read early
+    it pays on refundable money, read late it denies a real loss. The deadline
+    is ordered against money, so a record that cannot order it is refused
+    before anything executes, while the agent can still re-read the terms."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.store = EvidenceStore(Path(self.tmp.name) / "evidence.sqlite3")
+        self.addCleanup(self.store.close)
+
+    def test_a_zoned_deadline_is_recorded(self):
+        self.assertEqual(self.store.record_pre_execution_receipt(make_receipt(action(), "t-ok")), "t-ok")
+        self.assertIsNotNone(self.store.receipt_for("t-ok"))
+
+    def test_an_un_zoned_deadline_cannot_be_recorded(self):
+        bad = make_receipt(action(cancellation_deadline="2026-10-11T12:00:00"), "t-unzoned")
+        with self.assertRaises(TermsNotCaptured) as caught:
+            self.store.record_pre_execution_receipt(bad)
+        self.assertIn("cancellation_deadline_not_orderable", str(caught.exception))
+
+    def test_a_prose_deadline_cannot_be_recorded_either(self):
+        """R6's branch and R1's branch are now the same branch, refused in the
+        same place, instead of one settling incomplete while the other pays."""
+        bad = make_receipt(action(cancellation_deadline="before the end of the week"), "t-prose")
+        with self.assertRaises(TermsNotCaptured):
+            self.store.record_pre_execution_receipt(bad)
+
+    def test_a_refused_capture_writes_nothing(self):
+        bad = make_receipt(action(cancellation_deadline="2026-10-11T12:00:00"), "t-nothing")
+        with self.assertRaises(TermsNotCaptured):
+            self.store.record_pre_execution_receipt(bad)
+        self.assertIsNone(self.store.receipt_for("t-nothing"))
+
+    def test_capture_defects_are_listed_on_the_action(self):
+        self.assertEqual(action().capture_defects(), [])
+        self.assertEqual(action(cancellation_deadline="2026-10-11T12:00:00").capture_defects(),
+                         ["cancellation_deadline_not_orderable"])
+
+    def test_the_claim_path_stays_defensive_for_records_already_written(self):
+        """The gate is new; rows written before it exist, and a library caller
+        can still build an action directly. Those still settle, read as written,
+        with the capture defect on the claim."""
+        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
+                       outcome(observed_at="2026-10-11T23:00:00Z"))
+        self.assertTrue(claim["covered"])
+        self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])
 
 
 if __name__ == "__main__":

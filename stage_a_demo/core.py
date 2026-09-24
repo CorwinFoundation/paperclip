@@ -15,6 +15,7 @@ from .receipt import (
     CheckNotApproved,
     ExecutedOutcome,
     ProposedAction,
+    TermsNotCaptured,
     review_claim,
 )
 from .activation import (
@@ -535,9 +536,24 @@ class EvidenceStore:
         effect, never reconcile after it. A row already present for this task is
         not overwritten — a receipt that could be rewritten after the fact is
         not evidence.
+
+        Terms that cannot decide money are refused here rather than interpreted
+        at claim time. A cancellation deadline with no zone denotes a different
+        instant in every offset, so a claim on it either pays on money that may
+        still be refundable or denies a loss that is real, depending on which
+        way the ambiguity is leaned. Neither is a settlement; both are a guess
+        about a field BackBond captured itself. This is the "validate at
+        capture, not at claim" gate (BEAAA-35456, BEAAA-34396 R1): the agent is
+        sent back to re-read the terms while nothing has executed yet.
         """
         if not isinstance(receipt, ApprovalReceipt):
             raise TypeError("record_pre_execution_receipt takes an ApprovalReceipt")
+        defects = receipt.proposed_action.capture_defects()
+        if defects:
+            raise TermsNotCaptured(
+                f"task {receipt.task_id}: the captured terms cannot decide money "
+                f"({', '.join(defects)}); re-read the terms before execution"
+            )
         try:
             with self.db:
                 self.db.execute(
