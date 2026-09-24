@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -26,6 +27,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from stage_a_demo import activation as act  # noqa: E402
 from stage_a_demo import approval as approval_mod  # noqa: E402
 from stage_a_demo.approval import approve_mandate  # noqa: E402
+from stage_a_demo import path1 as path1_mod  # noqa: E402
+from stage_a_demo.receipt import (  # noqa: E402
+    ANSWER_OK,
+    ANSWER_SKIPPED,
+    ApprovalReceipt,
+    ExecutedOutcome,
+    assess_warnings,
+    review_claim,
+)
 from stage_a_demo.core import (
     MandateExceeded,  # noqa: E402
     APPROVAL_ORIGINS,
@@ -859,7 +869,163 @@ def a12(root: Path):
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10]
+# --------------------------------------------------------------------------
+# Path 1: the approval-receipt flow (Founder ruling section 2, BEAAA-34389).
+#
+# Path 1 holds no capability and calls no adapter, so nothing here can refuse an
+# action. What it can get wrong is money: whether a claim reads as a covered
+# loss. Every field these probes feed is supplied by the caller - the party with
+# the incentive - so each one asks whether an unverified assertion can move the
+# coverage verdict. A1 and SA8 settled that question for approvals; these ask it
+# of outcomes.
+# --------------------------------------------------------------------------
+
+_P1_OBLIGATION = path1_mod.CANCELLATION_OBLIGATION
+
+
+def _p1_instant(stamp: str) -> datetime | None:
+    """The real instant a stamp denotes, or None if it cannot be ordered.
+
+    A stamp with no zone is not orderable against a Zulu deadline: it denotes a
+    different instant in every offset. Neither is one that does not parse.
+    """
+    try:
+        parsed = datetime.fromisoformat(stamp.replace("z", "Z").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def _p1_review(*, answer: str = ANSWER_OK, performed: bool = False,
+               observed_at: str = "", evidence_ref: str = "no-cancellation-in-inbox",
+               action=None) -> dict:
+    action = action or _P1_OBLIGATION
+    receipt = ApprovalReceipt(
+        receipt_id="receipt-p1", task_id="p1", proposed_action=action, answer=answer,
+        checked_at="2026-10-10T09:00:00Z",
+        answered_at=None if answer == ANSWER_SKIPPED else "2026-10-10T09:05:00Z",
+        recorded_at="2026-10-10T09:05:05Z", limit_cents=path1_mod.DEMO_LIMIT_CENTS,
+        warnings=assess_warnings(action, path1_mod.DEMO_LIMIT_CENTS),
+    )
+    outcome = ExecutedOutcome(
+        action.description, action.merchant, 0, evidence_ref=evidence_ref,
+        performed=performed, observed_at=observed_at,
+    )
+    return review_claim(receipt, outcome)
+
+
+@probe("P1-1 cancellation deadline is compared as time",
+       "whether the money is still recoverable must follow the instant, not the spelling")
+def p1_1(root: Path):
+    """``observed_at > cancellation_deadline`` is a string compare (receipt.py).
+
+    That is only correct for Zulu-suffixed stamps of equal length. ISO-8601
+    permits a numeric offset and a lowercase zone designator, and ``observed_at``
+    is caller-supplied, so the spelling decides the claim instead of the instant.
+    """
+    deadline = _P1_OBLIGATION.cancellation_deadline
+    deadline_at = _p1_instant(deadline)
+    # The same question either side of the deadline, spelled five legal ways.
+    stamps = [
+        "2026-10-11T12:30:00Z",        # plainly past it
+        "2026-10-11T09:00:00-08:00",   # 17:00Z, five hours past it
+        "2026-10-11T13:00:00+14:00",   # 2026-10-10T23:00Z, thirteen hours short of it
+        "2026-10-11T12:00:00z",        # the deadline itself, lowercase zone
+        "2026-10-14T00:00:00",         # no zone at all: not orderable
+    ]
+    wrong, checked = [], []
+    for stamp in stamps:
+        verdict = _p1_review(observed_at=stamp)
+        instant = _p1_instant(stamp)
+        if instant is None:
+            # Unorderable input must not decide money in either direction.
+            expected = "UNKNOWN/INCOMPLETE"
+            ok = verdict["outcome_state"] == expected
+        else:
+            expected = instant > deadline_at
+            ok = verdict["covered"] is expected
+        checked.append(f"{stamp} -> covered={verdict['covered']} expected={expected}")
+        if not ok:
+            wrong.append(stamp)
+    return not wrong, (
+        f"deadline {deadline}; " + "; ".join(checked)
+        + (f". Wrong on {len(wrong)}/{len(stamps)}: {wrong}. An offset-bearing stamp reads a real"
+           " loss as still inside the window, and one inside the window as a missed deadline, so"
+           " the spelling of a caller-supplied timestamp decides coverage."
+           if wrong else ". Every spelling agreed with the instant it denotes.")
+    )
+
+
+@probe("P1-2 an omission cannot be cleared by the acting party",
+       "a self-reported 'I did it' with no independent evidence must not erase a loss")
+def p1_2(root: Path):
+    """``performed`` is a caller-supplied bool and ``evidence_ref`` a free string.
+
+    Setting ``performed=True`` skips the omission branch entirely; what is left
+    compares description, merchant and amount, and a cancellation obligation is
+    amount 0, so the caller's own echo of the approved action is a MATCH.
+    """
+    verdict = _p1_review(observed_at="2026-10-11T12:30:00Z", performed=True,
+                         evidence_ref="agent-says-done")
+    honest = _p1_review(observed_at="2026-10-11T12:30:00Z", performed=False)
+    # Either the loss stands, or the claim reads incomplete for want of evidence
+    # that the cancellation happened. What it must not do is settle as "the user
+    # approved this" on the acting party's word.
+    holds = bool(verdict["covered"]) or verdict["outcome_state"] == "UNKNOWN/INCOMPLETE"
+    return holds, (
+        f"same missed deadline, performed=True with a fabricated evidence_ref ->"
+        f" covered={verdict['covered']} claim={verdict['claim']}"
+        f" state={verdict['outcome_state']}; performed=False -> covered={honest['covered']}"
+        f" claim={honest['claim']}."
+        + ("" if holds else " The party that failed to act sets the flag that decides whether it"
+           " failed to act, and no evidence is required to back the positive claim - the A1/SA8"
+           " self-assertion defect, on the outcome side.")
+    )
+
+
+@probe("P1-3 coverage needs money that cannot be got back",
+       "an omission still inside the cancellation window is not yet a loss, approved or not")
+def p1_3(root: Path):
+    """The SKIPPED/UNANSWERED branch returns before the deadline is consulted.
+
+    Section 2 of the ruling defines the covered event as money the user cannot
+    get back. A missing approval is a serious record defect, but on its own it
+    does not make a refundable deposit unrecoverable.
+    """
+    inside = _p1_review(answer=ANSWER_SKIPPED, observed_at="2026-10-10T18:00:00Z")
+    past = _p1_review(answer=ANSWER_SKIPPED, observed_at="2026-10-11T12:30:00Z")
+    holds = not inside["covered"] and bool(past["covered"])
+    return holds, (
+        f"unanswered check, omission still inside the window -> covered={inside['covered']}"
+        f" claim={inside['claim']}; the same omission past the deadline ->"
+        f" covered={past['covered']} claim={past['claim']}."
+        + ("" if holds else " A deposit that is still fully refundable reads as a covered loss, so"
+           " coverage attaches to the missing approval rather than to unrecoverable money. The"
+           " past-deadline control on the right is what stops this row passing by always-covered.")
+    )
+
+
+@probe("P1-4 a missing observation fails closed",
+       "no timestamp is not evidence that the money is still recoverable")
+def p1_4(root: Path):
+    """``observed_at`` defaults to the empty string, which is falsy.
+
+    The deadline test collapses to False and the claim settles as "not yet a
+    loss" - a decided verdict reached from no observation at all. A8 already
+    requires the opposite on the capability path: absent evidence reads
+    UNKNOWN/INCOMPLETE, never as a settled state.
+    """
+    verdict = _p1_review(observed_at="")
+    holds = verdict["outcome_state"] == "UNKNOWN/INCOMPLETE"
+    return holds, (
+        f"observed_at='' -> state={verdict['outcome_state']} claim={verdict['claim']}"
+        f" covered={verdict['covered']}."
+        + ("" if holds else " Nothing was observed and the claim still settled on a side. Same"
+           " requirement as A8, other path.")
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4]
 
 
 def main() -> int:
