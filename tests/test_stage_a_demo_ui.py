@@ -4,6 +4,7 @@ from pathlib import Path
 
 from stage_a_demo.core import EvidenceStore
 from stage_a_demo.activation import NO_COVERAGE_STATEMENT
+from stage_a_demo.approval import build_issuer
 from stage_a_demo.ui import (
     BACKEND_CASES,
     FIXTURES,
@@ -28,7 +29,7 @@ class StageADemoUITests(unittest.TestCase):
         """Approve first when the case executes; read-only fixtures need no grant."""
         if name not in BACKEND_CASES:
             return receipt_fixture(name, self.db_path)
-        grant = approve_case(name, self.db_path)["grant"]
+        grant = approve_case(name, self.db_path, issuer=build_issuer("test-only-approval-secret"))["grant"]
         return execute_case(name, self.db_path, grant)
 
     def test_happy_path_and_demo_labels_are_rendered(self):

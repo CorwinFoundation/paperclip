@@ -25,23 +25,54 @@ class Mandate:
 
 
 class ApprovalVerifier:
-    """Execution-side capability: verifies approvals and has no minting API."""
+    """Execution-side capability. Holds only one-way digests of human approvals.
 
-    def __init__(self, secret: str = "stage-a-human-demo-secret") -> None:
-        self._secret = secret
+    This class never receives the approval secret. Its state is ``sha256(token)``
+    per approved mandate, which is not invertible, so a caller that obtains a
+    verifier still cannot produce a token any verifier accepts. Constructing one
+    requires explicit grants; there is no default. BEAAA-34389 defect 1.
+    """
+
+    def __init__(self, grants: dict[str, str]) -> None:
+        if not isinstance(grants, dict):
+            raise TypeError("ApprovalVerifier requires an explicit grant mapping")
+        self._grants = dict(grants)
+
+    @classmethod
+    def for_recorded_approval(cls, mandate: Mandate, approval_token: str) -> "ApprovalVerifier":
+        """Rebuild the verifying half from an approval this server already recorded."""
+        return cls({_mandate_fingerprint(mandate): hashlib.sha256(approval_token.encode()).hexdigest()})
 
     def verify(self, mandate: Mandate, token: str) -> bool:
-        return secrets.compare_digest(_approval_digest(self._secret, mandate), token)
+        expected = self._grants.get(_mandate_fingerprint(mandate))
+        if expected is None:
+            return False
+        return secrets.compare_digest(expected, hashlib.sha256(token.encode()).hexdigest())
 
 
 class HumanApprovalIssuer:
-    """Human-side demo seam. Never pass this capability to an agent or adapter."""
+    """Human-side minting capability. Start-up wiring only.
 
-    def __init__(self, secret: str = "stage-a-human-demo-secret") -> None:
+    The secret is injected from outside the execution path. There is no literal
+    default: constructing this without a secret is an error, not a fallback.
+    ``stage_a_demo.approval`` is the only supported construction site.
+    """
+
+    def __init__(self, secret: str) -> None:
+        if not isinstance(secret, str) or not secret:
+            raise ValueError(
+                "HumanApprovalIssuer requires a non-empty injected approval secret; there is no default"
+            )
         self._secret = secret
 
     def approve(self, mandate: Mandate) -> tuple[str, ApprovalVerifier]:
-        return _approval_digest(self._secret, mandate), ApprovalVerifier(self._secret)
+        token = _approval_digest(self._secret, mandate)
+        return token, ApprovalVerifier.for_recorded_approval(mandate, token)
+
+
+def _mandate_fingerprint(mandate: Mandate) -> str:
+    body = json.dumps(asdict(mandate), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(f"mandate:{body}".encode()).hexdigest()
 
 
 def _approval_digest(secret: str, mandate: Mandate) -> str:

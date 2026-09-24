@@ -1,7 +1,9 @@
+import inspect
 import tempfile
 import unittest
 from pathlib import Path
 
+from stage_a_demo import core
 from stage_a_demo.core import ApprovalVerifier, EvidenceStore, HumanApprovalIssuer, Mandate, SyntheticMerchantAdapter
 
 
@@ -9,7 +11,7 @@ class StageADemoTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "evidence.sqlite3"
-        self.human = HumanApprovalIssuer()
+        self.human = HumanApprovalIssuer("test-only-approval-secret")
         self.merchant = SyntheticMerchantAdapter()
 
     def tearDown(self):
@@ -60,13 +62,46 @@ class StageADemoTests(unittest.TestCase):
         self.assertEqual(1, merchant.calls)
 
     def test_execution_callers_cannot_mint_or_obtain_human_capability(self):
+        """BEAAA-34389 defect 1. Asserts capability, not attribute names.
+
+        The previous version checked hasattr(verifier, "mint") and three similar
+        shape assertions. It could not fail while a caller could compute a valid
+        token, which is exactly what the Founder gate probe found at 91e72738.
+        """
         mandate = Mandate("m-c1", "SKU-1", 100)
         token, verifier = self.human.approve(mandate)
         self.assertIsInstance(verifier, ApprovalVerifier)
-        self.assertFalse(hasattr(verifier, "mint"))
-        self.assertFalse(hasattr(verifier, "approve"))
-        self.assertFalse(hasattr(self.merchant, "approval_issuer"))
         self.assertTrue(verifier.verify(mandate, token))
+
+        # Neither half can be constructed without explicit key material.
+        with self.assertRaises(TypeError):
+            HumanApprovalIssuer()
+        with self.assertRaises(TypeError):
+            ApprovalVerifier()
+        with self.assertRaises(ValueError):
+            HumanApprovalIssuer("")
+
+        # The retired shared default is gone from the module.
+        self.assertNotIn("stage-a-human-demo-secret", inspect.getsource(core))
+
+        # Holding the verifier confers no minting ability: nothing it carries
+        # reconstructs an issuer whose tokens it accepts.
+        for value in vars(verifier).values():
+            candidates = [value] if isinstance(value, str) else []
+            if isinstance(value, dict):
+                candidates = [k for k in value if isinstance(k, str)] + [
+                    v for v in value.values() if isinstance(v, str)
+                ]
+            for candidate in candidates:
+                self.assertFalse(verifier.verify(mandate, HumanApprovalIssuer(candidate).approve(mandate)[0]))
+
+        # A guessed key does not mint either.
+        for guess in ("stage-a-human-demo-secret", "secret", "demo"):
+            self.assertFalse(verifier.verify(mandate, HumanApprovalIssuer(guess).approve(mandate)[0]))
+            self.assertFalse(verifier.verify(mandate, core._approval_digest(guess, mandate)))
+
+        # An approval is bound to its own mandate and does not carry to another.
+        self.assertFalse(verifier.verify(Mandate("m-other", "SKU-9", 900), token))
 
     def test_missing_independent_evidence_never_succeeds(self):
         packet = self.record(EvidenceStore(self.path), evidence=False)
@@ -81,7 +116,7 @@ class StageADemoTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             store.record_case(case_id="bad", mandate=mandate, approval_token="agent-minted",
                 asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="bad",
-                approval_verifier=ApprovalVerifier(), merchant=self.merchant)
+                approval_verifier=self.human.approve(mandate)[1], merchant=self.merchant)
 
 
 if __name__ == "__main__":

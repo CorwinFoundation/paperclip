@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from stage_a_demo.core import EvidenceStore, SyntheticMerchantAdapter
+from stage_a_demo import ui
+from stage_a_demo.approval import build_issuer
 from stage_a_demo.ui import ApprovalRequired, CaseNotExecuted, approve_case, execute_case, make_handler, receipt_fixture
 
 
@@ -19,7 +21,7 @@ class StageADemoApprovalGateTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "ui.sqlite3"
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.db_path))
+        self.server = ui.build_server("127.0.0.1", 0, self.db_path)
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -131,7 +133,7 @@ class StageADemoApprovalGateTests(unittest.TestCase):
         with self.assertRaises(ApprovalRequired):
             execute_case("correct", self.db_path, None)
         with self.assertRaises(ApprovalRequired):
-            approve_case("denied", self.db_path)
+            approve_case("denied", self.db_path, issuer=build_issuer("test-only-approval-secret"))
         self.assertEqual((0, 0), self.ledger())
 
 

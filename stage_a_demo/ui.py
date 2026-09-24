@@ -13,10 +13,10 @@ from .activation import (
     referral_disclosure,
     surface_protection_state,
 )
+from .approval import build_issuer
 from .core import (
     ApprovalVerifier,
     EvidenceStore,
-    HumanApprovalIssuer,
     Mandate,
     SyntheticMerchantAdapter,
 )
@@ -100,18 +100,27 @@ def _mandate_for(case: str) -> Mandate:
     return Mandate(f"mandate-{case}-v1", mandate_sku, mandate_amount)
 
 
-def approve_case(case: str, db_path: str | Path, origin: str = "approval-step") -> dict[str, object]:
-    """The human approval step, and the only holder of HumanApprovalIssuer.
+def approve_case(
+    case: str,
+    db_path: str | Path,
+    origin: str = "approval-step",
+    issuer: object | None = None,
+) -> dict[str, object]:
+    """The human approval step, and the only place a signing capability appears.
 
-    Nothing on the read or execution path can reach this function, so the
-    server can never mint the approval evidence it later requires.
+    The issuer is built once at start-up from an injected secret and handed in;
+    this function does not construct one, and nothing on the read or execution
+    path can reach it. The server therefore cannot mint the approval evidence
+    the execution path later requires. BEAAA-34389 defect 1.
     """
+    if issuer is None:
+        raise ApprovalRequired("no human approval capability is wired into this server")
     if case not in BACKEND_CASES:
         raise ApprovalRequired(f"{case} is a display-only fixture and cannot be approved")
     if origin not in APPROVAL_ORIGINS:
         raise ApprovalRequired(f"unknown approval origin: {origin}")
     mandate = _mandate_for(case)
-    approval_token, _verifier = HumanApprovalIssuer().approve(mandate)
+    approval_token, _verifier = issuer.approve(mandate)
     grant_id = f"grant-{secrets.token_hex(8)}"
     store = EvidenceStore(db_path)
     try:
@@ -142,7 +151,9 @@ def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str,
             asserted_sku=asserted_sku,
             asserted_amount_cents=asserted_amount,
             idempotency_key=idem,
-            approval_verifier=ApprovalVerifier(),
+            approval_verifier=ApprovalVerifier.for_recorded_approval(
+                approval["mandate"], approval["approval_token"]
+            ),
             merchant=SyntheticMerchantAdapter(),
             independent_evidence=has_evidence,
         )
@@ -231,6 +242,8 @@ document.querySelector('#primary').addEventListener('click',next);document.query
 
 class DemoHandler(BaseHTTPRequestHandler):
     db_path: str | Path
+    # Built once at start-up. Reachable only from the /api/approve route below.
+    approval_issuer: object | None = None
 
     def _send_json(self, payload: dict[str, object], status: int = 200) -> None:
         body = json.dumps(payload).encode()
@@ -282,7 +295,14 @@ class DemoHandler(BaseHTTPRequestHandler):
             payload = self._read_json()
             case = str(payload.get("case", ""))
             if parsed.path == "/api/approve":
-                self._send_json(approve_case(case, self.db_path, str(payload.get("origin", "approval-step"))))
+                self._send_json(
+                    approve_case(
+                        case,
+                        self.db_path,
+                        str(payload.get("origin", "approval-step")),
+                        issuer=self.approval_issuer,
+                    )
+                )
                 return
             if parsed.path == "/api/receipt":
                 grant = payload.get("grant")
@@ -300,12 +320,23 @@ class DemoHandler(BaseHTTPRequestHandler):
         return
 
 
-def make_handler(db_path: str | Path) -> type[DemoHandler]:
+def make_handler(db_path: str | Path, issuer: object | None = None) -> type[DemoHandler]:
     class ConfiguredDemoHandler(DemoHandler):
         pass
 
+    ConfiguredDemoHandler.approval_issuer = issuer
+
     ConfiguredDemoHandler.db_path = db_path
     return ConfiguredDemoHandler
+
+
+def build_server(host: str, port: int, db_path: str | Path) -> ThreadingHTTPServer:
+    """Single wiring path shared by main() and the tests.
+
+    The signing capability is built here, at start-up, from a secret injected
+    from outside the execution path, and is reachable only from /api/approve.
+    """
+    return ThreadingHTTPServer((host, port), make_handler(db_path, build_issuer()))
 
 
 def main() -> None:
@@ -314,7 +345,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8788)
     parser.add_argument("--db", default="stage-a-demo-ui.sqlite3")
     args = parser.parse_args()
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(args.db))
+    server = build_server(args.host, args.port, args.db)
     print(f"Stage A demo: http://{args.host}:{args.port} (database: {args.db})")
     server.serve_forever()
 

@@ -4,7 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from .core import EvidenceStore, HumanApprovalIssuer, Mandate, SyntheticMerchantAdapter
+from .approval import build_issuer
+from .core import EvidenceStore, Mandate, SyntheticMerchantAdapter
 
 
 def main() -> None:
@@ -13,7 +14,9 @@ def main() -> None:
     args = parser.parse_args()
     path = Path(args.db)
     store = EvidenceStore(path)
-    human = HumanApprovalIssuer()
+    # Start-up wiring: the signing capability is built here, once, from an
+    # injected secret, and never inside the per-case execution loop below.
+    human = build_issuer()
     merchant = SyntheticMerchantAdapter()
     cases = [
         ("correct", Mandate("m-correct", "SKU-1", 1200), "SKU-1", 1200, True, "idem-correct"),

@@ -60,6 +60,14 @@ class CountingMerchant(SyntheticMerchantAdapter):
         return super().purchase(**kwargs)
 
 
+_HUMAN_APPROVAL_SECRET = "abuse-harness-human-side-secret"
+
+
+def _human() -> HumanApprovalIssuer:
+    """The human side of the seam, with an explicit key. There is no default."""
+    return HumanApprovalIssuer(_HUMAN_APPROVAL_SECRET)
+
+
 def _store(root: Path) -> EvidenceStore:
     return EvidenceStore(root / "evidence.sqlite3")
 
@@ -67,14 +75,24 @@ def _store(root: Path) -> EvidenceStore:
 @probe("A1 agent-self-approval", "an execution-side caller cannot mint a token the verifier accepts")
 def a1(root: Path):
     mandate = Mandate("m-a1", "SKU-1", 100)
-    # The agent never receives the human's issuer. It builds its own.
-    forged, forged_verifier = HumanApprovalIssuer().approve(mandate)
-    accepted_by_independent_verifier = ApprovalVerifier().verify(mandate, forged)
+    # The human approves once. The execution path receives only this verifier.
+    human_token, human_verifier = _human().approve(mandate)
+
+    # The agent never receives the human's issuer. It cannot build a default one
+    # any more, so it has to choose its own key material.
+    try:
+        HumanApprovalIssuer()
+        default_construction = "constructed with no key"
+    except TypeError:
+        default_construction = "refused: no default key"
+    forged = HumanApprovalIssuer("agent-chosen-secret").approve(mandate)[0]
+    accepted_by_human_verifier = human_verifier.verify(mandate, forged)
+
     store = _store(root)
     try:
         packet = store.record_case(
             case_id="a1", mandate=mandate, approval_token=forged, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a1", approval_verifier=ApprovalVerifier(),
+            asserted_amount_cents=100, idempotency_key="a1", approval_verifier=human_verifier,
             merchant=SyntheticMerchantAdapter(),
         )
         executed = packet["status"]
@@ -82,19 +100,24 @@ def a1(root: Path):
         executed = f"refused: {exc}"
     finally:
         store.close()
-    holds = not accepted_by_independent_verifier and str(executed).startswith("refused")
+    holds = (
+        default_construction.startswith("refused")
+        and not accepted_by_human_verifier
+        and str(executed).startswith("refused")
+    )
     return holds, (
-        f"agent-constructed HumanApprovalIssuer() minted a token; independent ApprovalVerifier()"
-        f" accepted={accepted_by_independent_verifier}; record_case -> {executed}"
-        f" (both classes default to the same shared secret, so the human/execution split is"
-        f" nominal, not cryptographic)"
+        f"HumanApprovalIssuer() with no key -> {default_construction};"
+        f" agent-minted token accepted by the human's verifier={accepted_by_human_verifier};"
+        f" record_case -> {executed}"
+        f" (the verifier holds sha256 of the human's token, never the key, so holding it"
+        f" confers no ability to mint)"
     )
 
 
 @probe("A2 mandate replay", "one human approval authorises at most one execution")
 def a2(root: Path):
     mandate = Mandate("m-a2", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
     try:
@@ -132,7 +155,7 @@ def a3(root: Path):
 @probe("A4 over-mandate execution", "an assertion outside the mandate must not reach the merchant")
 def a4(root: Path):
     mandate = Mandate("m-a4", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
     try:
@@ -157,7 +180,7 @@ def a5(root: Path):
     store = _store(root)
     try:
         first = Mandate("m-a5-real", "SKU-1", 100)
-        t1, v1 = HumanApprovalIssuer().approve(first)
+        t1, v1 = _human().approve(first)
         before = store.record_case(
             case_id="a5", mandate=first, approval_token=t1, asserted_sku="SKU-1",
             asserted_amount_cents=100, idempotency_key="a5-one",
@@ -165,7 +188,7 @@ def a5(root: Path):
         )
         # Same case_id, different mandate, fresh idempotency key.
         second = Mandate("m-a5-rewritten", "SKU-COVER-UP", 1)
-        t2, v2 = HumanApprovalIssuer().approve(second)
+        t2, v2 = _human().approve(second)
         store.record_case(
             case_id="a5", mandate=second, approval_token=t2, asserted_sku="SKU-COVER-UP",
             asserted_amount_cents=1, idempotency_key="a5-two",
@@ -188,7 +211,7 @@ def a5(root: Path):
 @probe("A6 duplicate events", "a retried idempotency key executes exactly once")
 def a6(root: Path):
     mandate = Mandate("m-a6", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
     kwargs = dict(
@@ -210,7 +233,7 @@ def a6(root: Path):
 @probe("A7 concurrent reservations", "racing callers on one key reserve the limit once")
 def a7(root: Path):
     mandate = Mandate("m-a7", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     path = root / "evidence.sqlite3"
     EvidenceStore(path).close()  # create schema once, then race separate connections
@@ -250,7 +273,7 @@ def a7(root: Path):
 @probe("A8 missing evidence fails closed", "no independent evidence must never read as verified")
 def a8(root: Path):
     mandate = Mandate("m-a8", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         packet = store.record_case(
@@ -280,7 +303,7 @@ def a9(root: Path):
     )
     tenant_aware = {p for p in params if "tenant" in p or "account" in p or "owner" in p}
     mandate = Mandate("m-a9", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         store.record_case(
@@ -306,7 +329,7 @@ def a9(root: Path):
 @probe("A10 coverage not inferred from a receipt", "protection state comes only from the activation gate")
 def a10(root: Path):
     mandate = Mandate("m-a10", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         packet = store.record_case(
@@ -327,7 +350,7 @@ def a10(root: Path):
 @probe("A11 private receipt redaction", "a private receipt carries no shareable approval secret")
 def a11(root: Path):
     mandate = Mandate("m-a11", "SKU-1", 100)
-    token, verifier = HumanApprovalIssuer().approve(mandate)
+    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         packet = store.record_case(

@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from stage_a_demo.approval import build_issuer
 from stage_a_demo.core import (
     EvidenceStore,
     HumanApprovalIssuer,
@@ -111,7 +112,9 @@ def run_task(
     if not intent.supported():
         raise ValueError(f"unsupported task type: {intent.task_type}")
 
-    human = human or HumanApprovalIssuer()
+    # The signing capability is injected by the caller, or built once here from
+    # an injected secret. It is never derived from the task being authorised.
+    human = human or build_issuer()
     merchant = merchant or SyntheticMerchantAdapter()
     status = status or pilot_status(registry=registry)
 
