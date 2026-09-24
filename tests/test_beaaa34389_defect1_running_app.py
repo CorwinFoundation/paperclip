@@ -8,6 +8,25 @@ the same wiring `python3 -m stage_a_demo.ui` uses.
 
 It also covers the entrypoint: nothing in the suite imported `__main__`, so
 `python3 -m stage_a_demo` could regress to a TypeError over a green suite.
+
+Non-regression guard for the Addendum 2 receipt rewrite (BEAAA-34389). When the
+approval receipt becomes the evidence root, this file is what proves the
+BEAAA-35331 narrowing survived it. The invariant as the code actually implements
+it, which is not the same as the PR #626 shape:
+
+* No authorisation-shaped argument crosses into execution. `record_case` takes a
+  `grant_id`; it does not take a mandate, a token, a verifier, an issuer or a
+  secret, and it takes no `**kwargs` that could carry one.
+* The verifier is *not* injected at `EvidenceStore` construction. `__init__`
+  takes a path only. `record_case` consumes the approvals row itself, re-checks
+  `origin` against `APPROVAL_ORIGINS` at consume time, and rebuilds the verifier
+  internally from the recorded token.
+* SA4 through SA7 fail closed, and SA8 with them: a token is bound to its grant
+  id, so a genuine token replayed under a second row is not attested.
+
+A receipt object may be the evidence root without ever being an argument to
+`record_case`. If a change needs one of these assertions relaxed, that is a
+ruling, not a refactor.
 """
 
 from __future__ import annotations
@@ -208,6 +227,14 @@ class RunningAppSelfApprovalTests(unittest.TestCase):
         self.assertEqual(set(), params & {"approval_token", "approval_verifier", "mandate", "issuer", "secret"})
         exec_params = set(inspect.signature(ui.execute_case).parameters)
         self.assertEqual(set(), exec_params & {"issuer", "approval_token", "approval_verifier"})
+        # A name-only check passes if the rewrite adds a catch-all, so pin the kinds too:
+        # no **kwargs on either entry point, and no verifier smuggled in at construction.
+        for fn in (EvidenceStore.record_case, ui.execute_case):
+            kinds = {p.kind for p in inspect.signature(fn).parameters.values()}
+            self.assertNotIn(inspect.Parameter.VAR_KEYWORD, kinds, fn.__qualname__)
+            self.assertNotIn(inspect.Parameter.VAR_POSITIONAL, kinds, fn.__qualname__)
+        init_params = set(inspect.signature(EvidenceStore.__init__).parameters)
+        self.assertEqual(set(), init_params & {"approval_verifier", "verifier", "issuer", "secret"})
 
     def test_the_approved_path_through_the_ui_still_executes(self):
         """The supported human path still works end to end after the narrowing."""
