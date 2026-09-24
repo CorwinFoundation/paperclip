@@ -20,6 +20,7 @@ from stage_a_demo.receipt import (
     ApprovalReceipt,
     ExecutedOutcome,
     ProposedAction,
+    UnorderableCancellationDeadline,
     amount_at_risk_cents,
     TermsNotCaptured,
     captured_deadline_instant,
@@ -118,44 +119,52 @@ class TheObligationFlagIsSelfAttested(unittest.TestCase):
         self.assertEqual(amount_at_risk_cents(purchase), 2_000)
 
 
-class AnUnorderableDeadlineIsOurDefect(unittest.TestCase):
-    """S2-5. A deadline captured without a zone is a capture defect, and a
-    capture defect of ours never resolves against the user."""
+class AnUnorderableDeadlineIsRefusedAtCapture(unittest.TestCase):
+    """S2-5, re-pointed by BEAAA-35480. A deadline captured without a zone was
+    read at UTC and flagged as our defect. That reading is right at one offset
+    and wrong across the rest of UTC+14..UTC-12, and no claim-time rule is right
+    everywhere in that band, so the residual closes where it is made: capture
+    refuses a deadline it cannot order."""
 
-    def test_zone_less_deadline_is_named_at_capture(self):
-        self.assertEqual(action(cancellation_deadline="2026-10-11T12:00:00").deadline_capture_defect,
-                         "cancellation_deadline_not_orderable")
-        self.assertIsNone(action().deadline_capture_defect)
+    def test_zone_less_deadline_is_refused_at_capture(self):
+        with self.assertRaises(UnorderableCancellationDeadline):
+            action(cancellation_deadline="2026-10-11T12:00:00")
 
-    def test_plainly_past_observation_still_settles_the_loss(self):
-        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
-                       outcome(observed_at="2026-10-11T23:00:00Z"))
-        self.assertEqual(claim["claim"], CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE)
-        self.assertTrue(claim["covered"])
-        self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])
-
-    def test_an_observation_before_the_deadline_as_written_is_not_a_loss(self):
-        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
-                       outcome(observed_at="2026-10-10T21:00:00Z"))
-        self.assertFalse(claim["covered"])
-
-    def test_the_deadline_is_read_as_written_and_not_shifted_earlier(self):
-        """BEAAA-34396 R1. Reading a zone-less deadline at the earliest instant
-        it could denote turned a fourteen-hour band before the captured stamp
-        into covered losses, on bookings still inside their window."""
-        self.assertEqual(captured_deadline_instant("2026-10-11T12:00:00").isoformat(),
-                         "2026-10-11T12:00:00+00:00")
-        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
-                       outcome(observed_at="2026-10-11T00:00:00Z"))
-        self.assertFalse(claim["covered"])
-        self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])
-
-    def test_a_deadline_that_is_prose_is_never_guessed_into_an_instant(self):
+    def test_a_deadline_that_is_prose_is_refused_and_an_offset_does_not_rescue_it(self):
         self.assertIsNone(captured_deadline_instant("before the end of the week"))
-        claim = settle(action(cancellation_deadline="before the end of the week"),
-                       outcome(observed_at="2026-10-11T23:00:00Z"))
-        self.assertEqual(claim["claim"], CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION)
-        self.assertFalse(claim["covered"])
+        with self.assertRaises(UnorderableCancellationDeadline):
+            action(cancellation_deadline="before the end of the week")
+        with self.assertRaises(UnorderableCancellationDeadline):
+            action(cancellation_deadline="before the end of the week",
+                   cancellation_deadline_utc_offset_minutes=0,
+                   cancellation_deadline_offset_evidence_ref="terms-ester-offset")
+
+    def test_an_offset_without_an_evidence_ref_is_the_same_guess(self):
+        with self.assertRaises(UnorderableCancellationDeadline):
+            action(cancellation_deadline="2026-10-11T12:00:00",
+                   cancellation_deadline_utc_offset_minutes=-480)
+
+    def test_a_local_time_deadline_with_its_captured_offset_is_accepted(self):
+        local = action(cancellation_deadline="2026-10-11T12:00:00",
+                       cancellation_deadline_utc_offset_minutes=-480,
+                       cancellation_deadline_offset_evidence_ref="terms-ester-local-time")
+        self.assertIsNone(local.deadline_capture_defect)
+        self.assertEqual(local.deadline_instant.isoformat(), "2026-10-11T12:00:00-08:00")
+
+    def test_the_captured_offset_orders_the_deadline_against_an_observation(self):
+        local = action(cancellation_deadline="2026-10-11T12:00:00",
+                       cancellation_deadline_utc_offset_minutes=-480,
+                       cancellation_deadline_offset_evidence_ref="terms-ester-local-time")
+        past = settle(local, outcome(observed_at="2026-10-11T20:30:00Z"))
+        self.assertEqual(past["claim"], CLAIM_COVERED_MISSED_CANCELLATION_DEADLINE)
+        self.assertTrue(past["covered"])
+        self.assertNotIn("cancellation_deadline_not_orderable", past["record_defects"])
+        inside = settle(local, outcome(observed_at="2026-10-11T19:30:00Z"))
+        self.assertFalse(inside["covered"])
+
+    def test_a_zoned_deadline_is_unaffected(self):
+        self.assertIsNone(action().deadline_capture_defect)
+        self.assertEqual(action().deadline_instant.isoformat(), "2026-10-11T12:00:00+00:00")
 
     def test_a_zone_less_observation_is_still_nothing_observed(self):
         claim = settle(action(), outcome(observed_at="2026-10-11T13:30:00"))
@@ -180,12 +189,33 @@ class AClaimStringMatchesItsOwnVerdict(unittest.TestCase):
                 self.assertEqual(claim["claim"].startswith("covered_"), claim["covered"])
 
 
+def legacy_action(deadline, **kw):
+    """An action carrying a deadline the constructor would refuse today.
+
+    BEAAA-35480 moved the refusal to ``ProposedAction.__post_init__``, so a bad
+    deadline can no longer be built through the public path. Rows written
+    before that guard still exist, and they still have to settle. This forces
+    the field past the guard the way a row read back off disk does, which is
+    the only way left to reach the claim-time branch that reads them.
+    """
+    built = action(**kw)
+    object.__setattr__(built, "cancellation_deadline", deadline)
+    return built
+
+
 class TermsAreValidatedAtCapture(unittest.TestCase):
     """BEAAA-34396 R1, closed at source. Leaning an un-zoned deadline either way
     at claim time is a guess about a field BackBond captured itself: read early
     it pays on refundable money, read late it denies a real loss. The deadline
     is ordered against money, so a record that cannot order it is refused
-    before anything executes, while the agent can still re-read the terms."""
+    before anything executes, while the agent can still re-read the terms.
+
+    BEAAA-35480 moved that refusal from this gate to the constructor, because
+    the gate is only one of the doors: every ``ProposedAction`` in the tree is
+    built directly, so a library caller reached the claim path without passing
+    here. The gate keeps its own check for a row that arrives already built,
+    and the claim path keeps its defensive reading for rows written before any
+    of this existed."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -198,34 +228,42 @@ class TermsAreValidatedAtCapture(unittest.TestCase):
         self.assertIsNotNone(self.store.receipt_for("t-ok"))
 
     def test_an_un_zoned_deadline_cannot_be_recorded(self):
-        bad = make_receipt(action(cancellation_deadline="2026-10-11T12:00:00"), "t-unzoned")
+        """The refusal moved one step earlier, so the receipt is now
+        unbuildable rather than unrecordable. ``UnorderableCancellationDeadline``
+        is a ``TermsNotCaptured``, so the capture contract this asserted is the
+        same contract; only the door it is enforced at changed."""
         with self.assertRaises(TermsNotCaptured) as caught:
-            self.store.record_pre_execution_receipt(bad)
-        self.assertIn("cancellation_deadline_not_orderable", str(caught.exception))
+            action(cancellation_deadline="2026-10-11T12:00:00")
+        self.assertIn("cancellation_deadline_utc_offset_minutes", str(caught.exception))
 
     def test_a_prose_deadline_cannot_be_recorded_either(self):
         """R6's branch and R1's branch are now the same branch, refused in the
         same place, instead of one settling incomplete while the other pays."""
-        bad = make_receipt(action(cancellation_deadline="before the end of the week"), "t-prose")
         with self.assertRaises(TermsNotCaptured):
-            self.store.record_pre_execution_receipt(bad)
+            action(cancellation_deadline="before the end of the week")
 
-    def test_a_refused_capture_writes_nothing(self):
-        bad = make_receipt(action(cancellation_deadline="2026-10-11T12:00:00"), "t-nothing")
-        with self.assertRaises(TermsNotCaptured):
+    def test_the_gate_still_refuses_a_record_that_arrives_already_built(self):
+        """The constructor is the first door, not the only one. A row rebuilt
+        off disk, or any future ingestion that bypasses ``__post_init__``, is
+        still turned away here before anything executes."""
+        bad = make_receipt(legacy_action("2026-10-11T12:00:00"), "t-unzoned")
+        with self.assertRaises(TermsNotCaptured) as caught:
             self.store.record_pre_execution_receipt(bad)
-        self.assertIsNone(self.store.receipt_for("t-nothing"))
+        self.assertIn("cancellation_deadline_not_orderable", str(caught.exception))
+        self.assertIsNone(self.store.receipt_for("t-unzoned"))
 
     def test_capture_defects_are_listed_on_the_action(self):
+        """Nothing buildable carries the defect any more. It survives only on a
+        row that got past the constructor, which is exactly what the claim path
+        still has to read."""
         self.assertEqual(action().capture_defects(), [])
-        self.assertEqual(action(cancellation_deadline="2026-10-11T12:00:00").capture_defects(),
+        self.assertEqual(legacy_action("2026-10-11T12:00:00").capture_defects(),
                          ["cancellation_deadline_not_orderable"])
 
     def test_the_claim_path_stays_defensive_for_records_already_written(self):
-        """The gate is new; rows written before it exist, and a library caller
-        can still build an action directly. Those still settle, read as written,
-        with the capture defect on the claim."""
-        claim = settle(action(cancellation_deadline="2026-10-11T12:00:00"),
+        """The gate is new; rows written before it exist. Those still settle,
+        read as written, with the capture defect on the claim."""
+        claim = settle(legacy_action("2026-10-11T12:00:00"),
                        outcome(observed_at="2026-10-11T23:00:00Z"))
         self.assertTrue(claim["covered"])
         self.assertIn("cancellation_deadline_not_orderable", claim["record_defects"])

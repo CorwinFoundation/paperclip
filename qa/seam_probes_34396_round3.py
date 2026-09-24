@@ -6,7 +6,8 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from stage_a_demo.receipt import (ProposedAction, ExecutedOutcome, ApprovalReceipt, ANSWER_OK,
-                                  PERFORMANCE_COUNTERPARTY_CONFIRMED, review_claim)
+                                  PERFORMANCE_COUNTERPARTY_CONFIRMED, review_claim,
+                                  UnorderableCancellationDeadline)
 
 DESC = "Cancel the Ester booking before the refund deadline"
 def action(**kw):
@@ -49,18 +50,27 @@ r = settle(action(), outcome(performed=True, evidence_ref="cancellation-confirme
 probe("T4", "a counterparty-confirmed performance closes the obligation without a claim",
       r["covered"] is False and "missed" not in r["claim"], f"claim={r['claim']} covered={r['covered']}")
 
-# T5. Residual. A deadline captured without a zone is read at UTC. Inside the band the
-# stamp actually spans, the verdict is a guess either way; the only trace is a defect flag.
+# T5. Closed at capture by BEAAA-35480. An un-zoned deadline cannot be ordered in
+# any reading that is right across UTC+14..UTC-12, so ProposedAction refuses to hold
+# one. A merchant's local-time terms stay legitimate: capture the offset it was read
+# in, with its own evidence ref, and the deadline orders like any zoned stamp.
 UNZONED = "2026-10-11T12:00:00"
-late = settle(action(cancellation_deadline=UNZONED), outcome(observed_at="2026-10-11T12:30:00Z"))
-early = settle(action(cancellation_deadline=UNZONED), outcome(observed_at="2026-10-11T11:30:00Z"))
-probe("T5", "an un-zoned deadline decides money on a guessed zone, flagged only in record_defects",
-      False,
-      f"30min after the UTC reading -> {late['claim']}/{late['covered']}; 30min before -> {early['claim']}/"
-      f"{early['covered']}; both carry {late['record_defects']}. True offset unknown across UTC+14..UTC-12, "
-      f"so either verdict can be wrong. Close it at capture, not at claim.")
+try:
+    action(cancellation_deadline=UNZONED)
+    refused = False
+except UnorderableCancellationDeadline:
+    refused = True
+resolved = action(cancellation_deadline=UNZONED, cancellation_deadline_utc_offset_minutes=-480,
+                  cancellation_deadline_offset_evidence_ref="terms-ester-local-time")
+late = settle(resolved, outcome(observed_at="2026-10-11T20:30:00Z"))
+early = settle(resolved, outcome(observed_at="2026-10-11T19:30:00Z"))
+probe("T5", "an un-zoned deadline never reaches the claim path, and one captured with its offset orders correctly",
+      refused and late["covered"] is True and early["covered"] is False and not late["record_defects"],
+      f"capture refused the un-zoned stamp={refused}; {UNZONED} at -08:00 = "
+      f"{resolved.deadline_instant.isoformat()}; 30min after -> {late['claim']}/{late['covered']}; "
+      f"30min before -> {early['claim']}/{early['covered']}; defects={late['record_defects']}")
 
 w = sum(1 for r in ROWS if r[1] == "HOLDS")
-print(f"BEAAA-34396 round-three probes @ 751f4875  probes={len(ROWS)} holds={w} fails={len(ROWS)-w}\n")
+print(f"BEAAA-34396 round-three probes (re-pointed for BEAAA-35480)  probes={len(ROWS)} holds={w} fails={len(ROWS)-w}\n")
 for pid, st, req, detail in ROWS:
     print(f"{pid} {st}: {req}\n      {detail}")

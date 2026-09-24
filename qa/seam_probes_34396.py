@@ -6,7 +6,8 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from stage_a_demo.receipt import (ProposedAction, ExecutedOutcome, ApprovalReceipt,
-                                  ANSWER_OK, review_claim, amount_at_risk_cents)
+                                  ANSWER_OK, review_claim, amount_at_risk_cents,
+                                  UnorderableCancellationDeadline)
 
 DEADLINE = "2026-10-11T12:00:00Z"
 DEPOSIT = 40_000
@@ -77,9 +78,23 @@ claim, cov, _ = settle(action(), outcome(observed_at="2026-10-11T13:30:00"))
 probe("S2-4", "a zone-less observation cannot be ordered and never settles a denial",
       cov is False and "no_orderable_observation" in claim, f"claim={claim} covered={cov}")
 
-claim, cov, _ = settle(action(cancellation_deadline="2026-10-11T12:00:00"), outcome(observed_at="2026-10-11T23:00:00Z"))
-probe("S2-5", "a zone-less DEADLINE with a plainly-past observation must not read as an unsettleable non-loss",
-      cov is True, f"zone-less deadline -> claim={claim} covered={cov}")
+# Re-pointed for BEAAA-35480. The zone-less deadline no longer reaches the claim
+# path at all: capture refuses it, because no claim-time reading of a stamp whose
+# true offset spans UTC+14..UTC-12 is right everywhere inside that band. What S2-5
+# asserted about settlement is now asserted about the constructor, plus the
+# legitimate case - a merchant's local-time terms captured with their offset.
+try:
+    action(cancellation_deadline="2026-10-11T12:00:00")
+    refused = False
+except UnorderableCancellationDeadline:
+    refused = True
+claim, cov, _ = settle(action(cancellation_deadline="2026-10-11T12:00:00",
+                              cancellation_deadline_utc_offset_minutes=0,
+                              cancellation_deadline_offset_evidence_ref="terms-ester-offset"),
+                       outcome(observed_at="2026-10-11T23:00:00Z"))
+probe("S2-5", "a zone-less DEADLINE is refused at capture, and the same deadline with its captured offset settles a plainly-past observation as a loss",
+      refused and cov is True,
+      f"capture refused the un-zoned stamp={refused}; with captured offset +00:00 -> claim={claim} covered={cov}")
 
 claim, cov, _ = settle(action(), outcome(observed_at=DEADLINE))
 probe("S2-6", "an observation exactly at the deadline instant is not yet past it",

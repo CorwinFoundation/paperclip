@@ -71,6 +71,25 @@ class TermsNotCaptured(ValueError):
     """
 
 
+class UnorderableCancellationDeadline(TermsNotCaptured):
+    """A captured deadline that cannot be ordered against an observation.
+
+    A zone-less stamp denotes a different instant in every offset, so a claim
+    built on it decides money on a zone nobody wrote down. BEAAA-35480: the
+    residual closes at capture rather than at claim time, because no claim-time
+    rule settles the whole UTC+14..UTC-12 band without contradicting the plain
+    reading of the text somewhere inside it. Either the stamp carries a zone,
+    or the capture also records the offset it was read in, with its own
+    evidence ref. A merchant's local-time terms are legitimate; a zone nobody
+    wrote down is not.
+
+    A subclass of :class:`TermsNotCaptured` because it is the same refusal one
+    step earlier: the receipt-writing gate already turns unusable terms away,
+    and this moves the same judgement to the constructor, where nothing can
+    route around it.
+    """
+
+
 @dataclass(frozen=True)
 class ProposedAction:
     """The action exactly as the agent put it to the user, with its terms.
@@ -94,10 +113,58 @@ class ProposedAction:
     cancellation_deadline: str | None = None
     terms_captured_at: str | None = None
     terms_evidence_ref: str = ""
+    # The offset the captured deadline was read in, when the stamp itself does
+    # not carry one - a merchant whose terms are stated in local time. Recorded
+    # at capture with its own evidence ref, so the resolved instant rests on
+    # something we read rather than on a guess made later.
+    cancellation_deadline_utc_offset_minutes: int | None = None
+    cancellation_deadline_offset_evidence_ref: str = ""
     # True when the task the user approved is an obligation to act by the
     # deadline — cancel this booking, not buy this thing. Missing the deadline
     # on one of these is itself the loss.
     is_cancellation_obligation: bool = False
+
+    def __post_init__(self) -> None:
+        """Refuse a captured deadline we could never order.
+
+        The check is at construction because that is the only place the fix
+        holds: once an un-orderable deadline is on a receipt, every claim-time
+        reading of it either invents an offset or drops a real loss. Silence
+        here is not neutral - it is the guess.
+        """
+        if not self.cancellation_deadline:
+            return
+        if self.deadline_instant is not None:
+            return
+        raise UnorderableCancellationDeadline(
+            f"cancellation_deadline {self.cancellation_deadline!r} cannot be ordered: "
+            "capture a stamp carrying a UTC offset, or record "
+            "cancellation_deadline_utc_offset_minutes with "
+            "cancellation_deadline_offset_evidence_ref"
+        )
+
+    @property
+    def deadline_instant(self) -> datetime | None:
+        """The instant the captured deadline denotes, or None if unorderable.
+
+        A zoned stamp denotes itself. A zone-less one denotes an instant only
+        once the capture also says which offset it was read in and off what
+        evidence; an offset asserted with no evidence ref is the same guess the
+        constructor refuses.
+        """
+        zoned = observation_instant(self.cancellation_deadline)
+        if zoned is not None:
+            return zoned
+        if not self.cancellation_deadline:
+            return None
+        offset = self.cancellation_deadline_utc_offset_minutes
+        if offset is None or not self.cancellation_deadline_offset_evidence_ref:
+            return None
+        try:
+            parsed = datetime.fromisoformat(self.cancellation_deadline)
+        except ValueError:
+            return None
+        return parsed.replace(tzinfo=timezone(timedelta(minutes=offset)))
 
     @property
     def is_delegated_cancellation(self) -> bool:
@@ -127,7 +194,7 @@ class ProposedAction:
         """
         if not self.cancellation_deadline:
             return None
-        if observation_instant(self.cancellation_deadline) is not None:
+        if self.deadline_instant is not None:
             return None
         return "cancellation_deadline_not_orderable"
 
@@ -464,7 +531,7 @@ def _review_cancellation_obligation(
         return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
                 "claim": CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION, "covered": False}
 
-    deadline = observation_instant(action.cancellation_deadline)
+    deadline = action.deadline_instant
     if deadline is None:
         # We have an orderable observation and a deadline with no zone. That is
         # our capture defect, not a missing observation: it is recorded as ours
