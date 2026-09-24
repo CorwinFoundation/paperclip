@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from . import MODE
+from .receipt import (
+    ApprovalReceipt,
+    CheckNotApproved,
+    ExecutedOutcome,
+    ProposedAction,
+    review_claim,
+)
 from .activation import (
     default_program_version,
     default_registry,
@@ -209,6 +216,10 @@ class EvidenceStore:
             CREATE TABLE IF NOT EXISTS approvals (
               grant_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, mandate_json TEXT NOT NULL,
               approval_token TEXT NOT NULL, origin TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS approval_receipts (
+              task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
+              outcome_json TEXT, executed_at TEXT
             );
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
@@ -421,6 +432,111 @@ class EvidenceStore:
             )
         return cur.rowcount == 1
 
+    # ------------------------------------------------------------------
+    # Path 1: the approval receipt is the evidence root (Addendum 2).
+    #
+    # BackBond records the user's answer to the agent's pre-execution check and
+    # matches the outcome against the action the user approved. It does not
+    # judge the action against a mandate of its own, because the mandate lives
+    # in the user's chat with their agent and moves there.
+    # ------------------------------------------------------------------
+
+    def record_pre_execution_receipt(self, receipt: ApprovalReceipt) -> str:
+        """Write the receipt before anything executes. Returns the task id.
+
+        The ordering is the requirement, not a detail: enforce before the side
+        effect, never reconcile after it. A row already present for this task is
+        not overwritten — a receipt that could be rewritten after the fact is
+        not evidence.
+        """
+        if not isinstance(receipt, ApprovalReceipt):
+            raise TypeError("record_pre_execution_receipt takes an ApprovalReceipt")
+        try:
+            with self.db:
+                self.db.execute(
+                    "INSERT INTO approval_receipts (task_id, receipt_json, recorded_at) VALUES (?, ?, ?)",
+                    (receipt.task_id, receipt.to_json(), receipt.recorded_at),
+                )
+        except sqlite3.IntegrityError:
+            raise PermissionError(f"task {receipt.task_id} already has a receipt; receipts are not rewritten")
+        return receipt.task_id
+
+    def receipt_for(self, task_id: str) -> ApprovalReceipt | None:
+        row = self.db.execute(
+            "SELECT receipt_json FROM approval_receipts WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return _receipt_from_json(row["receipt_json"])
+
+    def execute_approved_task(
+        self, task_id: str, *, merchant: SyntheticMerchantAdapter, executed_at: str
+    ) -> dict[str, Any]:
+        """Run the task the user approved, and only that.
+
+        Refuses when there is no receipt, or the receipt does not carry an OK.
+        A STOP, a skipped check and an unanswered check all refuse here, and all
+        three stay on the record for the claim. Absence is never approval.
+        """
+        receipt = self.receipt_for(task_id)
+        if receipt is None:
+            raise CheckNotApproved(f"no pre-execution receipt for task {task_id}")
+        if not receipt.approved:
+            raise CheckNotApproved(
+                f"task {task_id} was not approved: the recorded answer is {receipt.answer}"
+            )
+        action = receipt.proposed_action
+        evidence = merchant.purchase(
+            case_id=task_id, sku=action.description, amount_cents=action.amount_cents
+        )
+        outcome = ExecutedOutcome(
+            description=action.description,
+            merchant=action.merchant,
+            amount_cents=action.amount_cents,
+            evidence_ref=str(evidence.get("merchant_event_id", "")),
+        )
+        return self.record_outcome(task_id, outcome, executed_at=executed_at)
+
+    def record_outcome(
+        self, task_id: str, outcome: ExecutedOutcome | None, *, executed_at: str
+    ) -> dict[str, Any]:
+        """Record what independent evidence says happened, and review the claim.
+
+        Called for tasks this process executed and for tasks that executed
+        without an approval, which is exactly the case a claim has to be able to
+        reconstruct.
+        """
+        if self.receipt_for(task_id) is None:
+            raise CheckNotApproved(f"no pre-execution receipt for task {task_id}")
+        with self.db:
+            self.db.execute(
+                "UPDATE approval_receipts SET outcome_json = ?, executed_at = ? WHERE task_id = ?",
+                (json.dumps(asdict(outcome), sort_keys=True) if outcome else None, executed_at, task_id),
+            )
+        return self.claim_for(task_id)
+
+    def claim_for(self, task_id: str) -> dict[str, Any]:
+        """Reconstruct the claim for one task from its stored receipt alone."""
+        row = self.db.execute(
+            "SELECT receipt_json, outcome_json, executed_at FROM approval_receipts WHERE task_id = ?",
+            (task_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(task_id)
+        receipt = _receipt_from_json(row["receipt_json"])
+        outcome = None
+        if row["outcome_json"]:
+            outcome = ExecutedOutcome(**json.loads(row["outcome_json"]))
+        review = review_claim(receipt, outcome)
+        review["executed_at"] = row["executed_at"]
+        review["mode"] = MODE
+        # Protection status still comes only from the activation gate; a receipt
+        # never implies coverage (BEAAA-35133 A, harness A10/A12).
+        review["protection"] = surface_protection_state(
+            "receipt", default_program_version(), default_registry()
+        )
+        return review
+
     def approval_count(self, case_id: str) -> int:
         return self.db.execute("SELECT COUNT(*) FROM approvals WHERE case_id = ?", (case_id,)).fetchone()[0]
 
@@ -481,3 +597,11 @@ class EvidenceStore:
 
     def close(self) -> None:
         self.db.close()
+
+
+def _receipt_from_json(raw: str) -> ApprovalReceipt:
+    """Rebuild a receipt from its stored bytes. The store is the only writer."""
+    payload = json.loads(raw)
+    payload.pop("amount_at_risk_cents", None)
+    payload["proposed_action"] = ProposedAction(**payload["proposed_action"])
+    return ApprovalReceipt(**payload)

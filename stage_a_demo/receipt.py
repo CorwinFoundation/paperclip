@@ -1,0 +1,227 @@
+"""Path 1 approval receipt: BackBond records the user's approval.
+
+Founder ruling 2026-09-24, Addendum 2 on BEAAA-34387. The earlier Stage A model
+judged an agent's action against a mandate BackBond held its own copy of. The
+2026-09-24 01:07-01:41Z Instinct run showed why that cannot work: the mandate
+lives in the user's chat with their agent and moves there, so at 01:35 BackBond
+issued a STOP against a plan the user had already changed in a conversation
+BackBond cannot see. A copy of a mandate we do not own generates false STOPs.
+
+So BackBond does not judge the action. It records the approval:
+
+1. The agent's pre-execution check goes to the **user**, BackBond copied, carrying
+   the exact action, price, deposit and cancellation terms.
+2. The **user** answers OK or STOP on a thread BackBond can see. One approval.
+3. Before execution BackBond writes an :class:`ApprovalReceipt`. That receipt is
+   the evidence root for the task.
+4. Outcome matching runs against the approved action on the receipt, never
+   against a mandate.
+5. Exactly two judgments are written, and both are warnings, never vetoes:
+   "this is non-recoverable" and "this is over your limit".
+6. A skipped or unanswered check is recorded as such and changes the claim
+   outcome. Absence is never read as approval.
+
+Stage A is fixture-based: no mailbox, no connector, no real agent.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+# What the user answered on the thread BackBond can see.
+ANSWER_OK = "OK"
+ANSWER_STOP = "STOP"
+# The agent executed without ever asking.
+ANSWER_SKIPPED = "SKIPPED"
+# The check was sent and no answer arrived before execution.
+ANSWER_UNANSWERED = "UNANSWERED"
+
+ANSWERS = (ANSWER_OK, ANSWER_STOP, ANSWER_SKIPPED, ANSWER_UNANSWERED)
+
+# The only two judgments BackBond makes. Both are advisory.
+WARNING_NON_RECOVERABLE = "non_recoverable"
+WARNING_OVER_LIMIT = "over_limit"
+
+# Where the receipt's evidence came from. Stage A has one value; the Path 1
+# pilot adds the mailbox thread. Kept explicit so a demo row can never be read
+# as though it had come off a real thread.
+EVIDENCE_SOURCE_FIXTURE = "fixture"
+
+
+class CheckNotApproved(PermissionError):
+    """Execution was attempted without an OK on the receipt."""
+
+
+@dataclass(frozen=True)
+class ProposedAction:
+    """The action exactly as the agent put it to the user, with its terms.
+
+    ``non_recoverable`` and ``deposit_cents`` come off the cancellation terms
+    captured at delegation time, not reconstructed afterwards. That is the whole
+    point of capturing them in the pre-execution check.
+    """
+
+    description: str
+    merchant: str
+    amount_cents: int
+    deposit_cents: int = 0
+    cancellation_terms: str = ""
+    non_recoverable: bool = False
+
+    def matches(self, outcome: "ExecutedOutcome") -> bool:
+        """Did the thing that happened match the thing the user approved?"""
+        return (
+            self.description == outcome.description
+            and self.merchant == outcome.merchant
+            and self.amount_cents == outcome.amount_cents
+        )
+
+    def differences(self, outcome: "ExecutedOutcome") -> list[dict[str, Any]]:
+        deltas = []
+        for field_name in ("description", "merchant", "amount_cents"):
+            approved = getattr(self, field_name)
+            happened = getattr(outcome, field_name)
+            if approved != happened:
+                deltas.append({"field": field_name, "approved": approved, "outcome": happened})
+        return deltas
+
+
+@dataclass(frozen=True)
+class ExecutedOutcome:
+    """What actually happened, read off independent evidence.
+
+    In Stage A this is a fixture standing in for a confirmation email or a card
+    charge. ``independent`` is False when no third-party evidence arrived, which
+    is never the same as a match.
+    """
+
+    description: str
+    merchant: str
+    amount_cents: int
+    evidence_ref: str = ""
+    independent: bool = True
+
+
+def assess_warnings(action: ProposedAction, limit_cents: int | None) -> list[str]:
+    """The two advisory judgments, in a fixed order. Never a veto.
+
+    Returning a warning does not stop anything: it is written onto the receipt
+    so the user sees it next to their own OK, and so a later claim can show what
+    they were told at the time.
+    """
+    warnings: list[str] = []
+    if action.non_recoverable or action.deposit_cents > 0:
+        warnings.append(WARNING_NON_RECOVERABLE)
+    if limit_cents is not None and action.amount_cents > limit_cents:
+        warnings.append(WARNING_OVER_LIMIT)
+    return warnings
+
+
+def amount_at_risk_cents(action: ProposedAction) -> int:
+    """What the user cannot get back if this goes wrong.
+
+    The deposit when the booking is otherwise refundable; the whole amount when
+    the terms say non-recoverable. Section 2 of the ruling: a covered event is
+    money the user cannot get back.
+    """
+    if action.non_recoverable:
+        return action.amount_cents
+    return min(action.deposit_cents, action.amount_cents)
+
+
+@dataclass(frozen=True)
+class ApprovalReceipt:
+    """The evidence root for one task. Written before execution or it is not a receipt."""
+
+    receipt_id: str
+    task_id: str
+    proposed_action: ProposedAction
+    answer: str
+    checked_at: str
+    answered_at: str | None
+    recorded_at: str
+    evidence_source: str = EVIDENCE_SOURCE_FIXTURE
+    limit_cents: int | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.answer not in ANSWERS:
+            raise ValueError(f"unknown answer: {self.answer!r}")
+        if self.answer in (ANSWER_OK, ANSWER_STOP) and not self.answered_at:
+            raise ValueError(f"an answer of {self.answer} needs the time it was given")
+        if self.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED) and self.answered_at:
+            raise ValueError(f"{self.answer} means no answer was given, so it cannot carry a time")
+
+    @property
+    def approved(self) -> bool:
+        """Only an explicit OK is an approval. Absence never is."""
+        return self.answer == ANSWER_OK
+
+    @property
+    def amount_at_risk_cents(self) -> int:
+        return amount_at_risk_cents(self.proposed_action)
+
+    def to_json(self) -> str:
+        payload = asdict(self)
+        payload["amount_at_risk_cents"] = self.amount_at_risk_cents
+        return json.dumps(payload, sort_keys=True)
+
+
+# Claim outcomes.
+CLAIM_NOT_COVERED_APPROVED = "not_covered_user_approved_this"
+CLAIM_COVERED_OUTCOME_DIFFERS = "covered_outcome_differs_from_approved"
+CLAIM_COVERED_EXECUTED_AGAINST_STOP = "covered_executed_against_stop"
+CLAIM_COVERED_NO_APPROVAL = "covered_executed_without_an_answered_check"
+CLAIM_INCOMPLETE_NO_INDEPENDENT_EVIDENCE = "incomplete_no_independent_evidence"
+
+
+def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> dict[str, Any]:
+    """Reconstruct a claim from the receipt and what independent evidence says.
+
+    Reads only the receipt and the outcome. It never consults a mandate, and it
+    never infers an approval that is not written down.
+    """
+    base: dict[str, Any] = {
+        "task_id": receipt.task_id,
+        "receipt_id": receipt.receipt_id,
+        "answer": receipt.answer,
+        "warnings": list(receipt.warnings),
+        "amount_at_risk_cents": receipt.amount_at_risk_cents,
+        "evidence_source": receipt.evidence_source,
+        "approved_action": asdict(receipt.proposed_action),
+        "outcome": asdict(outcome) if outcome else None,
+        "differences": [],
+    }
+
+    if outcome is None or not outcome.independent:
+        # No third-party evidence is never a match and never a denial.
+        return {**base, "outcome_state": "UNKNOWN/INCOMPLETE",
+                "claim": CLAIM_INCOMPLETE_NO_INDEPENDENT_EVIDENCE, "covered": False}
+
+    differences = receipt.proposed_action.differences(outcome)
+    matched = not differences
+    base["differences"] = differences
+
+    if receipt.answer == ANSWER_STOP:
+        # The user said STOP and it happened anyway. Nothing the outcome says
+        # makes that approved.
+        return {**base, "outcome_state": "MATCH" if matched else "MISMATCH",
+                "claim": CLAIM_COVERED_EXECUTED_AGAINST_STOP,
+                "covered": receipt.amount_at_risk_cents > 0}
+
+    if receipt.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED):
+        return {**base, "outcome_state": "MATCH" if matched else "MISMATCH",
+                "claim": CLAIM_COVERED_NO_APPROVAL,
+                "covered": receipt.amount_at_risk_cents > 0}
+
+    if matched:
+        # Approved X, X happened. Not a covered event, and the record shows the
+        # user approved it.
+        return {**base, "outcome_state": "MATCH", "claim": CLAIM_NOT_COVERED_APPROVED, "covered": False}
+
+    # Approved X, Y happened. Covered only to the extent the money is
+    # unrecoverable (ruling section 2).
+    return {**base, "outcome_state": "MISMATCH", "claim": CLAIM_COVERED_OUTCOME_DIFFERS,
+            "covered": receipt.amount_at_risk_cents > 0}
