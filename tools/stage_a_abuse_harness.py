@@ -1,19 +1,3 @@
-"""NOTE (BEAAA-35331): this report-only harness is written against the
-pre-BEAAA-35331 ``record_case(approval_token=..., approval_verifier=...)``
-signature and no longer runs end to end. The abuse cases it described are
-now asserted as capability tests in
-``tests/test_beaaa34389_defect1_running_app.py``. Left in place as the
-record of what was measured, not as a runnable instrument.
-
-Do not point QA at ``qa_probe_9d1d851e.py``: it is written against the old
-``issuer.approve() -> (token, verifier)`` signature and stops at line 44 with
-``ValueError: too many values to unpack``. ``qa_probe_beaaa35331.py`` at the
-repo root is the implementer's convenience port of the same SA1-SA8 cases to
-the ``grant_id`` boundary; it is not independent evidence. Rebuilding this
-harness against the new boundary is QA's, per the BEAAA-35331 ruling of
-2026-09-24T12:27Z.
-"""
-
 """Independent abuse-case harness for the Stage A purchase-protection seams (BEAAA-34396).
 
 Report-only. Every probe drives the real stage_a_demo code from the outside and
@@ -26,17 +10,22 @@ Run:  python tools/stage_a_abuse_harness.py
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 import json
 import sqlite3
 import sys
 import tempfile
 import threading
+from dataclasses import asdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from stage_a_demo import approval as approval_mod  # noqa: E402
+from stage_a_demo.approval import approve_mandate  # noqa: E402
 from stage_a_demo.core import (  # noqa: E402
+    APPROVAL_ORIGINS,
     ApprovalVerifier,
     EvidenceStore,
     HumanApprovalIssuer,
@@ -76,79 +65,114 @@ class CountingMerchant(SyntheticMerchantAdapter):
         return super().purchase(**kwargs)
 
 
-_HUMAN_APPROVAL_SECRET = "abuse-harness-human-side-secret"
+def _approved(store: EvidenceStore, case_id: str, mandate: Mandate) -> str:
+    """Drive the human approval step and return the only thing that crosses.
+
+    Ported at BEAAA-35331 (`7ccdb0ae`): the execution path no longer receives a
+    token or a verifier, so every probe below asks the human-side module for a
+    grant id the same way the running app does.
+    """
+    return approve_mandate(store, case_id=case_id, mandate=mandate)
 
 
-def _human() -> HumanApprovalIssuer:
-    """The human side of the seam, with an explicit key. There is no default."""
-    return HumanApprovalIssuer(_HUMAN_APPROVAL_SECRET)
+def _stored_token(store: EvidenceStore, grant_id: str) -> str:
+    """Read the recorded token back out of the DB, for leak checks only."""
+    row = store.db.execute(
+        "SELECT approval_token FROM approvals WHERE grant_id = ?", (grant_id,)
+    ).fetchone()
+    return row["approval_token"]
 
 
 def _store(root: Path) -> EvidenceStore:
     return EvidenceStore(root / "evidence.sqlite3")
 
 
-@probe("A1 agent-self-approval", "an execution-side caller cannot mint a token the verifier accepts")
+@probe("A1 agent-self-approval", "an execution-side caller cannot mint an approval the server accepts")
 def a1(root: Path):
     mandate = Mandate("m-a1", "SKU-1", 100)
-    # The human approves once. The execution path receives only this verifier.
-    human_token, human_verifier = _human().approve(mandate)
-
-    # The agent never receives the human's issuer. It cannot build a default one
-    # any more, so it has to choose its own key material.
+    # No default key, and no key at all, are both refused.
     try:
         HumanApprovalIssuer()
         default_construction = "constructed with no key"
     except TypeError:
         default_construction = "refused: no default key"
-    forged = HumanApprovalIssuer("agent-chosen-secret").approve(mandate)[0]
-    accepted_by_human_verifier = human_verifier.verify(mandate, forged)
+
+    # The agent picks its own key and mints a token for the mandate it wants.
+    agent_issuer = HumanApprovalIssuer("agent-chosen-secret")
+    grant_id = "grant-agent-minted"
+    forged = agent_issuer.approve(mandate, grant_id)
 
     store = _store(root)
+    merchant = CountingMerchant()
     try:
-        packet = store.record_case(
-            case_id="a1", mandate=mandate, approval_token=forged, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a1", approval_verifier=human_verifier,
-            merchant=SyntheticMerchantAdapter(),
-        )
-        executed = packet["status"]
-    except PermissionError as exc:
-        executed = f"refused: {exc}"
+        # Route 1: the private writer, presenting the agent's own issuer.
+        try:
+            store._record_approval(
+                grant_id=grant_id, case_id="a1", mandate=mandate, approval_token=forged,
+                origin=APPROVAL_ORIGINS[0], issuer=agent_issuer,
+            )
+            writer = "WROTE an approvals row"
+        except Exception as exc:
+            writer = f"refused: {type(exc).__name__}"
+
+        # Route 2: straight SQL, with an origin from the allowlist so the cheap
+        # check cannot mask the result.
+        with store.db:
+            store.db.execute(
+                "INSERT OR REPLACE INTO approvals (grant_id, case_id, mandate_json,"
+                " approval_token, origin) VALUES (?,?,?,?,?)",
+                (grant_id, "a1", json.dumps(asdict(mandate), sort_keys=True), forged,
+                 APPROVAL_ORIGINS[0]),
+            )
+        try:
+            packet = store.record_case(
+                case_id="a1", grant_id=grant_id, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="a1", merchant=merchant,
+            )
+            executed = f"status={packet['status']}"
+        except PermissionError as exc:
+            executed = f"refused: {exc}"
     finally:
         store.close()
     holds = (
         default_construction.startswith("refused")
-        and not accepted_by_human_verifier
+        and writer.startswith("refused")
         and str(executed).startswith("refused")
+        and not merchant.calls
     )
     return holds, (
         f"HumanApprovalIssuer() with no key -> {default_construction};"
-        f" agent-minted token accepted by the human's verifier={accepted_by_human_verifier};"
-        f" record_case -> {executed}"
-        f" (the verifier holds sha256 of the human's token, never the key, so holding it"
-        f" confers no ability to mint)"
+        f" _record_approval with the agent's own issuer -> {writer};"
+        f" raw-SQL row at origin={APPROVAL_ORIGINS[0]!r} then record_case -> {executed};"
+        f" merchant calls={len(merchant.calls)}."
+        f" The token has to be sha256(process secret:grant_id:mandate), so an agent-minted"
+        f" one fails attestation whatever route writes the row"
     )
 
 
 @probe("A2 mandate replay", "one human approval authorises at most one execution")
 def a2(root: Path):
     mandate = Mandate("m-a2", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
+    refusals: list[str] = []
     try:
-        for n in range(5):  # same approved mandate, fresh idempotency key each time
-            store.record_case(
-                case_id=f"a2-{n}", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-                asserted_amount_cents=100, idempotency_key=f"a2-{n}",
-                approval_verifier=verifier, merchant=merchant,
-            )
+        grant = _approved(store, "a2", mandate)
+        for n in range(5):  # one approval, fresh idempotency key each time
+            try:
+                store.record_case(
+                    case_id="a2", grant_id=grant, asserted_sku="SKU-1",
+                    asserted_amount_cents=100, idempotency_key=f"a2-{n}", merchant=merchant,
+                )
+            except PermissionError as exc:
+                refusals.append(str(exc))
     finally:
         store.close()
     return len(merchant.calls) <= 1, (
-        f"one approval of mandate m-a2 drove {len(merchant.calls)} merchant executions"
-        f" ({sum(c['amount_cents'] for c in merchant.calls)} cents total against a 100 cent"
-        f" mandate); the token carries no nonce, expiry or single-use record"
+        f"one approval of mandate m-a2 drove {len(merchant.calls)} merchant execution(s)"
+        f" ({sum(c['amount_cents'] for c in merchant.calls)} cents against a 100 cent mandate);"
+        f" attempts 2-5 refused with {sorted(set(refusals)) or 'nothing'}."
+        f" Single use now comes from consuming the grant row inside record_case"
     )
 
 
@@ -171,14 +195,13 @@ def a3(root: Path):
 @probe("A4 over-mandate execution", "an assertion outside the mandate must not reach the merchant")
 def a4(root: Path):
     mandate = Mandate("m-a4", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
     try:
+        grant = _approved(store, "a4", mandate)
         packet = store.record_case(
-            case_id="a4", mandate=mandate, approval_token=token, asserted_sku="SKU-PREMIUM",
-            asserted_amount_cents=999_900, idempotency_key="a4",
-            approval_verifier=verifier, merchant=merchant,
+            case_id="a4", grant_id=grant, asserted_sku="SKU-PREMIUM",
+            asserted_amount_cents=999_900, idempotency_key="a4", merchant=merchant,
         )
     finally:
         store.close()
@@ -196,19 +219,17 @@ def a5(root: Path):
     store = _store(root)
     try:
         first = Mandate("m-a5-real", "SKU-1", 100)
-        t1, v1 = _human().approve(first)
         before = store.record_case(
-            case_id="a5", mandate=first, approval_token=t1, asserted_sku="SKU-1",
+            case_id="a5", grant_id=_approved(store, "a5", first), asserted_sku="SKU-1",
             asserted_amount_cents=100, idempotency_key="a5-one",
-            approval_verifier=v1, merchant=SyntheticMerchantAdapter(),
+            merchant=SyntheticMerchantAdapter(),
         )
-        # Same case_id, different mandate, fresh idempotency key.
+        # Same case_id, different mandate, its own human approval, fresh key.
         second = Mandate("m-a5-rewritten", "SKU-COVER-UP", 1)
-        t2, v2 = _human().approve(second)
         store.record_case(
-            case_id="a5", mandate=second, approval_token=t2, asserted_sku="SKU-COVER-UP",
+            case_id="a5", grant_id=_approved(store, "a5", second), asserted_sku="SKU-COVER-UP",
             asserted_amount_cents=1, idempotency_key="a5-two",
-            approval_verifier=v2, merchant=SyntheticMerchantAdapter(),
+            merchant=SyntheticMerchantAdapter(),
         )
         after = store.packet("a5")
     finally:
@@ -227,32 +248,44 @@ def a5(root: Path):
 @probe("A6 duplicate events", "a retried idempotency key executes exactly once")
 def a6(root: Path):
     mandate = Mandate("m-a6", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     store = _store(root)
-    kwargs = dict(
-        case_id="a6", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-        asserted_amount_cents=100, idempotency_key="a6", approval_verifier=verifier,
-        merchant=merchant,
-    )
+    retries: list[str] = []
     try:
+        grant = _approved(store, "a6", mandate)
+        kwargs = dict(
+            case_id="a6", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a6", merchant=merchant,
+        )
         for _ in range(4):
-            store.record_case(**kwargs)
+            try:
+                store.record_case(**kwargs)
+                retries.append("packet")
+            except PermissionError as exc:
+                retries.append(f"{type(exc).__name__}: {exc}")
         count = store.execution_count("a6")
     finally:
         store.close()
     return count == 1 and len(merchant.calls) == 1, (
-        f"4 retries -> execution_count={count}, merchant calls={len(merchant.calls)}"
+        f"4 retries of one idempotency key -> execution_count={count},"
+        f" merchant calls={len(merchant.calls)}, outcomes={retries}."
+        f" Exactly-once holds at the merchant, but the retry no longer returns the"
+        f" idempotent packet: record_case consumes the grant before it looks at the"
+        f" idempotency key, so a client retrying a timed-out request gets a"
+        f" PermissionError rather than its receipt"
     )
 
 
 @probe("A7 concurrent reservations", "racing callers on one key reserve the limit once")
 def a7(root: Path):
     mandate = Mandate("m-a7", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     merchant = CountingMerchant()
     path = root / "evidence.sqlite3"
-    EvidenceStore(path).close()  # create schema once, then race separate connections
+    seed = EvidenceStore(path)  # create schema and one approval, then race connections
+    try:
+        grant = _approved(seed, "a7", mandate)
+    finally:
+        seed.close()
     errors: list[str] = []
     barrier = threading.Barrier(6)
 
@@ -261,9 +294,8 @@ def a7(root: Path):
         barrier.wait()
         try:
             store.record_case(
-                case_id="a7", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-                asserted_amount_cents=100, idempotency_key="a7", approval_verifier=verifier,
-                merchant=merchant,
+                case_id="a7", grant_id=grant, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="a7", merchant=merchant,
             )
         except Exception as exc:
             errors.append(f"{type(exc).__name__}: {exc}")
@@ -280,21 +312,25 @@ def a7(root: Path):
         count = store.execution_count("a7")
     finally:
         store.close()
-    return count == 1 and len(merchant.calls) <= 1 and not errors, (
+    unexpected = [e for e in errors if not e.startswith("PermissionError")]
+    return count == 1 and len(merchant.calls) <= 1 and not unexpected, (
         f"6 concurrent callers on key a7 -> execution rows={count},"
-        f" merchant calls={len(merchant.calls)}, raised={sorted(set(errors)) or 'none'}"
+        f" merchant calls={len(merchant.calls)}, raised={sorted(set(errors)) or 'none'}."
+        f" Predicate changed at BEAAA-35331: a losing racer is now REFUSED because the"
+        f" single-use grant is already spent, which is a correct outcome, so"
+        f" PermissionError no longer fails this probe. Anything else still does"
+        f" (unexpected={sorted(set(unexpected)) or 'none'})"
     )
 
 
 @probe("A8 missing evidence fails closed", "no independent evidence must never read as verified")
 def a8(root: Path):
     mandate = Mandate("m-a8", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         packet = store.record_case(
-            case_id="a8", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a8", approval_verifier=verifier,
+            case_id="a8", grant_id=_approved(store, "a8", mandate), asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a8",
             merchant=SyntheticMerchantAdapter(), independent_evidence=False,
         )
     finally:
@@ -319,12 +355,11 @@ def a9(root: Path):
     )
     tenant_aware = {p for p in params if "tenant" in p or "account" in p or "owner" in p}
     mandate = Mandate("m-a9", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         store.record_case(
-            case_id="tenant-a-case", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a9", approval_verifier=verifier,
+            case_id="tenant-a-case", grant_id=_approved(store, "tenant-a-case", mandate),
+            asserted_sku="SKU-1", asserted_amount_cents=100, idempotency_key="a9",
             merchant=SyntheticMerchantAdapter(),
         )
         # A second reader with no relationship to the writer reads the same file.
@@ -345,12 +380,11 @@ def a9(root: Path):
 @probe("A10 coverage not inferred from a receipt", "protection state comes only from the activation gate")
 def a10(root: Path):
     mandate = Mandate("m-a10", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
         packet = store.record_case(
-            case_id="a10", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a10", approval_verifier=verifier,
+            case_id="a10", grant_id=_approved(store, "a10", mandate), asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a10",
             merchant=SyntheticMerchantAdapter(),
         )
     finally:
@@ -366,12 +400,13 @@ def a10(root: Path):
 @probe("A11 private receipt redaction", "a private receipt carries no shareable approval secret")
 def a11(root: Path):
     mandate = Mandate("m-a11", "SKU-1", 100)
-    token, verifier = _human().approve(mandate)
     store = _store(root)
     try:
+        grant = _approved(store, "a11", mandate)
+        token = _stored_token(store, grant)
         packet = store.record_case(
-            case_id="a11", mandate=mandate, approval_token=token, asserted_sku="SKU-1",
-            asserted_amount_cents=100, idempotency_key="a11", approval_verifier=verifier,
+            case_id="a11", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a11",
             merchant=SyntheticMerchantAdapter(),
         )
         raw = json.dumps(packet, sort_keys=True)
@@ -396,55 +431,135 @@ def a11(root: Path):
     "a grant the execution path authored itself must not authorise an execution",
 )
 def sa8(root: Path):
-    """The hole that becomes load-bearing once SA7 rebuilds the verifier internally.
+    """The path that became load-bearing once SA7 rebuilt the verifier internally.
 
-    BEAAA-35331 removes ``approval_verifier`` from ``record_case`` and rebuilds it
-    inside from the consumed ``approvals`` row. That relocates the circularity
-    rather than breaking it: ``ApprovalVerifier.for_recorded_approval`` derives
-    the verifier from the stored token, so the row becomes the authority. This
-    probe drives the shape the execution path already has — ``ui.execute_case``
-    opens its own ``EvidenceStore`` (ui.py), and that class exposes
-    ``record_approval`` — and mints its own grant with no issuer and no secret.
+    Filed from `9d1d851e`, where it executed 999,900 cents off a row the
+    execution path wrote itself. Re-derived here against the BEAAA-35331 shape,
+    and deliberately using an origin FROM the allowlist: the origin check is the
+    cheap one, and letting it fire first would hide whether the attestation check
+    works at all.
     """
-    writer_reachable = hasattr(EvidenceStore, "record_approval")
+    writer_public = hasattr(EvidenceStore, "record_approval")
     agent_mandate = Mandate("m-sa8", "SKU-1", 100)
     merchant = CountingMerchant()
     store = _store(root)
     try:
-        # No issuer is constructed anywhere in this probe. The token is a literal
-        # the agent chose, and ``origin`` is copied from ui.APPROVAL_ORIGINS.
-        store.record_approval(
-            grant_id="grant-forged", case_id="sa8", mandate=agent_mandate,
-            approval_token="agent-chose-this", origin="approval-step",
-        )
-        row = store.consume_approval("grant-forged", "sa8")
-        consumed = row is not None
-        # Exactly how the prescribed shape will rebuild it, but inline so the
-        # probe runs against today's signature too.
-        rebuilt = ApprovalVerifier.for_recorded_approval(row["mandate"], row["approval_token"])
+        with store.db:
+            store.db.execute(
+                "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin)"
+                " VALUES (?,?,?,?,?)",
+                ("grant-forged", "sa8", json.dumps(asdict(agent_mandate), sort_keys=True),
+                 hashlib.sha256(b"agent-chose-this").hexdigest(), APPROVAL_ORIGINS[0]),
+            )
         try:
             packet = store.record_case(
-                case_id="sa8", mandate=row["mandate"], approval_token=row["approval_token"],
-                asserted_sku="SKU-1", asserted_amount_cents=999900, idempotency_key="sa8",
-                approval_verifier=rebuilt, merchant=merchant,
+                case_id="sa8", grant_id="grant-forged", asserted_sku="SKU-1",
+                asserted_amount_cents=999_900, idempotency_key="sa8", merchant=merchant,
             )
-            executed = packet["status"]
+            executed = f"status={packet['status']}"
         except PermissionError as exc:
             executed = f"refused: {exc}"
     finally:
         store.close()
-    reached_merchant = [c["amount_cents"] for c in merchant.calls]
-    return not reached_merchant, (
-        f"EvidenceStore exposes record_approval to the handle the execution path opens"
-        f"={writer_reachable}; self-authored grant consumed={consumed};"
-        f" origin 'approval-step' accepted with no issuer; record_case -> {executed};"
-        f" merchant amounts={reached_merchant} against a {agent_mandate.amount_cents} cent"
-        f" self-authored mandate (the verifier rebuilt from the stored row accepts the"
-        f" token that row was written with, so a DB write is an approval)"
+    return not merchant.calls, (
+        f"public record_approval still on EvidenceStore={writer_public};"
+        f" raw-SQL grant at origin={APPROVAL_ORIGINS[0]!r} -> record_case {executed};"
+        f" merchant amounts={[c['amount_cents'] for c in merchant.calls]}."
+        f" Closed by BEAAA-35331: the row is no longer the authority, the process-level"
+        f" issuer is, and its digest over (secret, grant_id, mandate) is not forgeable"
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, sa8]
+@probe(
+    "SA9 grant un-consume replay",
+    "a spent approval stays spent even against a caller that can write the DB",
+)
+def sa9(root: Path):
+    """Single use now rests on one mutable integer.
+
+    ``record_case`` consumes the grant by setting ``approvals.consumed = 1``, in
+    the same database the execution path writes its own cases to. SA8 is closed
+    because forging a token needs the process secret. Resetting a flag needs no
+    secret at all.
+    """
+    mandate = Mandate("m-sa9", "SKU-1", 100)
+    merchant = CountingMerchant()
+    store = _store(root)
+    try:
+        grant = _approved(store, "sa9", mandate)
+        first = store.record_case(
+            case_id="sa9", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="sa9-1", merchant=merchant,
+        )
+        with store.db:
+            store.db.execute("UPDATE approvals SET consumed = 0 WHERE grant_id = ?", (grant,))
+        try:
+            again = store.record_case(
+                case_id="sa9", grant_id=grant, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="sa9-2", merchant=merchant,
+            )
+            replayed = f"status={again['status']}"
+        except PermissionError as exc:
+            replayed = f"refused: {exc}"
+    finally:
+        store.close()
+    return len(merchant.calls) <= 1, (
+        f"first execution status={first['status']};"
+        f" after UPDATE approvals SET consumed=0 -> {replayed};"
+        f" merchant calls={len(merchant.calls)} amounts={[c['amount_cents'] for c in merchant.calls]}."
+        f" The token stays valid forever and single use is enforced by a flag the"
+        f" execution path can rewrite through the handle it already holds"
+    )
+
+
+@probe(
+    "SA10 signing capability isolation",
+    "the approval authority cannot be read or substituted from the execution path",
+)
+def sa10(root: Path):
+    """What an in-process demo can and cannot prove.
+
+    The key is not DERIVABLE: random per process, no literal anywhere, bound to
+    the grant id. It is still READABLE, because the human-side module and the
+    execution path are the same Python process. Recorded so the seam is not
+    described as isolation it does not yet have.
+    """
+    issuer = approval_mod._process_issuer()
+    secret = getattr(issuer, "_secret", None)
+    mandate = Mandate("m-sa10", "SKU-1", 100)
+    keep = approval_mod._PROCESS_ISSUER
+    substituted = False
+    try:
+        approval_mod._PROCESS_ISSUER = HumanApprovalIssuer("agent-substituted-authority")
+        store = _store(root)
+        merchant = CountingMerchant()
+        try:
+            grant = approve_mandate(
+                store, case_id="sa10", mandate=mandate,
+                issuer=HumanApprovalIssuer("agent-substituted-authority"),
+            )
+            store.record_case(
+                case_id="sa10", grant_id=grant, asserted_sku="SKU-1",
+                asserted_amount_cents=100, idempotency_key="sa10", merchant=merchant,
+            )
+            substituted = len(merchant.calls) == 1
+        except Exception:
+            substituted = False
+        finally:
+            store.close()
+    finally:
+        approval_mod._PROCESS_ISSUER = keep
+    return not substituted and secret is None, (
+        f"_process_issuer()._secret readable in-process={secret is not None}"
+        f" (len={len(secret or '')}); rebinding approval._PROCESS_ISSUER to an agent-chosen"
+        f" authority and approving through it executed={substituted}."
+        f" This is the boundary limit of the demo, not a regression in BEAAA-35331:"
+        f" Python offers no in-process capability boundary, so the approval authority is"
+        f" only enforceable once the human side sits behind a process boundary"
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, sa8, sa9, sa10]
 
 
 def main() -> int:

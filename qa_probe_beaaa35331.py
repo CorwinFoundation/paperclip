@@ -6,7 +6,8 @@ import hashlib, inspect, json, sqlite3, tempfile
 from stage_a_demo.core import (Mandate, ApprovalVerifier, HumanApprovalIssuer,
                                SyntheticMerchantAdapter, EvidenceStore, _mandate_fingerprint,
                                APPROVAL_ORIGINS)
-from stage_a_demo import approval as approval_mod, ui as ui_mod
+from stage_a_demo import approval as approval_mod
+from stage_a_demo import core as core_mod, ui as ui_mod
 
 R=[]
 def rec(k,v): R.append((k,v)); print(f"{k}: {v}")
@@ -67,12 +68,30 @@ def sa3(s):
 attempt("SA3_replay_stolen_digest_as_token", sa3, "REFUSED")
 
 # SA4 caller supplies its own verifier object
+# QA correction (BEAAA-34396 run 3): this probe used to pass the removed
+# mandate/approval_token/approval_verifier kwargs and record the resulting
+# TypeError as "REFUSED". An unexpected-keyword error is a signature mismatch,
+# not a refusal, and it would keep reporting REFUSED even if the parameter came
+# back with no checks behind it. Ask the question the label claims instead: can
+# an execution-side caller get a verifier that says yes, and does record_case
+# still take one?
+rec("SA4_record_case_accepts_a_verifier",
+    "approval_verifier" in inspect.signature(EvidenceStore.record_case).parameters)
 class Forged:
     def verify(self, mandate, token): return True
+for name, build in (("caller_constructor", lambda: ApprovalVerifier({}, capability=object())),
+                    ("stolen_module_private", lambda: core_mod._verifier_for_recorded_approval(BIG, "agent-chosen-token"))):
+    try:
+        v = build()
+        rec(f"SA4_{name}", f"CONSTRUCTED {type(v).__name__} <-- caller can build a verifier")
+    except Exception as e:
+        rec(f"SA4_{name}", f"REFUSED {type(e).__name__}: {e}")
 def sa4(s):
-    return s.record_case(case_id="sa", grant_id="g", mandate=BIG, approval_token="not-a-token",
-        asserted_sku=BIG.sku, asserted_amount_cents=BIG.amount_cents, idempotency_key="k-sa4",
-        approval_verifier=Forged(), merchant=SyntheticMerchantAdapter())
+    # A verifier that always says yes, offered by every name record_case might
+    # accept it under. Nothing authorisation-shaped may cross the boundary.
+    return s.record_case(case_id="sa", grant_id="g", asserted_sku=BIG.sku,
+        asserted_amount_cents=BIG.amount_cents, idempotency_key="k-sa4",
+        merchant=SyntheticMerchantAdapter(), **{"approval_verifier": Forged()})
 attempt("SA4_forged_verifier_object", sa4, "REFUSED")
 
 # SA5 public classmethod that rebuilt a verifier around a caller-chosen token
@@ -125,7 +144,9 @@ g_real = approval_mod.approve_mandate(s5, case_id="sa8", mandate=BIG)
 real_token = s5.db.execute("SELECT approval_token FROM approvals WHERE grant_id=?", (g_real,)).fetchone()[0]
 s5.db.execute("INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin) VALUES (?,?,?,?,?)",
               ("grant-sql", "sa8", json.dumps({"mandate_id": BIG.mandate_id, "sku": BIG.sku, "amount_cents": BIG.amount_cents}),
-               "agent-chosen-token", "agent-invented-origin"))
+               "agent-chosen-token", "approval-step"))  # QA correction: an
+# allowlisted origin. With "agent-invented-origin" this probe was refused by the
+# origin check before attestation ran, so it never tested the strong check.
 s5.db.commit()
 try:
     call(s5, "grant-sql", case="sa8", idem="k-sa8a"); rec("SA8a_raw_sql_forged_grant", "ACCEPTED <-- forged row executed")
