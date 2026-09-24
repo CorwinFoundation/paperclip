@@ -28,6 +28,9 @@ Seams:
 - `claims_review.source_links` separates mandate, human approval, agent assertion, and independent merchant evidence.
 - `HumanApprovalIssuer` stays on the human side of the seam. The execution path receives only an `ApprovalVerifier`, which has no minting or approval capability.
 - Consumer authorization is the immutable mandate plus approval token. Passive Monitor observation is not represented as authorization.
+- The HTTP surface splits the two capabilities. `POST /api/approve` is the human approval step and the only holder of `HumanApprovalIssuer`;
+  it returns a single-use grant. `POST /api/receipt` spends one grant and executes. `GET /api/receipt` reads a stored case and never
+  approves, executes, or writes; asking it for a case that no approved run produced returns `409 approval_required`.
 
 ## Protection activation gate (BEAAA-35012)
 

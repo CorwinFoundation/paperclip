@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -12,7 +13,13 @@ from .activation import (
     referral_disclosure,
     surface_protection_state,
 )
-from .core import EvidenceStore, HumanApprovalIssuer, Mandate, SyntheticMerchantAdapter
+from .core import (
+    ApprovalVerifier,
+    EvidenceStore,
+    HumanApprovalIssuer,
+    Mandate,
+    SyntheticMerchantAdapter,
+)
 
 
 FIXTURES = {
@@ -73,39 +80,100 @@ def invitation_transition(result_status: str, action: str) -> dict[str, object]:
     raise ValueError(f"unsupported invitation action: {action}")
 
 
-def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
-    status, title, provenance = FIXTURES.get(case, FIXTURES["error"])
-    packet = None
-    authoritative_executions = None
-    if case in BACKEND_CASES:
-        mandate_sku, mandate_amount, asserted_sku, asserted_amount, has_evidence, idem = BACKEND_CASES[case]
-        mandate = Mandate(f"mandate-{case}-v1", mandate_sku, mandate_amount)
-        approval_token, approval_verifier = HumanApprovalIssuer().approve(mandate)
-        store = EvidenceStore(db_path)
+class ApprovalRequired(Exception):
+    """A write-shaped step was reached without a human approval grant."""
+
+
+class CaseNotExecuted(Exception):
+    """A read-shaped request asked for a case that no approved run produced."""
+
+    def __init__(self, case: str) -> None:
+        super().__init__(f"{case} has no recorded execution; approve the mandate first")
+        self.case = case
+
+
+APPROVAL_ORIGINS = ("approval-step", "fixture-explorer")
+
+
+def _mandate_for(case: str) -> Mandate:
+    mandate_sku, mandate_amount = BACKEND_CASES[case][0], BACKEND_CASES[case][1]
+    return Mandate(f"mandate-{case}-v1", mandate_sku, mandate_amount)
+
+
+def approve_case(case: str, db_path: str | Path, origin: str = "approval-step") -> dict[str, object]:
+    """The human approval step, and the only holder of HumanApprovalIssuer.
+
+    Nothing on the read or execution path can reach this function, so the
+    server can never mint the approval evidence it later requires.
+    """
+    if case not in BACKEND_CASES:
+        raise ApprovalRequired(f"{case} is a display-only fixture and cannot be approved")
+    if origin not in APPROVAL_ORIGINS:
+        raise ApprovalRequired(f"unknown approval origin: {origin}")
+    mandate = _mandate_for(case)
+    approval_token, _verifier = HumanApprovalIssuer().approve(mandate)
+    grant_id = f"grant-{secrets.token_hex(8)}"
+    store = EvidenceStore(db_path)
+    try:
+        store.record_approval(
+            grant_id=grant_id, case_id=case, mandate=mandate, approval_token=approval_token, origin=origin
+        )
+    finally:
+        store.close()
+    return {"grant": grant_id, "case": case, "mandate_version": "v1", "origin": origin}
+
+
+def execute_case(case: str, db_path: str | Path, grant: str | None) -> dict[str, object]:
+    """Run one approved case. Holds only the verifying half of the capability."""
+    if case not in BACKEND_CASES:
+        return receipt_fixture(case, db_path)
+    if not grant:
+        raise ApprovalRequired(f"{case} needs an approval grant before it can execute")
+    store = EvidenceStore(db_path)
+    try:
+        approval = store.consume_approval(grant, case)
+        if approval is None:
+            raise ApprovalRequired(f"no unspent approval grant for {case}")
+        _, _, asserted_sku, asserted_amount, has_evidence, idem = BACKEND_CASES[case]
         kwargs = dict(
             case_id=case,
-            mandate=mandate,
-            approval_token=approval_token,
+            mandate=approval["mandate"],
+            approval_token=approval["approval_token"],
             asserted_sku=asserted_sku,
             asserted_amount_cents=asserted_amount,
             idempotency_key=idem,
-            approval_verifier=approval_verifier,
+            approval_verifier=ApprovalVerifier(),
             merchant=SyntheticMerchantAdapter(),
             independent_evidence=has_evidence,
         )
         store.record_case(**kwargs)
         if case == "duplicate":
             store.record_case(**kwargs)
-        authoritative_executions = store.execution_count(idem)
+    finally:
         store.close()
+    return receipt_fixture(case, db_path)
 
-        reopened = EvidenceStore(db_path)
-        packet = reopened.packet(case)
-        authoritative_executions = reopened.execution_count(idem)
-        reopened.close()
+
+def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
+    """Read one receipt. This path never approves, executes, or writes."""
+    status, title, provenance = FIXTURES.get(case, FIXTURES["error"])
+    packet = None
+    authoritative_executions = None
+    approved = False
+    if case in BACKEND_CASES:
+        idem = BACKEND_CASES[case][5]
+        store = EvidenceStore(db_path)
+        try:
+            packet = store.packet_or_none(case)
+            if packet is None:
+                raise CaseNotExecuted(case)
+            authoritative_executions = store.execution_count(idem)
+        finally:
+            store.close()
         status = str(packet["status"])
         title = FIXTURES[case][1]
         provenance = "Missing" if packet["sources"]["independent_merchant_evidence"] is None else "Verified event"
+        approved = packet["sources"]["approval"].get("source") == "human-approval"
     return {
         "mode": "Demo · not activated",
         "protection": protection_block("receipt"),
@@ -113,9 +181,12 @@ def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
         "case": case,
         "status": status,
         "title": title,
+        "approved": approved,
         "mandate": {"version": "v1", "item": "Desk lamp", "merchant": "Synthetic merchant", "quantity": 1, "maximum": "$48.00", "substitutions": "Ask me"},
         "evidence": [
-            {"label": "Human approval", "value": "Approved for mandate v1", "source": "Verified event"},
+            {"label": "Human approval", "value": "Approved for mandate v1", "source": "Verified event"}
+            if approved
+            else {"label": "Human approval", "value": "No approval recorded", "source": "Missing"},
             {"label": "Agent result", "value": "One simulated item", "source": "Agent reported"},
             {"label": "Merchant result", "value": "Available" if provenance != "Missing" else "Not received", "source": provenance},
         ],
@@ -127,6 +198,7 @@ def receipt_fixture(case: str, db_path: str | Path) -> dict[str, object]:
 
 def render_page() -> str:
     cases = json.dumps(list(FIXTURES))
+    backend_cases = json.dumps(list(BACKEND_CASES))
     protection = protection_statement("screen")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -146,11 +218,12 @@ def render_page() -> str:
 <div id="receipt" class="hidden receipt" tabindex="-1"><small>Simulated receipt</small><h2 id="outcome"></h2><div id="evidence"></div><div class="invite"><h2>Optional invitation</h2><p>Share only a generic completion note. Your identity, order, merchant, amount, mandate, evidence, and receipt reference stay private.</p><dl id="invite" class="hidden"></dl><p id="invite-state" role="status" aria-live="polite">No invitation created.</p><div class="actions"><button id="create-invitation" disabled>Create invitation</button><button id="keep-private" class="secondary">Keep private</button></div></div></div></section>
 <aside aria-label="Immutable mandate summary"><strong>Mandate summary · v1</strong><dl><dt>Item</dt><dd id="summary-item">Desk lamp</dd><dt>Merchant</dt><dd>Synthetic merchant</dd><dt>Limit</dt><dd>$48.00</dd><dt>Approval</dt><dd id="approval">Not approved</dd></dl><p><small>Approval applies only to this version. Editing creates a new version.</small></p></aside></main>
 <script>
-const cases={cases};const fixture=document.querySelector('#fixture');cases.forEach(x=>fixture.add(new Option(x.replaceAll('-',' '),x)));
+const cases={cases};const backendCases={backend_cases};let approvalGrant=null;const fixture=document.querySelector('#fixture');cases.forEach(x=>fixture.add(new Option(x.replaceAll('-',' '),x)));
 const titles=['Give your agent one clear task.','Choose a supported agent.','Describe the task.','Approve this task','Agent is working','Your private receipt'];const stepNames=['Offer','Choose agent','Describe task','Approve','Status','Private receipt'];const primaryLabels=['Choose an agent','Continue','Review task','Approve task','View private receipt','Done'];const statusByStep=[['Supported synthetic agent','BackBond can observe proposals and simulated results in this demo. Passive Monitor observation does not authorize an action.'],['Choose before continuing','Select one supported demo agent.'],['Task details','These details become mandate v1 when you approve them.'],['Human approval required','Approve this exact mandate or deny and cancel it.'],['Approved · simulated run','The selected demo agent is producing a simulated result.'],['Task finished','Review the private simulated receipt before choosing what to do next.']];let step=0;let currentResult=null;let approvalDenied=false;
 function renderState(){{const text=`Step ${{step+1}} of 6`;document.querySelector('#step-count').textContent=text;document.querySelector('#mobile-progress').textContent=`${{text}} · ${{stepNames[step]}}`;document.querySelectorAll('nav li').forEach((n,i)=>n.classList.toggle('current',i===step));document.querySelector('#step-title').textContent=titles[step];document.querySelector('#primary').textContent=approvalDenied?'Start over':primaryLabels[step];document.querySelector('#agent-selection').classList.toggle('hidden',step!==1);document.querySelector('#form').classList.toggle('hidden',step!==2);document.querySelector('#deny-approval').classList.toggle('hidden',step!==3||approvalDenied);if(!currentResult){{const copy=approvalDenied?['Approval denied','The task was cancelled and did not run.']:statusByStep[step];document.querySelector('#status').classList.toggle('error',approvalDenied);document.querySelector('#status').innerHTML=`<strong>${{copy[0]}}</strong><br>${{copy[1]}}`;}}}}
-function focusTitle(){{document.querySelector('#step-title').focus()}}function resetFlow(){{step=0;currentResult=null;approvalDenied=false;document.querySelector('#receipt').classList.add('hidden');document.querySelector('#approval').textContent='Not approved';renderState();focusTitle()}}function denyApproval(){{approvalDenied=true;currentResult=null;document.querySelector('#approval').textContent='Denied · task cancelled';renderState();document.querySelector('#status').focus()}}function next(){{if(approvalDenied||step===5){{resetFlow();return}}step+=1;if(step===3)document.querySelector('#approval').textContent='Awaiting your approval';if(step===4)document.querySelector('#approval').textContent='Approved for mandate v1';renderState();if(step===5)loadReceipt('correct');focusTitle()}}
-async function loadReceipt(name){{const r=await fetch('/api/receipt?case='+encodeURIComponent(name));const d=await r.json();currentResult=d;document.querySelector('#receipt').classList.remove('hidden');document.querySelector('#outcome').textContent=d.title;document.querySelector('#evidence').innerHTML=d.evidence.map(e=>`<div class="evidence"><span><strong>${{e.label}}</strong><br>${{e.value}}</span><span class="source">${{e.source}}</span></div>`).join('');document.querySelector('#invite').classList.add('hidden');document.querySelector('#invite').innerHTML='';document.querySelector('#invite-state').textContent=d.status==='MATCH'?'No invitation created.':'Invitation unavailable for this result.';document.querySelector('#create-invitation').disabled=d.status!=='MATCH';document.querySelector('#status').classList.toggle('error',['ERROR','DENIED','EXPIRED','DISCONNECTED','UNSUPPORTED','MISMATCH'].includes(d.status));document.querySelector('#status').innerHTML=`<strong>${{d.title}}</strong><br>Fixture: ${{name.replaceAll('-',' ')}}`;document.querySelector('#receipt').focus()}}
+function focusTitle(){{document.querySelector('#step-title').focus()}}function resetFlow(){{step=0;currentResult=null;approvalDenied=false;document.querySelector('#receipt').classList.add('hidden');document.querySelector('#approval').textContent='Not approved';renderState();focusTitle()}}function denyApproval(){{approvalDenied=true;currentResult=null;document.querySelector('#approval').textContent='Denied · task cancelled';renderState();document.querySelector('#status').focus()}}function next(){{if(approvalDenied||step===5){{resetFlow();return}}step+=1;if(step===3)document.querySelector('#approval').textContent='Awaiting your approval';if(step===4)approveMandate('correct','approval-step').then(g=>{{approvalGrant=g;document.querySelector('#approval').textContent=g?'Approved for mandate v1':'Approval failed · nothing ran'}});renderState();if(step===5)loadReceipt('correct');focusTitle()}}
+async function approveMandate(name,origin){{const r=await fetch('/api/approve',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{case:name,origin:origin}})}});if(!r.ok)return null;return (await r.json()).grant}}
+async function loadReceipt(name){{let r;if(backendCases.includes(name)){{const grant=approvalGrant||await approveMandate(name,'fixture-explorer');approvalGrant=null;if(!grant){{document.querySelector('#status').classList.add('error');document.querySelector('#status').innerHTML='<strong>Not approved</strong><br>Nothing ran and nothing was recorded.';return}}r=await fetch('/api/receipt',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{case:name,grant:grant}})}});}}else{{r=await fetch('/api/receipt?case='+encodeURIComponent(name));}}const d=await r.json();if(!r.ok){{document.querySelector('#status').classList.add('error');document.querySelector('#status').innerHTML='<strong>Not approved</strong><br>Nothing ran and nothing was recorded.';return}}currentResult=d;document.querySelector('#receipt').classList.remove('hidden');document.querySelector('#outcome').textContent=d.title;document.querySelector('#evidence').innerHTML=d.evidence.map(e=>`<div class="evidence"><span><strong>${{e.label}}</strong><br>${{e.value}}</span><span class="source">${{e.source}}</span></div>`).join('');document.querySelector('#invite').classList.add('hidden');document.querySelector('#invite').innerHTML='';document.querySelector('#invite-state').textContent=d.status==='MATCH'?'No invitation created.':'Invitation unavailable for this result.';document.querySelector('#create-invitation').disabled=d.status!=='MATCH';document.querySelector('#status').classList.toggle('error',['ERROR','DENIED','EXPIRED','DISCONNECTED','UNSUPPORTED','MISMATCH'].includes(d.status));document.querySelector('#status').innerHTML=`<strong>${{d.title}}</strong><br>Fixture: ${{name.replaceAll('-',' ')}}`;document.querySelector('#receipt').focus()}}
 function createInvitation(){{if(!currentResult||currentResult.status!=='MATCH')return;const invitation=document.querySelector('#invite');invitation.innerHTML=Object.entries(currentResult.invitation).map(([k,v])=>`<dt>${{k.replaceAll('_',' ')}}</dt><dd>${{v}}</dd>`).join('');invitation.classList.remove('hidden');document.querySelector('#invite-state').textContent='Invitation created. Only the fields shown above will be shared.';document.querySelector('#create-invitation').disabled=true;document.querySelector('#keep-private').focus()}}function keepPrivate(){{document.querySelector('#invite').classList.add('hidden');document.querySelector('#invite').innerHTML='';document.querySelector('#invite-state').textContent='Kept private. No invitation was created or shared.';document.querySelector('#create-invitation').disabled=!currentResult||currentResult.status!=='MATCH';document.querySelector('#primary').focus()}}
 document.querySelector('#primary').addEventListener('click',next);document.querySelector('#deny-approval').addEventListener('click',denyApproval);document.querySelector('#fixture-button').addEventListener('click',()=>loadReceipt(fixture.value));document.querySelector('#create-invitation').addEventListener('click',createInvitation);document.querySelector('#keep-private').addEventListener('click',keepPrivate);renderState();
 </script></body></html>"""
@@ -159,24 +232,69 @@ document.querySelector('#primary').addEventListener('click',next);document.query
 class DemoHandler(BaseHTTPRequestHandler):
     db_path: str | Path
 
-    def do_GET(self) -> None:  # noqa: N802
-        parsed = urlparse(self.path)
-        if parsed.path == "/api/receipt":
-            case = parse_qs(parsed.query).get("case", ["correct"])[0]
-            body = json.dumps(receipt_fixture(case, self.db_path)).encode()
-            content_type = "application/json; charset=utf-8"
-        elif parsed.path == "/":
-            body = render_page().encode()
-            content_type = "text/html; charset=utf-8"
-        else:
-            self.send_error(404)
-            return
-        self.send_response(200)
-        self.send_header("Content-Type", content_type)
+    def _send_json(self, payload: dict[str, object], status: int = 200) -> None:
+        body = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def _read_json(self) -> dict[str, object]:
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) if length else b""
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw.decode())
+        except ValueError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        try:
+            if parsed.path == "/api/receipt":
+                # Read-only: no approval is minted and no case is recorded here.
+                case = parse_qs(parsed.query).get("case", ["correct"])[0]
+                self._send_json(receipt_fixture(case, self.db_path))
+                return
+            if parsed.path != "/":
+                self.send_error(404)
+                return
+            body = render_page().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except CaseNotExecuted as exc:
+            self._send_json({"error": "approval_required", "case": exc.case, "detail": str(exc)}, 409)
+        except Exception as exc:  # never drop the connection on the caller
+            self._send_json({"error": "internal_error", "detail": str(exc)}, 500)
+
+    def do_POST(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        case = ""
+        try:
+            payload = self._read_json()
+            case = str(payload.get("case", ""))
+            if parsed.path == "/api/approve":
+                self._send_json(approve_case(case, self.db_path, str(payload.get("origin", "approval-step"))))
+                return
+            if parsed.path == "/api/receipt":
+                grant = payload.get("grant")
+                self._send_json(execute_case(case, self.db_path, str(grant) if grant else None))
+                return
+            self.send_error(404)
+        except ApprovalRequired as exc:
+            self._send_json({"error": "approval_required", "case": case, "detail": str(exc)}, 403)
+        except CaseNotExecuted as exc:
+            self._send_json({"error": "approval_required", "case": exc.case, "detail": str(exc)}, 409)
+        except Exception as exc:  # never drop the connection on the caller
+            self._send_json({"error": "internal_error", "detail": str(exc)}, 500)
 
     def log_message(self, format: str, *args: object) -> None:
         return

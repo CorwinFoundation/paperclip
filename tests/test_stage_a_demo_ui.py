@@ -4,7 +4,16 @@ from pathlib import Path
 
 from stage_a_demo.core import EvidenceStore
 from stage_a_demo.activation import NO_COVERAGE_STATEMENT
-from stage_a_demo.ui import FIXTURES, invitation_payload, invitation_transition, receipt_fixture, render_page
+from stage_a_demo.ui import (
+    BACKEND_CASES,
+    FIXTURES,
+    approve_case,
+    execute_case,
+    invitation_payload,
+    invitation_transition,
+    receipt_fixture,
+    render_page,
+)
 
 
 class StageADemoUITests(unittest.TestCase):
@@ -14,6 +23,13 @@ class StageADemoUITests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def open_case(self, name):
+        """Approve first when the case executes; read-only fixtures need no grant."""
+        if name not in BACKEND_CASES:
+            return receipt_fixture(name, self.db_path)
+        grant = approve_case(name, self.db_path)["grant"]
+        return execute_case(name, self.db_path, grant)
 
     def test_happy_path_and_demo_labels_are_rendered(self):
         page = render_page()
@@ -27,12 +43,12 @@ class StageADemoUITests(unittest.TestCase):
         required = {"correct", "incorrect", "duplicate", "missing-evidence", "reconstructed-claim", "unsupported", "disconnected", "expired", "denied", "error"}
         self.assertEqual(required, set(FIXTURES))
         for name in required:
-            self.assertEqual(name, receipt_fixture(name, self.db_path)["case"])
+            self.assertEqual(name, self.open_case(name)["case"])
 
     def test_purchase_fixtures_use_persisted_backend_packets(self):
         expected = {"correct": "MATCH", "incorrect": "MISMATCH", "duplicate": "MATCH", "missing-evidence": "UNKNOWN/INCOMPLETE", "reconstructed-claim": "MATCH"}
         for name, status in expected.items():
-            response = receipt_fixture(name, self.db_path)
+            response = self.open_case(name)
             self.assertEqual(status, response["backend_packet"]["status"])
             self.assertEqual(1, response["authoritative_executions"])
             reopened = EvidenceStore(self.db_path)
@@ -41,7 +57,7 @@ class StageADemoUITests(unittest.TestCase):
 
     def test_ui_only_states_do_not_fabricate_backend_packets(self):
         for name in ("unsupported", "disconnected", "expired", "denied", "error"):
-            self.assertIsNone(receipt_fixture(name, self.db_path)["backend_packet"])
+            self.assertIsNone(self.open_case(name)["backend_packet"])
 
     def test_invitation_is_privacy_safe(self):
         invitation = invitation_payload()

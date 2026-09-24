@@ -324,7 +324,9 @@ def test_receipt_packet_states_protection_from_the_gate(tmp_path, monkeypatch):
 
 def test_demo_surfaces_state_no_coverage(tmp_path, monkeypatch):
     monkeypatch.setenv(act.ACTIVATION_RECORDS_ENV, str(tmp_path / "absent"))
-    receipt = ui.receipt_fixture("correct", tmp_path / "ui.db")
+    db = tmp_path / "ui.db"
+    grant = ui.approve_case("correct", db)["grant"]
+    receipt = ui.execute_case("correct", db, grant)
     assert receipt["protection"]["protection_active"] is False
     assert receipt["protection"]["statement"] == act.NO_COVERAGE_STATEMENT
     assert set(receipt["invitation"]) == {

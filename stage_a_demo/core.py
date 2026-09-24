@@ -4,6 +4,7 @@ import hashlib
 import json
 import secrets
 import sqlite3
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -67,14 +68,22 @@ class EvidenceStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        self.db = sqlite3.connect(self.path)
+        self.db = sqlite3.connect(self.path, timeout=30.0)
         self.db.row_factory = sqlite3.Row
+        # Concurrent demo requests are two connections against one file:
+        # wait for the writer instead of failing the losing request.
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA busy_timeout=30000")
         self.db.executescript(
             """
             CREATE TABLE IF NOT EXISTS cases (
               case_id TEXT PRIMARY KEY, mode TEXT NOT NULL, mandate_json TEXT NOT NULL,
               approval_json TEXT NOT NULL, assertion_json TEXT NOT NULL,
               merchant_json TEXT, status TEXT NOT NULL, mismatch_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS approvals (
+              grant_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, mandate_json TEXT NOT NULL,
+              approval_token TEXT NOT NULL, origin TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
@@ -105,7 +114,7 @@ class EvidenceStore:
             "SELECT case_id FROM executions WHERE idempotency_key = ?", (idempotency_key,)
         ).fetchone()
         if existing is not None:
-            return self.packet(existing["case_id"])
+            return self._await_packet(existing["case_id"])
 
         # Reserve and commit before the merchant side effect so replay cannot
         # reach the merchant a second time.
@@ -121,7 +130,7 @@ class EvidenceStore:
             ).fetchone()
             if existing is None:
                 raise
-            return self.packet(existing["case_id"])
+            return self._await_packet(existing["case_id"])
 
         mismatches: list[dict[str, Any]] = []
         if asserted_sku != mandate.sku:
@@ -151,6 +160,64 @@ class EvidenceStore:
                 (json.dumps(receipt, sort_keys=True), idempotency_key),
             )
         return self.packet(case_id)
+
+    def record_approval(
+        self,
+        *,
+        grant_id: str,
+        case_id: str,
+        mandate: Mandate,
+        approval_token: str,
+        origin: str,
+    ) -> str:
+        """Store one human approval grant. Only the human-side step calls this."""
+        with self.db:
+            self.db.execute(
+                "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin) VALUES (?, ?, ?, ?, ?)",
+                (grant_id, case_id, json.dumps(asdict(mandate), sort_keys=True), approval_token, origin),
+            )
+        return grant_id
+
+    def consume_approval(self, grant_id: str, case_id: str) -> dict[str, Any] | None:
+        """Spend a grant once. Returns None when there is no unspent grant."""
+        with self.db:
+            spent = self.db.execute(
+                "UPDATE approvals SET consumed = 1 WHERE grant_id = ? AND case_id = ? AND consumed = 0",
+                (grant_id, case_id),
+            )
+            if spent.rowcount != 1:
+                return None
+            row = self.db.execute(
+                "SELECT mandate_json, approval_token, origin FROM approvals WHERE grant_id = ?", (grant_id,)
+            ).fetchone()
+        return {
+            "mandate": Mandate(**json.loads(row["mandate_json"])),
+            "approval_token": row["approval_token"],
+            "origin": row["origin"],
+        }
+
+    def approval_count(self, case_id: str) -> int:
+        return self.db.execute("SELECT COUNT(*) FROM approvals WHERE case_id = ?", (case_id,)).fetchone()[0]
+
+    def case_count(self) -> int:
+        return self.db.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
+
+    def packet_or_none(self, case_id: str) -> dict[str, Any] | None:
+        try:
+            return self.packet(case_id)
+        except KeyError:
+            return None
+
+    def _await_packet(self, case_id: str, timeout: float = 15.0) -> dict[str, Any]:
+        """Wait for the reserving request to commit its case row."""
+        deadline = time.monotonic() + timeout
+        while True:
+            packet = self.packet_or_none(case_id)
+            if packet is not None:
+                return packet
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"execution for {case_id} was reserved but never committed")
+            time.sleep(0.02)
 
     def packet(self, case_id: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
