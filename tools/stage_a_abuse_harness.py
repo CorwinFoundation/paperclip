@@ -375,7 +375,60 @@ def a11(root: Path):
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]
+@probe(
+    "SA8 forged approval grant",
+    "a grant the execution path authored itself must not authorise an execution",
+)
+def sa8(root: Path):
+    """The hole that becomes load-bearing once SA7 rebuilds the verifier internally.
+
+    BEAAA-35331 removes ``approval_verifier`` from ``record_case`` and rebuilds it
+    inside from the consumed ``approvals`` row. That relocates the circularity
+    rather than breaking it: ``ApprovalVerifier.for_recorded_approval`` derives
+    the verifier from the stored token, so the row becomes the authority. This
+    probe drives the shape the execution path already has — ``ui.execute_case``
+    opens its own ``EvidenceStore`` (ui.py), and that class exposes
+    ``record_approval`` — and mints its own grant with no issuer and no secret.
+    """
+    writer_reachable = hasattr(EvidenceStore, "record_approval")
+    agent_mandate = Mandate("m-sa8", "SKU-1", 100)
+    merchant = CountingMerchant()
+    store = _store(root)
+    try:
+        # No issuer is constructed anywhere in this probe. The token is a literal
+        # the agent chose, and ``origin`` is copied from ui.APPROVAL_ORIGINS.
+        store.record_approval(
+            grant_id="grant-forged", case_id="sa8", mandate=agent_mandate,
+            approval_token="agent-chose-this", origin="approval-step",
+        )
+        row = store.consume_approval("grant-forged", "sa8")
+        consumed = row is not None
+        # Exactly how the prescribed shape will rebuild it, but inline so the
+        # probe runs against today's signature too.
+        rebuilt = ApprovalVerifier.for_recorded_approval(row["mandate"], row["approval_token"])
+        try:
+            packet = store.record_case(
+                case_id="sa8", mandate=row["mandate"], approval_token=row["approval_token"],
+                asserted_sku="SKU-1", asserted_amount_cents=999900, idempotency_key="sa8",
+                approval_verifier=rebuilt, merchant=merchant,
+            )
+            executed = packet["status"]
+        except PermissionError as exc:
+            executed = f"refused: {exc}"
+    finally:
+        store.close()
+    reached_merchant = [c["amount_cents"] for c in merchant.calls]
+    return not reached_merchant, (
+        f"EvidenceStore exposes record_approval to the handle the execution path opens"
+        f"={writer_reachable}; self-authored grant consumed={consumed};"
+        f" origin 'approval-step' accepted with no issuer; record_case -> {executed};"
+        f" merchant amounts={reached_merchant} against a {agent_mandate.amount_cents} cent"
+        f" self-authored mandate (the verifier rebuilt from the stored row accepts the"
+        f" token that row was written with, so a DB write is an approval)"
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, sa8]
 
 
 def main() -> int:
