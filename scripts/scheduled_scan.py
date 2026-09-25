@@ -671,6 +671,7 @@ def _operator_manifest(
     total_runtime_seconds: float,
     registry_rows: list[Mapping[str, Any]],
     preflight_result: Mapping[str, Any] | None = None,
+    vapi_authorization: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     final = dict(job.final_manifest or {})
     evidence_rows = [
@@ -718,9 +719,14 @@ def _operator_manifest(
         if judge_models and str(judge_models[0]).startswith("openrouter:")
         else "unknown"
     )
+    manifest_vapi_authorization = (
+        dict(vapi_authorization) if vapi_authorization is not None else None
+    )
     return {
         "schema": "backbond.scheduled-scan-manifest/v2",
         "job": job_name,
+        # Which written authorization this run dispatched under (BEAAA-35702).
+        "vapi_authorization": manifest_vapi_authorization,
         "evidence_label": EVIDENCE_LABEL,
         "live_service_signed": False,
         "scan_id": job.scan_id or job.job_id,
@@ -1415,6 +1421,93 @@ def _vapi_capability_declaration(
     return merged, evidence
 
 
+# ---------------------------------------------------------------------------
+# BEAAA-35702: fail closed on unauthorized VAPI traffic.
+#
+# Every lane below dispatches probes at ``https://api.vapi.ai``, a partner's
+# live production API. The BEAAA-32522 release boundary allows that traffic
+# only under a current written authorization; the July authorization covered
+# one bounded run and lapsed. Until 2026-09-25 the only thing stopping the
+# weekly timer from re-arming was a broken unit file, which is a bug, not a
+# control. The gate below is the control: no authorization asserted in
+# configuration, no credential read, no HTTP client, no traffic.
+#
+# The spec on BEAAA-35702 names ``vapi`` and ``vapi-garak``. The
+# ``vapi-containment-failure`` lane sends to the same partner endpoint under
+# the same release boundary, so it is gated here too; leaving it open would
+# leave the hazard reachable by one CLI argument.
+# ---------------------------------------------------------------------------
+VAPI_TRAFFIC_JOBS = frozenset({"vapi", "vapi-garak", "vapi-containment-failure"})
+
+VAPI_AUTH_REF_ENV = "BACKBOND_SCAN_VAPI_AUTH_REF"
+VAPI_AUTH_EXPIRES_ENV = "BACKBOND_SCAN_VAPI_AUTH_EXPIRES"
+
+
+class VapiAuthorizationError(RuntimeError):
+    """Raised when a VAPI lane runs without a current written authorization."""
+
+
+def _parse_authorization_expiry(raw: str) -> datetime:
+    """Parse an ISO-8601 UTC instant, rejecting anything ambiguous.
+
+    A value we cannot read is treated exactly like a missing value. Guessing at
+    a malformed expiry is how a lapsed authorization gets honoured.
+    """
+    text = raw.strip()
+    candidate = text[:-1] + "+00:00" if text.endswith(("Z", "z")) else text
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise VapiAuthorizationError(
+            f"{VAPI_AUTH_EXPIRES_ENV} is not a readable ISO-8601 UTC instant: "
+            f"{raw!r}. No VAPI traffic was sent."
+        ) from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def require_vapi_authorization(job_name: str) -> dict[str, Any] | None:
+    """Refuse to dispatch VAPI traffic without a current written authorization.
+
+    Returns the authorization record for the run manifest, or ``None`` for a
+    job that sends no VAPI traffic. Raises :class:`VapiAuthorizationError`
+    before any credential is read or any HTTP client is constructed.
+    """
+    if job_name not in VAPI_TRAFFIC_JOBS:
+        return None
+
+    ref = os.environ.get(VAPI_AUTH_REF_ENV, "").strip()
+    expires_raw = os.environ.get(VAPI_AUTH_EXPIRES_ENV, "").strip()
+    missing = [
+        name
+        for name, value in ((VAPI_AUTH_REF_ENV, ref), (VAPI_AUTH_EXPIRES_ENV, expires_raw))
+        if not value
+    ]
+    if missing:
+        raise VapiAuthorizationError(
+            f"job {job_name!r} targets a partner's live production API and is "
+            f"gated on a current written authorization. Missing: "
+            f"{', '.join(missing)}. No VAPI traffic was sent."
+        )
+
+    expires_at = _parse_authorization_expiry(expires_raw)
+    now = datetime.now(timezone.utc)
+    if expires_at <= now:
+        raise VapiAuthorizationError(
+            f"the VAPI authorization referenced by {VAPI_AUTH_REF_ENV}={ref!r} "
+            f"expired at {expires_at.isoformat()} (now {now.isoformat()}). "
+            f"No VAPI traffic was sent."
+        )
+
+    return {
+        "authorization_ref": ref,
+        "authorization_expires_at": expires_at.isoformat(),
+        "authorization_checked_at": now.isoformat(),
+        "gate": "BEAAA-35702",
+    }
+
+
 def run_scheduled_scan(
     job_name: str,
     *,
@@ -1427,6 +1520,10 @@ def run_scheduled_scan(
         )
     if job_name == "zoo":
         return run_scheduled_zoo_scan(config=config, limit_per_family=limit_per_family)
+    # Fail closed before the credential read below and before any HTTP client
+    # exists. Order is the whole control; a later check would still have read
+    # the Vapi key.
+    vapi_authorization = require_vapi_authorization(job_name)
     secrets = map_secret_environment()
     config = config or ScheduleConfig.from_environment()
     if limit_per_family is not None:
@@ -1532,6 +1629,7 @@ def run_scheduled_scan(
         total_runtime_seconds=time.monotonic() - runtime_started,
         registry_rows=rows,
         preflight_result=preflight_result,
+        vapi_authorization=vapi_authorization,
     )
     manifest["aborted"] = vapi_abort_reason is not None
     manifest["abort_reason"] = vapi_abort_reason
@@ -1563,9 +1661,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.limit_per_family is not None and args.limit_per_family < 1:
         parser.error("--limit-per-family must be at least 1")
-    manifest_path = run_scheduled_scan(
-        args.job, limit_per_family=args.limit_per_family
-    )
+    try:
+        manifest_path = run_scheduled_scan(
+            args.job, limit_per_family=args.limit_per_family
+        )
+    except VapiAuthorizationError as exc:
+        # Fail closed, loudly, with a non-zero exit and no traceback: the
+        # journal line an operator reads should say what is missing.
+        print(f"scheduled-scan refused to run: {exc}", file=sys.stderr)
+        return 2
     if args.job == "zoo":
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("aborted") or not manifest.get("reconciliation", {}).get("equal", False):
