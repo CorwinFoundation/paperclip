@@ -63,6 +63,15 @@ class CheckNotApproved(PermissionError):
     """Execution was attempted without an OK on the receipt."""
 
 
+class ExecutionAlreadyClaimed(PermissionError):
+    """A second execution was attempted on a task that already holds the slot.
+
+    One receipt buys one execution. The slot is claimed before the merchant is
+    reached, so a repeat or a concurrent caller is refused while the money is
+    still on our side of the seam (BEAAA-35579 W2/W3).
+    """
+
+
 class TermsNotCaptured(ValueError):
     """The terms on the action are not in a state a receipt can be written on.
 

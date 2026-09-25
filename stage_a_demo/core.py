@@ -15,6 +15,7 @@ from .receipt import (
     action_from_stored_terms,
     CheckNotApproved,
     ExecutedOutcome,
+    ExecutionAlreadyClaimed,
     ProposedAction,
     TermsNotCaptured,
     observation_instant,
@@ -280,7 +281,8 @@ class EvidenceStore:
             );
             CREATE TABLE IF NOT EXISTS approval_receipts (
               task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
-              outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT
+              outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT,
+              execution_claimed_at TEXT
             );
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
@@ -303,6 +305,9 @@ class EvidenceStore:
         receipt_cols = {row[1] for row in self.db.execute("PRAGMA table_info(approval_receipts)")}
         if "protection_at_execution_json" not in receipt_cols:
             self.db.execute("ALTER TABLE approval_receipts ADD COLUMN protection_at_execution_json TEXT")
+            self.db.commit()
+        if "execution_claimed_at" not in receipt_cols:
+            self.db.execute("ALTER TABLE approval_receipts ADD COLUMN execution_claimed_at TEXT")
             self.db.commit()
 
     def record_case(
@@ -606,6 +611,11 @@ class EvidenceStore:
         Refuses when there is no receipt, or the receipt does not carry an OK.
         A STOP, a skipped check and an unanswered check all refuse here, and all
         three stay on the record for the claim. Absence is never approval.
+
+        Runs at most once per receipt. A repeat after the first call settled is
+        answered with that call's claim; a repeat while one is in flight or
+        unsettled raises ExecutionAlreadyClaimed. In neither case is the
+        merchant reached a second time.
         """
         receipt = self.receipt_for(task_id)
         if receipt is None:
@@ -613,6 +623,42 @@ class EvidenceStore:
         if not receipt.approved:
             raise CheckNotApproved(
                 f"task {task_id} was not approved: the recorded answer is {receipt.answer}"
+            )
+        # Claim the one execution this receipt buys, before the merchant is
+        # reached. Every other guard on this path lives inside record_outcome,
+        # which runs after the purchase; a guard after the side effect is a
+        # reconciliation, and the receipt's own rule is "enforce before the
+        # side effect, never reconcile after it" (BEAAA-35579 W2/W3).
+        #
+        # The conditional UPDATE is the whole mechanism: SQLite settles it
+        # under the write lock, so of two concurrent callers on one file
+        # exactly one sees rowcount 1 and the loser never reaches the adapter.
+        # Path 1 carries no caller-supplied idempotency key, so the task id is
+        # the key: one receipt, one execution.
+        with self.db:
+            claimed = self.db.execute(
+                "UPDATE approval_receipts SET execution_claimed_at = ? "
+                "WHERE task_id = ? AND execution_claimed_at IS NULL",
+                (executed_at, task_id),
+            )
+        if claimed.rowcount != 1:
+            settled = self.db.execute(
+                "SELECT outcome_json FROM approval_receipts WHERE task_id = ?", (task_id,)
+            ).fetchone()
+            if settled is not None and settled["outcome_json"]:
+                # The first call finished. Answer the retry with the answer it
+                # already gave rather than charging again; this is the posture
+                # record_case takes on an idempotent retry (BEAAA-35354 A6).
+                return self.claim_for(task_id)
+            # Claimed but not settled: either a caller is inside the merchant
+            # right now, or one was and did not come back. We cannot tell from
+            # here whether that purchase landed, so we refuse rather than risk
+            # a second one. Recovery is record_outcome with what the merchant
+            # actually says happened — the same entry point used for a task
+            # that executed outside this process.
+            raise ExecutionAlreadyClaimed(
+                f"task {task_id} already has an execution in flight or unsettled; "
+                "one receipt buys one execution"
             )
         action = receipt.proposed_action
         evidence = merchant.purchase(
