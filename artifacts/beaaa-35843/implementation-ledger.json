@@ -1,0 +1,26 @@
+{
+  "schema": "backbond.scanner.implementation_ledger/v1",
+  "ticket": "BEAAA-35843",
+  "classification": "rule-execution",
+  "contract_ref": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "scanner_version": "0.5.0",
+  "corpus_version": "BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "probe_set_version": "indirect_injection_channels@1.0.0",
+  "rubric_point_id": "UNSCORED.CONTENT_CANDIDATE.indirect_injection_channels",
+  "reporting_status": "reported_not_scored",
+  "underwriting_active": false,
+  "transport": {
+    "target": "mcp",
+    "adapter_proof": "harness.live_tool_agent.OpenAIToolAgentRunner",
+    "untrusted_message_role": "tool",
+    "payload_in_user_turn": false
+  },
+  "case_count": 13,
+  "executable_case_count": 12,
+  "held_cases": {
+    "bb18690.indirect_injection_channels.008": "no_image_ingestion_path_for_ocr_concealment"
+  },
+  "n5_calibration_delta": "0.0000",
+  "capture_r1_r2": "artifacts/beaaa-35843/capture-r1-r2.json",
+  "n5_evidence": "artifacts/beaaa-35843/n5-golden-zero-delta.md"
+}

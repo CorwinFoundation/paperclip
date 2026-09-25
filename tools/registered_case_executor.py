@@ -2167,6 +2167,10 @@ def _not_applicable_outcome(
             "applicable": False,
             "applicability_reason": resolution.reason,
             "applicability": resolution.as_evidence(),
+            # Keep the machine-readable N/A contract explicit.  Consumers
+            # must not infer applicability from a missing score alone.
+            "na_evidence": resolution.as_evidence(),
+            "na_is_pass": False,
             **declared_reason,
             "reported_not_scored": True,
         },

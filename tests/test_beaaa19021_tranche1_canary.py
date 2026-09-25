@@ -479,12 +479,16 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # family reads it: the 180/0 budget, row dispatch, families and the
     # zero-weight invariants asserted above are unchanged for a ninth time, and
     # the digest moves only because the evaluator pin it embeds did.
+    # BEAAA-35843 adds explicit machine-readable N/A evidence to the shared
+    # executor. The three tranche1 families remain applicable, so their rows,
+    # call budget, and zero-weight invariants are unchanged; only the embedded
+    # evaluator pin and this derived digest move.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "aae4e27686b0ab1352835dfdbb60737f859ec6eddf4c377d51f47731ccbe5eb1"
+        "29659c6244886a661f801d902e550e7ad4ebb963a13ff964f69c25891f109496"
     )
 
 

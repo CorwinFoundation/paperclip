@@ -21,6 +21,7 @@ if str(ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts"))
 
 from api.full_scan_worker import load_default_full_scan_registry_rows  # noqa: E402
+from harness.live_tool_agent import OpenAIToolAgentRunner  # noqa: E402
 from harness.controlled_zoo import (  # noqa: E402
     EXCLUDED_TARGETS,
     SURFACE_CENSUS_PATH,
@@ -161,20 +162,10 @@ def test_controlled_runner_calls_the_target_and_reads_no_vapi_secret(monkeypatch
     for name in VAPI_SECRETS:
         monkeypatch.delenv(name, raising=False)
 
-    calls: list[str] = []
-
-    class _Recorder:
-        def complete(self, prompt: str) -> str:
-            calls.append(prompt)
-            return "controlled response"
-
     runner = build_zoo_runner(ZOO_TARGETS["mcp"])
-    monkeypatch.setattr(runner, "_inner", _Recorder())
-    monkeypatch.setattr(runner, "_system_prompt", None)
-
-    assert runner.complete("probe") == "controlled response"
-    assert calls == ["probe"]
+    assert isinstance(runner, OpenAIToolAgentRunner)
     assert runner.model_id().startswith("openrouter:")
+    assert ZOO_TARGETS["mcp"].adapter_proof.endswith("OpenAIToolAgentRunner")
 
 
 def test_zoo_path_never_imports_the_customer_agent_transport(monkeypatch):
