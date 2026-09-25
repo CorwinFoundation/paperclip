@@ -789,6 +789,16 @@ def test_a_manifest_or_inventory_off_its_pin_is_refused(tmp_path, monkeypatch):
                       manifest_path=manifest, inventory_path=off_pin)
 
 
+def test_retier_refuses_the_exact_self_disowning_30720_manifest(monkeypatch):
+    manifest = ROOT / "artifacts/beaaa-30720-manifest.json"
+    monkeypatch.setattr("tools.beaaa31092_content_slice.RUN_MANIFEST_SHA256",
+                        _hashlib.sha256(manifest.read_bytes()).hexdigest())
+    ledger = _json.loads(LEDGER_PATH.read_text())
+    with pytest.raises(ValueError, match="declares itself unfit"):
+        retier_ledger(ledger, [{"family_id": "approval_freshness_replay"}],
+                      manifest_path=manifest)
+
+
 def test_the_pinned_inventory_in_the_repo_matches_the_constant():
     """The whole oracle half of the fix rests on this being true."""
     assert _hashlib.sha256(

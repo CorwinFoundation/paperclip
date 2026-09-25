@@ -251,6 +251,15 @@ def test_recovery_refuses_an_ambiguous_digest(export) -> None:
     assert "more than one evidence ref" in pack["rows"][0]["unevidenced_reason"]
 
 
+def test_evidence_pack_refuses_the_exact_self_disowning_30720_manifest(export) -> None:
+    job_dir, manifest = export({RELATIVE: _case_record()})
+    signed = json.loads(
+        (Path(__file__).parents[1] / "artifacts/beaaa-30720-manifest.json").read_text()
+    )
+    with pytest.raises(ValueError, match="declares itself unfit"):
+        build_pack(_ledger(), job_dir, manifest, job_id=JOB_ID, signed_manifest=signed)
+
+
 def test_recovered_rows_still_fail_closed_on_a_digest_mismatch(export) -> None:
     job_dir, manifest = export({RELATIVE: _case_record()})
     (job_dir / RELATIVE).write_text(json.dumps(_case_record(responses=["tampered"])), encoding="utf-8")

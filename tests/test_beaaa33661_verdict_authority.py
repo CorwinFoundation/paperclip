@@ -131,6 +131,7 @@ def test_the_pinned_census_still_reproduces_from_the_exported_evidence():
         ROOT / "artifacts/beaaa-31092/rank2-run-manifest.json",
         ROOT / "artifacts/beaaa-31092/rank2-ledger.json",
     )
+    assert live.pop("manifest_read_mode") == "diagnostic_unfit_allowed"
     # ``manifest_path`` echoes whatever path the caller passed; it is not a count.
     # BEAAA-34043 re-keyed one bucket and moved no row: 26 of the held rows now
     # carry ``declared_not_applicable`` instead of ``held_reported_not_scored``.

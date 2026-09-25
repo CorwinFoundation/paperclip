@@ -36,6 +36,11 @@ NUMERIC_TO_VERDICT = {0.0: "fail", 1.0: "pass", None: "unresolved"}
 ABSENT = "<absent>"
 
 
+def _load_manifest_for_diagnostic_census(path: Path) -> dict[str, Any]:
+    """Read even a self-disowning manifest, solely to measure its disagreement."""
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _verdict(value: Any) -> str:
     return ABSENT if value is None else str(value)
 
@@ -87,7 +92,7 @@ def census(
     manifest_path: Path = MANIFEST,
     ledger_path: Path = LEDGER,
 ) -> dict[str, Any]:
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = _load_manifest_for_diagnostic_census(manifest_path)
     dispositions = _dispositions(ledger_path)
     ledger_rows = _ledger_rows_by_ref(ledger_path)
     by_disposition: Counter[str] = Counter()
@@ -158,6 +163,7 @@ def census(
     return {
         "issue": "BEAAA-33661",
         "manifest_path": str(manifest_path),
+        "manifest_read_mode": "diagnostic_unfit_allowed",
         "manifest_job_id": manifest.get("job_id"),
         "manifest_self_declared": {
             "analysis_status": manifest.get("analysis_status"),

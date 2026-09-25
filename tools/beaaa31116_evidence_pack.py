@@ -19,6 +19,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tools.beaaa31092_content_slice import _assert_manifest_fit_to_bind
+
 PACK_SCHEMA = "beaaa-31116-evidence-pack/v1"
 CONTENT_CANDIDATE_PREFIX = "content-candidate:sha256:"
 EVIDENCE_SCHEME = "evidence://"
@@ -122,6 +124,8 @@ def build_pack(
     job_id: str,
     signed_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if signed_manifest is not None:
+        _assert_manifest_fit_to_bind(signed_manifest)
     digests = {
         entry["path"]: entry["sha256"]
         for entry in export_manifest.get("entries", [])

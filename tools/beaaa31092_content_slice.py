@@ -1173,8 +1173,10 @@ def _control_binding_inputs(
             "configuration digest is derived from the manifest evidence rows, which "
             f"the ledger does not carry. Pass the manifest pinned at {RUN_MANIFEST_SHA256}.")
     manifest = _pinned_bytes(manifest_path, RUN_MANIFEST_SHA256, "run manifest")
+    loaded_manifest = json.loads(manifest.decode("utf-8"))
+    _assert_manifest_fit_to_bind(loaded_manifest)
     return chosen, _manifest_evidence(
-        json.loads(manifest.decode("utf-8")), _roster_case_digests(chosen))
+        loaded_manifest, _roster_case_digests(chosen))
 
 
 # BEAAA-33661 clause 3, CEO ratified 2026-09-18. A full-scan run manifest carries
@@ -1271,6 +1273,12 @@ def _assert_manifest_fit_to_bind(manifest: dict[str, Any]) -> dict[str, Any]:
     return {"unfit_reasons": reasons, "approved_blocker_ref": approved or None}
 
 
+def _load_manifest_for_binding(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Load a run manifest and enforce its fitness before returning its rows."""
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    return manifest, _assert_manifest_fit_to_bind(manifest)
+
+
 def build_ledger(
     inventory_path: Path,
     manifest_path: Path,
@@ -1280,8 +1288,7 @@ def build_ledger(
     determinations: list[dict[str, Any]] | Path | None = None,
 ) -> dict[str, Any]:
     inventory = _jsonl(inventory_path)
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest_fitness = _assert_manifest_fit_to_bind(manifest)
+    manifest, manifest_fitness = _load_manifest_for_binding(manifest_path)
     if isinstance(controls, Path):
         controls = json.loads(controls.read_text(encoding="utf-8"))
     chosen = [row for row in inventory if row.get("family_id") in SLICE_FAMILIES]
