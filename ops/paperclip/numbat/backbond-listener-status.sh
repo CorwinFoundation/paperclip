@@ -3,6 +3,18 @@ set -euo pipefail
 
 [ "$#" = 0 ] || { echo "usage: backbond-listener-status" >&2; exit 2; }
 
+# SECURITY -- this sourcing is the load-bearing part of the sudoers grant.
+# Under /etc/sudoers.d/backbond-listener-status this script runs as root, and
+# sourcing is code execution, so anything written into appliance-ingest.env runs
+# as root too. What makes that safe is a file permission, not any logic below:
+# appliance-ingest.env is 0600 root:root inside /etc/backbond, which is
+# root:backbond 0750. Group backbond therefore gets r-x on the directory and
+# nothing on the file -- no write bit on either, so a group member can neither
+# edit the file nor replace it by unlinking it. Joining group backbond (which
+# the BEAAA-33051 install does, to read the receipts DB) does not breach this.
+# What would breach it: making appliance-ingest.env agent-writable, or giving
+# group backbond write on /etc/backbond. Either turns this drop-in into an
+# arbitrary root shell. Re-check those two modes before widening anything here.
 set -a
 # shellcheck disable=SC1091
 . /etc/backbond/appliance-ingest.env

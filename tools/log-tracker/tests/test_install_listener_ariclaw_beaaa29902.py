@@ -16,10 +16,17 @@ def tree(root):
             for p in root.rglob("*") if p.is_file()}
 
 
-def invoke(root, *, dry=False):
+def tree_after(root, **kwargs):
+    root.mkdir(parents=True)
+    invoke(root, **kwargs)
+    return tree(root)
+
+
+def invoke(root, *, dry=False, sudoers=False):
     env = {**os.environ, "BACKBOND_INSTALL_ROOT": str(root),
            "BACKBOND_INSTALL_SKIP_RUNTIME": "1", "BACKBOND_SHIP_TOKEN": "test-token"}
     if dry: env["DRY_RUN"] = "1"
+    if sudoers: env["BACKBOND_INSTALL_SUDOERS"] = "1"
     return subprocess.run(["bash", str(SCRIPT)], cwd=REPO, env=env,
                           text=True, capture_output=True, check=True)
 
@@ -35,16 +42,14 @@ def test_dry_run_verifies_sealed_zip_without_mutation(tmp_path):
 def test_two_sandbox_installs_converge(tmp_path):
     invoke(tmp_path)
     first = tree(tmp_path)
-    invoke(tmp_path)
+    result = invoke(tmp_path)
     assert tree(tmp_path) == first
     assert first["etc/backbond/appliance-ingest.env"][1] == 0o600
     assert b"BACKBOND_TENANT_ID=backbond\n" in first["etc/backbond/appliance-ingest.env"][0]
     assert first["etc/backbond/appliance-enrollment.json"][1] == 0o640
     assert first["usr/local/sbin/backbond-listener-status"][1] == 0o755
-    assert first["etc/sudoers.d/backbond-listener-status"][1] == 0o440
-    assert first["etc/sudoers.d/backbond-listener-status"][0] == (
-        b"beai-agent ALL=(root) NOPASSWD: /usr/local/sbin/backbond-listener-status\n"
-    )
+    assert "etc/sudoers.d/backbond-listener-status" not in first
+    assert "sudo /usr/local/sbin/backbond-listener-status" not in result.stdout
     assert stat.S_IMODE((tmp_path / "etc/backbond").stat().st_mode) == 0o750
     unit = first["etc/systemd/system/backbond-appliance-ingest.service"][0].decode()
     migrations = [part.split("/")[-1] for part in unit.split() if part.startswith("/opt/backbond/migrations/")]
@@ -61,12 +66,41 @@ def test_two_sandbox_installs_converge(tmp_path):
     assert enrollment[0]["source_id"] == "paperclip-codex-rollouts"
 
 
+def test_sudoers_grant_is_opt_in(tmp_path):
+    """The NOPASSWD grant is a separate authorisation from installing the service."""
+    without = tree_after(tmp_path / "default")
+    assert "etc/sudoers.d/backbond-listener-status" not in without
+    assert "usr/local/sbin/backbond-listener-status" in without
+
+
+def test_sudoers_grant_installs_when_opted_in(tmp_path):
+    with_grant = tree_after(tmp_path / "opted-in", sudoers=True)
+    assert with_grant["etc/sudoers.d/backbond-listener-status"][1] == 0o440
+    assert with_grant["etc/sudoers.d/backbond-listener-status"][0] == (
+        b"beai-agent ALL=(root) NOPASSWD: /usr/local/sbin/backbond-listener-status\n"
+    )
+
+
+def test_opt_in_changes_nothing_but_the_grant(tmp_path):
+    without = tree_after(tmp_path / "a")
+    with_grant = tree_after(tmp_path / "b", sudoers=True)
+    assert set(with_grant) - set(without) == {"etc/sudoers.d/backbond-listener-status"}
+    assert all(with_grant[k] == v for k, v in without.items())
+
+
 def test_root_install_sets_runtime_ownership_and_enroll_pythonpath():
     script = SCRIPT.read_text()
     assert 'install -d -o root -g backbond -m 0750 "$ETC"' in script
     assert 'PYTHONPATH="$OPT/appliance-0.1.0" BACKBOND_CONFIG=' in script
     assert 'chown backbond:backbond "$VAR/appliance.key"' in script
     assert 'chmod 0600 "$VAR/appliance.key"' in script
+
+
+def test_status_helper_documents_the_permission_it_depends_on():
+    """The grant is safe because of a file mode, not because of the helper's logic."""
+    helper = (REPO / "ops/paperclip/numbat/backbond-listener-status.sh").read_text()
+    assert "0600 root:root" in helper
+    assert "root:backbond 0750" in helper
 
 
 def test_status_helper_is_fixed_count_only_surface():

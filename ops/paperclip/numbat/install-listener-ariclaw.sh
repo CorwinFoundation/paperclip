@@ -4,6 +4,10 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 ROOT="${BACKBOND_INSTALL_ROOT:-}"
 DRY_RUN="${DRY_RUN:-0}"
+# Installing the appliance and granting beai-agent a NOPASSWD sudoers entry are two
+# different authorisations. Keep them separable so this script's effect matches what
+# its caller actually asked for; the grant is opt-in and off by default.
+INSTALL_SUDOERS="${BACKBOND_INSTALL_SUDOERS:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
 EXPECTED_SHA=2f82a4601eb9c95bcef5e4ab3f6f2438834b92e7d5d471eaa91ba25761b55029
 OPT="$ROOT/opt/backbond"
@@ -114,10 +118,12 @@ put "$ETC/appliance-enrollment.json" 0640 root:backbond < "$ETC/appliance-enroll
 
 put "$UNITS/backbond-appliance-ingest.service" 0644 root:root < "$REPO/ops/paperclip/numbat/backbond-appliance-ingest.service"
 put "$LOCAL_SBIN/backbond-listener-status" 0755 root:root < "$REPO/ops/paperclip/numbat/backbond-listener-status.sh"
-put "$SUDOERS/backbond-listener-status" 0440 root:root <<'EOF'
+if [ "$INSTALL_SUDOERS" = 1 ]; then
+  put "$SUDOERS/backbond-listener-status" 0440 root:root <<'EOF'
 beai-agent ALL=(root) NOPASSWD: /usr/local/sbin/backbond-listener-status
 EOF
-if [ -z "$ROOT" ]; then visudo -cf "$SUDOERS/backbond-listener-status" >/dev/null; fi
+  if [ -z "$ROOT" ]; then visudo -cf "$SUDOERS/backbond-listener-status" >/dev/null; fi
+fi
 put "$UNITS/backbond-appliance.service" 0644 root:root <<'EOF'
 [Unit]
 Description=BackBond AriClaw no-content appliance
@@ -151,5 +157,9 @@ printf 'INSTALLED listener and five-minute appliance timer\n'
 printf 'CHECK systemctl is-active backbond-appliance-ingest.service backbond-appliance.timer\n'
 printf 'HEALTH curl -fsS http://127.0.0.1:8787/healthz\n'
 printf 'METRICS curl -fsS -H "Authorization: Bearer <token>" -H "X-BackBond-Tenant: %s" http://127.0.0.1:8787/metrics\n' "$TENANT_ID"
-printf 'STATUS sudo /usr/local/sbin/backbond-listener-status\n'
+if [ "$INSTALL_SUDOERS" = 1 ]; then
+  printf 'STATUS sudo /usr/local/sbin/backbond-listener-status\n'
+else
+  printf 'STATUS /usr/local/sbin/backbond-listener-status (root only; no sudoers grant installed -- re-run with BACKBOND_INSTALL_SUDOERS=1 to grant beai-agent NOPASSWD on it)\n'
+fi
 printf 'ROLLBACK systemctl disable --now backbond-appliance.timer backbond-appliance.service backbond-appliance-ingest.service; restore files from %s\n' "$BACKUP"
