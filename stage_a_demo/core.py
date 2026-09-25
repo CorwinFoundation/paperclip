@@ -20,7 +20,9 @@ from .receipt import (
     ExecutionAlreadyClaimed,
     ProposedAction,
     TermsNotCaptured,
+    event_instant,
     observation_instant,
+    same_instant,
     review_claim,
 )
 from .activation import (
@@ -947,7 +949,8 @@ class EvidenceStore:
         without an approval, which is exactly the case a claim has to be able to
         reconstruct.
         """
-        if self.receipt_for(task_id) is None:
+        receipt = self.receipt_for(task_id)
+        if receipt is None:
             raise CheckNotApproved(f"no pre-execution receipt for task {task_id}")
         pinned = self.db.execute(
             "SELECT protection_at_execution_json FROM approval_receipts WHERE task_id = ?",
@@ -965,7 +968,9 @@ class EvidenceStore:
         # Pin the coverage window as it stood at execution, while we are still
         # standing at that moment. Recomputing it later depends on a registry
         # that can move; a stored block cannot.
-        at_execution = self._protection_in_force_at(executed_at)
+        at_execution = self._protection_in_force_at(
+            executed_at, event_at=event_instant(receipt, outcome, executed_at)
+        )
         with self.db:
             self.db.execute(
                 "UPDATE approval_receipts SET outcome_json = ?, executed_at = ?, "
@@ -976,7 +981,9 @@ class EvidenceStore:
         return self.claim_for(task_id)
 
     @staticmethod
-    def _protection_in_force_at(executed_at: str | None) -> dict[str, Any]:
+    def _protection_in_force_at(
+        executed_at: str | None, *, event_at: str | None = None
+    ) -> dict[str, Any]:
         """The protection state at the moment of the event, not at read time.
 
         The activation gate is time-bound, so "was this covered" and "is the
@@ -989,18 +996,73 @@ class EvidenceStore:
         from the receipt and the outcome alone, and a receipt still never
         implies coverage (harness A10/A12).
         """
-        instant = observation_instant(executed_at)
-        if instant is None:
-            # An execution time we cannot order cannot be placed against a
-            # window. Said plainly rather than defaulted to either side.
+        # Order the window against the instant the claim itself will report —
+        # the independent evidence's own stamp where there is one — and not
+        # against the `executed_at` the execution side passes in. Ordering it
+        # against a caller-named clock handed that caller the choice of which
+        # window judged its loss, in both directions: a stale `executed_at`
+        # activated a window the independent record places days after it closed,
+        # and a late one took cover away from a loss the record places inside it
+        # (BEAAA-35638 V1/V3).
+        ordered_against = event_at or executed_at
+        if executed_at and observation_instant(executed_at) is None:
+            # The execution clock is on the record but cannot be placed. Even
+            # with a good independent stamp the two cannot be checked against
+            # each other, so no window is reported rather than reporting the one
+            # side that happens to be orderable (BEAAA-35480 un-zoned shape).
             return {"surface": "receipt", "ordered": False,
-                    "reason": "executed_at_not_orderable", "executed_at": executed_at,
+                    "reason": "executed_at_not_orderable",
+                    "executed_at": executed_at, "ordered_against": ordered_against,
+                    "protection_active": None, "activation_record_id": None}
+        instant = observation_instant(ordered_against)
+        if instant is None:
+            # An event time we cannot order cannot be placed against a window.
+            # Said plainly rather than defaulted to either side.
+            return {"surface": "receipt", "ordered": False,
+                    "reason": ("event_instant_not_orderable"
+                               if event_at and event_at != executed_at
+                               else "executed_at_not_orderable"),
+                    "executed_at": executed_at, "ordered_against": ordered_against,
                     "protection_active": None, "activation_record_id": None}
         block = surface_protection_state(
             "receipt", default_program_version(), default_registry(), now=instant
         )
         block["ordered"] = True
         block["executed_at"] = executed_at
+        block["ordered_against"] = ordered_against
+        if event_at and executed_at and not same_instant(event_at, executed_at):
+            # Two clocks reach one claim: the independent record's own stamp and
+            # the one the execution side passed in. Neither side gets to be the
+            # answer on its own. Ordering against the caller's clock let it
+            # activate a window the independent record places after that window
+            # closed; ordering against the independent stamp alone reads a loss
+            # the execution side places before the programme existed as covered,
+            # which is the BEAAA-35482 X2 direction arriving through this door.
+            # So the window has to come out the same against both instants, or
+            # the claim reports no window and names the disagreement for the
+            # human reviewer the activation records require (BEAAA-35638 V1/V3).
+            other = observation_instant(executed_at)
+            against_execution_block = None if other is None else surface_protection_state(
+                "receipt", default_program_version(), default_registry(), now=other
+            )
+            against_execution = (against_execution_block or {}).get("protection_active")
+            if against_execution != block["protection_active"]:
+                at_event = block["protection_active"]
+                # A refusal must not swallow either side's finding: the reason a
+                # clock says "not yet in force" is exactly what the reviewer
+                # needs, so both sides' reasons survive on the block.
+                merged = list(block.get("reasons") or [])
+                for reason in (against_execution_block or {}).get("reasons") or []:
+                    if reason not in merged:
+                        merged.append(reason)
+                block["reasons"] = merged
+                block["protection_active"] = None
+                block["reason"] = "event_and_execution_clocks_straddle_the_window"
+                block["clock_disagreement"] = {
+                    "event_at": event_at, "executed_at": executed_at,
+                    "protection_active_at_event_instant": at_event,
+                    "protection_active_at_executed_at": against_execution,
+                }
         return block
 
     def claim_for(self, task_id: str) -> dict[str, Any]:
@@ -1027,11 +1089,17 @@ class EvidenceStore:
             at_execution = json.loads(row["protection_at_execution_json"])
             at_execution["recorded_at_execution"] = True
         elif row["executed_at"]:
-            at_execution = self._protection_in_force_at(row["executed_at"])
+            at_execution = self._protection_in_force_at(
+                row["executed_at"],
+                event_at=event_instant(receipt, outcome, row["executed_at"]),
+            )
             at_execution["recorded_at_execution"] = False
         else:
             at_execution = None
-        review = review_claim(receipt, outcome, protection_at_execution=at_execution)
+        review = review_claim(
+            receipt, outcome, protection_at_execution=at_execution,
+            executed_at=row["executed_at"],
+        )
         # A withdrawal is on the record whether or not anything executed after
         # it. When something did execute anyway, the verdict is the withdrawal
         # and not the OK the user had already taken back: settling that charge

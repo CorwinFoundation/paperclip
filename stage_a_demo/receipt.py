@@ -481,15 +481,29 @@ CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION = "incomplete_no_orderable_observation
 CLAIM_INCOMPLETE_NO_CAPTURED_AMOUNT_AT_RISK = "incomplete_no_captured_amount_at_risk"
 
 
-def event_instant(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> str | None:
+def event_instant(
+    receipt: ApprovalReceipt,
+    outcome: ExecutedOutcome | None,
+    executed_at: str | None = None,
+) -> str | None:
     """When the loss happened, as far as the record can say.
 
-    Independent evidence of the outcome is the event; failing that, the moment
-    the answer was given, then the moment the receipt was written. A claim that
-    cannot name its own instant says so rather than borrowing read time.
+    Independent evidence of the outcome is the event. Failing that, the
+    execution time on the record is the only thing that names when the act
+    happened, so it comes next; the receipt's own stamps are the last resort,
+    because a pre-execution receipt is written before the act by construction
+    and so describes the approval rather than the event. A claim that cannot
+    name its own instant says so rather than borrowing read time.
+
+    ``executed_at`` is the stamp on the record, not one a caller asserts inside
+    a protection block. This is the one place the claim's event instant is
+    decided, so the coverage window can be ordered against the same value the
+    claim reports instead of a second clock (BEAAA-35638).
     """
     if outcome is not None and getattr(outcome, "observed_at", None):
         return outcome.observed_at
+    if executed_at:
+        return executed_at
     return receipt.answered_at or receipt.recorded_at or None
 
 
@@ -511,12 +525,25 @@ def unresolved_protection_at_event(event_at: str | None, reason: str) -> dict[st
     }
 
 
+def same_instant(left: str | None, right: str | None) -> bool:
+    """Whether two stamps denote the same instant.
+
+    Compared as instants, never as text, for the reason
+    :func:`observation_instant` gives. Anything unorderable on either side is
+    not equal to anything, including another unorderable stamp: "we cannot
+    place this" is not agreement.
+    """
+    first, second = observation_instant(left), observation_instant(right)
+    return first is not None and second is not None and first == second
+
+
 def _protection_at_event(
     receipt: ApprovalReceipt,
     outcome: ExecutedOutcome | None,
     supplied: dict[str, Any] | None,
+    executed_at: str | None = None,
 ) -> dict[str, Any]:
-    event_at = event_instant(receipt, outcome)
+    event_at = event_instant(receipt, outcome, executed_at)
     if supplied is None:
         return unresolved_protection_at_event(
             event_at, "protection_state_at_event_not_supplied"
@@ -524,8 +551,24 @@ def _protection_at_event(
     block = dict(supplied)
     block["surface"] = "claim"
     block["as_of"] = "event"
-    block["event_at"] = block.get("executed_at") or event_at
+    # The instant the window was ordered against, kept as its own fact next to
+    # the instant this claim reports. A caller-supplied `executed_at` used to
+    # become the claim's `event_at`, so the execution side named the event and
+    # with it picked the window its own loss was judged against (BEAAA-35638
+    # V1/V4). The claim's event instant now comes only from `event_instant`.
+    ordered_against = block.get("ordered_against") or block.get("executed_at")
+    block["ordered_against"] = ordered_against
+    block["event_at"] = event_at
     block["resolved"] = bool(block.get("ordered")) and block.get("protection_active") is not None
+    if block["resolved"] and not same_instant(ordered_against, event_at):
+        # One payload, two instants. The window was placed against a clock the
+        # caller supplied while the event instant comes from the independent
+        # record, so `protection_active` answers a different question than the
+        # claim asks. Refused and named rather than printed beside the verdict,
+        # which is the shape BEAAA-35636 set out to remove (BEAAA-35638 V2/V3).
+        block["resolved"] = False
+        block["protection_active"] = None
+        block["reason"] = "window_ordered_against_a_different_instant_than_the_event"
     if not block["resolved"]:
         # Ordered against nothing, or ordered with no state to report: the
         # window is not established, so the block must not read as one. An
@@ -541,6 +584,7 @@ def review_claim(
     outcome: ExecutedOutcome | None,
     *,
     protection_at_execution: dict[str, Any] | None = None,
+    executed_at: str | None = None,
 ) -> dict[str, Any]:
     """Reconstruct a claim from the receipt and what independent evidence says.
 
@@ -581,8 +625,8 @@ def review_claim(
         # read against a protection block resolved at some other time.
         "event_at": event_instant(receipt, outcome),
         "protection_at_execution": _protection_at_event(
-            receipt, outcome, protection_at_execution
-        ),
+        receipt, outcome, protection_at_execution, executed_at
+    ),
     }
 
     if outcome is None or not outcome.independent:
