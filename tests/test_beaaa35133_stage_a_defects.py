@@ -181,13 +181,27 @@ def test_a_ledger_written_before_the_column_existed_still_opens(tmp_path, progra
 # ── Defect B — one approval, one execution, on one ledger ──────────────────────
 
 def test_b_one_approval_authorises_one_execution(tmp_path, program):
+    """One approval buys one execution, and a recorded case cannot be re-run.
+
+    BEAAA-34389 A5 added an append-only rule on cases that fires *before* the
+    grant is consumed, so a same-case retry is now refused by that rule rather
+    than by the spent grant. Both invariants are asserted here: the refusal,
+    and the grant's spent state read directly off the store. The spent-grant
+    refusal message itself still has direct coverage in
+    ``test_b_a_grant_is_bound_to_the_ledger_that_recorded_it``, which replays
+    onto a second ledger where no case row exists to preempt it, and in the
+    abuse harness A7, whose losing racers are refused for exactly that reason.
+    """
     store = EvidenceStore(tmp_path / "ledger.db")
     merchant = CountingMerchant()
     mandate = Mandate("m-replay", "SKU-1", 100)
     _, grant_id = buy(store, key="replay-0", case_id="replay", merchant=merchant, mandate=mandate)
 
+    # The one approval is spent by the one execution it authorised.
+    assert store._approval_preview(grant_id, "replay") is None
+
     for n in range(1, 4):
-        with pytest.raises(PermissionError, match="no unspent human approval grant"):
+        with pytest.raises(PermissionError, match="already recorded"):
             buy(store, key=f"replay-{n}", case_id="replay", merchant=merchant,
                 mandate=mandate, grant_id=grant_id)
 

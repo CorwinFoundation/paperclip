@@ -386,9 +386,10 @@ def a5(root: Path):
         )
         # Same case_id, different mandate, its own human approval, fresh key.
         second = Mandate("m-a5-rewritten", "SKU-COVER-UP", 1)
+        second_grant = _approved(store, "a5", second)
         try:
             store.record_case(
-                case_id="a5", grant_id=_approved(store, "a5", second), asserted_sku="SKU-COVER-UP",
+                case_id="a5", grant_id=second_grant, asserted_sku="SKU-COVER-UP",
                 asserted_amount_cents=1, idempotency_key="a5-two",
                 merchant=rewrite_merchant,
             )
@@ -398,21 +399,40 @@ def a5(root: Path):
             # probe still measures that the first case survived it intact.
             refusal = f"PermissionError: {exc}"
         after = store.packet("a5")
+        # BEAAA-34389: a refusal that spends the human's approval, or that
+        # leaves a reserved execution row behind, is not a clean refusal. The
+        # user's second approval must survive an attempt that did nothing, and
+        # the ledger must not carry an allocation for an execution that never
+        # happened.
+        second_grant_unspent = store._approval_preview(second_grant, "a5") is not None
+        reserved_keys = [
+            row[0] for row in store.db.execute(
+                "SELECT idempotency_key FROM executions WHERE case_id = ?", ("a5",)
+            )
+        ]
     finally:
         store.close()
+    orphan_reservation = [key for key in reserved_keys if key != "a5-one"]
     rewritten = before["sources"]["mandate"] != after["sources"]["mandate"]
     stale_exec = after["execution"]["idempotency_key"] == "a5-one"
     raw_calls = getattr(rewrite_merchant, "calls", None)
     rewrite_calls = len(raw_calls) if isinstance(raw_calls, list) else raw_calls
     paired = (not rewritten) and stale_exec
-    return (not rewritten) and refusal is not None, (
+    holds = (
+        (not rewritten) and refusal is not None
+        and second_grant_unspent and not orphan_reservation
+    )
+    return holds, (
         f"second record under case_id a5 -> refused: {refusal or 'NOT REFUSED'};"
         f" merchant calls on the rewrite attempt={rewrite_calls};"
         f" mandate stayed {after['sources']['mandate']['mandate_id']} (rewritten={rewritten});"
         f" packet reports execution {after['execution']['idempotency_key']}"
-        f" (matches the surviving case={paired}). The ledger is append-only and the"
-        f" refusal lands before the merchant, so neither the evidence nor the charge"
-        f" happens twice under one case"
+        f" (matches the surviving case={paired});"
+        f" second grant still unspent={second_grant_unspent};"
+        f" orphan reservations={orphan_reservation or 'none'}."
+        f" The ledger is append-only and the refusal lands before the grant is"
+        f" consumed and before the execution is reserved, so a refused attempt"
+        f" spends nothing and leaves nothing behind"
     )
 
 

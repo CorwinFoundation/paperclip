@@ -62,6 +62,24 @@ class MandateExceeded(PermissionError):
     """
 
 
+class CaseAlreadyRecorded(PermissionError):
+    """A second execution tried to record itself under a case that already exists.
+
+    A recorded case is append-only. Before BEAAA-34389 A5 the case row was
+    written with ``INSERT OR REPLACE``, so a caller holding a fresh human
+    approval for the same ``case_id`` could overwrite the mandate, approval and
+    assertion of a case that had already executed. The packet kept pairing the
+    *first* execution's receipt with the *rewritten* sources, which is the
+    tampering the probe describes: one case's evidence against another case's
+    receipt.
+
+    Refused before the grant is consumed and before the merchant adapter, so
+    the second attempt spends nothing. A genuine second purchase is a second
+    case; re-running one case is not a thing this store can represent.
+    """
+
+
+
 def _mandate_overreach(
     mandate: Mandate, asserted_sku: str, asserted_amount_cents: int
 ) -> list[dict[str, Any]]:
@@ -320,6 +338,16 @@ class EvidenceStore:
         # This runs ahead of _consume_approval on purpose: a refused attempt
         # must leave the grant unspent, so the human's single approval is still
         # there to be used on an assertion that is actually within it.
+        # A recorded case is append-only (BEAAA-34389 A5). This runs before
+        # _consume_approval for the same reason the mandate check does: a
+        # refused attempt must leave the human's grant unspent.
+        if self.db.execute(
+            "SELECT 1 FROM cases WHERE case_id = ?", (case_id,)
+        ).fetchone() is not None:
+            raise CaseAlreadyRecorded(
+                f"case {case_id} is already recorded; the case ledger is append-only"
+            )
+
         previewed = self._approval_preview(grant_id, case_id)
         if previewed is not None:
             outside = _mandate_overreach(previewed, asserted_sku, asserted_amount_cents)
@@ -370,14 +398,6 @@ class EvidenceStore:
         # The activation state in force when this case is recorded. Persisted
         # with the case so the receipt never restates today's program status as
         # though it had been true at purchase time (BEAAA-35133 A).
-        # BEAAA-35357 A5: the case ledger is append-only. A second record under
-        # an existing case_id is refused here, before the merchant is called, so
-        # neither the evidence nor the charge happens twice under one case.
-        if self.db.execute("SELECT 1 FROM cases WHERE case_id = ?", (case_id,)).fetchone() is not None:
-            raise PermissionError(
-                f"case {case_id} is already recorded; the case ledger is append-only"
-            )
-
         protection = surface_protection_state(
             "receipt", default_program_version(), default_registry()
         )
