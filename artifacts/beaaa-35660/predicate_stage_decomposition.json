@@ -1,0 +1,28 @@
+{
+ "attribution_production_scored_479": {
+  "final_flagged": 0,
+  "removed_by_judge_channel_correction": 66,
+  "removed_by_prompt_literal_narrowing": 413,
+  "whole_file_upper_bound": 479
+ },
+ "issue": "BEAAA-35660",
+ "note": "The checkpoint-1 figure of 848 was measured over a different, 2,875-row registration inventory and is not subtractable from these. stage_0 is that same whole-file method re-run here for comparability.",
+ "stages": {
+  "stage_0_whole_file": {
+   "flagged": 2504,
+   "flagged_prod": 479,
+   "indeterminate": 3
+  },
+  "stage_1_prompt_only": {
+   "flagged": 67,
+   "flagged_prod": 66,
+   "indeterminate": 273
+  },
+  "stage_2_target_only": {
+   "flagged": 0,
+   "flagged_prod": 0,
+   "indeterminate": 332
+  }
+ },
+ "universe": "the 2,507 built registry rows, identical at every stage"
+}
