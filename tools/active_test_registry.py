@@ -1023,6 +1023,13 @@ def _load_evidence_json(
         return None
 
 
+# BEAAA-35691: the ledger locations are module constants so the documented
+# rollback ("delete the activation ledger") is pinnable by a test without
+# touching the real artifacts under artifacts/.
+BEAAA31092_LEDGER_RELPATH = "artifacts/beaaa-31092/rank2-ledger.json"
+BEAAA35380_LEDGER_RELPATH = "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
+
+
 @lru_cache(maxsize=1)
 def _beaaa31092_dev_scored_digests() -> frozenset[str]:
     """Dedupe digests the BEAAA-31092 rank-2 ledger resolved to ``scored``.
@@ -1030,8 +1037,11 @@ def _beaaa31092_dev_scored_digests() -> frozenset[str]:
     The ledger is the only place that carries the fail-closed evidence decision
     (bound response, terminal verdict, target-measured provenance, supported
     capability) and the CEO's verdict-spread tier gate. Reading it here keeps the
-    registry from re-deciding eligibility with a weaker rule. A missing or
-    unreadable ledger promotes nothing.
+    registry from re-deciding eligibility with a weaker rule. An absent ledger
+    promotes nothing and is the documented per-slice rollback (BEAAA-35691):
+    deleting it restores these rows to ``reported_not_scored`` instead of
+    failing the build. A ledger that is present but unparseable still raises,
+    because a corrupt activation record is ambiguous rather than absent.
     """
     return frozenset(_beaaa31092_dev_scored_rows())
 
@@ -1049,7 +1059,9 @@ def _beaaa31092_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
     ``row_blocks_scoring_activation``. Carrying the ledger's mapping and
     evidence onto the rows lets them clear D2 on their own fields.
     """
-    path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-ledger.json"
+    path = Path(__file__).resolve().parents[1] / BEAAA31092_LEDGER_RELPATH
+    if not path.exists():
+        return {}
     ledger = _load_evidence_json(path, context="BEAAA-31092 rank-2 ledger")
     run_manifest = str(ledger.get("run_manifest_sha256") or "")
     return {
@@ -1098,15 +1110,25 @@ def _beaaa35380_dev_scored_digests() -> frozenset[str]:
     TOOL_MISUSE_PT-05 (measured 1-of-5, unstable) is held as unmeasured per the
     CEO ruling on BEAAA-35020; its digest is absent from this set so it cannot
     be promoted even though its family is in FOUNDER_DEV_SCORED_FAMILIES.
-    A missing or unreadable ledger promotes nothing.
+    An absent ledger promotes nothing and is the documented per-slice rollback
+    (BEAAA-35691): deleting it restores these rows to ``reported_not_scored``
+    instead of failing the build. A ledger that is present but unparseable
+    still raises, because a corrupt activation record is ambiguous rather than
+    absent.
     """
     return frozenset(_beaaa35380_dev_scored_rows())
 
 
 @lru_cache(maxsize=1)
 def _beaaa35380_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
-    """The BEAAA-35380 activation ledger's ``scored`` rows, keyed by dedupe digest."""
-    path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
+    """The BEAAA-35380 activation ledger's ``scored`` rows, keyed by dedupe digest.
+
+    Absent ledger promotes nothing (the documented rollback); present but
+    unparseable raises. See BEAAA-35691.
+    """
+    path = Path(__file__).resolve().parents[1] / BEAAA35380_LEDGER_RELPATH
+    if not path.exists():
+        return {}
     ledger = _load_evidence_json(path, context="BEAAA-35380 activation ledger")
     return {
         str(row["dedupe_sha256"]): row
