@@ -37,6 +37,7 @@ from stage_a_demo.receipt import (  # noqa: E402
     ANSWER_SKIPPED,
     ApprovalReceipt,
     ExecutedOutcome,
+    ProposedAction,
     assess_warnings,
     review_claim,
 )
@@ -1400,8 +1401,53 @@ def a17(root: Path):
     )
 
 
+@probe(
+    "A18 protection window ordered against the claim's own event",
+    "a caller-asserted active window is not carried onto a claim whose own event instant contradicts it",
+)
+def a18(root: Path):
+    """BEAAA-35638. The window and the verdict must not name different instants.
+
+    ``review_claim`` sets ``event_at`` from the independent evidence, while the
+    protection block is ordered against an instant the execution side supplies.
+    ``_protection_at_event`` trusts the caller's ``ordered`` flag and never
+    compares that instant to the window it names, so an asserted active window
+    rides onto the claim beside a contradicting event time. Registry-free: this
+    is the library-level form of the defect, which is why it lives here rather
+    than only in qa/seam_probes_34396_round12.py.
+    """
+    action = ProposedAction(
+        description="Hotel Ester, 12-15 Oct, 2 guests", merchant="bookings.example",
+        amount_cents=48_000, non_recoverable=True, cancellation_terms="non-refundable",
+    )
+    receipt = ApprovalReceipt(
+        "r-a18", "t-a18", action, ANSWER_OK,
+        "2026-10-05T09:07:00Z", "2026-10-05T09:09:00Z", "2026-10-05T09:09:05Z",
+    )
+    outcome = ExecutedOutcome(
+        "Hotel Ester, 19-22 Oct, 2 guests", "bookings.example", 48_000,
+        evidence_ref="confirmation-wrong-dates", observed_at="2026-10-05T09:41:00Z",
+    )
+    # An execution-side assertion no window could support: active, ordered, and
+    # stamped twenty-seven years before the event the claim itself reports.
+    asserted = {
+        "ordered": True, "protection_active": True, "executed_at": "1999-01-01T00:00:00Z",
+        "activation_record_id": "r4", "surface": "receipt",
+    }
+    claim = review_claim(receipt, outcome, protection_at_execution=asserted)
+    block = claim.get("protection_at_execution") or {}
+    carried_active = block.get("protection_active") is True
+    agrees = block.get("event_at") == claim.get("event_at")
+    return (not carried_active) or agrees, (
+        f"supplied ordered=True protection_active=True executed_at=1999-01-01 -> carried"
+        f" protection_active={block.get('protection_active')} resolved={block.get('resolved')}"
+        f" block event_at={block.get('event_at')} while the claim's own event_at="
+        f"{claim.get('event_at')}; nothing compares the instant to the window it names"
+    )
+
+
 PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4, a13, a14,
-          a15, a16, a17]
+          a15, a16, a17, a18]
 
 
 def main() -> int:
