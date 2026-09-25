@@ -20,6 +20,27 @@ class _CountingMerchant(SyntheticMerchantAdapter):
         return super().purchase(**kwargs)
 
 
+class _DivergentMerchant(SyntheticMerchantAdapter):
+    """A merchant whose own record disagrees with what the agent asserted.
+
+    The synthetic adapter echoes its arguments back, so in the shipped demo
+    the independent evidence can never differ from the assertion and the join
+    is structurally untestable. This is what makes it testable
+    (BEAAA-35630, QA probe A16).
+    """
+
+    def __init__(self, *, sku, amount_cents):
+        self.calls = []
+        self._sku = sku
+        self._amount_cents = amount_cents
+
+    def purchase(self, **kwargs):
+        self.calls.append(dict(kwargs))
+        record = super().purchase(**kwargs)
+        record.update({"sku": self._sku, "amount_cents": self._amount_cents})
+        return record
+
+
 class StageADemoTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -57,6 +78,56 @@ class StageADemoTests(unittest.TestCase):
         self.assertEqual("MISMATCH", packet["status"])
         self.assertEqual({"amount_cents"}, {m["field"] for m in packet["reviewable_mismatches"]})
         self.assertEqual("SKU-1", packet["sources"]["mandate"]["sku"])
+
+    def test_a_divergent_merchant_record_is_a_reviewable_incident(self):
+        """BEAAA-35630, QA probe A16. Spec section 11, "Wrong amount/SKU/date".
+
+        The assertion is inside the mandate, so nothing is refused before the
+        merchant is called. What the merchant then records is not what was
+        approved. Before the fix the independent record was written to the
+        case and never compared, so this read status MATCH with an empty
+        incident list.
+        """
+        self.merchant = _DivergentMerchant(sku="SKU-OTHER", amount_cents=4_900)
+        packet = self.record(EvidenceStore(self.path))
+        self.assertEqual("MISMATCH", packet["status"])
+        by_field = {m["field"]: m for m in packet["reviewable_mismatches"]}
+        self.assertEqual({"sku", "amount_cents"}, set(by_field))
+        # Not denied: the case is recorded and every source stays readable.
+        self.assertEqual(
+            "SKU-OTHER", packet["sources"]["independent_merchant_evidence"]["sku"]
+        )
+        # The divergence names who disagreed, not just that something did.
+        self.assertEqual(
+            ["independent_merchant_evidence"], by_field["sku"]["disagrees_with_mandate"]
+        )
+        self.assertEqual(
+            {"mandate": 100, "agent_assertion": 100, "independent_merchant_evidence": 4_900},
+            by_field["amount_cents"]["sources"],
+        )
+
+    def test_an_under_spend_the_merchant_confirms_names_both_disagreeing_sources(self):
+        """The pre-BEAAA-35630 case still reports, and now says who differs.
+
+        The agent spent less than approved and the merchant record agrees with
+        the agent, so two sources disagree with the mandate on one field.
+        """
+        packet = self.record(EvidenceStore(self.path), amount=90)
+        self.assertEqual("MISMATCH", packet["status"])
+        (entry,) = packet["reviewable_mismatches"]
+        self.assertEqual("amount_cents", entry["field"])
+        self.assertEqual(
+            ["agent_assertion", "independent_merchant_evidence"],
+            entry["disagrees_with_mandate"],
+        )
+
+    def test_no_independent_evidence_reports_no_merchant_source(self):
+        """A case recorded without the merchant leg claims nothing about it."""
+        packet = self.record(EvidenceStore(self.path), amount=90, evidence=False)
+        self.assertEqual("UNKNOWN/INCOMPLETE", packet["status"])
+        (entry,) = packet["reviewable_mismatches"]
+        self.assertNotIn("independent_merchant_evidence", entry["sources"])
+        self.assertEqual(["agent_assertion"], entry["disagrees_with_mandate"])
 
     def test_an_assertion_outside_the_mandate_is_refused_before_the_merchant(self):
         store = EvidenceStore(self.path)

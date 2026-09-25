@@ -101,6 +101,62 @@ def _mandate_overreach(
     return outside
 
 
+def _source_divergences(
+    mandate: Mandate,
+    asserted_sku: str,
+    asserted_amount_cents: int,
+    merchant_evidence: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Where the three records of one purchase disagree, field by field.
+
+    BEAAA-35630: the only comparison here used to be the agent's assertion
+    against the mandate. The independent merchant record was written to the
+    case and then never read, so a merchant that shipped a different SKU and
+    charged 49x the approved amount produced ``status='MATCH'`` with an empty
+    incident list. The independent evidence the spec joins on was stored and
+    not compared.
+
+    Each entry names the field, carries the value every source holds for it,
+    and lists which sources differ from the mandate, so a reviewer sees who
+    disagreed rather than only that something did. Spec section 10 keeps
+    measured fact, agent assertion and derived interpretation apart; this is
+    the derived interpretation, and it names its inputs.
+
+    A divergence is not a refusal. Spec section 11, "Wrong amount/SKU/date":
+    the mismatch is a reviewable incident, visible with its source evidence,
+    and "not automatically denied merely for differing from the mandate". An
+    assertion *outside* the mandate is a different thing and never reaches
+    here - :func:`_mandate_overreach` refuses it before the merchant is
+    called (BEAAA-34396 A4).
+    """
+    asserted = {"sku": asserted_sku, "amount_cents": asserted_amount_cents}
+    divergences: list[dict[str, Any]] = []
+    for field in ("sku", "amount_cents"):
+        sources: dict[str, Any] = {
+            "mandate": getattr(mandate, field),
+            "agent_assertion": asserted[field],
+        }
+        if merchant_evidence is not None:
+            sources["independent_merchant_evidence"] = merchant_evidence.get(field)
+        disagreeing = sorted(
+            name for name, value in sources.items() if value != sources["mandate"]
+        )
+        if not disagreeing:
+            continue
+        divergences.append(
+            {
+                # field/mandate/assertion are the shape this list has always
+                # carried; readers of the old row keep working.
+                "field": field,
+                "mandate": sources["mandate"],
+                "assertion": sources["agent_assertion"],
+                "sources": sources,
+                "disagrees_with_mandate": disagreeing,
+            }
+        )
+    return divergences
+
+
 class ApprovalVerifier:
     """Execution-side capability. Holds only one-way digests of human approvals.
 
@@ -394,13 +450,6 @@ class EvidenceStore:
                 raise
             return replay
 
-        # Anything outside the mandate was already refused above, so what is
-        # left is variance within it — the agent spent less than it was allowed
-        # to. That is recorded for review, not refused.
-        mismatches: list[dict[str, Any]] = []
-        if asserted_amount_cents != mandate.amount_cents:
-            mismatches.append({"field": "amount_cents", "mandate": mandate.amount_cents, "assertion": asserted_amount_cents})
-
         # The activation state in force when this case is recorded. Persisted
         # with the case so the receipt never restates today's program status as
         # though it had been true at purchase time (BEAAA-35133 A).
@@ -413,6 +462,13 @@ class EvidenceStore:
             merchant_evidence = merchant.purchase(
                 case_id=case_id, sku=asserted_sku, amount_cents=asserted_amount_cents
             )
+        # Anything outside the mandate was already refused above. What is left
+        # is compared here, after the merchant has answered, so the independent
+        # record is joined against both the mandate and the agent's assertion
+        # rather than only stored beside them (BEAAA-35630).
+        mismatches = _source_divergences(
+            mandate, asserted_sku, asserted_amount_cents, merchant_evidence
+        )
         status = "UNKNOWN/INCOMPLETE" if merchant_evidence is None else ("MISMATCH" if mismatches else "MATCH")
         assertion = {"sku": asserted_sku, "amount_cents": asserted_amount_cents, "source": "agent-assertion"}
         approval = {"source": "human-approval", "token_digest": hashlib.sha256(approval_token.encode()).hexdigest()}
