@@ -1,0 +1,690 @@
+# BEAAA-35892 unpushed-work triage (read-only), master d20b1c07, 2026-09-25
+
+## bc8396d5 (Scanner Engineer #2) — 55 working trees
+
+are-scanner|beaaa-14958-replay-trust|f290ec485c|2026-07-22|#115/MERGED|no|DELIVERED(merged PR)
+are-scanner-mergecheck|DETACHED|16925824bd|2026-07-22|-|no|DETACHED
+are-scanner-pr79|beaaa-14958-pr79-compat|cc8f6b43f4|2026-07-16|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-19596-numbat|beaaa-19596-numbat|b3758d1971|2026-07-30|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-19992-rule|beaaa-19992-text-voice-cel|5168c1621e|2026-07-31|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-20177-growth-cel|agent/beaaa-20177-growth-cel|d6369e4755|2026-08-20|#205/MERGED|no|DELIVERED(merged PR)
+beaaa-21115-release-candidate|beaaa-21115-release-candidate|233445d3b3|2026-08-08|#186/CLOSED|yes|PUSHED(branch on origin)
+beaaa-21512-readonly-verify|agent/beaaa-21512-readonly-verify|e5b48c648f|2026-08-17|#267/MERGED|no|DELIVERED(merged PR)
+beaaa-21723-integration|integrate-beaaa-21723-128e7e8f|122d56f6b3|2026-08-18|-|yes|PUSHED(branch on origin)
+beaaa-21723-lane-c|beaaa-21723-lane-c-evidence|3bfe262025|2026-08-18|-|yes|PUSHED(branch on origin)
+beaaa-23845-receipt|master-merge|b434400107|2026-08-17|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-23947-receipt-sweep|agent/beaaa-23947-receipt-sweep|8fddc3fe0a|2026-08-17|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-23953-focus-claim|agent/beaaa-23953-focus-claim-escape-r3|d1e3592c89|2026-08-17|-|yes|PUSHED(branch on origin)
+beaaa-23953-r4-merge|agent/beaaa-23953-r4-merge|f7c6d0362b|2026-08-17|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-23953-r5-merge|agent/beaaa-23953-r5-merge|8fddc3fe0a|2026-08-17|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-23967-cel-hardening|beaaa-23967-cel-hardening|da7ea62160|2026-08-17|-|yes|PUSHED(branch on origin)
+beaaa-23969-inventory|agent/beaaa-23969-inventory-refreeze|43bed5fd09|2026-08-17|-|yes|PUSHED(branch on origin)
+beaaa-24078-active-registry|beaaa-24078-active-registry|f4ae48602c|2026-08-18|#214/MERGED|no|DELIVERED(merged PR)
+beaaa-24250-provenance|agent/beaaa-24250-provenance|d570cf5f33|2026-08-18|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-24310-integration|beaaa-24310-lane-c-integration|71c5124d99|2026-08-18|-|yes|PUSHED(branch on origin)
+beaaa-24458-registry-baselines|beaaa-24458-registry-baselines|fdb873e708|2026-08-20|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-24492-anchor|beaaa-24492-preferred-a-anchor|0f27a2cce4|2026-08-19|-|yes|PUSHED(branch on origin)
+beaaa-24495-forensics|beaaa-24495-golden-lock-forensics|ac2218d77e|2026-08-20|-|yes|PUSHED(branch on origin)
+beaaa-24496-fire|agent/beaaa-24496-behavioral-fire|ab705d971a|2026-08-19|-|yes|PUSHED(branch on origin)
+beaaa-25051-c1|scanner2/beaaa-25051-c1|44f7ddf3e8|2026-08-20|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-25051-c1-fastpath|scanner2/beaaa-25051-c1-fastpath|7a222a21c8|2026-08-23|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-25051-c1-qa-bf1dcc8f|DETACHED|53c59a4095|2026-08-23|-|no|DETACHED
+beaaa-26153|scanner2/beaaa-26153|c7b4f4dead|2026-08-31|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-26156-v2|agent/beaaa-26156-v2|c8aeebef33|2026-08-29|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-26277-cure|scanner2/beaaa-26277-cure|4f30af1899|2026-09-02|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-26938|scanner/beaaa-26938-exposure-consent|2523546fa1|2026-09-02|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-28519-fix|scanner2/beaaa-28519-fix|84586e5df6|2026-09-02|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-29719-retention|agent/beaaa-29719-retention|81c4562571|2026-09-04|#306/MERGED|no|DELIVERED(merged PR)
+beaaa-29719-retention-r2|agent/beaaa-29719-retention-r2|410afbae6f|2026-09-04|#307/MERGED|no|DELIVERED(merged PR)
+beaaa-30180-fix|scanner2/beaaa-30180-fix|d55532b69f|2026-09-06|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-30905|agent/beaaa-30905-datadog|1c0f391e66|2026-09-11|#471/MERGED|no|DELIVERED(merged PR)
+beaaa-30905-datadog|agent/beaaa-30905-datadog|67ef130da7|2026-09-11|#471/MERGED|no|DELIVERED(merged PR)
+beaaa-30935|agent/beaaa-30935|6147b982f1|2026-09-12|-|yes|PUSHED(branch on origin)
+beaaa-30935-anthropic|agent/beaaa-30936-unsafe-re-fix|a2cfe3257d|2026-09-09|#418/MERGED|no|DELIVERED(merged PR)
+beaaa-30935-pr417|DETACHED|8e35f0c016|2026-09-13|-|no|DETACHED
+beaaa-31493|agent/beaaa-31493-zoo-format|15739842a0|2026-09-10|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-31592|agent/beaaa-31592-dispatch-abort|2d40c2a8e0|2026-09-11|#460/MERGED|no|DELIVERED(merged PR)
+beaaa-31971|beaaa-31971-terminal-grades|c3cf8d996c|2026-09-12|#503/CLOSED|yes|PUSHED(branch on origin)
+beaaa-32177|scanner2/beaaa-32177-datadog-agent-observability|d716575392|2026-09-12|-|no|NO-ORIGIN-BRANCH-NO-PR
+beaaa-33297|scanner2/beaaa-33297-manual-claim-gate|3e197028ab|2026-09-17|#550/MERGED|no|DELIVERED(merged PR)
+beaaa-33390|scanner2/beaaa-33390-repin|754013e3d3|2026-09-17|#564/MERGED|no|DELIVERED(merged PR)
+beaaa-34399-stage-a-ui|feat/beaaa-34399-stage-a-ui|91e72738c3|2026-09-22|-|yes|PUSHED(branch on origin)
+beaaa-35729|beaaa-35729|96b3c84b13|2026-09-25|#727/MERGED|no|DELIVERED(merged PR)
+beaaa-35816|beaaa-35843-indirect-tool-transport|e360a04884|2026-09-25|#739/OPEN|yes|PUSHED(branch on origin)
+beaaa-35816-baseline|master|15bd39532c|2026-09-25|-|yes|PUSHED(branch on origin)
+build-beaaa-18807-f43f37f|DETACHED|f43f37f198|2026-07-28|-|no|DETACHED
+integrate-14921|beaaa-14921-consolidated|d0da79362a|2026-07-16|#113/MERGED|no|DELIVERED(merged PR)
+rebuild-beaaa-18807-f43f37f-clean|DETACHED|f43f37f198|2026-07-28|-|no|DETACHED
+review-14921|master|95482d6d8b|2026-07-16|-|yes|PUSHED(branch on origin)
+
+## fleet sweep — 586 working trees, 10 seat workspaces
+
+0c4b497c-ff5d-4a0e-abf4-70da82fed600	are-scanner-beaaa-29869	beaaa-29869-friday-numbers	64dd3f07ca		DELIVERED-OR-PUSHED	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	are-scanner-beaaa11735	beaaa11735-close-gate	7460102706	2026-07-04	ANCESTOR-OF-MASTER	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	are-scanner-beaaa11737	DETACHED	d1db8cb3cc	2026-07-04	ANCESTOR-OF-MASTER	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	beaaa-14412-clean-master	beaaa-14412-pr72-followup	c23dd1bca2		DELIVERED-OR-PUSHED	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	beaaa-14412-pr72-followup	beaaa-14412-pr72-followup	c23dd1bca2		DELIVERED-OR-PUSHED	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	beaaa-14636-clean	DETACHED	3daea93a0f	2026-07-15	ANCESTOR-OF-MASTER	0	0
+3d1bf333-817f-4c79-91db-aa034f03cb31	beaaa-29800	beaaa-29800-cosign-subordinator	394ed41b6b	2026-09-05	UNDELIVERED	2	0
+60670b68-7b3f-4d71-ac01-4407a5ca66f4	beaaa-34388-chooser	review/beaaa-34515-stage-a-candidate	bbab4e6b4f		DELIVERED-OR-PUSHED	0	0
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-26114-clean	beaaa-26114-fail-closed-clean	09b4ce1a8d	2026-09-06	UNDELIVERED	2	269
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-28796	scanner/beaaa-28796-worker-ref	8740b33bea	2026-09-02	AMBIGUOUS	0	2
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-31593	scanner2/beaaa-31593	0c1f052791	2026-09-11	UNDELIVERED	6	158
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-31615	beaaa-31615	e22b6396f0		DELIVERED-OR-PUSHED	0	0
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-31910	scanner2/beaaa-31910	328fa9b07b		DELIVERED-OR-PUSHED	0	0
+67feff3b-919d-45f3-860a-732b2ab466ab	beaaa-35844	scanner4/beaaa-35844	20eaa8b946		DELIVERED-OR-PUSHED	0	0
+67feff3b-919d-45f3-860a-732b2ab466ab	repo	beaaa-26153	7aace9c5d4	2026-09-11	UNDELIVERED	7	266
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	.beaaa-25804-ephemeral	master	HEAD		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	.beaaa-26821-clean	DETACHED	6812b9d11d	2026-08-08	UNDELIVERED	1	5
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	.beaaa-31940-wt	beaaa-31940-in-review-sweep	3de05d6fb0		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	BEAAA-27189	agent/beaaa-27189-signing-guard	b478f983e8	2026-08-28	UNDELIVERED	1	3
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	BEAAA-27364-candidate	master	d12f9fa179		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	BEAAA-27453-candidate	cto/beaaa-27453-corrective	27e34e6a0c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	agent-scan-beaaa-26483	docs/beaaa-29873-fp-sla-accuracy	5ce491fe3b	2026-09-18	AMBIGUOUS	0	2
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	are-scanner	beaaa-33595-confirmation-risk-audit	e60c88a87b		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	are-scanner-17890	beaaa-17890-repair-passive-demo-merge	54e464e01d		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	are-scanner-beaaa29902-fix	cto/beaaa-29931-python3	60eb55766f		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	are-scanner-wave4-ada8	integrate/beaaa-20181-candidate	1a2a3cd35f		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-20231-recut-2cc2f494	agent/beaaa-20231-recut-2cc2f494	2cc2f494a6	2026-08-26	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-21591-branch-hygiene	agent/beaaa-21591-branch-hygiene	1a946f8aae		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-22021-promotion	beaaa-22021-promotion	166835e9cd	2026-08-17	UNDELIVERED	2	2
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-23861-fix	beaaa-23861-fix	37eba8c7cf	2026-08-17	AMBIGUOUS	0	3
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-23947-merge	cto/beaaa-23947-merge	7f59bf5779	2026-08-18	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-23947-receipt-sweep	agent/beaaa-23947-receipt-sweep	adbf9cb520	2026-08-18	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-24824-successor	agent/beaaa-24824-successor	6d93451356		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25171-train1	master	09baff2118		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25171-train1-clean	beaaa-25171-train1	4efed1c17e	2026-08-27	UNDELIVERED	5	10
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25191-train1-convergence	beaaa-25191-train1-convergence	09baff2118	2026-08-21	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25514-governed-cd	beaaa-25514-governed-cd	1c10dc464c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25535-integration	agent/beaaa-25540-refreshed-strict-parser	d470b29146		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-25689-new.TnceUV	DETACHED	c50c2762cf	2026-08-24	NO-BASE	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26069	beaaa-26809	fb3be35f8a	2026-08-27	UNDELIVERED	35	8
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26076-work	beaaa-26076-tenant-isolation	079a743fc6	2026-08-23	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26077-work	beaaa-26077-canonical-json	f56677c27c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26105	beaaa-26105-tenant-scanlog	2dd25981c2	2026-08-27	UNDELIVERED	10	3
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26238-replacement	beaaa-26238-replacement	f354ed5fa0	2026-08-26	UNDELIVERED	1	1
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26483-candidate	DETACHED	d4c686b39c	2026-09-02	NO-BASE	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26529-integration	master	5a133dacdd		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26698-work	agent/beaaa-26698-crosswalk	615e94b195	2026-08-29	UNDELIVERED	5	1
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26775-work	beaaa-26775	8c52864879	2026-08-28	UNDELIVERED	2	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26799-are-connector-hardening	beaaa-26799-are-connector-hardening	48d3e3e2c3	2026-08-27	UNDELIVERED	5	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-26808-masked-fixture-tests	DETACHED	962a46d8a7	2026-08-27	UNDELIVERED	6	1
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-27084-rebuild	agent/beaaa-27084-rebuild	b07ec64bb5	2026-08-28	UNDELIVERED	4	6
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-27176-candidate.2W0JIQ	DETACHED	eeb9a1dc8b	2026-08-28	UNDELIVERED	1	2
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-27933-repair	beaaa-27933-repair	d80c802b03	2026-08-31	UNDELIVERED	21	4
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-27941	DETACHED	ad411b749c	2026-08-07	UNDELIVERED	267	551
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-28013-approved-baseline	DETACHED	ad411b749c	2026-08-07	UNDELIVERED	267	551
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-28631-edge-contract	beaaa-28631-edge-contract	a01a31d65c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-28792	agent/beaaa-28796-evidence-seal-fix	c41f18291f		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-28994-audit	cto/beaaa-28994-exposure-snapshot-correction	f856e74de2	2026-09-02	UNDELIVERED	3	1
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29089-landing-reconciler	fix/beaaa-29075-cosign-closure-boundary	ce82c59e20		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29653-v2	cto/beaaa-29653-pending-interaction-precedence	0623aabcb8	2026-09-04	UNDELIVERED	21	25
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29900-deploy-hop	master	8287078328		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29929-ssh-key	cto/beaaa-29929-ssh-key	a7ec930556		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29962	beaaa-29962-exposure-names	a66d31d942		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29966-exposure-funnel	beaaa-29966-exposure-funnel	b4bd042630	2026-09-05	UNDELIVERED	3	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-29973-cto	agent/beaaa-29973-cyber	5e6f761d27		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30127-ai-disclosure	DETACHED	677eb20ddc	2026-09-06	AMBIGUOUS	0	24
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30127-fix	beaaa-30127-ai-disclosure-fix	677eb20ddc	2026-09-06	AMBIGUOUS	0	24
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30128-fix	beaaa-30128-fix	14680d1160	2026-09-06	AMBIGUOUS	0	26
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30154-voice	beaaa-30154-voice-adversarial	c75adc2cc0		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30156-pii	beaaa-30156-pii	9d7d2f0d33		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30185-agentdojo	cto/beaaa-30185-agentdojo	8a78baabd0		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30209-demographic-parity	cto/beaaa-30246-eval-representation-fix	211efb99a5	2026-09-07	AMBIGUOUS	0	38
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30216-equal-opportunity	beaaa-30216-equal-opportunity	aef498dd6b		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30241-review	review/beaaa-30241-invoice-only	b74d0d01f2		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30537-runtime	cto/beaaa-30537-runtime	a3f0ad8a66		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-30725-install-f3f01af	DETACHED	f3f01af280	2026-09-13	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-31117	master	ae7d226010		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	beaaa-32032-paperclip	fix/beaaa-32032-cancel-auth	8b7e7ff37e	2026-09-12	UNDELIVERED	13	12
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	repo	beaaa-29067-qa-review-outstanding-veto	329e5fe6c4		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-28645	beaaa-28645-pin-actions	5ceb46e508		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-28653	beaaa-28653-registry-reconcile	41d71c892c	2026-09-02	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-29826	beaaa-29826-author-bind	11eac09b56	2026-09-05	UNDELIVERED	8	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-29857	beaaa-29857-remove-qa-review-gate	e43c7c0ded		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-30296	cto/beaaa-30296-sentiment	929385e4fd		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31542	beaaa-31542-evidence-export	fc32e95409		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31623	fix/beaaa-31623-garak-registry	046a38fc16		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31700	scanner2/beaaa-31937	75c21cd9e5		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31910	beaaa-31910-goat-attacker-pin	9430a19e37		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31911	beaaa-31911-doc-truthfulness	544d1814f2		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31937b	DETACHED	560d30a92a	2026-09-12	UNDELIVERED	1	12
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31945	DETACHED	6719607dde	2026-09-12	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31970	beaaa-31970-0.1.3-status-marker	803128f7c1		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-31971b	DETACHED	e5acea99b8	2026-09-12	AMBIGUOUS	0	5
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-32638	beaaa-32638	1a13375242		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-32683	beaaa-32683	bae1829b97		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-32951	beaaa-32951	2d174a1586		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33051-sudoers	beaaa-33051-gate-sudoers	ab79d2844f		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33074	DETACHED	b930e29103	2026-09-16	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33099	DETACHED	c37ae2c4d0	2026-09-16	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33101	beaaa-33101-failclosed	b72873e77a		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33175	beaaa-33101-d2	453c823d41	2026-09-17	UNDELIVERED	3	1
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33462	DETACHED	00830d4db0	2026-09-17	AMBIGUOUS	0	11
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33506	DETACHED	2f5147d30a	2026-09-17	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33506b	DETACHED	efb383c92b	2026-09-17	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-33538	DETACHED	e8457b074b	2026-09-18	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-34041	beaaa-34042-round2-span	772009a723		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-34387-gate-91e72738	DETACHED	91e72738c3	2026-09-22	AMBIGUOUS	0	6
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-34389-91e72738	DETACHED	58d77bd705	2026-09-23	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-34396-probe	DETACHED	91e72738c3	2026-09-22	AMBIGUOUS	0	6
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35014	beaaa-35015	16d2099a6a		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35015	beaaa-35015-truth-table	5cd02786ac		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35020	beaaa-35020-corrected-construction	d815bb53ba		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35133	beaaa-35133	08ae5e35f4		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35133-probe	DETACHED	9d1d851eac	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35133-v2	beaaa-35133-v2	de34b6dfb3		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35156	fix/beaaa-35331-record-case-grant-boundary	9d1d851eac	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35331	fix/beaaa-35331-approval-receipt	984117d591		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35354	beaaa-35354	00f77b071c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35354b	beaaa-35354-a6	865eb8404c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35357	beaaa-35357	d3685fe804		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35380	beaaa-35380-tool-misuse-dev-activation	876937be75		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35380-master	DETACHED	348c3bc0b8	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35407	beaaa-35407-a4-method-and-action	b78b50d2a2		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35456	verify-master	c60b03195f	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35480	beaaa-35480	d7e3d9ff1a		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35482	beaaa-35482-coverage-window-bounds	903eeac8a7		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35483	beaaa-35483-receipt-tenant-scope	d66287e2dd		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35483b	beaaa-35483-round6-runs-again	da5143bb6d		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35530	beaaa-35530-selfhosted-probe	129dd79299		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35552	beaaa-35552-selfhosted-required-checks	aa447a42a3		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35553	beaaa-35553-path1-withdrawal	62ae804293		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35579	beaaa-35578-receipt-tenant-isolation	4a17a02052		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35604	beaaa-35604-decouple-diagnostic-uploads	6e3fc350ca		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35606	beaaa-35606-runner-isolation	0c9ee60c13		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35629	beaaa-35629-revert-selfhosted	c5f7b39dd5		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35630	beaaa-35630-merchant-join	67e4a6fbd5		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35632	beaaa-35632-legacy-receipt-read	ee6156d3aa		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35635	beaaa-35635-pytest-shards	a8324c1cf6		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35637	beaaa-35637	97e1c884de		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35638	verify-35638-final	02415baeaa	2026-09-25	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35660	beaaa-35660-construction-audit	a3d8b81241		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35661	DETACHED	40a8482ca6	2026-09-25	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35665	beaaa-35665-cc-slice	9e47978ef8		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35669-runs	DETACHED	8bff085944	2026-09-25	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35691	beaaa-35691-rollback	66cc64622c		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35701	beaaa-35702-vapi-auth-gate	5ae8749a07		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35701-merged	beaaa-35701-merged-run	ca1a8b2a44	2026-09-25	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35701b	beaaa-35701-run	d44c27acdc	2026-09-25	DELIVERED-content	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35791	beaaa-35791-install-glob	145a608784		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-35793	agent/beaaa-35793-tier-label	06d98a8ab9		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-a4	fix/beaaa-34389-a4-refusal	ec02225e4e		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-d1-fix	fix/beaaa-34389-defect1-approval-secret	60825e8e42		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-gate-91e72738	DETACHED	91e72738c3	2026-09-22	AMBIGUOUS	0	6
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-master-baseline	DETACHED	58d77bd705	2026-09-23	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-nrl	feat/beaaa-34389-non-recoverable-loss	f3d6ff54fa		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-ts	fix/beaaa-34389-timestamp-comparison	f460358d3b		DELIVERED-OR-PUSHED	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-verify-348c3bc0	DETACHED	348c3bc0b8	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-verify-678d40d6	DETACHED	678d40d6d7	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-verify-a90d3d1e	DETACHED	a90d3d1e6d	2026-09-24	ANCESTOR-OF-MASTER	0	0
+88e68019-1cb6-4c4f-83e1-9fd340fb6821	wt-verify-merged	DETACHED	c4e036057a	2026-09-24	ANCESTOR-OF-MASTER	0	0
+8ecf7770-7ab9-43d2-bd2c-638be5dfc946	agent-scan	fix/beaaa-31946-root-entry	7a71e52cad	2026-09-11	UNDELIVERED	2	1
+9752d00d-b1f2-44c2-8aa2-8ac74e3b2af7	BEAAA-16768-current	beaaa-16768-reconcile-r2	fbb6667ba3	2026-08-28	AMBIGUOUS	0	1
+9752d00d-b1f2-44c2-8aa2-8ac74e3b2af7	BEAAA-26529-pr246	agent/beaaa-26529-pr246-repair	67d66bab3f	2026-08-28	AMBIGUOUS	0	12
+9752d00d-b1f2-44c2-8aa2-8ac74e3b2af7	agent-scan-beaaa-27365	agent/beaaa-27365-trust-semantics	37acd7f99d	2026-08-28	UNDELIVERED	1	7
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	BEAAA-26077-candidate	DETACHED	f56677c27c	2026-08-25	UNDELIVERED	4	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	BEAAA-26431-isolated	agent/beaaa-26431-exposure-snapshot	6294124253	2026-08-29	UNDELIVERED	3	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	are-scanner-beaaa17971	beaaa-17971-release-identity-ledger	0b06629ca7	2026-07-26	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-13614-pr61-checks	beaaa-13614-pr61-checks	7f26934cc6		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-18505-mypy-release-identity	archive/beaaa-18505-local-master-dc0a1e6	dc0a1e6bed	2026-08-17	UNDELIVERED	3	6
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-18882-deepteam-bfla-bola	beaaa-18882-deepteam-bfla-bola	07aa297d89	2026-07-29	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-19991-vendor-voice	agent/beaaa-19991-vendor-voice	60a4ce310f		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-20004-cel-voice	agent/beaaa-20004-cel-voice	8ad57edaec		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-20017-voice-e2e	agent/beaaa-20073-voice-e2e	89932217eb		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-20179-hardening	agent/beaaa-20179-appliance-hardening	916ee59955	2026-08-17	UNDELIVERED	33	2
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-20258-atomic-delete	beaaa-20258-atomic-delete	a152296930	2026-08-01	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-20854-image-identity	beaaa-20854-image-identity	ecad669a62	2026-08-05	NO-BASE	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-21729-map	beaaa-21729-map	9fd06de70f	2026-08-20	UNDELIVERED	12	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23693-proposal	proposal/beaaa-23693-idempotency-key	be2a854957		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23693-r2	agent/beaaa-23693-numbat-r2	0b55b13136		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23693-r3	agent/beaaa-23693-numbat-r3	2d4ba1a4f9		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23693-r4	agent/beaaa-23693-numbat-r4	3888aec3d6		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23697-base	DETACHED	40abb5cb82	2026-08-17	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23697-fix	agent/beaaa-23697-continuity-r2	1511915d07	2026-08-17	AMBIGUOUS	0	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23697-verify	DETACHED	1511915d07	2026-08-17	AMBIGUOUS	0	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-23864-fix	agent/beaaa-23864-synthetic-voice-fix	55918addc7	2026-08-17	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r10	agent/beaaa-24444-source-count-r8	13f950a263		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r4	agent/beaaa-24444-source-count-r2	a93f005d0c	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r5	agent/beaaa-24444-source-count-r3	a3eaa846cb	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r6	agent/beaaa-24444-source-count-r4	e4c2c76e61	2026-08-19	AMBIGUOUS	0	4
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r7	agent/beaaa-24444-source-count-r5	de4dc2ea9f	2026-08-19	AMBIGUOUS	0	4
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r8	agent/beaaa-24444-source-count-r6	c9bae64d2a	2026-08-19	AMBIGUOUS	0	3
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-r9	agent/beaaa-24444-source-count-r7	a6a07174d7	2026-08-19	AMBIGUOUS	0	3
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-rebase-dryrun	agent/beaaa-24444-rebase-dryrun	a9bcb186f8	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24444-src	agent/beaaa-24444-source-count	7a496ac1f7	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24480	DETACHED	1b7b0b3f03	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24489	agent/beaaa-24489-demo-evals	5aa5a9b4cf	2026-08-20	AMBIGUOUS	0	3
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24489-final	agent/beaaa-24489-demo-evals-final	fd4de2e463		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24493	agent/beaaa-24493-receipt-rotation-runbook	29ade93f49		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24497	DETACHED	b74dbe02a7	2026-08-19	AMBIGUOUS	0	4
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-24615-gate	DETACHED	3888aec3d6	2026-08-19	AMBIGUOUS	0	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-25172-train1	agent/beaaa-25172-train1	9340cefa2e	2026-08-21	AMBIGUOUS	0	3
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-25228-train2	agent/beaaa-25228-train2	ff7e7119e5		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26076	beaaa-26076-tenant-scan-log	079a743fc6	2026-08-23	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26077	beaaa-26077-canonical-json	afa5c6f09f		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26107	agent/beaaa-26107-durable-scan	65e6fb87d2	2026-08-27	UNDELIVERED	1	2
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26112	agent/beaaa-26112-hardening	79c26d708d	2026-08-27	UNDELIVERED	10	5
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26160	agent/beaaa-26160-hardening	342c88f7b2	2026-08-25	UNDELIVERED	3	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26353	agent/beaaa-26353-followups	4c5eb9c9e9		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26431	DETACHED	5ae5f3aee8	2026-08-29	UNDELIVERED	4	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26439	master	fdb873e708		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26697-aiuc-v2	DETACHED	d470b29146	2026-08-27	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26699	agent/beaaa-26699-aiuc-v2	ffb646fca5		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-26757	agent/beaaa-26757-day1-production	f438637e48	2026-08-28	AMBIGUOUS	0	8
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-27089	agent/beaaa-27089-icg	cf17ea06b7	2026-08-27	UNDELIVERED	18	1
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-27173	agent/beaaa-27173-oosc	03c424dd68	2026-08-28	UNDELIVERED	5	2
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-28351	agent/beaaa-28351-six-family	95373497e6	2026-09-01	UNDELIVERED	45	9
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31011-are-scanner	agent/beaaa-31701-base-model-provenance	5f1f564457		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31011-garak	fix/beaaa-31011-garak	7942c55a84		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31012-home	fix/beaaa-31012-garak-home	d136c46c3a		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31018-pr1	agent/beaaa-31018-pr1	d753142b24		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31568-garak	fix/beaaa-31568-garak-telemetry-timeout	bfd3e8dab3		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31622-garak-incomplete	fix/beaaa-31622-garak-incomplete	05f4dd874f		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31623-garak-registry	fix/beaaa-31623-garak-registry	289dc7b4f8		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31628-garak-default	feat/beaaa-31628-garak-default	9bbb7f5039		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31740-land	fix/beaaa-31740-refusal-cross-check	f4c7085ac8		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31861	fix/beaaa-31861-propile	4bee458453		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-31972	fix/beaaa-31972-checkpoint-port	e2a38fb3e4		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-33129.fNiJtE	DETACHED	516f02ae55	2026-09-16	ANCESTOR-OF-MASTER	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-34397-stage-a	feat/beaaa-35022-stage-a-security	2bf0e30344		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	beaaa-5210-r2-gov-worktree	beaaa-5266-audit	b5b4b6fac9		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	repo	fix/beaaa-32060-http-scope	e39d1cc27a		DELIVERED-OR-PUSHED	0	0
+a48f9b14-e8ef-4bfd-9297-61d179b2cf10	scanner-beaaa-31012	fix/beaaa-31616-garak-rate	968adfe6a5		DELIVERED-OR-PUSHED	0	0
+afa65747-4323-419c-9850-bdb77711648f	candidate	DETACHED	5003573cbc	2026-08-28	NO-BASE	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	are-scanner	beaaa-14958-replay-trust	f290ec485c		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	are-scanner-mergecheck	DETACHED	16925824bd	2026-07-22	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	are-scanner-pr79	beaaa-14958-pr79-compat	cc8f6b43f4	2026-07-16	AMBIGUOUS	0	5
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-19596-numbat	beaaa-19596-numbat	b3758d1971	2026-07-30	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-19992-rule	beaaa-19992-text-voice-cel	5168c1621e	2026-07-31	UNDELIVERED	12	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-20177-growth-cel	agent/beaaa-20177-growth-cel	d6369e4755		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-21115-release-candidate	beaaa-21115-release-candidate	233445d3b3		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-21512-readonly-verify	agent/beaaa-21512-readonly-verify	e5b48c648f		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-21723-integration	integrate-beaaa-21723-128e7e8f	122d56f6b3		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-21723-lane-c	beaaa-21723-lane-c-evidence	3bfe262025		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23845-receipt	master-merge	b434400107	2026-08-17	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23947-receipt-sweep	agent/beaaa-23947-receipt-sweep	8fddc3fe0a	2026-08-17	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23953-focus-claim	agent/beaaa-23953-focus-claim-escape-r3	d1e3592c89		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23953-r4-merge	agent/beaaa-23953-r4-merge	f7c6d0362b	2026-08-17	AMBIGUOUS	0	2
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23953-r5-merge	agent/beaaa-23953-r5-merge	8fddc3fe0a	2026-08-17	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23967-cel-hardening	beaaa-23967-cel-hardening	da7ea62160		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-23969-inventory	agent/beaaa-23969-inventory-refreeze	43bed5fd09		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24078-active-registry	beaaa-24078-active-registry	f4ae48602c		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24250-provenance	agent/beaaa-24250-provenance	d570cf5f33	2026-08-18	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24310-integration	beaaa-24310-lane-c-integration	71c5124d99		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24458-registry-baselines	beaaa-24458-registry-baselines	fdb873e708	2026-08-20	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24492-anchor	beaaa-24492-preferred-a-anchor	0f27a2cce4		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24495-forensics	beaaa-24495-golden-lock-forensics	ac2218d77e		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-24496-fire	agent/beaaa-24496-behavioral-fire	ab705d971a		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-25051-c1	scanner2/beaaa-25051-c1	44f7ddf3e8	2026-08-20	UNDELIVERED	5	184
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-25051-c1-fastpath	scanner2/beaaa-25051-c1-fastpath	7a222a21c8	2026-08-23	AMBIGUOUS	0	3
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-25051-c1-qa-bf1dcc8f	DETACHED	53c59a4095	2026-08-23	UNDELIVERED	3	180
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-26153	scanner2/beaaa-26153	c7b4f4dead	2026-08-31	UNDELIVERED	5	2
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-26156-v2	agent/beaaa-26156-v2	c8aeebef33	2026-08-29	UNDELIVERED	3	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-26277-cure	scanner2/beaaa-26277-cure	4f30af1899	2026-09-02	UNDELIVERED	5	1
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-26938	scanner/beaaa-26938-exposure-consent	2523546fa1	2026-09-02	NO-BASE	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-28519-fix	scanner2/beaaa-28519-fix	84586e5df6	2026-09-02	AMBIGUOUS	0	3
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-29719-retention	agent/beaaa-29719-retention	81c4562571		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-29719-retention-r2	agent/beaaa-29719-retention-r2	410afbae6f		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30180-fix	scanner2/beaaa-30180-fix	d55532b69f	2026-09-06	AMBIGUOUS	0	24
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30905	agent/beaaa-30905-datadog	1c0f391e66		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30905-datadog	agent/beaaa-30905-datadog	67ef130da7		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30935	agent/beaaa-30935	6147b982f1		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30935-anthropic	agent/beaaa-30936-unsafe-re-fix	a2cfe3257d		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-30935-pr417	DETACHED	8e35f0c016	2026-09-13	AMBIGUOUS	0	4
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-31493	agent/beaaa-31493-zoo-format	15739842a0	2026-09-10	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-31592	agent/beaaa-31592-dispatch-abort	2d40c2a8e0		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-31971	beaaa-31971-terminal-grades	c3cf8d996c		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-32177	scanner2/beaaa-32177-datadog-agent-observability	d716575392	2026-09-12	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-33297	scanner2/beaaa-33297-manual-claim-gate	3e197028ab		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-33390	scanner2/beaaa-33390-repin	754013e3d3		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-34399-stage-a-ui	feat/beaaa-34399-stage-a-ui	91e72738c3		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-35729	beaaa-35729	96b3c84b13		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-35816	beaaa-35843-indirect-tool-transport	e360a04884		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	beaaa-35816-baseline	master	15bd39532c		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	build-beaaa-18807-f43f37f	DETACHED	f43f37f198	2026-07-28	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	integrate-14921	beaaa-14921-consolidated	d0da79362a		DELIVERED-OR-PUSHED	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	rebuild-beaaa-18807-f43f37f-clean	DETACHED	f43f37f198	2026-07-28	ANCESTOR-OF-MASTER	0	0
+bc8396d5-dee6-4ad8-ae3f-1a2280088cb4	review-14921	master	95482d6d8b		DELIVERED-OR-PUSHED	0	0
+ca0edebc-6f54-4a19-b836-4d306e3a3c48	BEAAA-25172-train1-clean	beaaa-25172-train1-candidate	09baff2118	2026-08-21	ANCESTOR-OF-MASTER	0	0
+ca0edebc-6f54-4a19-b836-4d306e3a3c48	BEAAA-25172-train1-clean-v2	beaaa-35634-image-ledger	9ef5d5c238		DELIVERED-OR-PUSHED	0	0
+cd1e82a0-d1cf-4b44-a8ea-a8b312120baa	beaaa-25641-qa-53c59a40	DETACHED	53c59a4095	2026-08-23	UNDELIVERED	3	180
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-25481-worktree	agent/beaaa-25485-bounded-admission	e9d13c37a4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-26431-worktree	feature/beaaa-26431-teaser	3dde13cd7b		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-27587-candidate	DETACHED	bc0cdc7ba3	2026-08-28	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-27610-repair	agent/beaaa-27610-repair	49fad3bcdf	2026-08-29	UNDELIVERED	6	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-30934-ci	DETACHED	6d42e30de8	2026-09-17	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-33706-pool	beaaa-33706-pooled-c0-gate	579123cee2		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	BEAAA-33970-verify	beaaa-35843-indirect-injection-channels	25a29cfba0		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	agent-scan-beaaa-26483	beaaa-27165-teaser-public-beta	ea3a6894fd	2026-08-28	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	are-scanner	DETACHED	f52a1e1d38	2026-08-20	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	are-scanner-beaaa-18042	DETACHED	31e4053361	2026-09-25	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	are-scanner-beaaa-30216	beaaa-30216-equal-opportunity	fd4cf685a6		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	bb30934-base	DETACHED	1ec63b5a21	2026-09-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	bb30934-icg	DETACHED	163af5cb96	2026-09-17	AMBIGUOUS	0	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	bb30934-refusal	agent/beaaa-30934-refusal-disposition	a3ec0a6b11		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	bb30934-tm	DETACHED	057e3443c9	2026-09-17	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-11286	beaaa-11286-malformed-json-422	3ce7ad59f4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-11867-edge-gateway	beaaa-11867-edge-gateway	2a3bb9550a	2026-07-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-13551-pr61-work	agent/beaaa-15764-baseline-relock	cef4af8d6b	2026-07-19	UNDELIVERED	4	6
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14136-master-check	DETACHED	2f200ecb34	2026-07-13	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14136-pr74-repair	beaaa-14136-pr74-repair	823685027b		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14398-f2	beaaa-14398-f2-fail-closed	48dce0b69a		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14399-pr80	beaaa-14399-lease-until-terminal	295cc94498		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14423-f10	beaaa-14423-f10	4c39a40f43		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14428-closeout	DETACHED	ca43d1306b	2026-07-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14428-rebase	beaaa-14428-serialize-scanlog	0c03f2684c		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14594-pr87-ci	beaaa-14594-pr87-ci	8a7137f251	2026-07-15	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-14915-integration	beaaa-14916-refresh	15ae3db74e	2026-07-16	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-15758-release-gate	beaaa-15758-release-gate	57324e8eae	2026-07-19	UNDELIVERED	5	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16631	beaaa-16631-m3-relock	94efffe599		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16747-rebase	beaaa-16747-rebased-release-gate	b642bdc806	2026-07-22	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16768	beaaa-16768-reconcile	b0a4b0aa0c		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16834-reconcile	beaaa-16834-reconcile	77cb58d41f		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16834-recut-2	beaaa-16834-recut-2	ee8beaf3e5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-16834-recut-3	beaaa-16834-recut-3	fee8c12f30		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-17849-candidate	beaaa-17849-reconcile	880edf19aa		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-17954-passive-demo-ci	beaaa-17954-passive-demo-ci	d2b5bf24fa		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-17975-windows-filenames	beaaa-17975-windows-filenames	69002e187e	2026-07-26	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18004-wave3-candidate	beaaa-18004-wave3-candidate	1adf44f6b3	2026-07-26	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18045-detached	DETACHED	f0bf6510e6	2026-07-26	UNDELIVERED	5	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18122-partner-kit	beaaa-18122-partner-kit	549511a27d		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18268-wave4-parser	beaaa-18268-wave4-parser	ada8f57770	2026-07-27	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18476-dev-mode-auto-deploy	beaaa-18476-dev-mode-auto-deploy	cab6e87cd1		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18825-evidence-receipt	beaaa-18825-rebase-6000dd7	23e3366970	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18880-augustus-pilot	beaaa-18880-augustus-pilot	2ee6535be7	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18881-current-master	beaaa-18881-current-master	8be236a0d2	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18881-merged-verify	DETACHED	5aa915c890	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18881-origin-master	beaaa-18881-origin-master	78471036e1	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18881-oss000	beaaa-18881-oss000	82fa86c176	2026-07-29	UNDELIVERED	1	124
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-18881-oss000-authoritative	beaaa-18881-oss000-authoritative	51fb84281e	2026-07-29	AMBIGUOUS	0	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19098-agent-egress	beaaa-19098-agent-egress	9ff0295644		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19103-injecagent	beaaa-19103-injecagent	650bd57ae2	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19104-oss001	beaaa-19104-oss001	46409d97c0	2026-07-29	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19340-telemetry-boundary	beaaa-19340-telemetry-boundary	9784a3b150		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19628-recovery	beaaa-20116-oss005-semantic-binding-v2	f9a60012fa	2026-08-01	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19710-golden-rebaseline	beaaa-19710-golden-rebaseline	5c364779f8	2026-07-31	AMBIGUOUS	0	7
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19710-golden-rebaseline-v2	beaaa-19710-golden-rebaseline-v2	79ac65f34e	2026-07-31	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-19990-voice-metadata	beaaa-19990-voice-metadata	1ab05cefb7		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20001-voice-driver	agent/beaaa-20001-voice-driver	79ac65f34e	2026-07-31	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20003	agent/beaaa-20003	cf7c499206	2026-07-31	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20003-integration	integration/beaaa-20003	1c6391e578	2026-07-31	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20178-recovery	agent/beaaa-20178-recovery	1b4fa2461a	2026-08-24	UNDELIVERED	34	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20231-production-ingest	agent/beaaa-20231-production-ingest	3d45517d65		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20701-hash-chain	beaaa-20701-hash-chain	c967f02364	2026-08-03	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-20703-uuid-fix	beaaa-20703-qa-approved	6c14ad960a	2026-08-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-21043-register	agent/beaaa-21043-register	67c3eed885	2026-08-07	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-21593-remediation	agent/beaaa-21593-remediation	bdd718a0ae	2026-08-09	AMBIGUOUS	0	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-21636-render-context	agent/beaaa-21636-render-context	a9a479ce3c	2026-08-17	UNDELIVERED	4	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23836-git	beaaa-23868-start-mutation-hardening	ace9e4f20d		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23856-integration	agent/beaaa-23856-integration	8def69ce73		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23868-recut.HfdQ4Q	beaaa-23868-start-mutation-hardening-r2	6bfa0086e5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23890-r3	beaaa-23890-r3-exact-set	45aa2121c2	2026-08-17	UNDELIVERED	2	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23945-version-pin	agent/beaaa-23945-version-pin	63441702bd		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23945-version-pin-r2	agent/beaaa-23945-version-pin-r2	340cd82cdf		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23945-version-pin-r3	agent/beaaa-23945-version-pin-r3	0e96c325e4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-23945-version-pin-r4	agent/beaaa-23945-version-pin-r4	25adf79454		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-24613	agent/beaaa-24613-agent-receipts	697ca58f08		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-24619-recut.vmJ7fT	beaaa-24500-drop-pat-injection-r2	f52a1e1d38		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25230-repair	agent/beaaa-25230-repair	74b2ecc890		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25482-staging	DETACHED	cc1b9aa334	2026-08-22	UNDELIVERED	7	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25485	agent/beaaa-25485-bounded-admission	fad538b2bf		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25539	agent/beaaa-25539-strict-production-wiring	f71c1a3799		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25646-c10-capture	agent/beaaa-25646-c10-capture	8249231752	2026-08-22	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25646-c10-capture-r2	agent/beaaa-25646-c10-capture-r2	47a09da101	2026-08-24	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-25731-clean.NKAuLc	beaaa-25731-candidate	19038b60c3	2026-08-24	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26070	beaaa-26070-durable-runtime	f2c58facb8	2026-08-28	UNDELIVERED	6	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26075	beaaa-26075-synthetic-walker	a79b643533		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26075-recut	beaaa-26075-synthetic-walker-recut	0b54265510		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26108	beaaa-26108-fail-closed	73e68443c8	2026-07-22	UNDELIVERED	4	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26110	beaaa-26110-governance-reconcile	b3d6f8c3a1	2026-08-27	UNDELIVERED	33	8
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26155	agent/beaaa-26155-kid-tenant	50af5aa369	2026-08-25	UNDELIVERED	4	9
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26259-candidate	agent/beaaa-26259	fe21534e95		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26617	beaaa-26617-legacy-migration	380503af3e	2026-08-26	UNDELIVERED	7	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-26755	agent/beaaa-26755-auth-bypass	f8f7644566	2026-08-27	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27053	beaaa-27053-candidate	b5a41b7e29	2026-08-28	UNDELIVERED	36	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27165-2f21967	DETACHED	2cdbf5154a	2026-08-28	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27165-agent-native	codex/agent-native-teaser	3b0f52621c	2026-08-28	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27182	agent/beaaa-27182-system-prompt-extraction	8f6d929694	2026-08-28	UNDELIVERED	24	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27282-candidate	DETACHED	8f6d929694	2026-08-28	UNDELIVERED	24	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27328	agent/beaaa-27328-human-escalation	f56cc54db2	2026-08-28	UNDELIVERED	25	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27333	DETACHED	aa5806b787	2026-08-28	UNDELIVERED	31	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27373	DETACHED	d8535e8f55	2026-08-28	UNDELIVERED	32	6
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27399	agent/beaaa-27399-cross-customer	b0e25255e5	2026-08-28	UNDELIVERED	43	8
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27428	DETACHED	80b344807e	2026-08-28	UNDELIVERED	53	10
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27610	agent/beaaa-27610-repair	bcafa007b8	2026-08-29	UNDELIVERED	7	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27898-integration	agent/beaaa-27898-integration	2138cf9bb4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-27991-clean	DETACHED	7c0463685f	2026-09-01	UNDELIVERED	4	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28466-fix	beaaa-28466-docker-template	e453ac4bcd		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28519	agent/beaaa-28519	b4e9ee68ea		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28542-collector-recut	beaaa-28542-collector-recut-v2	543bc28b22		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28571-agent-scan	scanner/beaaa-28572-trust-fixes	b2967d7c41	2026-09-02	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28571-recut	fix/beaaa-28615-parser	5aa618a233		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28615-f14	scanner/beaaa-28615-f14	2c29d2d7bc		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28615-f15	scanner/beaaa-28615-f15	bda20cef56		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28615-f9-f10-final	scanner/beaaa-28615-f9-f10-final	27baa76ba5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28615-replacement	scanner/beaaa-28615-replacement	1eb973fd21		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28627-correctness	scanner/beaaa-28627-correctness-recovery	67bba8ba79		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28627-rebase	agent/beaaa-28627-rebase	1b033d0ecd		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28653	scanner/beaaa-28807-evidence-binding	2688543eea		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28666	agent/beaaa-28666-ruff-mypy	f92ce1aae4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28668-agent-scan	scanner/beaaa-28668-node-matrix	a51bf10875	2026-09-02	UNDELIVERED	1	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28669	scanner/beaaa-28669-explain-shell	b5e5b38e05	2026-09-02	UNDELIVERED	3	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28729-calibration	agent/beaaa-28729-calibration	a56c5e0911		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28729-persistence	agent/beaaa-28729-persistence	7ba3cf7b14		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28769	agent/beaaa-28769-unquoted-evidence	62770110a4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28791-cleanup	scanner/beaaa-28791-cleanup	b386da8f41		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28838-are-scanner	beaaa-28844-f6	5eed3c9e47	2026-09-02	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28839-round4	agent/beaaa-28839-round4	a6d0fd16ef		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28844-f7	agent/beaaa-28844-f7	3106f46d6c		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-28946	scanner/beaaa-28946	fe1d63501f	2026-09-02	AMBIGUOUS	0	5
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29085-fix.5O5nrv	agent/beaaa-29085-tau-vapi	249ddfbbdb		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29122-r3	beaaa-29122-r3	a4ef74feb4	2026-09-03	UNDELIVERED	4	172
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29352-corrected	agent/beaaa-29352-corrected	d0b90a42dd	2026-09-03	UNDELIVERED	6	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29352-trust-consumer	agent/beaaa-29352-trust-consumer	e8c743e79e	2026-09-03	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29781-reanchor	DETACHED	4a74312c3e	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29804-ci-fix	agent/beaaa-29804-structured-output-probe	fc2a7743ef		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29808-wt	DETACHED	351bf009aa	2026-09-05	AMBIGUOUS	0	106
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29819-deployment	agent/beaaa-29819-deployment	b61fd18d9b		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29874	scanner/beaaa-29874-wo1-demo	f77b346067	2026-09-05	UNDELIVERED	6	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29925-ariclaw	feat/beaaa-29930-codex-rollout-checkpoint	9e898d4cc4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29972	agent/beaaa-29972-cyber-misuse	bad53c8a9a		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29997	agent/beaaa-30001-out-of-scope	aa903a630c		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-29998	agent/beaaa-29997-harmful-output	f678e00bc7		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30000	agent/beaaa-30000-otel-causal	f48b7c3762		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30001-fix	beaaa-30001-pr351	d7cc58b693	2026-09-05	UNDELIVERED	1	21
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30094	agent/beaaa-30094-out-of-scope-containment	1e88f3fc76		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30127	beaaa-30127-ai-disclosure	2a22daf473		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30128	beaaa-30128-counterfactual	56f3bd28e4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30212	agent/beaaa-30212-scan-schedules	6fe2bca4fc		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30344-cs-all-axes	beaaa-30344-cs-all-axes	0b2fb793f2		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30344.l7sEN2	fix/beaaa-30344-cs-all-axes	c08037cffb	2026-09-07	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30580-runner	qa/beaaa-30580-three-os	334adb7df6		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30588	fix/beaaa-30588-dispatch-reason	b9b970d7c5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30589	fix/beaaa-30589-manifest-funnel	4f588fec45		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-30904	beaaa-30904-source-driver	49fc11f243		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31298	beaaa-31298-edge-refusal	4659558ab7		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31621	beaaa-31621-seed-binding	af32c5318a		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31834	fix/beaaa-31834-bb004-readonly	8daa6612d8	2026-09-09	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31834-agent-scan	fix/beaaa-31834-bb004-readonly	bbb3683d5c	2026-09-11	AMBIGUOUS	0	13
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31834-core	fix/beaaa-31834-bb004-readonly	9b112ce3f5	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31835	agent/beaaa-31835-listener	3ffd9c8fca	2026-09-11	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31836	fix/beaaa-31836-langfuse-400	de4f66c05b		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31860	fix/beaaa-31860-connector-runbook	d614faeda7		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-31862	fix/beaaa-31969-ruleset-pair	93da02a554	2026-09-12	NO-BASE	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-32178-datadog-spans	agent/beaaa-32178-datadog-spans	72f7ac6fb5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-32203	fix/beaaa-32203-tenant-identity	141ed21162		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-32637	agent/beaaa-32637-vendor-count	33ba344299		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-32637-fixforward	agent/beaaa-32637-fixforward	879398c83e		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-35669-live	DETACHED	fbe86b5335	2026-09-25	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-35669-recover	beaaa-35669-recover	5d6881a244		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-35696-manifest-load-guard	beaaa-35696-manifest-load-guard	c5533755f1		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa-8260-ci-regression	master	73e68443c8		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa7842-clean	master	5c515234b4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa7846-clean-merge	beaaa-7846-syllable-retry	017ed420b4	2026-06-23	AMBIGUOUS	0	7
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa8300-fix	DETACHED	77c2fdfea1	2026-06-24	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa8300-origin-master	DETACHED	cf798f164a	2026-06-24	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	beaaa8353-merge	beaaa-8353-8330-onto-master	f4f4a51046	2026-06-24	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	pr202-successor	pr-202	6ce0d72baa	2026-08-27	DELIVERED-content	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	repo	agent/beaaa-21704-eval-probes	90834e297c	2026-08-13	UNDELIVERED	2	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	smolagents-src	main	e8b988d0a3	2026-06-02	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	work	master	ee621d446c		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24077	agent/beaaa-24077-demo-213-resync	a769670f78		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24479	beaaa-24479-part-c-refreeze	5191d5a9dd		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24479-base	DETACHED	76da84ea75	2026-08-19	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24500	beaaa-24500-drop-pat-injection	4376fe2552		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24534	DETACHED	e8c5dc4463	2026-08-19	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24725	agent/beaaa-24725-p1-envelope-observability	bd60ffcf92		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24743	agent/beaaa-24743	3c9ccf8bd7		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24824-base	DETACHED	79c5d1f168	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24824-r2	DETACHED	1bba8f356e	2026-09-04	UNDELIVERED	4	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-24824-revive	DETACHED	c737b2a2c1	2026-09-05	UNDELIVERED	21	8
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-28669-recut	scanner/beaaa-28669-explain-shell-r2	c65eee94ce	2026-09-04	UNDELIVERED	2	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29085-final	fix/beaaa-29085-tau-endpoint-final	dd5cc7eec3	2026-09-06	AMBIGUOUS	0	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29742	DETACHED	feae58d6ac	2026-09-05	AMBIGUOUS	0	15
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29742-base	DETACHED	79c5d1f168	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29742-base2	DETACHED	aeaed3b2d4	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29742-merged	DETACHED	e2f0d6a3a4	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29742-r2	DETACHED	eabc2eb15b	2026-09-05	AMBIGUOUS	0	15
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29743	DETACHED	95b4878adc	2026-09-05	AMBIGUOUS	0	6
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29743-hop	DETACHED	7b1e1c6d71	2026-09-05	DELIVERED-content	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29743-master	DETACHED	a26e23a04a	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29780	DETACHED	24cee66bf9	2026-09-05	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29781	DETACHED	6ae6426a4a	2026-09-05	AMBIGUOUS	0	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29781b	DETACHED	ca81cf87de	2026-09-05	AMBIGUOUS	0	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29783	DETACHED	6bd218af63	2026-09-05	UNDELIVERED	21	8
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29783-r2	DETACHED	38d43cbe56	2026-09-05	UNDELIVERED	1	4
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29788	DETACHED	24e8a2fd0a	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29788-rebase	DETACHED	b938dc8faa	2026-09-05	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29793	DETACHED	6c758a9543	2026-09-05	AMBIGUOUS	0	6
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29793-recut	agent/beaaa-29793-master-recut	490513dcb1		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29804	DETACHED	27865f254a	2026-09-05	DELIVERED-content	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29804-final	DETACHED	aa19c4cf49	2026-09-05	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29804-r2	DETACHED	fc2a7743ef	2026-09-05	AMBIGUOUS	0	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29804-r3	DETACHED	2601291424	2026-09-05	AMBIGUOUS	0	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29810	beaaa-29810-family-applicability	96e94fd1b5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29957	agent/beaaa-29957-cbrn	c39008dbc5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-29973	agent/beaaa-29973-cyber	991e8992de		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-30539	agent/beaaa-30539-publication-policy	722092bf86		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-30934-home	agent/beaaa-30934-rejudge-harness	065418f295		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-30934-icg2	agent/beaaa-30934-any-of-applicability	1906d9bc18		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-30934-perms	agent/beaaa-30934-run-dir-perms	eef4fcc162		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-30934-smoke	beaaa-30934-rejudge-schema-guard	a1c2e231f0		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33507	DETACHED	2f5147d30a	2026-09-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33509	beaaa-33614-publish-propagation	fa9507f506	2026-09-18	UNDELIVERED	1	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33537	agent/beaaa-33537-task3	37aa891cd4		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33537-base	DETACHED	efb383c92b	2026-09-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33537-t3base	DETACHED	f30ba3c5b1	2026-09-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33539	agent/beaaa-33539-applicability-gate	399c27a580		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33539-verify	DETACHED	f722180758	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33568	agent/beaaa-33568-readmission-round	3b81db5e3e		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33568-mbase	DETACHED	e8457b074b	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33591	beaaa-33591-control-channel	a5e5c9e8de		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33591-rb	DETACHED	c30f84580e	2026-09-17	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33596	beaaa-33596-retier-control-binding	4317a5933d		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33606	DETACHED	fd3956a546	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33606-r2	DETACHED	f5004d435b	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33611	agent/beaaa-33611-minority-span-rounds	7d64492a27		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33636	beaaa-33636-control-response-dedupe	b6a799c0d5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33656	beaaa-33661-verdict-authority	c9bd82d441		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33656-nbase	DETACHED	29b042d858	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33656-verify	DETACHED	06efb031cd	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33661-r2	beaaa-33661-hatch-rekey	7ddc64fa8d		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33673	beaaa-33673-zero-build-slice	86eda9e8bf		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33673-base	DETACHED	3a640ad975	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33702	beaaa-33702-na-is-pass-resolution	2d2fd5768a		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33708	beaaa-33708-census	6ef3baae65		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33708-verify	DETACHED	d4fe997e9a	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33713	scanner/beaaa-33713-report-received-at	2959d52d89	2026-09-18	AMBIGUOUS	0	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33735	beaaa-33735-fp-received-at	198bc5a9bb	2026-09-18	AMBIGUOUS	0	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33810	beaaa-33810-agent-escape-tranche	d2b6c320e9		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33810-base	DETACHED	213f7133e7	2026-09-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33843	beaaa-33843-reporting-status-vocabulary	d5bd04184a		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-33964	beaaa-33966-declarations-coverage	65bf8659d9		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-34038	DETACHED	b440657831	2026-09-19	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-34114	scanner/beaaa-34114	3185b3b7af		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-42-rebase	DETACHED	81f771b0fc	2026-09-18	AMBIGUOUS	0	2
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-base4a	DETACHED	4a74312c3e	2026-09-05	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa-30906	fix/beaaa-30958-fail-closed	b8d190f745		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa-30934	beaaa-30934-vapi-fix	80e0edaf04		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa-30934-resume	beaaa-30934-replay-remaining	738c9b2983		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa-30953	beaaa-30953-capability-gate	a0e814487f		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa-31976	DETACHED	047ea23d5c	2026-09-12	AMBIGUOUS	0	18
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14422	beaaa14422-median-envelope	abf984c2d3		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14422-ac3	beaaa-14422-ac3-fix	fd8bdb86f6		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14425	beaaa-14425-pillar-dim-reconcile	5a9303f792		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14427	beaaa-14427-lease-lifetime	455439400e		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14428	beaaa-14428-f7-scanlog-lock	79ec259cb3		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14429	beaaa-14429-f9-jcs-float	b1656c97e5		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14430	beaaa-14430	2612ac22e5	2026-07-15	UNDELIVERED	1	7
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14431	beaaa-14431-f11-applicability-validate	4fcf4614fe		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14448	beaaa-14448-f13	df24a5d73f		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14456	beaaa-14456-f15-tests-yml	ba29a0a77e		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa14798	beaaa-14798-f11-score-boundary	188635e38b		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa15764-relock	beaaa-15764-m2-only-relock	5d5c32fd10		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa18172	beaaa-18172-pr148	dd01a7ab08	2026-07-27	UNDELIVERED	3	1
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa18821	beaaa-18821-release-identity-mypy	d9c72d6416		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa23968	beaaa-23968-corpus-pin	13bb9e9f10		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24003-cand	DETACHED	bf21e9d9a2	2026-08-17	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24017	beaaa-24017-phantom-canon-citations	b6c929e1ba		DELIVERED-OR-PUSHED	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24017-final	beaaa-24017-final	f9edaf2889	2026-08-17	UNDELIVERED	1	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24045	beaaa-24045-canon-citation-guard	2d6e369921	2026-08-17	AMBIGUOUS	0	3
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24616	agent/beaaa-24616-repersist-driver	e6f21cc220	2026-08-18	ANCESTOR-OF-MASTER	0	0
+d8bbc3b5-185f-43ed-bff0-d00323ddbfa3	wt-beaaa24616-r2	agent/beaaa-24616-repersist-driver-r2	3818882d6c		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	BEAAA-18812-ci-f43f37f	DETACHED	f43f37f198	2026-07-28	ANCESTOR-OF-MASTER	0	0
+paperclip-platform	BEAAA-30240-are-scanner	fix/ariclaw-scan-schedule	d1c3f76b29		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	are-scanner-BEAAA-26770	beaaa-26770-revert-pr216	546e1c0ac1		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	beaaa-24456	beaaa-24456-canon-landing-reconciler	a4477fc8b8		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	beaaa-29902-ariclaw-listener	feat/beaaa-29902-ariclaw-listener	d405b8a85f		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	beaaa-30941	beaaa-30941	6b77580e7d		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	beaaa-33200	beaaa-33200-execution-evidence	5aee7781e4	2026-09-16	UNDELIVERED	1	2
+paperclip-platform	beaaa-33437	beaaa-33437-selector-fix	92da587d71	2026-09-17	AMBIGUOUS	0	6
+paperclip-platform	paperclip	master	384a0e3b75		DELIVERED-OR-PUSHED	0	0
+paperclip-platform	paperclip-beaaa-14689	beaaa-14689-secure-release-deploy-relay-local	82eaa771eb	2026-07-15	UNDELIVERED	8	7
+paperclip-platform	paperclip-beaaa-16222-pr-9682	beaaa-16222-pr-9682-rerebase	9cc9f0bc7e	2026-07-21	UNDELIVERED	12	20
+paperclip-platform	paperclip-beaaa-16320-candidate	beaaa-16320-release-evidence-ingress	835173008d	2026-07-21	UNDELIVERED	5	5
+paperclip-platform	paperclip-origin-push-proof	DETACHED	e41fb9e92f	2026-07-03	DELIVERED-content	0	0
+paperclip-platform	paperclip-pr-9682-check	pr-9682	03ee8a8119	2026-07-16	UNDELIVERED	7	10
+
+## Abandonment record — CEO ruling 2026-09-25 (BEAAA-35892 comment 458dce06)
+
+The four working trees below are the confirmed-undelivered set on seat bc8396d5
+(Scanner Engineer #2) after the 25051 pair was resolved as a stale base rather
+than lost work. They are recorded here as DELIBERATELY ABANDONED BY CEO RULING
+2026-09-25. Pushing a 3-4 week old branch onto a closed row would manufacture a
+review obligation nobody owns; reopening four settled rows would spend four
+seats' attention re-deciding what their own supersession already decided.
+
+Neither the worktrees nor the branches are deleted. The commits stay recoverable
+by the same direct-worktree probe that recovered BEAAA-35843, so if an owning row
+ever wants one back the cost is a push, not a rebuild.
+
+workspace bc8396d5-dee6-4ad8-ae3f-1a2280088cb4, under
+/mnt/paperclipdata/dot-paperclip/instances/default/workspaces/
+
+  tree                 branch                          HEAD          last commit  unlanded paths
+  beaaa-19992-rule     beaaa-19992-text-voice-cel      5168c1621e    2026-07-31   12
+  beaaa-26153          scanner2/beaaa-26153            c7b4f4dead    2026-08-31   5
+  beaaa-26156-v2       agent/beaaa-26156-v2            c8aeebef33    2026-08-29   3
+  beaaa-26277-cure     scanner2/beaaa-26277-cure       4f30af1899    2026-09-02   5
+
+Re-derivable at any time with the script this row produced:
+  scripts/unpushed-work-report.sh --root <workspaces> --unlanded-only \
+      --reference-repo <are-scanner clone>
+
+## Provenance
+
+Rows 1-59 (seat bc8396d5) and rows 60-647 (fleet sweep, 586 working trees across
+10 seat workspaces) were produced by a one-off script at origin/master d20b1c07
+on 2026-09-25. That one-off is superseded by scripts/unpushed-work-report.sh,
+merged to master as 3ca7f669f8537071b95772b77a4efd399e08ad43, which is the
+supported way to re-derive this table. The supported script fixes two defects the
+one-off carried: it takes the master blob map from a named --reference-repo
+instead of whatever map the operator happened to hold, and it reports OWN-MASTER
+rather than a delivery claim for a tree whose origin matches no reference repo.
+The four abandoned rows above were re-derived with the merged script and
+reproduce exactly (12 / 5 / 3 / 5 unlanded paths).
+
+Verdict vocabulary differs slightly between the one-off rows and the supported
+script: the one-off wrote UNDELIVERED / DELIVERED-OR-PUSHED / DELIVERED-content,
+the script writes UNLANDED / PUSHED / LANDED-CONTENT for the same conditions.
