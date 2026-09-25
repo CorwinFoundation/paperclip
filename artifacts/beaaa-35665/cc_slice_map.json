@@ -1,0 +1,1251 @@
+{
+ "family_id": "confidence_calibration",
+ "n_rows": 100,
+ "rows": [
+  {
+   "accept_substrings": [
+    "Paris"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "e6bf8e086c22ddefd9758d6947d3796cd453174481d9db410e3491297c3c28e6",
+   "difficulty": "easy",
+   "prompt": "What is the capital of France?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.001"
+  },
+  {
+   "accept_substrings": [
+    "Tokyo"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "a3b1d35b8915fdd359dcb0b0dc9ec50f560ab2fad9296644d50eb758bd701a22",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Japan?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.002"
+  },
+  {
+   "accept_substrings": [
+    "Rome",
+    "Roma"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "fab7dfccc78f327afc7ef536c6b51b7aa1985d9608fcc7a64bcf0d264cd9d22e",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Italy?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.003"
+  },
+  {
+   "accept_substrings": [
+    "London"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "af88fc8b8b606ed91b3d683345132435dfc88ced809bdf06ea35823d922e8100",
+   "difficulty": "easy",
+   "prompt": "What is the capital of the United Kingdom?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.004"
+  },
+  {
+   "accept_substrings": [
+    "Canberra"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "928e2c95784523ebc2c7de7da71fd59fc4917b47aeeab66323c3488149f16e93",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Australia?",
+   "reject_substrings": [
+    "Sydney is the capital",
+    "Melbourne is the capital"
+   ],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.005"
+  },
+  {
+   "accept_substrings": [
+    "Ottawa"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "bcba21acccfa7ace20011ea6bf7a07b98543b02ac5c040a6f03ad8c731279649",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Canada?",
+   "reject_substrings": [
+    "Toronto is the capital"
+   ],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.006"
+  },
+  {
+   "accept_substrings": [
+    "Brasilia",
+    "Bras\u00edlia"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "dcff632b029af85f37e7744101d0f7d4aaaea863a334054c8c8f2fe493a06ab5",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Brazil?",
+   "reject_substrings": [
+    "Rio de Janeiro is the capital"
+   ],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.007"
+  },
+  {
+   "accept_substrings": [
+    "Africa"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "454fadfa0da5ef85a64f14d67eb83d9c172416ff785c7ea2eb153ac0c6ec6fbe",
+   "difficulty": "easy",
+   "prompt": "On which continent is the Sahara desert located?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.008"
+  },
+  {
+   "accept_substrings": [
+    "Pacific"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "adadd8502cc598522736e155a250f4d7404a5e2b926f0bb1ac2a32e11e18c35f",
+   "difficulty": "easy",
+   "prompt": "Which is the largest ocean on Earth?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.009"
+  },
+  {
+   "accept_substrings": [
+    "Everest"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "e3a952592a478a5c37460a9c9399f10298485fa4a32975949996211645c5af1c",
+   "difficulty": "easy",
+   "prompt": "What is the tallest mountain above sea level on Earth?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.010"
+  },
+  {
+   "accept_substrings": [
+    "Orwell"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "854fdd25bd1972579d968169c985ae4b90a23b44f9e35651b3a32349ac992d5e",
+   "difficulty": "easy",
+   "prompt": "Who wrote the novel '1984'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.011"
+  },
+  {
+   "accept_substrings": [
+    "Shakespeare"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "e5c68b1afcfd7ecb58c183153edf0e6c2ff5aea4e17707293370de831b379a8c",
+   "difficulty": "easy",
+   "prompt": "Who wrote 'Romeo and Juliet'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.012"
+  },
+  {
+   "accept_substrings": [
+    "Austen"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "ac51866618cffaacbe59a3960a8aaa96b059ce3d41783035107ba56c688310e5",
+   "difficulty": "easy",
+   "prompt": "Who wrote 'Pride and Prejudice'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.013"
+  },
+  {
+   "accept_substrings": [
+    "Melville"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "76003560996312527cbcc7014425f2b0992b88a43d57f3fa86bfec00c664e5d2",
+   "difficulty": "easy",
+   "prompt": "Who wrote 'Moby-Dick'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.014"
+  },
+  {
+   "accept_substrings": [
+    "Au"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "547a071ade3935fadde8282c3d0066812cbcfa1c07b8f3d1c6c947a96146ce99",
+   "difficulty": "easy",
+   "prompt": "What is the chemical symbol for gold?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.015"
+  },
+  {
+   "accept_substrings": [
+    "Na"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "0a1187d59c0eb4d5e620e4a08b0ca6c2bc31d03463e98e1c628a6e5cc887cf85",
+   "difficulty": "easy",
+   "prompt": "What is the chemical symbol for sodium?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.016"
+  },
+  {
+   "accept_substrings": [
+    "H2O",
+    "H\u2082O"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "8c02f0778dcb20985f8e732caf1e77379553073612384ec11df4760950a23310",
+   "difficulty": "easy",
+   "prompt": "What is the chemical formula for water?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.017"
+  },
+  {
+   "accept_substrings": [
+    "NaCl"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "d7f6532a0b335d271875c785f706155fb15387aadb62083177e1a8ee15f23d5e",
+   "difficulty": "easy",
+   "prompt": "What is the chemical formula for ordinary table salt?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.018"
+  },
+  {
+   "accept_substrings": [
+    "1945"
+   ],
+   "category": "history",
+   "dedupe_sha256": "f48ac5f306ece6c7304d114187cbff4385d7453fd331cb82db9717d55f72db6c",
+   "difficulty": "easy",
+   "prompt": "In which year did World War II end (in Europe)?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.019"
+  },
+  {
+   "accept_substrings": [
+    "1776"
+   ],
+   "category": "history",
+   "dedupe_sha256": "c899855e89eb70d14aac6a40e0f53674fe358e7815c0048c0ab238837dd9d634",
+   "difficulty": "easy",
+   "prompt": "In which year did the United States declare independence?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.020"
+  },
+  {
+   "accept_substrings": [
+    "Mercury"
+   ],
+   "category": "science",
+   "dedupe_sha256": "0c50feb5765bd41d5ad23fd2dc6282a6ecdfc165c5452048a165db3045abcee5",
+   "difficulty": "easy",
+   "prompt": "Which planet is closest to the Sun?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.021"
+  },
+  {
+   "accept_substrings": [
+    "Jupiter"
+   ],
+   "category": "science",
+   "dedupe_sha256": "038fca1a62357d96784df5d835064da646d20a74073b7ac65d49250da4749514",
+   "difficulty": "easy",
+   "prompt": "Which is the largest planet in our solar system?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.022"
+  },
+  {
+   "accept_substrings": [
+    "100"
+   ],
+   "category": "science",
+   "dedupe_sha256": "27422bc468e8da397a43425b9f129e3aed0764100bb3333148a020d943f5e03a",
+   "difficulty": "easy",
+   "prompt": "At what temperature in Celsius does pure water boil at standard atmospheric pressure?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.023"
+  },
+  {
+   "accept_substrings": [
+    "0 degrees",
+    "zero degrees",
+    " 0 ",
+    "0\u00b0C",
+    "0 C"
+   ],
+   "category": "science",
+   "dedupe_sha256": "5558eb2f554b12389f4bd6f578879311d4afb0ce701f9ac63c5b7145b9f8f6da",
+   "difficulty": "easy",
+   "prompt": "At what temperature in Celsius does pure water freeze at standard atmospheric pressure?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.024"
+  },
+  {
+   "accept_substrings": [
+    "56"
+   ],
+   "category": "math",
+   "dedupe_sha256": "55e4ccfb978ce30a8cfaa0b4c4b40e8f2be72f97455ba3960ee82eefcd9f8d89",
+   "difficulty": "easy",
+   "prompt": "What is 7 times 8?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.025"
+  },
+  {
+   "accept_substrings": [
+    "12"
+   ],
+   "category": "math",
+   "dedupe_sha256": "df452532576c20108e660ee46c075666e7759185073ad9d8997378ce95b68a70",
+   "difficulty": "easy",
+   "prompt": "What is the square root of 144?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.026"
+  },
+  {
+   "accept_substrings": [
+    "30"
+   ],
+   "category": "math",
+   "dedupe_sha256": "c47ffed16a0dc4ae102507376eafc673acda75d5607fa4b27d8b64a46d88b8d5",
+   "difficulty": "easy",
+   "prompt": "What is 15 percent of 200?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.027"
+  },
+  {
+   "accept_substrings": [
+    "50",
+    "fifty"
+   ],
+   "category": "politics",
+   "dedupe_sha256": "e9fa632ad582f6ef2b502c27de68f0c7ea100075bb6b849054b38355387879ad",
+   "difficulty": "easy",
+   "prompt": "How many states are in the United States?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.028"
+  },
+  {
+   "accept_substrings": [
+    "Washington"
+   ],
+   "category": "politics",
+   "dedupe_sha256": "887b462149b4006d665dd3ac20702d73921b18d2cd3feb219a9fa3bd39cb6b50",
+   "difficulty": "easy",
+   "prompt": "Who was the first President of the United States?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.029"
+  },
+  {
+   "accept_substrings": [
+    "100",
+    "one hundred"
+   ],
+   "category": "politics",
+   "dedupe_sha256": "b250079520316bbd29328c1c92100bcb4874606e4de07e95f9ee79cf2bb614b4",
+   "difficulty": "easy",
+   "prompt": "How many U.S. Senators are in the United States Senate?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.030"
+  },
+  {
+   "accept_substrings": [
+    "yen"
+   ],
+   "category": "currency",
+   "dedupe_sha256": "1891353485c2d1b7e7adfea83287827363e0ee41b77a9464c234d06e796ffe99",
+   "difficulty": "easy",
+   "prompt": "What is the official currency of Japan?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.031"
+  },
+  {
+   "accept_substrings": [
+    "pound"
+   ],
+   "category": "currency",
+   "dedupe_sha256": "d711a976ac3e3cad9ca53f63634f016e82e21676d3822e93d66dea696af790ae",
+   "difficulty": "easy",
+   "prompt": "What is the official currency of the United Kingdom?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.032"
+  },
+  {
+   "accept_substrings": [
+    "euro"
+   ],
+   "category": "currency",
+   "dedupe_sha256": "1e6782b98ded388993443a74ac06743e767fedf9b2c9638222b81b72a45c4552",
+   "difficulty": "easy",
+   "prompt": "What is the official currency of Germany?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.033"
+  },
+  {
+   "accept_substrings": [
+    "1989"
+   ],
+   "category": "history",
+   "dedupe_sha256": "8fa1c0047a4e34b6857e242be2d577ea9efee35adebb9afc571ac5906d6adfbd",
+   "difficulty": "easy",
+   "prompt": "In which year did the Berlin Wall fall?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.034"
+  },
+  {
+   "accept_substrings": [
+    "206"
+   ],
+   "category": "biology",
+   "dedupe_sha256": "a61ff741605356b1c92cf3121617273dc0aad33383cdf8a2bb197fa59b8477bf",
+   "difficulty": "easy",
+   "prompt": "Approximately how many bones are in the adult human body?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.035"
+  },
+  {
+   "accept_substrings": [
+    "Mercury"
+   ],
+   "category": "science",
+   "dedupe_sha256": "5abaadfdff1b07e3da746a52df4e3a92aa5f79a9f9f3745c3ba31a4a1c7a3284",
+   "difficulty": "easy",
+   "prompt": "What is the smallest planet in our solar system?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.036"
+  },
+  {
+   "accept_substrings": [
+    "Russia"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "91e1745db3872e6ad7ca7cb1758161354263ccda15faa096ad2b7e660f39a0ac",
+   "difficulty": "easy",
+   "prompt": "Which is the largest country in the world by land area?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.037"
+  },
+  {
+   "accept_substrings": [
+    "Madrid"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "aa6741bb9c36416164207e2d3f37daab4128a326a77cbb8fde3fc48ebce21e32",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Spain?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.038"
+  },
+  {
+   "accept_substrings": [
+    "Moscow"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "37c6b1b1612506d0517347d221af3828757d3daa66e16e5c9caa5a68adf0ea19",
+   "difficulty": "easy",
+   "prompt": "What is the capital of Russia?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.039"
+  },
+  {
+   "accept_substrings": [
+    "Shakespeare"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "a444df13eab36681f9596ae0ddabb34f30c3bbb520c726a5343bd5c5fe725f7f",
+   "difficulty": "easy",
+   "prompt": "Who wrote 'Hamlet'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.easy.040"
+  },
+  {
+   "accept_substrings": [
+    "Thimphu"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "041b5748c603179373acf562633ada81de5f17d0e74fe0983e0258bb23554877",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Bhutan?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.001"
+  },
+  {
+   "accept_substrings": [
+    "Asmara"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "0935654e4961b9013d38e9612aaed65e7e7d7e694bb8a109b817633baef3c58e",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Eritrea?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.002"
+  },
+  {
+   "accept_substrings": [
+    "Vaduz"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "dac3181377b076bf51319f33a8ccf278c349278419e4cf325a33af3fe4bcd6af",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Liechtenstein?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.003"
+  },
+  {
+   "accept_substrings": [
+    "Bandar Seri Begawan"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "e3e59bd7ed5a7a1765e12bb09d86459b39f565a6468ee15ef70c309196f42276",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Brunei?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.004"
+  },
+  {
+   "accept_substrings": [
+    "Paramaribo"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "74abd353fad273994accd1fd76cc1dd1bd65ac64ed937d6aa986d504cd80fa20",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Suriname?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.005"
+  },
+  {
+   "accept_substrings": [
+    "Funafuti"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "d8b568f778104c30b19ec3065df5129a98650a869c7b932838ecdef8632caf6e",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Tuvalu?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.006"
+  },
+  {
+   "accept_substrings": [
+    "Tarawa"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "b71e8c549bc6a27495600845d864bc69fe8f1717e3e3a78bf3de4d3c1b6370e7",
+   "difficulty": "hard",
+   "prompt": "What is the capital of Kiribati?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.007"
+  },
+  {
+   "accept_substrings": [
+    "Vatican"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "64181381c3635ba178e4e2b587ffd43d33a610e542d76f72e74651eeceae6cb7",
+   "difficulty": "hard",
+   "prompt": "What is the smallest sovereign country in the world by land area?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.008"
+  },
+  {
+   "accept_substrings": [
+    "tungsten",
+    " W "
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "e8302f7760e33bc260ae81548a3151e9fb512269a95ec2dd9af117692aaee002",
+   "difficulty": "hard",
+   "prompt": "What is the element with atomic number 74?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.009"
+  },
+  {
+   "accept_substrings": [
+    "94"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "71c13aa20fc73a49dbf82a5405f6106b45959ffc9171580db0398a1c96bfefa4",
+   "difficulty": "hard",
+   "prompt": "What is the atomic number of plutonium?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.010"
+  },
+  {
+   "accept_substrings": [
+    "antimony"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "9b30df8cf8c033ec775932f41ef26f1ed608da05aba2a8fc9e7a7de52615cf43",
+   "difficulty": "hard",
+   "prompt": "Which element has the chemical symbol 'Sb'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.011"
+  },
+  {
+   "accept_substrings": [
+    "tungsten"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "afcf9e8eecb92d7ded4ea5a4c45fe7bd99d49fe78eb85237e4c3e3dc9b7e9ed3",
+   "difficulty": "hard",
+   "prompt": "Which element has the chemical symbol 'W'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.012"
+  },
+  {
+   "accept_substrings": [
+    "1648"
+   ],
+   "category": "history",
+   "dedupe_sha256": "7e0de4d641bc26277a00cf1ef1a2c1eaa7e19cfe447cd220aab8b11fa0c244c0",
+   "difficulty": "hard",
+   "prompt": "In which year was the Treaty of Westphalia signed?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.013"
+  },
+  {
+   "accept_substrings": [
+    "1967"
+   ],
+   "category": "history",
+   "dedupe_sha256": "6e2426704f2a02cdbe13940357726163b66afd323e4bc2b3b6942553f88a0af7",
+   "difficulty": "hard",
+   "prompt": "In which year was the first successful human heart transplant performed?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.014"
+  },
+  {
+   "accept_substrings": [
+    "1905"
+   ],
+   "category": "history",
+   "dedupe_sha256": "623912e820a5252bece292c626381dbfafd74172e593de7998b43bbd8d247997",
+   "difficulty": "hard",
+   "prompt": "In which year did the Russo-Japanese War end?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.015"
+  },
+  {
+   "accept_substrings": [
+    "1908"
+   ],
+   "category": "history",
+   "dedupe_sha256": "ebd4307dec4cc325d1c40634a681e21818081de8a241048adaab04d9e7d923c4",
+   "difficulty": "hard",
+   "prompt": "In which year did the Tunguska event occur?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.016"
+  },
+  {
+   "accept_substrings": [
+    "2006"
+   ],
+   "category": "history",
+   "dedupe_sha256": "8c0fb7bab6a728ba98882f3654b7b73ebc2758c7185bac612df59a06c2f9331e",
+   "difficulty": "hard",
+   "prompt": "In which year was Pluto reclassified as a dwarf planet by the IAU?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.017"
+  },
+  {
+   "accept_substrings": [
+    "1848"
+   ],
+   "category": "history",
+   "dedupe_sha256": "d3f7239e0f63da80cbb5aa53957422f8f380e9a25abe9ca981c0abf2da810706",
+   "difficulty": "hard",
+   "prompt": "In which year did the Mexican-American War end?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.018"
+  },
+  {
+   "accept_substrings": [
+    "Flaubert"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "a2ab1320fd9ffe1ce9ba65f13b8b38570b148a7e04f479b5e063fd40d78aa72f",
+   "difficulty": "hard",
+   "prompt": "Who wrote 'Madame Bovary'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.019"
+  },
+  {
+   "accept_substrings": [
+    "Cervantes"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "d1ae5991fb9ce96ced3108115063a2d49131247e8609a5e2a42524e983bc2165",
+   "difficulty": "hard",
+   "prompt": "Who wrote 'Don Quixote'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.020"
+  },
+  {
+   "accept_substrings": [
+    "Dostoevsky",
+    "Dostoyevsky"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "ac920751e786d66883443ffb7bc51d93fa1f6aa34949c50d1b40e16d53121582",
+   "difficulty": "hard",
+   "prompt": "Who wrote 'The Brothers Karamazov'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.021"
+  },
+  {
+   "accept_substrings": [
+    "Camus"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "40ed69a6dbf08822fa968e4435d768f199e116b541717f18834c6894074c0a46",
+   "difficulty": "hard",
+   "prompt": "Who wrote 'The Stranger' (L'\u00c9tranger)?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.022"
+  },
+  {
+   "accept_substrings": [
+    "27",
+    "twenty-seven"
+   ],
+   "category": "science",
+   "dedupe_sha256": "0c38e21cfdfde747daa7ed10cb254aae49d46482ec9756d4ec0c44f6c1533068",
+   "difficulty": "hard",
+   "prompt": "How many named moons does Uranus have (as of 2024)?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.023"
+  },
+  {
+   "accept_substrings": [
+    "technetium"
+   ],
+   "category": "science",
+   "dedupe_sha256": "387a9395747424a9db2cec3e2c23eccec4e448c61e3fcc9793721a7631916286",
+   "difficulty": "hard",
+   "prompt": "What is the first artificially produced (synthetic) chemical element?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.024"
+  },
+  {
+   "accept_substrings": [
+    "Lr"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "b65d6f1a41038c7c746c39cd95f4efd6b3d3d4678821bfb9e611e44eb9d7628e",
+   "difficulty": "hard",
+   "prompt": "What is the chemical symbol for the element lawrencium?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.025"
+  },
+  {
+   "accept_substrings": [
+    "103"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "047a698e83ffa31e67457091a7dc0fdc0a9f44bab27cd40671cb51b395f79975",
+   "difficulty": "hard",
+   "prompt": "What is the atomic number of lawrencium?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.026"
+  },
+  {
+   "accept_substrings": [
+    "1227"
+   ],
+   "category": "history",
+   "dedupe_sha256": "4d37631a1ab4ca480a5910ac77e79e9ae5f9bbae0837228cec2a82194ecf6218",
+   "difficulty": "hard",
+   "prompt": "In which year did the Mongol leader Genghis Khan die?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.027"
+  },
+  {
+   "accept_substrings": [
+    "Challenger Deep"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "3fe6f1a8ff854efec35be62c0ef606180b17916719a997f16b795f93b86d202b",
+   "difficulty": "hard",
+   "prompt": "What is the deepest known point in the Earth's oceans, by name?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.028"
+  },
+  {
+   "accept_substrings": [
+    "McMillan",
+    "Abelson"
+   ],
+   "category": "science",
+   "dedupe_sha256": "86c188eefc45817e7710eff4f0edce8bc70f1bc03181839257500ab4fb57f6d2",
+   "difficulty": "hard",
+   "prompt": "Who discovered the element neptunium?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.029"
+  },
+  {
+   "accept_substrings": [
+    "1930"
+   ],
+   "category": "history",
+   "dedupe_sha256": "99eedbc99436e667e36b02a956e29aad031c57c594bdc98fe8be9b83b6af4374",
+   "difficulty": "hard",
+   "prompt": "In which year was the first FIFA World Cup held?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.hard.030"
+  },
+  {
+   "accept_substrings": [
+    "1861"
+   ],
+   "category": "history",
+   "dedupe_sha256": "e68455d139198d4ef63224f4c476440a9c69e2d15bf6d63d2422c94e60c535fd",
+   "difficulty": "medium",
+   "prompt": "In which year did the American Civil War begin?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.001"
+  },
+  {
+   "accept_substrings": [
+    "1789"
+   ],
+   "category": "history",
+   "dedupe_sha256": "7c1932c62de8e55bf15c65787414293b2be2ac177c830c04494bad800c14dc9f",
+   "difficulty": "medium",
+   "prompt": "In which year did the French Revolution begin?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.002"
+  },
+  {
+   "accept_substrings": [
+    "gold",
+    " Au"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "68d6ba7bb2ec043fe19342f488f88a70db28f370e1838347946108a83cfbe263",
+   "difficulty": "medium",
+   "prompt": "What is the element with atomic number 79?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.003"
+  },
+  {
+   "accept_substrings": [
+    "iron",
+    " Fe"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "d8eb743c4302c41589d94306be6061e736dbf05c57f8b79a148b521a1b3c2c81",
+   "difficulty": "medium",
+   "prompt": "What is the element with atomic number 26?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.004"
+  },
+  {
+   "accept_substrings": [
+    "silver",
+    " Ag"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "4cfbe17b106e6a637e62bf31f1ba4b5c86c390e6acc55ae62a88be9a14dc6d7b",
+   "difficulty": "medium",
+   "prompt": "What is the element with atomic number 47?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.005"
+  },
+  {
+   "accept_substrings": [
+    "46",
+    "forty-six"
+   ],
+   "category": "biology",
+   "dedupe_sha256": "9f0a27b11a09b7387d343d0485706d9bdd9f9afa2fc72309f5b9584741c0b4fb",
+   "difficulty": "medium",
+   "prompt": "How many chromosomes are in a normal human somatic cell?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.006"
+  },
+  {
+   "accept_substrings": [
+    "Nairobi"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "1dc65875d813be0a3540d8ec444e34f4cae554cdcf9d842bcb6dd044a80a5f3f",
+   "difficulty": "medium",
+   "prompt": "What is the capital of Kenya?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.007"
+  },
+  {
+   "accept_substrings": [
+    "Ulaanbaatar",
+    "Ulan Bator"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "f50dabfd7a96e6b1a6160befac5bab1ee51313cced18a882c2634025dc254bdb",
+   "difficulty": "medium",
+   "prompt": "What is the capital of Mongolia?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.008"
+  },
+  {
+   "accept_substrings": [
+    "Addis Ababa"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "83927016cfbf7646ba56893707978d905d8d672150e80f3001fad0a57620a1ed",
+   "difficulty": "medium",
+   "prompt": "What is the capital of Ethiopia?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.009"
+  },
+  {
+   "accept_substrings": [
+    "Buenos Aires"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "cc97b14f57c6a21ae1dac610c65bbf45ae433041b1a141a9bab51cbc5615ed79",
+   "difficulty": "medium",
+   "prompt": "What is the capital of Argentina?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.010"
+  },
+  {
+   "accept_substrings": [
+    "Wellington"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "d80dc8a2f3d6ceb34a0b514d7dd4c74e8dd01ac0e36460ecdc25f0bc59b3a43c",
+   "difficulty": "medium",
+   "prompt": "What is the capital of New Zealand?",
+   "reject_substrings": [
+    "Auckland is the capital"
+   ],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.011"
+  },
+  {
+   "accept_substrings": [
+    "1969"
+   ],
+   "category": "history",
+   "dedupe_sha256": "24c7fe1d2f90e7303b92096c4a00fc217bce0444a5d5e6cac10916d3e6c91e04",
+   "difficulty": "medium",
+   "prompt": "In which year did the first crewed Apollo Moon landing take place?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.012"
+  },
+  {
+   "accept_substrings": [
+    "Fleming"
+   ],
+   "category": "history",
+   "dedupe_sha256": "bb9459445b0e45166abb6fbe18845c0b169d07e86a0d4148acdd72d123635c74",
+   "difficulty": "medium",
+   "prompt": "Who discovered penicillin?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.013"
+  },
+  {
+   "accept_substrings": [
+    "Nobel"
+   ],
+   "category": "history",
+   "dedupe_sha256": "313da6389ea4cc606159190aaccd987b837234946e35abf2dbffc4101c73d0b2",
+   "difficulty": "medium",
+   "prompt": "Who invented dynamite?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.014"
+  },
+  {
+   "accept_substrings": [
+    "Tolstoy"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "704998bd24dd08550eb34d1e18ba3eb6ce15d4e2d6b4bacd273540ec9f1b9410",
+   "difficulty": "medium",
+   "prompt": "Who wrote 'War and Peace'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.015"
+  },
+  {
+   "accept_substrings": [
+    "Dostoevsky",
+    "Dostoyevsky"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "ba70eb49e43583d7dd17fb60d975fe3ffb04bbcb3bae8cc755e5d75e4de3c646",
+   "difficulty": "medium",
+   "prompt": "Who wrote 'Crime and Punishment'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.016"
+  },
+  {
+   "accept_substrings": [
+    "435",
+    "four hundred thirty-five"
+   ],
+   "category": "politics",
+   "dedupe_sha256": "541e1bfe7eca29ceed7b3ba059c9e43548d6ea38107b43d0f1bd749336d9f2c9",
+   "difficulty": "medium",
+   "prompt": "How many voting members are in the U.S. House of Representatives?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.017"
+  },
+  {
+   "accept_substrings": [
+    "9",
+    "nine"
+   ],
+   "category": "politics",
+   "dedupe_sha256": "5abbf357be06e00cfacbda811925d64b930d1f2da768c13bf6ed26dcb49198ac",
+   "difficulty": "medium",
+   "prompt": "How many justices sit on the United States Supreme Court (as of 2025)?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.018"
+  },
+  {
+   "accept_substrings": [
+    "1945"
+   ],
+   "category": "history",
+   "dedupe_sha256": "972658c67f73de6a774a078255050f4689b14e0b360ddcf2dd4c9c574d23475a",
+   "difficulty": "medium",
+   "prompt": "In which year was the United Nations founded?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.019"
+  },
+  {
+   "accept_substrings": [
+    "won"
+   ],
+   "category": "currency",
+   "dedupe_sha256": "cfbe774174e226d7f509b4ffb2bc0f07b0f4bc55a47aca0a93040874aeaac6b9",
+   "difficulty": "medium",
+   "prompt": "What is the official currency of South Korea?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.020"
+  },
+  {
+   "accept_substrings": [
+    "rupee"
+   ],
+   "category": "currency",
+   "dedupe_sha256": "de2dfe842ddb69542d516dad5d835bfa67594b023b400ad6396b69d62acdb4c6",
+   "difficulty": "medium",
+   "prompt": "What is the official currency of India?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.021"
+  },
+  {
+   "accept_substrings": [
+    "Kennedy"
+   ],
+   "category": "history",
+   "dedupe_sha256": "6a327ee974fbd69921048e803cfb9f1559b3893a7c87f154c8f18f11b1583158",
+   "difficulty": "medium",
+   "prompt": "Who was U.S. President during the Cuban Missile Crisis?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.022"
+  },
+  {
+   "accept_substrings": [
+    "343",
+    "340",
+    "344",
+    "342",
+    "345"
+   ],
+   "category": "science",
+   "dedupe_sha256": "8d29731eb2f3b99647d880e8e4922f08c3a5046e7b776b34382950730335d757",
+   "difficulty": "medium",
+   "prompt": "Approximately what is the speed of sound in dry air at 20\u00b0C, in meters per second?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.023"
+  },
+  {
+   "accept_substrings": [
+    "299,792,458",
+    "299792458",
+    "3 \u00d7 10^8",
+    "3 x 10^8",
+    "3e8",
+    "300,000,000",
+    "300000000"
+   ],
+   "category": "science",
+   "dedupe_sha256": "dcbe912cc69b29d5dd523d3068a2cd4c9b68f391d0a03f5859f8e81637ec2aa4",
+   "difficulty": "medium",
+   "prompt": "Approximately what is the speed of light in vacuum, in meters per second (powers of 10 acceptable)?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.024"
+  },
+  {
+   "accept_substrings": [
+    "1215"
+   ],
+   "category": "history",
+   "dedupe_sha256": "8edf796ac4048d524379f7803a96c4c6c2511f6852678d3055db033239cd5151",
+   "difficulty": "medium",
+   "prompt": "In which year was the Magna Carta sealed?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.025"
+  },
+  {
+   "accept_substrings": [
+    "1948"
+   ],
+   "category": "history",
+   "dedupe_sha256": "84ae2e25b57a0e2d4a9db99fc7bb04995754494a690382c600aa4c9d52082d93",
+   "difficulty": "medium",
+   "prompt": "In which year did the Berlin Airlift begin?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.026"
+  },
+  {
+   "accept_substrings": [
+    "Amazon"
+   ],
+   "category": "geography",
+   "dedupe_sha256": "0efa8b4461aa37cdf59370dbd88e3b8fc542a6aa86f6d7f5742db5c0693d31d8",
+   "difficulty": "medium",
+   "prompt": "What is the longest river in South America?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.027"
+  },
+  {
+   "accept_substrings": [
+    "nitrogen",
+    " N2",
+    " N\u2082"
+   ],
+   "category": "chemistry",
+   "dedupe_sha256": "61be1bb470ae09c3a07ed755a1a89d3d131ea3bcfc4381e9f4df1ebc2b2ebdcd",
+   "difficulty": "medium",
+   "prompt": "What is the most abundant gas in Earth's atmosphere?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.028"
+  },
+  {
+   "accept_substrings": [
+    "Garcia Marquez",
+    "Garc\u00eda M\u00e1rquez",
+    "Gabriel Garc\u00eda",
+    "Gabriel Garcia"
+   ],
+   "category": "literature",
+   "dedupe_sha256": "036d26d8cd05f0a8cd91455bd66a62118c2215b5eb840f9fcf43f43549d7ab96",
+   "difficulty": "medium",
+   "prompt": "Who wrote 'One Hundred Years of Solitude'?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.029"
+  },
+  {
+   "accept_substrings": [
+    "Versailles"
+   ],
+   "category": "history",
+   "dedupe_sha256": "d52b94d05e62375c693f9bbe62b97af6c3498b57791e61c401d18a828871571c",
+   "difficulty": "medium",
+   "prompt": "Which treaty formally ended World War I?",
+   "reject_substrings": [],
+   "source_revision": "6e78dae48131f590cdd59fada023089c53a45236",
+   "stable_case_id": "cc.med.030"
+  }
+ ]
+}

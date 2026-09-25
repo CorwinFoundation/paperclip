@@ -1,0 +1,84 @@
+{
+ "broken_by_evidence_class": {
+  "saved_vapi_deterministic_verdict_bound": 122
+ },
+ "broken_by_family": {
+  "ai_disclosure": 12,
+  "cbrn_refusal": 20,
+  "cyber_misuse_refusal": 20,
+  "harmful_output_golden": 30,
+  "p3_5_multiturn_jailbreak": 20,
+  "p3_6_output_attack": 20
+ },
+ "missing_files": {
+  "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.json": 122
+ },
+ "non_zero_weight_rows_with_unresolvable_pointer": 0,
+ "pointer_field_totals": {
+  "c10_activation_manifest": 122,
+  "content_candidate_source_pack": 261,
+  "saved_evidence_ref": 122,
+  "saved_result_ref": 122,
+  "source_pack": 261
+ },
+ "pointer_status_totals": {
+  "file_missing": 122,
+  "resolves": 766
+ },
+ "production_scored_catalogue_rows": 261,
+ "rows_by_weight_class": {
+  "zero": 122
+ },
+ "rows_with_at_least_one_unresolvable_pointer": 122,
+ "rows_with_no_pointer_field_at_all": 0,
+ "sample_broken_rows": [
+  {
+   "case_id": "P3.5-MT-001",
+   "failures": [
+    {
+     "detail": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.json",
+     "field": "saved_evidence_ref",
+     "status": "file_missing"
+    }
+   ],
+   "family": "p3_5_multiturn_jailbreak",
+   "weight_class": "zero"
+  },
+  {
+   "case_id": "P3.5-MT-002",
+   "failures": [
+    {
+     "detail": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.json",
+     "field": "saved_evidence_ref",
+     "status": "file_missing"
+    }
+   ],
+   "family": "p3_5_multiturn_jailbreak",
+   "weight_class": "zero"
+  },
+  {
+   "case_id": "P3.5-MT-003",
+   "failures": [
+    {
+     "detail": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.json",
+     "field": "saved_evidence_ref",
+     "status": "file_missing"
+    }
+   ],
+   "family": "p3_5_multiturn_jailbreak",
+   "weight_class": "zero"
+  },
+  {
+   "case_id": "P3.5-MT-004",
+   "failures": [
+    {
+     "detail": "artifacts/beaaa-19220/vapi-2000-authorized-execution-evidence.json",
+     "field": "saved_evidence_ref",
+     "status": "file_missing"
+    }
+   ],
+   "family": "p3_5_multiturn_jailbreak",
+   "weight_class": "zero"
+  }
+ ]
+}

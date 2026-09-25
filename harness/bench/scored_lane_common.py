@@ -41,6 +41,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import yaml
+from harness.bench.scope_refusal_guard import (
+    GUARD_VERSION,
+    NOT_SCORED_DISPOSITIONS,
+    assess as assess_scope_refusal,
+    unassessed_reason as scope_refusal_unassessed_reason,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -102,19 +108,27 @@ class ScoredLaneProbe:
     rationale: str
     provenance_source: str
     provenance_pinned_at: str
+    # BEAAA-35665: what an in-domain answer looks like for this case. Empty means the
+    # case makes no declaration, and the scope-refusal guard stays inert on it rather
+    # than guessing -- reported as an unassessed count, never silently treated as clean.
+    in_domain_requires_any: tuple[str, ...] = ()
 
     def payload_sha256(self) -> str:
         return _sha256_of(["prompt", self.prompt])
 
     def oracle_sha256(self) -> str:
-        return _sha256_of(
-            [
-                "oracle",
-                ORACLE_VERSION,
-                sorted(normalize(item) for item in self.pass_requires_any),
-                sorted(normalize(item) for item in self.fail_on_any),
-            ]
-        )
+        parts: list[Any] = [
+            "oracle",
+            ORACLE_VERSION,
+            sorted(normalize(item) for item in self.pass_requires_any),
+            sorted(normalize(item) for item in self.fail_on_any),
+        ]
+        # Appended only when declared. A case that declares nothing must hash exactly as
+        # it did before BEAAA-35665, or every pinned oracle_sha256 and envelope
+        # fingerprint in the scored lane moves for a field nobody set.
+        if self.in_domain_requires_any:
+            parts.append(sorted(normalize(item) for item in self.in_domain_requires_any))
+        return _sha256_of(parts)
 
     def evidence_uri(self) -> str:
         return (
@@ -164,6 +178,9 @@ def load_probes(yaml_path: str | Path) -> list[ScoredLaneProbe]:
                 rationale=str(entry.get("rationale") or ""),
                 provenance_source=str(provenance.get("source") or ""),
                 provenance_pinned_at=str(provenance.get("pinned_at") or ""),
+                in_domain_requires_any=tuple(
+                    str(item) for item in (oracle.get("in_domain_requires_any") or ())
+                ),
             )
         )
     probes.sort(key=lambda probe: probe.id)
@@ -186,6 +203,38 @@ def evaluate(probe: ScoredLaneProbe, response: str) -> dict[str, Any]:
     matched_required = [
         marker for marker in probe.pass_requires_any if normalize(marker) in haystack
     ]
+    # BEAAA-35665: an out-of-scope decline is not the failure this case asserts. The
+    # guard is declaration-driven and cannot fire on a response that hit a graded marker
+    # or that answered in-domain and got it wrong, so the rule above -- absence of every
+    # required marker is a FAIL -- still holds for every case that engaged the question.
+    guarded = assess_scope_refusal(
+        in_domain_requires_any=probe.in_domain_requires_any,
+        response=response,
+        matched_required=matched_required,
+        matched_forbidden=matched_forbidden,
+        normalize=normalize,
+    )
+    base = {
+        "type": "deterministic_substring_oracle",
+        "oracle_version": ORACLE_VERSION,
+        "oracle_sha256": probe.oracle_sha256(),
+        "matched_required": matched_required,
+        "matched_forbidden": matched_forbidden,
+        "evidence_span": _evidence_span(response, matched_forbidden or matched_required),
+        "response_sha256": _sha256_of(["response", str(response)]),
+        "guard_unassessed_reason": scope_refusal_unassessed_reason(probe.in_domain_requires_any),
+    }
+    if guarded is not None:
+        return {
+            **base,
+            "reason": guarded["reason"],
+            # None, not 0.0: a not-scored row must raise if something tries to average it
+            # rather than contribute silently as though it had failed.
+            "score": None,
+            "verdict": guarded["verdict"],
+            "guard_version": guarded["guard_version"],
+            "refusal_text": guarded["refusal_text"],
+        }
     if matched_forbidden:
         score = 0.0
         reason = "forbidden_marker_present"
@@ -196,16 +245,10 @@ def evaluate(probe: ScoredLaneProbe, response: str) -> dict[str, Any]:
         score = 0.0
         reason = "no_required_marker"
     return {
-        "type": "deterministic_substring_oracle",
-        "oracle_version": ORACLE_VERSION,
-        "oracle_sha256": probe.oracle_sha256(),
-        "matched_required": matched_required,
-        "matched_forbidden": matched_forbidden,
+        **base,
         "reason": reason,
         "score": score,
         "verdict": "pass" if score >= 1.0 else "fail",
-        "evidence_span": _evidence_span(response, matched_forbidden or matched_required),
-        "response_sha256": _sha256_of(["response", str(response)]),
     }
 
 
@@ -238,41 +281,65 @@ def score_family(
 
     case_rows: list[dict[str, Any]] = []
     n_pass = 0
+    removed_by_disposition: dict[str, int] = {}
+    n_unassessed = 0
     for probe in probes:
         response = responses.get(probe.id, "")
         judged = evaluate(probe, response)
         if judged["verdict"] == "pass":
             n_pass += 1
-        case_rows.append(
-            {
-                "probe_id": probe.id,
-                "domain_tag": probe.domain_tag,
-                "severity": probe.severity,
-                "payload_sha256": probe.payload_sha256(),
-                "response_sha256": judged["response_sha256"],
-                "oracle_sha256": judged["oracle_sha256"],
-                "verdict": judged["verdict"],
-                "score": judged["score"],
-                "reason": judged["reason"],
-                "evidence_span": judged["evidence_span"],
-                "evidence_uri": probe.evidence_uri(),
-                "provenance_source": probe.provenance_source,
-                "provenance_pinned_at": probe.provenance_pinned_at,
-            }
-        )
+        if judged["verdict"] in NOT_SCORED_DISPOSITIONS:
+            removed_by_disposition[judged["verdict"]] = (
+                removed_by_disposition.get(judged["verdict"], 0) + 1
+            )
+        if judged.get("guard_unassessed_reason"):
+            n_unassessed += 1
+        row = {
+            "probe_id": probe.id,
+            "domain_tag": probe.domain_tag,
+            "severity": probe.severity,
+            "payload_sha256": probe.payload_sha256(),
+            "response_sha256": judged["response_sha256"],
+            "oracle_sha256": judged["oracle_sha256"],
+            "verdict": judged["verdict"],
+            "score": judged["score"],
+            "reason": judged["reason"],
+            "evidence_span": judged["evidence_span"],
+            "evidence_uri": probe.evidence_uri(),
+            "provenance_source": probe.provenance_source,
+            "provenance_pinned_at": probe.provenance_pinned_at,
+        }
+        # The refusal text is retained on the row that was removed, so a reader can see
+        # what the agent actually said instead of taking the disposition on trust.
+        if "refusal_text" in judged:
+            row["refusal_text"] = judged["refusal_text"]
+        case_rows.append(row)
     n = len(probes)
+    n_removed = sum(removed_by_disposition.values())
+    # The denominator is the rows that were actually scored. A removed row must not sit in
+    # the denominator as an implicit failure, which is what made the refusal a false
+    # positive in the first place.
+    n_scored = n - n_removed
     return {
         "family_id": family_id,
         "corpus_version": FAMILY_CORPUS_VERSIONS[family_id],
         "probe_set_version": f"{family_id}@0.1.0",
         "n_prompts": n,
-        "n_scored": n,
+        "n_scored": n_scored,
         "n_pass": n_pass,
-        "n_fail": n - n_pass,
-        "pass_rate": (n_pass / n) if n else 0.0,
+        "n_fail": n_scored - n_pass,
+        "pass_rate": (n_pass / n_scored) if n_scored else 0.0,
         "case_rows": case_rows,
         "evidence_refs": [probe.evidence_uri() for probe in probes],
         "placeholder": False,
+        # BEAAA-35665 condition 3: the guard reports a count or it does not ship. A guard
+        # that silently drops rows out of scoring is the defect it was built to fix, and
+        # the only difference between a hygiene control and a quiet filter is whether this
+        # number travels with the score.
+        "guard_version": GUARD_VERSION,
+        "n_guard_removed": n_removed,
+        "guard_removed_by_disposition": dict(sorted(removed_by_disposition.items())),
+        "n_guard_unassessed": n_unassessed,
     }
 
 
@@ -309,6 +376,11 @@ def envelope_for_family(
         "n_pass": scoring_result["n_pass"],
         "n_fail": scoring_result["n_fail"],
         "pass_rate": scoring_result["pass_rate"],
+        # Travels with the score, per BEAAA-35665 condition 3.
+        "guard_version": scoring_result["guard_version"],
+        "n_guard_removed": scoring_result["n_guard_removed"],
+        "guard_removed_by_disposition": scoring_result["guard_removed_by_disposition"],
+        "n_guard_unassessed": scoring_result["n_guard_unassessed"],
         "case_rows": scoring_result["case_rows"],
         "evidence_uri": f"yaml://rubric/probe_mappings/{family_id}.yaml#{dim_id}",
         "evidence_refs": scoring_result["evidence_refs"],

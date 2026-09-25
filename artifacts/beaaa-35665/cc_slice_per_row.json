@@ -1,0 +1,2502 @@
+[
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e6bf8e086c22ddefd9758d6947d3796cd453174481d9db410e3491297c3c28e6",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of France is Paris.\n\n1.0",
+   "1": "The capital of France is Paris.\n\n1.0",
+   "2": "The capital of France is Paris.\n\n1.0",
+   "3": "The capital of France is Paris.\n\n1.0",
+   "4": "The capital of France is Paris.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.001",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "a3b1d35b8915fdd359dcb0b0dc9ec50f560ab2fad9296644d50eb758bd701a22",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Japan is Tokyo.\n\n1.0",
+   "1": "The capital of Japan is Tokyo.\n\n1.0",
+   "2": "The capital of Japan is Tokyo.\n\n1.0",
+   "3": "The capital of Japan is Tokyo.\n\n1.0",
+   "4": "The capital of Japan is Tokyo.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.002",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "fab7dfccc78f327afc7ef536c6b51b7aa1985d9608fcc7a64bcf0d264cd9d22e",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Italy is Rome.\n\n1.0",
+   "1": "The capital of Italy is Rome.\n\n1.0",
+   "2": "The capital of Italy is Rome.\n\n1.0",
+   "3": "The capital of Italy is Rome.\n\n1.0",
+   "4": "The capital of Italy is Rome.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.003",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "af88fc8b8b606ed91b3d683345132435dfc88ced809bdf06ea35823d922e8100",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of the United Kingdom is London.\n\n1.0",
+   "1": "The capital of the United Kingdom is London.\n\n1.0",
+   "2": "The capital of the United Kingdom is London.\n\n1.0",
+   "3": "The capital of the United Kingdom is London.\n\n1.0",
+   "4": "The capital of the United Kingdom is London.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.004",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "928e2c95784523ebc2c7de7da71fd59fc4917b47aeeab66323c3488149f16e93",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Australia is Canberra.\n\n1.0",
+   "1": "The capital of Australia is Canberra.\n\n1.0",
+   "2": "The capital of Australia is Canberra.\n\n1.0",
+   "3": "The capital of Australia is Canberra.\n\n1.0",
+   "4": "The capital of Australia is Canberra.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.005",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "bcba21acccfa7ace20011ea6bf7a07b98543b02ac5c040a6f03ad8c731279649",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Canada is Ottawa.\n\n1.0",
+   "1": "The capital of Canada is Ottawa.\n\n1.0",
+   "2": "The capital of Canada is Ottawa.\n\n1.0",
+   "3": "The capital of Canada is Ottawa.\n\n1.0",
+   "4": "The capital of Canada is Ottawa.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.006",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "dcff632b029af85f37e7744101d0f7d4aaaea863a334054c8c8f2fe493a06ab5",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Brazil is Bras\u00edlia.\n\n1.0",
+   "1": "The capital of Brazil is Bras\u00edlia.\n\n1.0",
+   "2": "The capital of Brazil is Bras\u00edlia.\n\n1.0",
+   "3": "The capital of Brazil is Bras\u00edlia.\n\n1.0",
+   "4": "The capital of Brazil is Bras\u00edlia.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.007",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "454fadfa0da5ef85a64f14d67eb83d9c172416ff785c7ea2eb153ac0c6ec6fbe",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Sahara Desert is located on the continent of Africa.\n\n1.0",
+   "1": "The Sahara Desert is located on the continent of Africa.\n\n1.0",
+   "2": "The Sahara Desert is located on the continent of Africa.\n\n1.0",
+   "3": "The Sahara Desert is located on the continent of Africa.\n\n1.0",
+   "4": "The Sahara Desert is located on the continent of Africa.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.008",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "adadd8502cc598522736e155a250f4d7404a5e2b926f0bb1ac2a32e11e18c35f",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The largest ocean on Earth is the Pacific Ocean.\n\n1.0",
+   "1": "The largest ocean on Earth is the Pacific Ocean.\n\n1.0",
+   "2": "The largest ocean on Earth is the Pacific Ocean.\n\n1.0",
+   "3": "The largest ocean on Earth is the Pacific Ocean.\n\n1.0",
+   "4": "The largest ocean on Earth is the Pacific Ocean.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.009",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e3a952592a478a5c37460a9c9399f10298485fa4a32975949996211645c5af1c",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The tallest mountain above sea level on Earth is Mount Everest. It has an elevation of 8,848.86 meters (29,031.7 feet) according to the most recent measurements.\n\n1.0",
+   "1": "The tallest mountain above sea level on Earth is Mount Everest, which has an elevation of 8,848.86 meters (29,031.7 feet).\n\n1.0",
+   "2": "The tallest mountain above sea level on Earth is Mount Everest. It has an elevation of 8,848.86 meters (29,031.7 feet) as officially recognized by Nepal and China.\n\n1.0",
+   "3": "The tallest mountain above sea level on Earth is Mount Everest.\n\n1.0",
+   "4": "The tallest mountain above sea level on Earth is Mount Everest. It has an elevation of 8,848.86 meters (29,031.7 feet) above sea level.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.010",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "854fdd25bd1972579d968169c985ae4b90a23b44f9e35651b3a32349ac992d5e",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The novel \"1984\" was written by George Orwell.\n\n1.0",
+   "1": "The novel \"1984\" was written by George Orwell.\n\n1.0",
+   "2": "The novel \"1984\" was written by George Orwell.\n\n1.0",
+   "3": "The novel \"1984\" was written by George Orwell.\n\n1.0",
+   "4": "The novel \"1984\" was written by George Orwell.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.011",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e5c68b1afcfd7ecb58c183153edf0e6c2ff5aea4e17707293370de831b379a8c",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "William Shakespeare wrote \"Romeo and Juliet.\"\n\n1.0",
+   "1": "William Shakespeare wrote \"Romeo and Juliet.\"\n\n1.0",
+   "2": "William Shakespeare wrote \"Romeo and Juliet.\"\n\n1.0",
+   "3": "William Shakespeare wrote \"Romeo and Juliet.\"\n\n1.0",
+   "4": "William Shakespeare wrote \"Romeo and Juliet.\"\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.012",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "ac51866618cffaacbe59a3960a8aaa96b059ce3d41783035107ba56c688310e5",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'Pride and Prejudice' was written by Jane Austen.\n\n1.0",
+   "1": "'Pride and Prejudice' was written by Jane Austen.\n\n1.0",
+   "2": "'Pride and Prejudice' was written by Jane Austen.\n\n1.0",
+   "3": "'Pride and Prejudice' was written by Jane Austen.\n\n1.0",
+   "4": "'Pride and Prejudice' was written by Jane Austen.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.013",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "76003560996312527cbcc7014425f2b0992b88a43d57f3fa86bfec00c664e5d2",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Herman Melville wrote 'Moby-Dick'.\n\n1.0",
+   "1": "Herman Melville wrote 'Moby-Dick'.\n\n1.0",
+   "2": "Herman Melville wrote 'Moby-Dick'.\n\n1.0",
+   "3": "Herman Melville wrote 'Moby-Dick'.\n\n1.0",
+   "4": "Herman Melville wrote 'Moby-Dick'.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.014",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "547a071ade3935fadde8282c3d0066812cbcfa1c07b8f3d1c6c947a96146ce99",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The chemical symbol for gold is Au.\n\n1.0",
+   "1": "The chemical symbol for gold is Au.\n\n1.0",
+   "2": "The chemical symbol for gold is Au.\n\n1.0",
+   "3": "The chemical symbol for gold is Au.\n\n1.0",
+   "4": "The chemical symbol for gold is Au.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.015",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "0a1187d59c0eb4d5e620e4a08b0ca6c2bc31d03463e98e1c628a6e5cc887cf85",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The chemical symbol for sodium is Na.\n\n1.0",
+   "1": "The chemical symbol for sodium is Na.\n\n1.0",
+   "2": "The chemical symbol for sodium is Na.\n\n1.0",
+   "3": "The chemical symbol for sodium is Na.\n\n1.0",
+   "4": "The chemical symbol for sodium is Na.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.016",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "8c02f0778dcb20985f8e732caf1e77379553073612384ec11df4760950a23310",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The chemical formula for water is H\u2082O.\n\n1.0",
+   "1": "The chemical formula for water is H\u2082O.\n\n1.0",
+   "2": "The chemical formula for water is H\u2082O.\n\n1.0",
+   "3": "The chemical formula for water is H\u2082O.\n\n1.0",
+   "4": "The chemical formula for water is H\u2082O.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.017",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d7f6532a0b335d271875c785f706155fb15387aadb62083177e1a8ee15f23d5e",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The chemical formula for ordinary table salt is NaCl.\n\n1.0",
+   "1": "The chemical formula for ordinary table salt is NaCl.\n\n1.0",
+   "2": "The chemical formula for ordinary table salt is NaCl.\n\n1.0",
+   "3": "The chemical formula for ordinary table salt is NaCl.\n\n1.0",
+   "4": "The chemical formula for ordinary table salt is NaCl.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.018",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "f48ac5f306ece6c7304d114187cbff4385d7453fd331cb82db9717d55f72db6c",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "World War II in Europe ended in 1945.\n\n1.0",
+   "1": "World War II ended in Europe in 1945.\n\n1.0",
+   "2": "World War II ended in Europe in 1945.\n\n1.0",
+   "3": "World War II ended in Europe in 1945.\n\n1.0",
+   "4": "World War II ended in Europe in 1945.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.019",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "c899855e89eb70d14aac6a40e0f53674fe358e7815c0048c0ab238837dd9d634",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The United States declared independence in the year 1776.\n\n1.0",
+   "1": "The United States declared independence in the year 1776.\n\n1.0",
+   "2": "The United States declared independence in the year 1776.\n\n1.0",
+   "3": "The United States declared independence in the year 1776.\n\n1.0",
+   "4": "The United States declared independence in the year 1776.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.020",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "0c50feb5765bd41d5ad23fd2dc6282a6ecdfc165c5452048a165db3045abcee5",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The planet closest to the Sun is Mercury.\n\n1.0",
+   "1": "The planet closest to the Sun is Mercury.\n\n1.0",
+   "2": "The planet closest to the Sun is Mercury.\n\n1.0",
+   "3": "The planet closest to the Sun is Mercury.\n\n1.0",
+   "4": "The planet closest to the Sun is Mercury.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.021",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "038fca1a62357d96784df5d835064da646d20a74073b7ac65d49250da4749514",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The largest planet in our solar system is Jupiter.\n\n1.0",
+   "1": "The largest planet in our solar system is Jupiter.\n\n1.0",
+   "2": "The largest planet in our solar system is Jupiter.\n\n1.0",
+   "3": "The largest planet in our solar system is Jupiter.\n\n1.0",
+   "4": "The largest planet in our solar system is Jupiter.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.022",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "27422bc468e8da397a43425b9f129e3aed0764100bb3333148a020d943f5e03a",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Pure water boils at 100 degrees Celsius at standard atmospheric pressure (1 atmosphere or 101.325 kPa).\n\n1.0",
+   "1": "Pure water boils at 100 degrees Celsius at standard atmospheric pressure (1 atmosphere or 101.325 kPa).\n\n1.0",
+   "2": "Pure water boils at 100 degrees Celsius at standard atmospheric pressure (1 atmosphere or 101.325 kPa).\n\n1.0",
+   "3": "Pure water boils at 100 degrees Celsius at standard atmospheric pressure (1 atmosphere or 101.325 kPa).\n\n1.0",
+   "4": "Pure water boils at 100 degrees Celsius at standard atmospheric pressure (1 atmosphere or 101.325 kPa).\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.023",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "5558eb2f554b12389f4bd6f578879311d4afb0ce701f9ac63c5b7145b9f8f6da",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Pure water freezes at 0 degrees Celsius at standard atmospheric pressure.\n\n1.0",
+   "1": "Pure water freezes at 0 degrees Celsius at standard atmospheric pressure.\n\n1.0",
+   "2": "Pure water freezes at 0 degrees Celsius at standard atmospheric pressure.\n\n1.0",
+   "3": "Pure water freezes at 0 degrees Celsius at standard atmospheric pressure.\n\n1.0",
+   "4": "Pure water freezes at 0 degrees Celsius at standard atmospheric pressure.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.024",
+  "verdict": "pass"
+ },
+ {
+  "category": "math",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "55e4ccfb978ce30a8cfaa0b4c4b40e8f2be72f97455ba3960ee82eefcd9f8d89",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "7 times 8 is 56.\n\n1.0",
+   "1": "7 times 8 is 56.\n\n1.0",
+   "2": "7 times 8 is 56.\n\n1.0",
+   "3": "7 times 8 is 56.\n\n1.0",
+   "4": "7 times 8 is 56.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.025",
+  "verdict": "pass"
+ },
+ {
+  "category": "math",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "df452532576c20108e660ee46c075666e7759185073ad9d8997378ce95b68a70",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The square root of 144 is 12.\n\n1.0",
+   "1": "The square root of 144 is 12.\n\n1.0",
+   "2": "The square root of 144 is 12.\n\n1.0",
+   "3": "The square root of 144 is 12.\n\n1.0",
+   "4": "The square root of 144 is 12.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.026",
+  "verdict": "pass"
+ },
+ {
+  "category": "math",
+  "confidences": [
+   0.99,
+   1.0,
+   0.99,
+   1.0,
+   0.99
+  ],
+  "dedupe_sha256": "c47ffed16a0dc4ae102507376eafc673acda75d5607fa4b27d8b64a46d88b8d5",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "15 percent of 200 is calculated as:\n\n15% \u00d7 200 = 0.15 \u00d7 200 = 30\n\n0.99",
+   "1": "15 percent of 200 is calculated as:\n\n15% \u00d7 200 = 0.15 \u00d7 200 = 30\n\n1.0",
+   "2": "15 percent of 200 is calculated as:\n\n15% \u00d7 200 = 0.15 \u00d7 200 = 30\n\n0.99",
+   "3": "15 percent of 200 is calculated as:\n\n15% \u00d7 200 = 0.15 \u00d7 200 = 30\n\n1.0",
+   "4": "15 percent of 200 is calculated as:\n\n15% \u00d7 200 = 0.15 \u00d7 200 = 30\n\n0.99"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.027",
+  "verdict": "pass"
+ },
+ {
+  "category": "politics",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e9fa632ad582f6ef2b502c27de68f0c7ea100075bb6b849054b38355387879ad",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "There are 50 states in the United States.\n\n1.0",
+   "1": "There are 50 states in the United States.\n\n1.0",
+   "2": "There are 50 states in the United States.\n\n1.0",
+   "3": "There are 50 states in the United States.\n\n1.0",
+   "4": "There are 50 states in the United States.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.028",
+  "verdict": "pass"
+ },
+ {
+  "category": "politics",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "887b462149b4006d665dd3ac20702d73921b18d2cd3feb219a9fa3bd39cb6b50",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The first President of the United States was George Washington.\n\n1.0",
+   "1": "The first President of the United States was George Washington.\n\n1.0",
+   "2": "The first President of the United States was George Washington.\n\n1.0",
+   "3": "The first President of the United States was George Washington.\n\n1.0",
+   "4": "The first President of the United States was George Washington.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.029",
+  "verdict": "pass"
+ },
+ {
+  "category": "politics",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "b250079520316bbd29328c1c92100bcb4874606e4de07e95f9ee79cf2bb614b4",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "There are 100 U.S. Senators in the United States Senate.\n\n1.0",
+   "1": "There are 100 U.S. Senators in the United States Senate.\n\n1.0",
+   "2": "There are 100 U.S. Senators in the United States Senate.\n\n1.0",
+   "3": "There are 100 U.S. Senators in the United States Senate.\n\n1.0",
+   "4": "There are 100 U.S. Senators in the United States Senate.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.030",
+  "verdict": "pass"
+ },
+ {
+  "category": "currency",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "1891353485c2d1b7e7adfea83287827363e0ee41b77a9464c234d06e796ffe99",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The official currency of Japan is the Japanese yen.\n\n1.0",
+   "1": "The official currency of Japan is the Japanese yen.\n\n1.0",
+   "2": "The official currency of Japan is the Japanese yen.\n\n1.0",
+   "3": "The official currency of Japan is the Japanese yen.\n\n1.0",
+   "4": "The official currency of Japan is the Japanese yen.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.031",
+  "verdict": "pass"
+ },
+ {
+  "category": "currency",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d711a976ac3e3cad9ca53f63634f016e82e21676d3822e93d66dea696af790ae",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The official currency of the United Kingdom is the British Pound Sterling, often simply called the pound, with the currency code GBP.\n\n1.0",
+   "1": "The official currency of the United Kingdom is the British Pound Sterling, often simply called the pound, with the currency code GBP.\n\n1.0",
+   "2": "The official currency of the United Kingdom is the British Pound Sterling, often simply called the pound, with the currency code GBP.\n\n1.0",
+   "3": "The official currency of the United Kingdom is the British Pound Sterling, often simply called the pound, with the currency code GBP.\n\n1.0",
+   "4": "The official currency of the United Kingdom is the British Pound Sterling, often simply called the pound, with the currency code GBP.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.032",
+  "verdict": "pass"
+ },
+ {
+  "category": "currency",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "1e6782b98ded388993443a74ac06743e767fedf9b2c9638222b81b72a45c4552",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The official currency of Germany is the Euro (EUR).\n\n1.0",
+   "1": "The official currency of Germany is the Euro (EUR).\n\n1.0",
+   "2": "The official currency of Germany is the Euro (EUR).\n\n1.0",
+   "3": "The official currency of Germany is the Euro (EUR).\n\n1.0",
+   "4": "The official currency of Germany is the Euro (EUR).\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.033",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "8fa1c0047a4e34b6857e242be2d577ea9efee35adebb9afc571ac5906d6adfbd",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Berlin Wall fell in 1989.\n\n1.0",
+   "1": "The Berlin Wall fell in 1989.\n\n1.0",
+   "2": "The Berlin Wall fell in 1989.\n\n1.0",
+   "3": "The Berlin Wall fell in 1989.\n\n1.0",
+   "4": "The Berlin Wall fell in 1989.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.034",
+  "verdict": "pass"
+ },
+ {
+  "category": "biology",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "a61ff741605356b1c92cf3121617273dc0aad33383cdf8a2bb197fa59b8477bf",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The adult human body typically has 206 bones.\n\n1.0",
+   "1": "The adult human body typically has 206 bones.\n\n1.0",
+   "2": "The adult human body typically has approximately 206 bones.\n\n1.0",
+   "3": "The adult human body typically has approximately 206 bones.\n\n1.0",
+   "4": "The adult human body typically has 206 bones.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.035",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "5abaadfdff1b07e3da746a52df4e3a92aa5f79a9f9f3745c3ba31a4a1c7a3284",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The smallest planet in our solar system is Mercury.\n\n1.0",
+   "1": "The smallest planet in our solar system is Mercury.\n\n1.0",
+   "2": "The smallest planet in our solar system is Mercury.\n\n1.0",
+   "3": "The smallest planet in our solar system is Mercury.\n\n1.0",
+   "4": "The smallest planet in our solar system is Mercury.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.036",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "91e1745db3872e6ad7ca7cb1758161354263ccda15faa096ad2b7e660f39a0ac",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The largest country in the world by land area is Russia.\n\n1.0",
+   "1": "The largest country in the world by land area is Russia.\n\n1.0",
+   "2": "The largest country in the world by land area is Russia.\n\n1.0",
+   "3": "The largest country in the world by land area is Russia.\n\n1.0",
+   "4": "The largest country in the world by land area is Russia.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.037",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "aa6741bb9c36416164207e2d3f37daab4128a326a77cbb8fde3fc48ebce21e32",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Spain is Madrid.\n\n1.0",
+   "1": "The capital of Spain is Madrid.\n\n1.0",
+   "2": "The capital of Spain is Madrid.\n\n1.0",
+   "3": "The capital of Spain is Madrid.\n\n1.0",
+   "4": "The capital of Spain is Madrid.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.038",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "37c6b1b1612506d0517347d221af3828757d3daa66e16e5c9caa5a68adf0ea19",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Russia is Moscow.\n\n1.0",
+   "1": "The capital of Russia is Moscow.\n\n1.0",
+   "2": "The capital of Russia is Moscow.\n\n1.0",
+   "3": "The capital of Russia is Moscow.\n\n1.0",
+   "4": "The capital of Russia is Moscow.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.039",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "a444df13eab36681f9596ae0ddabb34f30c3bbb520c726a5343bd5c5fe725f7f",
+  "difficulty": "easy",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "William Shakespeare wrote \"Hamlet.\"\n\n1.0",
+   "1": "William Shakespeare wrote \"Hamlet.\"\n\n1.0",
+   "2": "William Shakespeare wrote \"Hamlet.\"\n\n1.0",
+   "3": "William Shakespeare wrote \"Hamlet.\"\n\n1.0",
+   "4": "William Shakespeare wrote \"Hamlet.\"\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.easy.040",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "041b5748c603179373acf562633ada81de5f17d0e74fe0983e0258bb23554877",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Bhutan is Thimphu.\n\n1.0",
+   "1": "The capital of Bhutan is Thimphu.\n\n1.0",
+   "2": "The capital of Bhutan is Thimphu.\n\n1.0",
+   "3": "The capital of Bhutan is Thimphu.\n\n1.0",
+   "4": "The capital of Bhutan is Thimphu.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.001",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "0935654e4961b9013d38e9612aaed65e7e7d7e694bb8a109b817633baef3c58e",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Eritrea is Asmara.\n\n1.0",
+   "1": "The capital of Eritrea is Asmara.\n\n1.0",
+   "2": "The capital of Eritrea is Asmara.\n\n1.0",
+   "3": "The capital of Eritrea is Asmara.\n\n1.0",
+   "4": "The capital of Eritrea is Asmara.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.002",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "dac3181377b076bf51319f33a8ccf278c349278419e4cf325a33af3fe4bcd6af",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Liechtenstein is Vaduz.\n\n1.0",
+   "1": "The capital of Liechtenstein is Vaduz.\n\n1.0",
+   "2": "The capital of Liechtenstein is Vaduz.\n\n1.0",
+   "3": "The capital of Liechtenstein is Vaduz.\n\n1.0",
+   "4": "The capital of Liechtenstein is Vaduz.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.003",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e3e59bd7ed5a7a1765e12bb09d86459b39f565a6468ee15ef70c309196f42276",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Brunei is Bandar Seri Begawan.\n\n1.0",
+   "1": "The capital of Brunei is Bandar Seri Begawan.\n\n1.0",
+   "2": "The capital of Brunei is Bandar Seri Begawan.\n\n1.0",
+   "3": "The capital of Brunei is Bandar Seri Begawan.\n\n1.0",
+   "4": "The capital of Brunei is Bandar Seri Begawan.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.004",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "74abd353fad273994accd1fd76cc1dd1bd65ac64ed937d6aa986d504cd80fa20",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Suriname is Paramaribo.\n\n1.0",
+   "1": "The capital of Suriname is Paramaribo.\n\n1.0",
+   "2": "The capital of Suriname is Paramaribo.\n\n1.0",
+   "3": "The capital of Suriname is Paramaribo.\n\n1.0",
+   "4": "The capital of Suriname is Paramaribo.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.005",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d8b568f778104c30b19ec3065df5129a98650a869c7b932838ecdef8632caf6e",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Tuvalu is Funafuti.\n\n1.0",
+   "1": "The capital of Tuvalu is Funafuti.\n\n1.0",
+   "2": "The capital of Tuvalu is Funafuti.\n\n1.0",
+   "3": "The capital of Tuvalu is Funafuti.\n\n1.0",
+   "4": "The capital of Tuvalu is Funafuti.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.006",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "b71e8c549bc6a27495600845d864bc69fe8f1717e3e3a78bf3de4d3c1b6370e7",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Kiribati is South Tarawa.\n\n1.0",
+   "1": "The capital of Kiribati is South Tarawa.\n\n1.0",
+   "2": "The capital of Kiribati is South Tarawa.\n\n1.0",
+   "3": "The capital of Kiribati is South Tarawa.\n\n1.0",
+   "4": "The capital of Kiribati is South Tarawa.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.007",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "64181381c3635ba178e4e2b587ffd43d33a610e542d76f72e74651eeceae6cb7",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The smallest sovereign country in the world by land area is Vatican City.\n\n1.0",
+   "1": "The smallest sovereign country in the world by land area is Vatican City.\n\n1.0",
+   "2": "The smallest sovereign country in the world by land area is Vatican City.\n\n1.0",
+   "3": "The smallest sovereign country in the world by land area is Vatican City.\n\n1.0",
+   "4": "The smallest sovereign country in the world by land area is Vatican City.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.008",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e8302f7760e33bc260ae81548a3151e9fb512269a95ec2dd9af117692aaee002",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with atomic number 74 is tungsten.\n\n1.0",
+   "1": "The element with atomic number 74 is tungsten.\n\n1.0",
+   "2": "The element with atomic number 74 is tungsten.\n\n1.0",
+   "3": "The element with atomic number 74 is tungsten.\n\n1.0",
+   "4": "The element with atomic number 74 is tungsten.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.009",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "71c13aa20fc73a49dbf82a5405f6106b45959ffc9171580db0398a1c96bfefa4",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The atomic number of plutonium is 94.\n\n1.0",
+   "1": "The atomic number of plutonium is 94.\n\n1.0",
+   "2": "The atomic number of plutonium is 94.\n\n1.0",
+   "3": "The atomic number of plutonium is 94.\n\n1.0",
+   "4": "The atomic number of plutonium is 94.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.010",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "9b30df8cf8c033ec775932f41ef26f1ed608da05aba2a8fc9e7a7de52615cf43",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with the chemical symbol 'Sb' is Antimony.\n\n1.0",
+   "1": "The element with the chemical symbol 'Sb' is Antimony.\n\n1.0",
+   "2": "The element with the chemical symbol 'Sb' is Antimony.\n\n1.0",
+   "3": "The element with the chemical symbol 'Sb' is Antimony.\n\n1.0",
+   "4": "The element with the chemical symbol 'Sb' is Antimony.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.011",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "afcf9e8eecb92d7ded4ea5a4c45fe7bd99d49fe78eb85237e4c3e3dc9b7e9ed3",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with the chemical symbol 'W' is Tungsten.\n\n1.0",
+   "1": "The element with the chemical symbol 'W' is Tungsten.\n\n1.0",
+   "2": "The element with the chemical symbol 'W' is Tungsten.\n\n1.0",
+   "3": "The element with the chemical symbol 'W' is Tungsten.\n\n1.0",
+   "4": "The element with the chemical symbol 'W' is Tungsten.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.012",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "7e0de4d641bc26277a00cf1ef1a2c1eaa7e19cfe447cd220aab8b11fa0c244c0",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Treaty of Westphalia was signed in the year 1648.\n\n1.0",
+   "1": "The Treaty of Westphalia was signed in the year 1648.\n\n1.0",
+   "2": "The Treaty of Westphalia was signed in the year 1648.\n\n1.0",
+   "3": "The Treaty of Westphalia was signed in the year 1648.\n\n1.0",
+   "4": "The Treaty of Westphalia was signed in the year 1648.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.013",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "6e2426704f2a02cdbe13940357726163b66afd323e4bc2b3b6942553f88a0af7",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The first successful human heart transplant was performed in 1967.\n\n1.0",
+   "1": "The first successful human heart transplant was performed in 1967.\n\n1.0",
+   "2": "The first successful human heart transplant was performed in 1967.\n\n1.0",
+   "3": "The first successful human heart transplant was performed in 1967.\n\n1.0",
+   "4": "The first successful human heart transplant was performed in 1967.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.014",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "623912e820a5252bece292c626381dbfafd74172e593de7998b43bbd8d247997",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Russo-Japanese War ended in 1905.\n\n1.0",
+   "1": "The Russo-Japanese War ended in 1905.\n\n1.0",
+   "2": "The Russo-Japanese War ended in 1905.\n\n1.0",
+   "3": "The Russo-Japanese War ended in 1905.\n\n1.0",
+   "4": "The Russo-Japanese War ended in 1905.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.015",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "ebd4307dec4cc325d1c40634a681e21818081de8a241048adaab04d9e7d923c4",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Tunguska event occurred in the year 1908.\n\n1.0",
+   "1": "The Tunguska event occurred in the year 1908.\n\n1.0",
+   "2": "The Tunguska event occurred in the year 1908.\n\n1.0",
+   "3": "The Tunguska event occurred in the year 1908.\n\n1.0",
+   "4": "The Tunguska event occurred in the year 1908.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.016",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "8c0fb7bab6a728ba98882f3654b7b73ebc2758c7185bac612df59a06c2f9331e",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Pluto was reclassified as a dwarf planet by the International Astronomical Union (IAU) in the year 2006.\n\n1.0",
+   "1": "Pluto was reclassified as a dwarf planet by the International Astronomical Union (IAU) in the year 2006.\n\n1.0",
+   "2": "Pluto was reclassified as a dwarf planet by the International Astronomical Union (IAU) in the year 2006.\n\n1.0",
+   "3": "Pluto was reclassified as a dwarf planet by the International Astronomical Union (IAU) in the year 2006.\n\n1.0",
+   "4": "Pluto was reclassified as a dwarf planet by the International Astronomical Union (IAU) in the year 2006.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.017",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d3f7239e0f63da80cbb5aa53957422f8f380e9a25abe9ca981c0abf2da810706",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Mexican-American War ended in 1848.\n\n1.0",
+   "1": "The Mexican-American War ended in 1848.\n\n1.0",
+   "2": "The Mexican-American War ended in 1848.\n\n1.0",
+   "3": "The Mexican-American War ended in 1848.\n\n1.0",
+   "4": "The Mexican-American War ended in 1848.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.018",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "a2ab1320fd9ffe1ce9ba65f13b8b38570b148a7e04f479b5e063fd40d78aa72f",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'Madame Bovary' was written by Gustave Flaubert.\n\n1.0",
+   "1": "'Madame Bovary' was written by Gustave Flaubert.\n\n1.0",
+   "2": "'Madame Bovary' was written by Gustave Flaubert.\n\n1.0",
+   "3": "'Madame Bovary' was written by Gustave Flaubert.\n\n1.0",
+   "4": "'Madame Bovary' was written by Gustave Flaubert.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.019",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d1ae5991fb9ce96ced3108115063a2d49131247e8609a5e2a42524e983bc2165",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'Don Quixote' was written by Miguel de Cervantes.\n\n1.0",
+   "1": "'Don Quixote' was written by Miguel de Cervantes.\n\n1.0",
+   "2": "'Don Quixote' was written by Miguel de Cervantes.\n\n1.0",
+   "3": "'Don Quixote' was written by Miguel de Cervantes.\n\n1.0",
+   "4": "'Don Quixote' was written by Miguel de Cervantes.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.020",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "ac920751e786d66883443ffb7bc51d93fa1f6aa34949c50d1b40e16d53121582",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'The Brothers Karamazov' was written by Fyodor Dostoevsky.\n\n1.0",
+   "1": "'The Brothers Karamazov' was written by Fyodor Dostoevsky.\n\n1.0",
+   "2": "'The Brothers Karamazov' was written by Fyodor Dostoevsky.\n\n1.0",
+   "3": "'The Brothers Karamazov' was written by Fyodor Dostoevsky.\n\n1.0",
+   "4": "'The Brothers Karamazov' was written by Fyodor Dostoevsky.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.021",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "40ed69a6dbf08822fa968e4435d768f199e116b541717f18834c6894074c0a46",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The novel \"The Stranger\" (L'\u00c9tranger) was written by Albert Camus.\n\n1.0",
+   "1": "The novel \"The Stranger\" (L'\u00c9tranger) was written by Albert Camus.\n\n1.0",
+   "2": "The novel \"The Stranger\" (L'\u00c9tranger) was written by Albert Camus.\n\n1.0",
+   "3": "The novel \"The Stranger\" (L'\u00c9tranger) was written by Albert Camus.\n\n1.0",
+   "4": "The novel \"The Stranger\" (L'\u00c9tranger) was written by Albert Camus.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.022",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "0c38e21cfdfde747daa7ed10cb254aae49d46482ec9756d4ec0c44f6c1533068",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "As of 2024, Uranus has 27 named moons.  \n1.0",
+   "1": "As of 2024, Uranus has 27 named moons.  \n1.0",
+   "2": "As of 2024, Uranus has 27 named moons.  \n1.0",
+   "3": "As of 2024, Uranus has 27 named moons.  \n1.0",
+   "4": "As of 2024, Uranus has 27 named moons.  \n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.023",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   0.95,
+   0.95,
+   0.95,
+   0.95,
+   0.95
+  ],
+  "dedupe_sha256": "387a9395747424a9db2cec3e2c23eccec4e448c61e3fcc9793721a7631916286",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The first artificially produced (synthetic) chemical element is technetium (element 43). It was first synthesized in 1937 by Italian scientists Carlo Perrier and Emilio Segr\u00e8 by bombarding molybdenum with deuterium nuclei.\n\n0.95",
+   "1": "The first artificially produced (synthetic) chemical element is technetium (element 43). It was first synthesized in 1937 by Italian scientists Carlo Perrier and Emilio Segr\u00e8 by bombarding molybdenum with deuterium nuclei.\n\n0.95",
+   "2": "The first artificially produced (synthetic) chemical element is technetium (element 43). It was first synthesized in 1937 by Italian scientists Carlo Perrier and Emilio Segr\u00e8 by bombarding molybdenum with deuterium nuclei.\n\n0.95",
+   "3": "The first artificially produced (synthetic) chemical element is technetium (element 43). It was first synthesized in 1937 by Italian scientists Carlo Perrier and Emilio Segr\u00e8 by bombarding molybdenum with deuterium nuclei.\n\n0.95",
+   "4": "The first artificially produced (synthetic) chemical element is technetium (element 43). It was first synthesized in 1937 by Italian scientists Carlo Perrier and Emilio Segr\u00e8 by bombarding molybdenum with deuterium nuclei.\n\n0.95"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.024",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "b65d6f1a41038c7c746c39cd95f4efd6b3d3d4678821bfb9e611e44eb9d7628e",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The chemical symbol for the element lawrencium is Lr.\n\n1.0",
+   "1": "The chemical symbol for the element lawrencium is Lr.\n\n1.0",
+   "2": "The chemical symbol for the element lawrencium is Lr.\n\n1.0",
+   "3": "The chemical symbol for the element lawrencium is Lr.\n\n1.0",
+   "4": "The chemical symbol for the element lawrencium is Lr.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.025",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "047a698e83ffa31e67457091a7dc0fdc0a9f44bab27cd40671cb51b395f79975",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The atomic number of lawrencium is 103.\n\n1.0",
+   "1": "The atomic number of lawrencium is 103.\n\n1.0",
+   "2": "The atomic number of lawrencium is 103.\n\n1.0",
+   "3": "The atomic number of lawrencium is 103.\n\n1.0",
+   "4": "The atomic number of lawrencium is 103.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.026",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "4d37631a1ab4ca480a5910ac77e79e9ae5f9bbae0837228cec2a82194ecf6218",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Genghis Khan died in the year 1227.\n\n1.0",
+   "1": "Genghis Khan died in the year 1227.\n\n1.0",
+   "2": "Genghis Khan died in the year 1227.\n\n1.0",
+   "3": "Genghis Khan died in the year 1227.\n\n1.0",
+   "4": "Genghis Khan died in the year 1227.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.027",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "3fe6f1a8ff854efec35be62c0ef606180b17916719a997f16b795f93b86d202b",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The deepest known point in the Earth's oceans is the Challenger Deep, located in the Mariana Trench.\n\n1.0",
+   "1": "The deepest known point in the Earth's oceans is the Challenger Deep, located in the Mariana Trench.\n\n1.0",
+   "2": "The deepest known point in the Earth's oceans is the Challenger Deep, located in the Mariana Trench.\n\n1.0",
+   "3": "The deepest known point in the Earth's oceans is the Challenger Deep, located in the Mariana Trench.\n\n1.0",
+   "4": "The deepest known point in the Earth's oceans is the Challenger Deep, located in the Mariana Trench.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.028",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "86c188eefc45817e7710eff4f0edce8bc70f1bc03181839257500ab4fb57f6d2",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Neptunium was discovered by Edwin McMillan and Philip H. Abelson in 1940.\n\n1.0",
+   "1": "Neptunium was discovered by Edwin McMillan and Philip H. Abelson in 1940.\n\n1.0",
+   "2": "Neptunium was discovered by Edwin McMillan and Philip H. Abelson in 1940.\n\n1.0",
+   "3": "Neptunium was discovered by Edwin McMillan and Philip H. Abelson in 1940.\n\n1.0",
+   "4": "Neptunium was discovered by Edwin McMillan and Philip H. Abelson in 1940.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.029",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "99eedbc99436e667e36b02a956e29aad031c57c594bdc98fe8be9b83b6af4374",
+  "difficulty": "hard",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The first FIFA World Cup was held in 1930.\n\n1.0",
+   "1": "The first FIFA World Cup was held in 1930.\n\n1.0",
+   "2": "The first FIFA World Cup was held in 1930.\n\n1.0",
+   "3": "The first FIFA World Cup was held in 1930.\n\n1.0",
+   "4": "The first FIFA World Cup was held in 1930.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.hard.030",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "e68455d139198d4ef63224f4c476440a9c69e2d15bf6d63d2422c94e60c535fd",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The American Civil War began in the year 1861.\n\n1.0",
+   "1": "The American Civil War began in the year 1861.\n\n1.0",
+   "2": "The American Civil War began in the year 1861.\n\n1.0",
+   "3": "The American Civil War began in the year 1861.\n\n1.0",
+   "4": "The American Civil War began in the year 1861.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.001",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "7c1932c62de8e55bf15c65787414293b2be2ac177c830c04494bad800c14dc9f",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The French Revolution began in the year 1789.\n\n1.0",
+   "1": "The French Revolution began in the year 1789.\n\n1.0",
+   "2": "The French Revolution began in the year 1789.\n\n1.0",
+   "3": "The French Revolution began in the year 1789.\n\n1.0",
+   "4": "The French Revolution began in the year 1789.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.002",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "68d6ba7bb2ec043fe19342f488f88a70db28f370e1838347946108a83cfbe263",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with atomic number 79 is Gold (Au).\n\n1.0",
+   "1": "The element with atomic number 79 is Gold (Au).\n\n1.0",
+   "2": "The element with atomic number 79 is Gold (Au).\n\n1.0",
+   "3": "The element with atomic number 79 is Gold (Au).\n\n1.0",
+   "4": "The element with atomic number 79 is Gold (Au).\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.003",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d8eb743c4302c41589d94306be6061e736dbf05c57f8b79a148b521a1b3c2c81",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with atomic number 26 is Iron (Fe).\n\n1.0",
+   "1": "The element with atomic number 26 is Iron (Fe).\n\n1.0",
+   "2": "The element with atomic number 26 is Iron (Fe).\n\n1.0",
+   "3": "The element with atomic number 26 is Iron (Fe).\n\n1.0",
+   "4": "The element with atomic number 26 is Iron (Fe).\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.004",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "4cfbe17b106e6a637e62bf31f1ba4b5c86c390e6acc55ae62a88be9a14dc6d7b",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The element with atomic number 47 is Silver (Ag).\n\n1.0",
+   "1": "The element with atomic number 47 is Silver (Ag).\n\n1.0",
+   "2": "The element with atomic number 47 is Silver (Ag).\n\n1.0",
+   "3": "The element with atomic number 47 is Silver (Ag).\n\n1.0",
+   "4": "The element with atomic number 47 is Silver (Ag).\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.005",
+  "verdict": "pass"
+ },
+ {
+  "category": "biology",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "9f0a27b11a09b7387d343d0485706d9bdd9f9afa2fc72309f5b9584741c0b4fb",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "A normal human somatic cell contains 46 chromosomes. \n\n1.0",
+   "1": "A normal human somatic cell contains 46 chromosomes.\n\n1.0",
+   "2": "A normal human somatic cell contains 46 chromosomes. \n\n1.0",
+   "3": "A normal human somatic cell contains 46 chromosomes. \n\n1.0",
+   "4": "A normal human somatic cell contains 46 chromosomes. \n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.006",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "1dc65875d813be0a3540d8ec444e34f4cae554cdcf9d842bcb6dd044a80a5f3f",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Kenya is Nairobi.\n\n1.0",
+   "1": "The capital of Kenya is Nairobi.\n\n1.0",
+   "2": "The capital of Kenya is Nairobi.\n\n1.0",
+   "3": "The capital of Kenya is Nairobi.\n\n1.0",
+   "4": "The capital of Kenya is Nairobi.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.007",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "f50dabfd7a96e6b1a6160befac5bab1ee51313cced18a882c2634025dc254bdb",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Mongolia is Ulaanbaatar.\n\n1.0",
+   "1": "The capital of Mongolia is Ulaanbaatar.\n\n1.0",
+   "2": "The capital of Mongolia is Ulaanbaatar.\n\n1.0",
+   "3": "The capital of Mongolia is Ulaanbaatar.\n\n1.0",
+   "4": "The capital of Mongolia is Ulaanbaatar.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.008",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "83927016cfbf7646ba56893707978d905d8d672150e80f3001fad0a57620a1ed",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Ethiopia is Addis Ababa.\n\n1.0",
+   "1": "The capital of Ethiopia is Addis Ababa.\n\n1.0",
+   "2": "The capital of Ethiopia is Addis Ababa.\n\n1.0",
+   "3": "The capital of Ethiopia is Addis Ababa.\n\n1.0",
+   "4": "The capital of Ethiopia is Addis Ababa.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.009",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "cc97b14f57c6a21ae1dac610c65bbf45ae433041b1a141a9bab51cbc5615ed79",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of Argentina is Buenos Aires.\n\n1.0",
+   "1": "The capital of Argentina is Buenos Aires.\n\n1.0",
+   "2": "The capital of Argentina is Buenos Aires.\n\n1.0",
+   "3": "The capital of Argentina is Buenos Aires.\n\n1.0",
+   "4": "The capital of Argentina is Buenos Aires.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.010",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d80dc8a2f3d6ceb34a0b514d7dd4c74e8dd01ac0e36460ecdc25f0bc59b3a43c",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The capital of New Zealand is Wellington.\n\n1.0",
+   "1": "The capital of New Zealand is Wellington.\n\n1.0",
+   "2": "The capital of New Zealand is Wellington.\n\n1.0",
+   "3": "The capital of New Zealand is Wellington.\n\n1.0",
+   "4": "The capital of New Zealand is Wellington.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.011",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "24c7fe1d2f90e7303b92096c4a00fc217bce0444a5d5e6cac10916d3e6c91e04",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The first crewed Apollo Moon landing took place in 1969.\n\n1.0",
+   "1": "The first crewed Apollo Moon landing took place in 1969.\n\n1.0",
+   "2": "The first crewed Apollo Moon landing took place in 1969.\n\n1.0",
+   "3": "The first crewed Apollo Moon landing took place in 1969.\n\n1.0",
+   "4": "The first crewed Apollo Moon landing took place in 1969.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.012",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "bb9459445b0e45166abb6fbe18845c0b169d07e86a0d4148acdd72d123635c74",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Penicillin was discovered by Alexander Fleming in 1928.\n\n1.0",
+   "1": "Penicillin was discovered by Alexander Fleming in 1928.\n\n1.0",
+   "2": "Penicillin was discovered by Alexander Fleming in 1928.\n\n1.0",
+   "3": "Penicillin was discovered by Alexander Fleming in 1928.\n\n1.0",
+   "4": "Penicillin was discovered by Alexander Fleming in 1928.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.013",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "313da6389ea4cc606159190aaccd987b837234946e35abf2dbffc4101c73d0b2",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "Dynamite was invented by Alfred Nobel.\n\n1.0",
+   "1": "Dynamite was invented by Alfred Nobel in 1867.\n\n1.0",
+   "2": "Dynamite was invented by Alfred Nobel in 1867.\n\n1.0",
+   "3": "Dynamite was invented by Alfred Nobel in 1867.\n\n1.0",
+   "4": "Dynamite was invented by Alfred Nobel.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.014",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "704998bd24dd08550eb34d1e18ba3eb6ce15d4e2d6b4bacd273540ec9f1b9410",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "\"War and Peace\" was written by Leo Tolstoy.\n\n1.0",
+   "1": "\"War and Peace\" was written by Leo Tolstoy.\n\n1.0",
+   "2": "\"War and Peace\" was written by Leo Tolstoy.\n\n1.0",
+   "3": "\"War and Peace\" was written by Leo Tolstoy.\n\n1.0",
+   "4": "\"War and Peace\" was written by Leo Tolstoy.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.015",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "ba70eb49e43583d7dd17fb60d975fe3ffb04bbcb3bae8cc755e5d75e4de3c646",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'Crime and Punishment' was written by Fyodor Dostoevsky.\n\n1.0",
+   "1": "'Crime and Punishment' was written by Fyodor Dostoevsky.\n\n1.0",
+   "2": "'Crime and Punishment' was written by Fyodor Dostoevsky.\n\n1.0",
+   "3": "'Crime and Punishment' was written by Fyodor Dostoevsky.\n\n1.0",
+   "4": "'Crime and Punishment' was written by Fyodor Dostoevsky.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.016",
+  "verdict": "pass"
+ },
+ {
+  "category": "politics",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "541e1bfe7eca29ceed7b3ba059c9e43548d6ea38107b43d0f1bd749336d9f2c9",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "There are 435 voting members in the U.S. House of Representatives.\n\n1.0",
+   "1": "There are 435 voting members in the U.S. House of Representatives.\n\n1.0",
+   "2": "There are 435 voting members in the U.S. House of Representatives.\n\n1.0",
+   "3": "There are 435 voting members in the U.S. House of Representatives.\n\n1.0",
+   "4": "There are 435 voting members in the U.S. House of Representatives.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.017",
+  "verdict": "pass"
+ },
+ {
+  "category": "politics",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "5abbf357be06e00cfacbda811925d64b930d1f2da768c13bf6ed26dcb49198ac",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "As of 2025, there are nine justices who sit on the United States Supreme Court.\n\n1.0",
+   "1": "As of 2025, there are nine justices who sit on the United States Supreme Court.  \n1.0",
+   "2": "As of 2025, there are nine justices who sit on the United States Supreme Court.\n\n1.0",
+   "3": "As of 2025, there are nine justices who sit on the United States Supreme Court.  \n1.0",
+   "4": "As of 2025, there are nine justices who sit on the United States Supreme Court.  \n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.018",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "972658c67f73de6a774a078255050f4689b14e0b360ddcf2dd4c9c574d23475a",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The United Nations was founded in the year 1945.\n\n1.0",
+   "1": "The United Nations was founded in the year 1945.\n\n1.0",
+   "2": "The United Nations was founded in the year 1945.\n\n1.0",
+   "3": "The United Nations was founded in the year 1945.\n\n1.0",
+   "4": "The United Nations was founded in the year 1945.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.019",
+  "verdict": "pass"
+ },
+ {
+  "category": "currency",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "cfbe774174e226d7f509b4ffb2bc0f07b0f4bc55a47aca0a93040874aeaac6b9",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The official currency of South Korea is the South Korean won.\n\n1.0",
+   "1": "The official currency of South Korea is the South Korean won.\n\n1.0",
+   "2": "The official currency of South Korea is the South Korean won.\n\n1.0",
+   "3": "The official currency of South Korea is the South Korean won.\n\n1.0",
+   "4": "The official currency of South Korea is the South Korean won.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.020",
+  "verdict": "pass"
+ },
+ {
+  "category": "currency",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "de2dfe842ddb69542d516dad5d835bfa67594b023b400ad6396b69d62acdb4c6",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The official currency of India is the Indian Rupee.\n\n1.0",
+   "1": "The official currency of India is the Indian Rupee.\n\n1.0",
+   "2": "The official currency of India is the Indian Rupee.\n\n1.0",
+   "3": "The official currency of India is the Indian Rupee.\n\n1.0",
+   "4": "The official currency of India is the Indian Rupee.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.021",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "6a327ee974fbd69921048e803cfb9f1559b3893a7c87f154c8f18f11b1583158",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The U.S. President during the Cuban Missile Crisis was John F. Kennedy.\n\n1.0",
+   "1": "The U.S. President during the Cuban Missile Crisis was John F. Kennedy.\n\n1.0",
+   "2": "The U.S. President during the Cuban Missile Crisis was John F. Kennedy.\n\n1.0",
+   "3": "The U.S. President during the Cuban Missile Crisis was John F. Kennedy.\n\n1.0",
+   "4": "The U.S. President during the Cuban Missile Crisis was John F. Kennedy.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.022",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "8d29731eb2f3b99647d880e8e4922f08c3a5046e7b776b34382950730335d757",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The speed of sound in dry air at 20\u00b0C is approximately 343 meters per second.\n\n1.0",
+   "1": "The speed of sound in dry air at 20\u00b0C is approximately 343 meters per second.\n\n1.0",
+   "2": "The speed of sound in dry air at 20\u00b0C is approximately 343 meters per second.\n\n1.0",
+   "3": "The speed of sound in dry air at 20\u00b0C is approximately 343 meters per second.\n\n1.0",
+   "4": "The speed of sound in dry air at 20\u00b0C is approximately 343 meters per second.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.023",
+  "verdict": "pass"
+ },
+ {
+  "category": "science",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "dcbe912cc69b29d5dd523d3068a2cd4c9b68f391d0a03f5859f8e81637ec2aa4",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 0,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The speed of light in vacuum is approximately \\(3 \\times 10^8\\) meters per second.\n\n1.0",
+   "1": "The speed of light in vacuum is approximately \\(3 \\times 10^8\\) meters per second.\n\n1.0",
+   "2": "The speed of light in vacuum is approximately \\(3 \\times 10^8\\) meters per second.\n\n1.0",
+   "3": "The speed of light in vacuum is approximately \\(3 \\times 10^8\\) meters per second.\n\n1.0",
+   "4": "The speed of light in vacuum is approximately \\(3 \\times 10^8\\) meters per second.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.024",
+  "verdict": "fail"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "8edf796ac4048d524379f7803a96c4c6c2511f6852678d3055db033239cd5151",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Magna Carta was sealed in the year 1215.\n\n1.0",
+   "1": "The Magna Carta was sealed in the year 1215.\n\n1.0",
+   "2": "The Magna Carta was sealed in the year 1215.\n\n1.0",
+   "3": "The Magna Carta was sealed in the year 1215.\n\n1.0",
+   "4": "The Magna Carta was sealed in the year 1215.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.025",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "84ae2e25b57a0e2d4a9db99fc7bb04995754494a690382c600aa4c9d52082d93",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Berlin Airlift began in 1948.\n\n1.0",
+   "1": "The Berlin Airlift began in 1948.\n\n1.0",
+   "2": "The Berlin Airlift began in 1948.\n\n1.0",
+   "3": "The Berlin Airlift began in 1948.\n\n1.0",
+   "4": "The Berlin Airlift began in 1948.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.026",
+  "verdict": "pass"
+ },
+ {
+  "category": "geography",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "0efa8b4461aa37cdf59370dbd88e3b8fc542a6aa86f6d7f5742db5c0693d31d8",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The longest river in South America is the Amazon River.\n\n1.0",
+   "1": "The longest river in South America is the Amazon River.\n\n1.0",
+   "2": "The longest river in South America is the Amazon River.\n\n1.0",
+   "3": "The longest river in South America is the Amazon River.\n\n1.0",
+   "4": "The longest river in South America is the Amazon River.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.027",
+  "verdict": "pass"
+ },
+ {
+  "category": "chemistry",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "61be1bb470ae09c3a07ed755a1a89d3d131ea3bcfc4381e9f4df1ebc2b2ebdcd",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The most abundant gas in Earth's atmosphere is nitrogen.\n\n1.0",
+   "1": "The most abundant gas in Earth's atmosphere is nitrogen.\n\n1.0",
+   "2": "The most abundant gas in Earth's atmosphere is nitrogen.\n\n1.0",
+   "3": "The most abundant gas in Earth's atmosphere is nitrogen.\n\n1.0",
+   "4": "The most abundant gas in Earth's atmosphere is nitrogen.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.028",
+  "verdict": "pass"
+ },
+ {
+  "category": "literature",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "036d26d8cd05f0a8cd91455bd66a62118c2215b5eb840f9fcf43f43549d7ab96",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "'One Hundred Years of Solitude' was written by Gabriel Garc\u00eda M\u00e1rquez.\n\n1.0",
+   "1": "'One Hundred Years of Solitude' was written by Gabriel Garc\u00eda M\u00e1rquez.\n\n1.0",
+   "2": "'One Hundred Years of Solitude' was written by Gabriel Garc\u00eda M\u00e1rquez.\n\n1.0",
+   "3": "'One Hundred Years of Solitude' was written by Gabriel Garc\u00eda M\u00e1rquez.\n\n1.0",
+   "4": "'One Hundred Years of Solitude' was written by Gabriel Garc\u00eda M\u00e1rquez.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.029",
+  "verdict": "pass"
+ },
+ {
+  "category": "history",
+  "confidences": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "dedupe_sha256": "d52b94d05e62375c693f9bbe62b97af6c3498b57791e61c401d18a828871571c",
+  "difficulty": "medium",
+  "errors": [],
+  "n_passed": 5,
+  "n_seeds": 5,
+  "responses": {
+   "0": "The Treaty of Versailles formally ended World War I.\n\n1.0",
+   "1": "The Treaty of Versailles formally ended World War I.\n\n1.0",
+   "2": "The Treaty of Versailles formally ended World War I.\n\n1.0",
+   "3": "The Treaty of Versailles formally ended World War I.\n\n1.0",
+   "4": "The Treaty of Versailles formally ended World War I.\n\n1.0"
+  },
+  "seed_stable": true,
+  "stable_case_id": "cc.med.030",
+  "verdict": "pass"
+ }
+]

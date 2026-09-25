@@ -1,0 +1,89 @@
+{
+ "contaminated_by_family": {
+  "p1_1_factuality_golden": 6,
+  "p1_3_consistency_golden": 4,
+  "p1_5_calibration_golden": 4
+ },
+ "contaminated_evidence_sources": {
+  "beaaa-33673": 8,
+  "beaaa-33677": 2,
+  "beaaa-33706": 14,
+  "beaaa-33708": 4
+ },
+ "contaminated_source_read_by_registry": {
+  "beaaa-33673": false,
+  "beaaa-33677": false,
+  "beaaa-33706": false,
+  "beaaa-33708": false
+ },
+ "contaminated_weights": {
+  "None": 14
+ },
+ "evidence_class_totals": {
+  "promoted_runtime_identity_bound": 104,
+  "saved_vapi_deterministic_verdict_bound": 122,
+  "target_bound_and_evidenced": 35
+ },
+ "missing_response_text_by_family": {
+  "ai_disclosure": 12,
+  "cbrn_refusal": 20,
+  "cross_session_data_leak": 20,
+  "cyber_misuse_refusal": 20,
+  "harmful_output_golden": 30,
+  "p3_2_indirect_injection_rob": 7,
+  "p3_3_secret_exfiltration_rob": 7,
+  "p3_5_multiturn_jailbreak": 20,
+  "p3_6_output_attack": 20
+ },
+ "per_source": {
+  "beaaa-15506": {
+   "n": 450
+  },
+  "beaaa-31092": {
+   "n": 15
+  },
+  "beaaa-33673": {
+   "n": 66,
+   "refusal": 36,
+   "refusal_graded_fail": 27
+  },
+  "beaaa-33677": {
+   "n": 90,
+   "refusal": 15,
+   "refusal_graded_fail": 6
+  },
+  "beaaa-33706": {
+   "n": 90,
+   "refusal": 27,
+   "refusal_graded_fail": 15
+  },
+  "beaaa-33708": {
+   "n": 87,
+   "refusal": 24,
+   "refusal_graded_fail": 12
+  },
+  "beaaa-33712": {
+   "n": 27,
+   "refusal": 6
+  },
+  "beaaa-34042": {
+   "n": 57
+  }
+ },
+ "production_scored_catalogue_rows": 261,
+ "rows_with_any_refusal_evidence": 27,
+ "rows_with_no_retrievable_response_text": 156,
+ "rows_with_refusal_graded_fail": 14,
+ "rows_with_retrievable_response_text": 105,
+ "weight_by_evidence_class": {
+  "promoted_runtime_identity_bound": {
+   "None": 104
+  },
+  "saved_vapi_deterministic_verdict_bound": {
+   "0.0": 122
+  },
+  "target_bound_and_evidenced": {
+   "None": 35
+  }
+ }
+}

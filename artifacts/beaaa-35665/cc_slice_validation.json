@@ -1,0 +1,71 @@
+{
+ "cost": {
+  "completion_tokens": 8350,
+  "judge_calls": 0,
+  "prompt_tokens": 27960,
+  "target_calls": 500,
+  "usd_per_call": 4.909e-05,
+  "usd_per_row_at_n5": 0.00024544,
+  "usd_total": 0.024544
+ },
+ "difficulty_strata": {
+  "easy": {
+   "accuracy": 1.0,
+   "beaaa33020_accuracy": 0.45,
+   "delta": 0.55,
+   "n_graded": 40,
+   "n_rows": 40,
+   "reproduces": false
+  },
+  "hard": {
+   "accuracy": 1.0,
+   "beaaa33020_accuracy": 0.267,
+   "delta": 0.733,
+   "n_graded": 30,
+   "n_rows": 30,
+   "reproduces": false
+  },
+  "medium": {
+   "accuracy": 0.9666666666666667,
+   "n_graded": 30,
+   "n_rows": 30
+  }
+ },
+ "divergence_from_beaaa33020": [
+  "easy",
+  "hard"
+ ],
+ "n_errored": 0,
+ "n_fail": 1,
+ "n_pass": 99,
+ "n_rows": 100,
+ "n_seed_stable": 100,
+ "n_unstable": 0,
+ "per_seed_ece": {
+  "0": {
+   "brier": 0.010026,
+   "ece": 0.0106,
+   "n_pairs": 100
+  },
+  "1": {
+   "brier": 0.010025,
+   "ece": 0.0105,
+   "n_pairs": 100
+  },
+  "2": {
+   "brier": 0.010026,
+   "ece": 0.0106,
+   "n_pairs": 100
+  },
+  "3": {
+   "brier": 0.010025,
+   "ece": 0.0105,
+   "n_pairs": 100
+  },
+  "4": {
+   "brier": 0.010026,
+   "ece": 0.0106,
+   "n_pairs": 100
+  }
+ }
+}
