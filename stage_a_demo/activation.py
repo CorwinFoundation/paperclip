@@ -328,6 +328,10 @@ def surface_protection_state(
     status = check_activation(program_version, registry, now=now)
     block = status.as_dict()
     block["surface"] = surface
+    # Name the time basis on the block itself. This is the state at the moment
+    # of the read, which is not the state a past event is judged against; a
+    # claim carries `protection_at_execution` for that (BEAAA-35636 W4/W5).
+    block["as_of"] = "read_time"
     return block
 
 

@@ -481,11 +481,79 @@ CLAIM_INCOMPLETE_NO_ORDERABLE_OBSERVATION = "incomplete_no_orderable_observation
 CLAIM_INCOMPLETE_NO_CAPTURED_AMOUNT_AT_RISK = "incomplete_no_captured_amount_at_risk"
 
 
-def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> dict[str, Any]:
+def event_instant(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> str | None:
+    """When the loss happened, as far as the record can say.
+
+    Independent evidence of the outcome is the event; failing that, the moment
+    the answer was given, then the moment the receipt was written. A claim that
+    cannot name its own instant says so rather than borrowing read time.
+    """
+    if outcome is not None and getattr(outcome, "observed_at", None):
+        return outcome.observed_at
+    return receipt.answered_at or receipt.recorded_at or None
+
+
+def unresolved_protection_at_event(event_at: str | None, reason: str) -> dict[str, Any]:
+    """Fail-closed stand-in for the protection state in force at the event.
+
+    Never says active. A caller that cannot resolve the window is not allowed to
+    leave the question off the payload, because an absent answer reads as the
+    read-time block next to it (BEAAA-35636 W4/W5).
+    """
+    return {
+        "surface": "claim",
+        "as_of": "event",
+        "event_at": event_at,
+        "resolved": False,
+        "ordered": False,
+        "protection_active": None,
+        "reason": reason,
+    }
+
+
+def _protection_at_event(
+    receipt: ApprovalReceipt,
+    outcome: ExecutedOutcome | None,
+    supplied: dict[str, Any] | None,
+) -> dict[str, Any]:
+    event_at = event_instant(receipt, outcome)
+    if supplied is None:
+        return unresolved_protection_at_event(
+            event_at, "protection_state_at_event_not_supplied"
+        )
+    block = dict(supplied)
+    block["surface"] = "claim"
+    block["as_of"] = "event"
+    block["event_at"] = block.get("executed_at") or event_at
+    block["resolved"] = bool(block.get("ordered")) and block.get("protection_active") is not None
+    if not block["resolved"]:
+        # Ordered against nothing, or ordered with no state to report: the
+        # window is not established, so the block must not read as one. An
+        # unordered block that still claims active is the W5 shape arriving by
+        # another door, so the claim is dropped rather than carried.
+        block["protection_active"] = None
+        block.setdefault("reason", "protection_state_at_event_not_orderable")
+    return block
+
+
+def review_claim(
+    receipt: ApprovalReceipt,
+    outcome: ExecutedOutcome | None,
+    *,
+    protection_at_execution: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Reconstruct a claim from the receipt and what independent evidence says.
 
     Reads only the receipt and the outcome. It never consults a mandate, and it
     never infers an approval that is not written down.
+
+    ``protection_at_execution`` is the protection state a caller resolved as of
+    the event instant, ordered against the window pinned at execution. It is
+    optional because this function holds no registry, but the answer is not:
+    every claim carries a ``protection_at_execution`` block, and an unsupplied
+    one is written as explicitly unresolved rather than omitted. Omitting it is
+    what let a claim be served beside a read-time protection block with nothing
+    ordering the event against the window (BEAAA-35636 W4/W5).
     """
     base: dict[str, Any] = {
         "task_id": receipt.task_id,
@@ -508,6 +576,13 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
         # settles into. Only a row written before the capture gate can carry
         # one, and that row must not read as though its terms were clean.
         "record_defects": receipt.proposed_action.capture_defects(),
+        # The instant the loss happened, and the protection state in force
+        # then. Both travel with every claim so that `covered` can never be
+        # read against a protection block resolved at some other time.
+        "event_at": event_instant(receipt, outcome),
+        "protection_at_execution": _protection_at_event(
+            receipt, outcome, protection_at_execution
+        ),
     }
 
     if outcome is None or not outcome.independent:

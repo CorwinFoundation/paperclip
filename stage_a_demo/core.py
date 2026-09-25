@@ -1017,7 +1017,21 @@ class EvidenceStore:
         outcome = None
         if row["outcome_json"]:
             outcome = ExecutedOutcome(**json.loads(row["outcome_json"]))
-        review = review_claim(receipt, outcome)
+        # The window in force when the event happened, resolved before the
+        # claim is assembled so the verdict and the window are one payload and
+        # not two facts printed side by side (BEAAA-35636). Written once, at
+        # execution, so it is evidence rather than a re-derivation against a
+        # registry that has moved since. Rows recorded before this column
+        # existed are recomputed at read time and say so.
+        if row["protection_at_execution_json"]:
+            at_execution = json.loads(row["protection_at_execution_json"])
+            at_execution["recorded_at_execution"] = True
+        elif row["executed_at"]:
+            at_execution = self._protection_in_force_at(row["executed_at"])
+            at_execution["recorded_at_execution"] = False
+        else:
+            at_execution = None
+        review = review_claim(receipt, outcome, protection_at_execution=at_execution)
         # A withdrawal is on the record whether or not anything executed after
         # it. When something did execute anyway, the verdict is the withdrawal
         # and not the OK the user had already taken back: settling that charge
@@ -1036,19 +1050,6 @@ class EvidenceStore:
         review["protection"] = surface_protection_state(
             "receipt", default_program_version(), default_registry()
         )
-        # The window in force when the event happened. Written once, at
-        # execution, so it is evidence rather than a re-derivation against a
-        # registry that has moved since. Rows recorded before this column
-        # existed are recomputed at read time and say so.
-        if row["protection_at_execution_json"]:
-            at_execution = json.loads(row["protection_at_execution_json"])
-            at_execution["recorded_at_execution"] = True
-        elif row["executed_at"]:
-            at_execution = self._protection_in_force_at(row["executed_at"])
-            at_execution["recorded_at_execution"] = False
-        else:
-            at_execution = None
-        review["protection_at_execution"] = at_execution
         return review
 
     def _enforce_owner(self, row: sqlite3.Row, case_id: str) -> None:
