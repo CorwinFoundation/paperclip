@@ -338,7 +338,7 @@ class EvidenceStore:
             CREATE TABLE IF NOT EXISTS approval_receipts (
               task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
               outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT,
-              execution_claimed_at TEXT
+              execution_claimed_at TEXT, tenant TEXT
             );
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
@@ -364,6 +364,12 @@ class EvidenceStore:
             self.db.commit()
         if "execution_claimed_at" not in receipt_cols:
             self.db.execute("ALTER TABLE approval_receipts ADD COLUMN execution_claimed_at TEXT")
+            self.db.commit()
+        if "tenant" not in receipt_cols:
+            # Nullable, like cases.tenant. Rows written before the column
+            # existed read as owned by the untenanted bootstrap store, which is
+            # the only reader that could have written them.
+            self.db.execute("ALTER TABLE approval_receipts ADD COLUMN tenant TEXT")
             self.db.commit()
 
     def record_case(
@@ -644,8 +650,9 @@ class EvidenceStore:
         try:
             with self.db:
                 self.db.execute(
-                    "INSERT INTO approval_receipts (task_id, receipt_json, recorded_at) VALUES (?, ?, ?)",
-                    (receipt.task_id, receipt.to_json(), receipt.recorded_at),
+                    "INSERT INTO approval_receipts (task_id, receipt_json, recorded_at, tenant) "
+                    "VALUES (?, ?, ?, ?)",
+                    (receipt.task_id, receipt.to_json(), receipt.recorded_at, self.tenant),
                 )
         except sqlite3.IntegrityError:
             raise PermissionError(f"task {receipt.task_id} already has a receipt; receipts are not rewritten")
@@ -653,11 +660,27 @@ class EvidenceStore:
 
     def receipt_for(self, task_id: str) -> ApprovalReceipt | None:
         row = self.db.execute(
-            "SELECT receipt_json FROM approval_receipts WHERE task_id = ?", (task_id,)
+            "SELECT receipt_json, tenant FROM approval_receipts WHERE task_id = ?", (task_id,)
         ).fetchone()
         if row is None:
             return None
+        self._enforce_receipt_owner(row, task_id)
         return _receipt_from_json(row["receipt_json"])
+
+    def _enforce_receipt_owner(self, row: sqlite3.Row, task_id: str) -> None:
+        """Refuse a read or a write of a receipt recorded under another owner.
+
+        BEAAA-35578: the owner check BEAAA-35357 A9 put on cases stopped at the
+        case surface. Path 1 keys on task_id alone, so a second store opened on
+        the same file could read another owner's receipt, and write that
+        owner's outcome. Refusing is not a "not found": a task id that exists
+        under another owner is not this reader's to answer for.
+        """
+        recorded = row["tenant"] if "tenant" in row.keys() else None
+        if recorded != self.tenant:
+            raise PermissionError(
+                f"task {task_id} belongs to another owner; this reader is scoped to {self.tenant!r}"
+            )
 
     def execute_approved_task(
         self, task_id: str, *, merchant: SyntheticMerchantAdapter, executed_at: str
@@ -694,8 +717,8 @@ class EvidenceStore:
         with self.db:
             claimed = self.db.execute(
                 "UPDATE approval_receipts SET execution_claimed_at = ? "
-                "WHERE task_id = ? AND execution_claimed_at IS NULL",
-                (executed_at, task_id),
+                "WHERE task_id = ? AND tenant IS ? AND execution_claimed_at IS NULL",
+                (executed_at, task_id, self.tenant),
             )
         if claimed.rowcount != 1:
             settled = self.db.execute(
@@ -759,9 +782,9 @@ class EvidenceStore:
         with self.db:
             self.db.execute(
                 "UPDATE approval_receipts SET outcome_json = ?, executed_at = ?, "
-                "protection_at_execution_json = ? WHERE task_id = ?",
+                "protection_at_execution_json = ? WHERE task_id = ? AND tenant IS ?",
                 (json.dumps(asdict(outcome), sort_keys=True) if outcome else None, executed_at,
-                 json.dumps(at_execution, sort_keys=True), task_id),
+                 json.dumps(at_execution, sort_keys=True), task_id, self.tenant),
             )
         return self.claim_for(task_id)
 
@@ -796,12 +819,13 @@ class EvidenceStore:
     def claim_for(self, task_id: str) -> dict[str, Any]:
         """Reconstruct the claim for one task from its stored receipt alone."""
         row = self.db.execute(
-            "SELECT receipt_json, outcome_json, executed_at, protection_at_execution_json "
+            "SELECT receipt_json, outcome_json, executed_at, protection_at_execution_json, tenant "
             "FROM approval_receipts WHERE task_id = ?",
             (task_id,),
         ).fetchone()
         if row is None:
             raise KeyError(task_id)
+        self._enforce_receipt_owner(row, task_id)
         receipt = _receipt_from_json(row["receipt_json"])
         outcome = None
         if row["outcome_json"]:
