@@ -6,6 +6,7 @@ import secrets
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,16 @@ from .activation import (
     surface_protection_state,
     unrecorded_protection_state,
 )
+
+
+def processing_instant() -> str:
+    """One reading of BackBond's own clock, microsecond-precise.
+
+    Microseconds, not seconds: the instants in one trace are written within the
+    same second, so a second-granularity stamp records them as simultaneous and
+    the trace stops being orderable (BEAAA-35631).
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
 @dataclass(frozen=True)
@@ -329,21 +340,29 @@ class EvidenceStore:
               case_id TEXT PRIMARY KEY, mode TEXT NOT NULL, mandate_json TEXT NOT NULL,
               approval_json TEXT NOT NULL, assertion_json TEXT NOT NULL,
               merchant_json TEXT, status TEXT NOT NULL, mismatch_json TEXT NOT NULL,
-              protection_json TEXT
+              protection_json TEXT, recorded_at TEXT
             );
             CREATE TABLE IF NOT EXISTS approvals (
               grant_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, mandate_json TEXT NOT NULL,
-              approval_token TEXT NOT NULL, origin TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0
+              approval_token TEXT NOT NULL, origin TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0,
+              approved_at TEXT
             );
             CREATE TABLE IF NOT EXISTS approval_receipts (
               task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
               outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT,
               execution_claimed_at TEXT, tenant TEXT
             );
+            -- BEAAA-35631: the three instants the build specification (line 218)
+            -- requires stored separately, as first-class columns rather than
+            -- inside receipt_json. occurred_at is when the underlying task
+            -- happened, evidence_received_at is when the independent record
+            -- arrived, reserved_at and recorded_at are BackBond's own
+            -- processing clock either side of the side effect.
             CREATE TABLE IF NOT EXISTS executions (
               id INTEGER PRIMARY KEY AUTOINCREMENT, idempotency_key TEXT UNIQUE NOT NULL,
               case_id TEXT NOT NULL, ledger_allocation TEXT UNIQUE NOT NULL,
-              receipt_json TEXT NOT NULL
+              receipt_json TEXT NOT NULL,
+              reserved_at TEXT, occurred_at TEXT, evidence_received_at TEXT, recorded_at TEXT
             );
             """
         )
@@ -358,6 +377,18 @@ class EvidenceStore:
         if "tenant" not in cols:
             self.db.execute("ALTER TABLE cases ADD COLUMN tenant TEXT")
             self.db.commit()
+        if "recorded_at" not in cols:
+            self.db.execute("ALTER TABLE cases ADD COLUMN recorded_at TEXT")
+            self.db.commit()
+        approval_cols = {row[1] for row in self.db.execute("PRAGMA table_info(approvals)")}
+        if "approved_at" not in approval_cols:
+            self.db.execute("ALTER TABLE approvals ADD COLUMN approved_at TEXT")
+            self.db.commit()
+        execution_cols = {row[1] for row in self.db.execute("PRAGMA table_info(executions)")}
+        for column in ("reserved_at", "occurred_at", "evidence_received_at", "recorded_at"):
+            if column not in execution_cols:
+                self.db.execute(f"ALTER TABLE executions ADD COLUMN {column} TEXT")
+                self.db.commit()
         receipt_cols = {row[1] for row in self.db.execute("PRAGMA table_info(approval_receipts)")}
         if "protection_at_execution_json" not in receipt_cols:
             self.db.execute("ALTER TABLE approval_receipts ADD COLUMN protection_at_execution_json TEXT")
@@ -440,14 +471,17 @@ class EvidenceStore:
             raise PermissionError("human approval token is invalid")
         if not _process_approval_authority_attests(mandate, grant_id, approval_token):
             raise PermissionError("approval was not minted by the human-side approval authority")
+        approved_at = approval["approved_at"]
 
         # Reserve and commit before the merchant side effect so replay cannot
         # reach the merchant a second time.
         try:
             with self.db:
                 self.db.execute(
-                    "INSERT INTO executions (idempotency_key, case_id, ledger_allocation, receipt_json) VALUES (?, ?, ?, ?)",
-                    (idempotency_key, case_id, f"allocation-{idempotency_key}", json.dumps({"state": "reserved"})),
+                    "INSERT INTO executions (idempotency_key, case_id, ledger_allocation, receipt_json,"
+                    " reserved_at) VALUES (?, ?, ?, ?, ?)",
+                    (idempotency_key, case_id, f"allocation-{idempotency_key}", json.dumps({"state": "reserved"}),
+                     processing_instant()),
                 )
         except sqlite3.IntegrityError:
             # A concurrent request reserved the same key first.
@@ -463,11 +497,19 @@ class EvidenceStore:
             "receipt", default_program_version(), default_registry()
         )
 
+        # BEAAA-35631: occurrence and receipt are two different instants and are
+        # read separately, either side of the call. evidence_received_at stays
+        # NULL when no independent record arrived, so the missing-evidence case
+        # has no receipt time to claim it had one.
         merchant_evidence = None
+        evidence_received_at = None
+        occurred_at = processing_instant()
         if independent_evidence:
             merchant_evidence = merchant.purchase(
                 case_id=case_id, sku=asserted_sku, amount_cents=asserted_amount_cents
             )
+            if merchant_evidence is not None:
+                evidence_received_at = processing_instant()
         # Anything outside the mandate was already refused above. What is left
         # is compared here, after the merchant has answered, so the independent
         # record is joined against both the mandate and the agent's assertion
@@ -477,25 +519,29 @@ class EvidenceStore:
         )
         status = "UNKNOWN/INCOMPLETE" if merchant_evidence is None else ("MISMATCH" if mismatches else "MATCH")
         assertion = {"sku": asserted_sku, "amount_cents": asserted_amount_cents, "source": "agent-assertion"}
-        approval = {"source": "human-approval", "token_digest": hashlib.sha256(approval_token.encode()).hexdigest()}
+        approval = {"source": "human-approval", "token_digest": hashlib.sha256(approval_token.encode()).hexdigest(),
+                    "approved_at": approved_at}
         # BEAAA-35453 A14: the completion instant is recorded here, on the
         # execution that produced it. A shareable note that names a date
         # reads it from this row, so no date exists for a case that never ran.
         receipt = {"mode": MODE, "private": True, "case_id": case_id, "status": status,
                    "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
 
+        recorded_at = processing_instant()
         with self.db:
             self.db.execute(
                 "INSERT INTO cases (case_id, tenant, mode, mandate_json, approval_json,"
-                " assertion_json, merchant_json, status, mismatch_json, protection_json)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " assertion_json, merchant_json, status, mismatch_json, protection_json, recorded_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (case_id, self.tenant, MODE, json.dumps(asdict(mandate), sort_keys=True), json.dumps(approval, sort_keys=True),
                  json.dumps(assertion, sort_keys=True), json.dumps(merchant_evidence, sort_keys=True) if merchant_evidence else None,
-                 status, json.dumps(mismatches, sort_keys=True), json.dumps(protection, sort_keys=True)),
+                 status, json.dumps(mismatches, sort_keys=True), json.dumps(protection, sort_keys=True), recorded_at),
             )
             self.db.execute(
-                "UPDATE executions SET receipt_json = ? WHERE idempotency_key = ?",
-                (json.dumps(receipt, sort_keys=True), idempotency_key),
+                "UPDATE executions SET receipt_json = ?, occurred_at = ?, evidence_received_at = ?,"
+                " recorded_at = ? WHERE idempotency_key = ?",
+                (json.dumps(receipt, sort_keys=True), occurred_at, evidence_received_at, recorded_at,
+                 idempotency_key),
             )
         return self.packet(case_id)
 
@@ -522,8 +568,10 @@ class EvidenceStore:
             raise PermissionError("approval was not minted by the human-side approval authority")
         with self.db:
             self.db.execute(
-                "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin) VALUES (?, ?, ?, ?, ?)",
-                (grant_id, case_id, json.dumps(asdict(mandate), sort_keys=True), approval_token, origin),
+                "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin,"
+                " approved_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (grant_id, case_id, json.dumps(asdict(mandate), sort_keys=True), approval_token, origin,
+                 processing_instant()),
             )
         return grant_id
 
@@ -564,7 +612,8 @@ class EvidenceStore:
             if spent.rowcount != 1:
                 return None
             row = self.db.execute(
-                "SELECT mandate_json, approval_token, origin FROM approvals WHERE grant_id = ?", (grant_id,)
+                "SELECT mandate_json, approval_token, origin, approved_at FROM approvals WHERE grant_id = ?",
+                (grant_id,),
             ).fetchone()
         mandate = Mandate(**json.loads(row["mandate_json"]))
         if not _process_approval_authority_spends(mandate, grant_id, row["approval_token"]):
@@ -573,6 +622,7 @@ class EvidenceStore:
             "mandate": mandate,
             "approval_token": row["approval_token"],
             "origin": row["origin"],
+            "approved_at": row["approved_at"],
         }
 
     def _replay_for_idempotency_key(self, idempotency_key: str, case_id: str) -> dict[str, Any] | None:
@@ -896,7 +946,8 @@ class EvidenceStore:
             raise KeyError(case_id)
         self._enforce_owner(row, case_id)
         execution = self.db.execute(
-            "SELECT idempotency_key, ledger_allocation, receipt_json FROM executions WHERE case_id = ? ORDER BY id LIMIT 1",
+            "SELECT idempotency_key, ledger_allocation, receipt_json, reserved_at, occurred_at,"
+            " evidence_received_at, recorded_at FROM executions WHERE case_id = ? ORDER BY id LIMIT 1",
             (case_id,),
         ).fetchone()
         recorded_state = row["protection_json"] if "protection_json" in row.keys() else None
@@ -916,6 +967,16 @@ class EvidenceStore:
             "reviewable_mismatches": json.loads(row["mismatch_json"]),
             "sources": sources,
             "execution": dict(execution) if execution else None,
+            # BEAAA-35631: the time half of "one reproducible mandate-to-outcome
+            # trace". Each instant is read from its own column, and `ordered`
+            # is what lets a reconstruction put the approval, the task, the
+            # independent record and BackBond's own write in sequence. An
+            # instant that was never recorded is absent, never guessed.
+            "trace": _trace(
+                approved_at=sources["approval"].get("approved_at") if isinstance(sources["approval"], dict) else None,
+                recorded_at=row["recorded_at"] if "recorded_at" in row.keys() else None,
+                execution=execution,
+            ),
             "claims_review": {"source_links": [key for key, value in sources.items() if value is not None]},
             # Protection status comes only from the activation gate, as it stood
             # when this case was recorded. It is never recomputed at read time
@@ -928,6 +989,40 @@ class EvidenceStore:
 
     def close(self) -> None:
         self.db.close()
+
+
+def _trace(
+    *,
+    approved_at: str | None,
+    recorded_at: str | None,
+    execution: sqlite3.Row | None,
+) -> dict[str, Any]:
+    """The instants in one case, each from its own column, in time order.
+
+    Keys name what the instant is, not which table it came from: ``approved_at``
+    is the human decision, ``occurred_at`` is when the underlying task happened,
+    ``evidence_received_at`` is when the independent record arrived, and
+    ``reserved_at``/``recorded_at`` are BackBond's processing clock either side
+    of the side effect. ``ordered`` is the sequence a claim is reconstructed
+    from; ``unordered`` names the instants that were never recorded, so a
+    missing time reads as missing rather than as zero.
+    """
+    instants: dict[str, str | None] = {
+        "approved_at": approved_at,
+        "reserved_at": execution["reserved_at"] if execution is not None else None,
+        "occurred_at": execution["occurred_at"] if execution is not None else None,
+        "evidence_received_at": execution["evidence_received_at"] if execution is not None else None,
+        "recorded_at": recorded_at or (execution["recorded_at"] if execution is not None else None),
+    }
+    ordered = sorted(
+        ({"event": name, "at": value} for name, value in instants.items() if value),
+        key=lambda entry: (entry["at"], entry["event"]),
+    )
+    return {
+        **instants,
+        "ordered": ordered,
+        "unordered": sorted(name for name, value in instants.items() if not value),
+    }
 
 
 def _receipt_from_json(raw: str) -> ApprovalReceipt:
