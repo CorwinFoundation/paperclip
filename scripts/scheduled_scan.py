@@ -45,6 +45,11 @@ from tools.registered_case_executor import (  # noqa: E402
     default_judge_runner,
 )
 from tools.framework_workers import build_live_framework_workers  # noqa: E402
+from tools.founder_dev_mode import (  # noqa: E402
+    ATTESTATION_FOUNDER_DEV,
+    ATTESTATION_PRODUCTION_SIGNED,
+    attestation_tier as _registry_attestation_tier,
+)
 
 SECRET_ENV = (
     "ARE_BUNDLE_SIGNING_KEY",
@@ -765,14 +770,48 @@ def _operator_manifest(
         "underwriter_evidence": _underwriter_evidence_index(
             evidence_rows=evidence_rows,
             job=job,
+            attestation_tiers=_attestation_tier_by_test_id(registry_rows),
         ),
     }
+
+
+# BEAAA-35793: an evidence row whose test_id is absent from the registry rows
+# handed to this run has no declared attestation tier. It is labelled, never
+# defaulted to production_signed — silently crediting an unknown row with
+# production attestation is the exact shape BEAAA-24008 ruling D.4 forbids.
+ATTESTATION_TIER_UNKNOWN = "unknown_not_in_registry"
+
+
+def _attestation_tier_by_test_id(
+    registry_rows: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, str]:
+    """Map test_id -> declared attestation tier from the run's registry rows."""
+    tiers: dict[str, str] = {}
+    for raw in registry_rows or ():
+        if not isinstance(raw, Mapping):
+            continue
+        test_id = str(raw.get("test_id") or "")
+        if not test_id:
+            continue
+        tiers[test_id] = _registry_attestation_tier(raw)
+    return tiers
+
+
+def _row_attestation_tier(
+    row: Mapping[str, Any], tiers: Mapping[str, str]
+) -> str:
+    """Attestation tier for one evidence row; unknown rather than assumed."""
+    test_id = str(row.get("test_id") or "")
+    if not test_id:
+        return ATTESTATION_TIER_UNKNOWN
+    return tiers.get(test_id, ATTESTATION_TIER_UNKNOWN)
 
 
 def _underwriter_evidence_index(
     *,
     evidence_rows: list[dict[str, Any]],
     job: Any,
+    attestation_tiers: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Five-category PI/E&O evidence index for underwriter review (BEAAA-35757).
 
@@ -783,21 +822,41 @@ def _underwriter_evidence_index(
     # (b) materiality — one row per declared capability with exercised rubric
     # points and their pass/fail verdicts. Derived from capability_manifest +
     # row_results. Not rated for dollar exposure (no field for that yet).
+    tiers = attestation_tiers or {}
     cap_manifest = getattr(job, "capability_manifest", None) or {}
     cap_rubrics: dict[str, dict[str, Any]] = {}
+    # BEAAA-35793: run-wide tier census, so a reader can tell dev-scored rows
+    # from production-attested ones without re-deriving it from the registry.
+    rows_by_tier: Counter[str] = Counter()
     for row in evidence_rows:
         cap = str(row.get("rubric_point_id") or "")
         verdict = row.get("verdict")
         family = str(row.get("family") or "")
+        tier = _row_attestation_tier(row, tiers)
+        rows_by_tier[tier] += 1
         for flag, declared in cap_manifest.items():
             if declared and flag.lower() in cap.lower():
-                entry = cap_rubrics.setdefault(flag, {"pass": 0, "fail": 0, "other": 0, "families": set()})
+                entry = cap_rubrics.setdefault(
+                    flag,
+                    {
+                        "pass": 0,
+                        "fail": 0,
+                        "other": 0,
+                        "families": set(),
+                        "tiers": {},
+                    },
+                )
                 if verdict == "PASS":
-                    entry["pass"] += 1
+                    bucket = "pass"
                 elif verdict == "FAIL":
-                    entry["fail"] += 1
+                    bucket = "fail"
                 else:
-                    entry["other"] += 1
+                    bucket = "other"
+                entry[bucket] += 1
+                tier_entry = entry["tiers"].setdefault(
+                    tier, {"pass": 0, "fail": 0, "other": 0}
+                )
+                tier_entry[bucket] += 1
                 if family:
                     entry["families"].add(family)
     capability_materiality = {
@@ -808,6 +867,16 @@ def _underwriter_evidence_index(
             "other": v["other"],
             "families_exercised": sorted(v["families"]),
             "materiality_rating": "not_rated",
+            # Counts above are tier-blind totals; this splits them so
+            # founder_dev_mode rows are separable from production_signed ones.
+            "by_attestation_tier": {
+                tier: dict(counts) for tier, counts in sorted(v["tiers"].items())
+            },
+            "dev_scored_rows": sum(
+                counts["pass"] + counts["fail"] + counts["other"]
+                for tier, counts in v["tiers"].items()
+                if tier != ATTESTATION_PRODUCTION_SIGNED
+            ),
         }
         for flag, v in cap_rubrics.items()
     }
@@ -840,7 +909,43 @@ def _underwriter_evidence_index(
         "judge_models",        # manifest
     ]
 
+    # BEAAA-35793: top-level tier summary. Names every tier present and states
+    # plainly when any row in the run was scored under Founder Development Mode.
+    dev_scored_rows = sum(
+        count
+        for tier, count in rows_by_tier.items()
+        if tier != ATTESTATION_PRODUCTION_SIGNED
+    )
+    if not rows_by_tier:
+        attestation_note = "No evidence rows in this run; no attestation tier to report."
+    elif dev_scored_rows:
+        attestation_note = (
+            f"{dev_scored_rows} of {sum(rows_by_tier.values())} evidence rows in this "
+            "run are NOT production-attested. Rows tagged "
+            f"{ATTESTATION_FOUNDER_DEV!r} were scored under Founder Development Mode "
+            f"and rows tagged {ATTESTATION_TIER_UNKNOWN!r} have no declared tier in "
+            "this run's registry. Counts in this index that are not split by tier "
+            "include them. Do not read this manifest as production-attested evidence."
+        )
+    else:
+        attestation_note = (
+            f"All {sum(rows_by_tier.values())} evidence rows in this run are tagged "
+            f"{ATTESTATION_PRODUCTION_SIGNED!r}."
+        )
+
     return {
+        "attestation": {
+            "tiers_present": sorted(rows_by_tier),
+            "rows_by_attestation_tier": dict(sorted(rows_by_tier.items())),
+            "evidence_rows": sum(rows_by_tier.values()),
+            "dev_scored_rows": dev_scored_rows,
+            "production_signed_rows": rows_by_tier.get(
+                ATTESTATION_PRODUCTION_SIGNED, 0
+            ),
+            "all_rows_production_signed": bool(rows_by_tier)
+            and dev_scored_rows == 0,
+            "note": attestation_note,
+        },
         "aon_category_a_ai_use_map": {
             "status": "present",
             "manifest_field": "capability_manifest",
@@ -851,6 +956,10 @@ def _underwriter_evidence_index(
             "status": "partial",
             "manifest_field": "capability_manifest",
             "gap": "materiality_rating is not_rated — no field ties a capability to financial exposure",
+            "attestation_note": (
+                "pass/fail/other are tier-blind totals; read by_attestation_tier "
+                "before treating any count as production-attested."
+            ),
             "capability_materiality": capability_materiality,
         },
         "aon_category_c_human_review": {
