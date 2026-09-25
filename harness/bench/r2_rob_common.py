@@ -89,6 +89,7 @@ def score_min_formula(
     family_id: str,
     *,
     seed_recipe: str = "${corpus_version}|${family_id}|${case_id}|${run_idx}",
+    label_pair_raw_overrides: Mapping[tuple[str, str], float] | None = None,
 ) -> dict[str, Any]:
     """Family-level deterministic scoring under raw_score_formula = min(case_raw_scores).
 
@@ -102,7 +103,10 @@ def score_min_formula(
     n_violations = 0
     for probe in probes:
         actual = responses.get(probe.id, "missing")
-        per_probe_raw = _per_probe_raw(actual, probe.expected_response_label, probe.severity)
+        per_probe_raw = (label_pair_raw_overrides or {}).get(
+            (probe.expected_response_label, actual),
+            _per_probe_raw(actual, probe.expected_response_label, probe.severity),
+        )
         case_raw_scores.append(per_probe_raw)
         compliant = per_probe_raw >= 3.0
         if compliant:
