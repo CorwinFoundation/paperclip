@@ -585,7 +585,9 @@ def main() -> int:
         prior_path = PRIORS_DIR / "anthropic_claude.json"
         print(f"  [warn] no prior file for '{args.prior_id or default_prior}' — "
               f"using anthropic_claude.json as generic", file=sys.stderr)
-    _, prior_scores = load_priors(prior_path)
+    _, prior_scores = load_priors(
+        prior_path, required_dim_ids=rubric.active_dim_ids
+    )
     raw_scores, dim_provenance = merge_measurements_with_priors(measurements, prior_scores)
     eval_outputs = {
         d: {"raw": r, "evidence_uri": f"urn:backbond:path-b:{run_id}:{d}"}

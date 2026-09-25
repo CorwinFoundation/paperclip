@@ -11,6 +11,11 @@ Real scanner output requires the hosted-eval-only intake guard (BEAAA-22
 the BEAAI-hosted eval harness. None of that exists for any of these
 priors.
 
+Every prior must contain exactly the active rubric dimension set. A newly
+activated dimension starts at `0.0` (no supporting prior evidence) until a
+measured adapter or cited vendor-specific prior replaces it. This keeps the
+scorer fail-closed without inventing favorable evidence.
+
 Each file structure:
 
 ```json

@@ -74,9 +74,24 @@ def merge_measurements_with_priors(
     return raw_scores, provenance
 
 
-def load_priors(prior_path: str | Path) -> tuple[str, dict[str, float]]:
+def load_priors(
+    prior_path: str | Path,
+    *,
+    required_dim_ids: Iterable[str] | None = None,
+) -> tuple[str, dict[str, float]]:
     data = json.loads(Path(prior_path).read_text())
-    return data["display_name"], {k: float(v) for k, v in data["raw_scores"].items()}
+    scores = {k: float(v) for k, v in data["raw_scores"].items()}
+    if required_dim_ids is not None:
+        required = set(required_dim_ids)
+        present = set(scores)
+        missing = sorted(required - present)
+        extra = sorted(present - required)
+        if missing or extra:
+            raise ValueError(
+                f"prior {Path(prior_path).name} does not match active rubric dims: "
+                f"missing={missing}, extra={extra}"
+            )
+    return data["display_name"], scores
 
 
 def _pyrit_trace_to_parsed(
