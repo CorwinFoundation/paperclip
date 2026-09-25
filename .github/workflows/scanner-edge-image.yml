@@ -486,7 +486,11 @@ jobs:
           name: scanner-immutable-image-${{ inputs.source_sha || github.sha }}
           path: release-candidate/
           if-no-files-found: error
-          retention-days: 90
+          # Transport, not a store: the deploy job downloads this minutes later and the
+          # durable copy is the GHCR immutable publish. 90 days of retention here grew to
+          # 29 GiB / 199 rows (BEAAA-35556). The governed release evidence upload below
+          # keeps its own 90 days and is untouched.
+          retention-days: 3
 
       - name: Upload governed release evidence
         if: ${{ inputs.expected_image_digest != '' }}
