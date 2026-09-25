@@ -14,6 +14,7 @@ import hashlib
 import inspect
 import json
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -1204,7 +1205,203 @@ def a14(root: Path):
     )
 
 
-PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4, a13, a14]
+# --------------------------------------------------------------------------
+# The five demonstration cases the Stage A exit actually names.
+#
+# Section 12 says "Demonstrate the five cases above". The enumeration it points
+# at is the closing line of section 11: "A minimal technical demonstration
+# should include one correct task, one incorrect task, one duplicate retry, one
+# missing-evidence case and one claim reconstruction. Demonstrating only a
+# successful checkout is insufficient."
+#
+# Duplicate retry is A6/A7; missing evidence is A8 and P1-2/P1-4. The other
+# three had no probe, and the two that were missing are the ones that make the
+# refusals mean something: every probe above asserts that something is refused,
+# so a build that refused everything would score 20/21. A15 is the positive
+# control. A16 and A17 ask whether the independent record and the trace - the
+# two things a claim is reconstructed from - carry what the spec requires.
+# --------------------------------------------------------------------------
+
+
+class DivergentMerchant(SyntheticMerchantAdapter):
+    """A merchant whose own record disagrees with what the agent asserted.
+
+    The synthetic adapter echoes its arguments back, so in the demo the
+    independent evidence can never differ from the assertion and the join is
+    structurally untestable. This subclass is the only way to ask whether
+    anything compares the two.
+    """
+
+    def __init__(self, *, sku: str, amount_cents: int) -> None:
+        self.calls: list[dict] = []
+        self._sku = sku
+        self._amount_cents = amount_cents
+
+    def purchase(self, **kwargs):
+        self.calls.append(dict(kwargs))
+        record = super().purchase(**kwargs)
+        record.update({"sku": self._sku, "amount_cents": self._amount_cents})
+        return record
+
+
+def _timestamps(node, path="packet", found=None):
+    """Every ISO-8601-looking instant reachable in a packet, with its path."""
+    if found is None:
+        found = {}
+    if isinstance(node, str):
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?", node):
+            found[path] = node
+        elif node.startswith("{") or node.startswith("["):
+            try:
+                _timestamps(json.loads(node), path + "(json)", found)
+            except (ValueError, TypeError):
+                pass
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            _timestamps(value, f"{path}.{key}", found)
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            _timestamps(value, f"{path}[{i}]", found)
+    return found
+
+
+@probe("A15 a correct task completes",
+       "one well-formed approved task executes exactly once and joins every source")
+def a15(root: Path):
+    """The positive control the refusal probes need.
+
+    Spec section 11, "Correct purchase": "Original mandate, approval, task
+    protection and independent order/payment records join; only one execution
+    and ledger allocation occur."
+    """
+    mandate = Mandate("m-a15", "SKU-1", 100)
+    merchant = CountingMerchant()
+    store = _store(root)
+    try:
+        grant = _approved(store, "a15", mandate)
+        packet = store.record_case(
+            case_id="a15", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a15", merchant=merchant,
+        )
+        executions = store.execution_count("a15")
+        allocations = {
+            row["ledger_allocation"] for row in store.db.execute(
+                "SELECT ledger_allocation FROM executions WHERE case_id = ?", ("a15",))
+        }
+    finally:
+        store.close()
+    sources = packet["sources"]
+    missing = [name for name, value in sources.items() if value is None]
+    holds = (
+        executions == 1 and len(merchant.calls) == 1 and len(allocations) == 1
+        and not missing and packet["status"] == "MATCH"
+        and packet["reviewable_mismatches"] == []
+    )
+    return holds, (
+        f"status={packet['status']!r} executions={executions}"
+        f" merchant_calls={len(merchant.calls)} ledger_allocations={len(allocations)}"
+        f" mismatches={packet['reviewable_mismatches']}"
+        f" joined_sources={sorted(k for k, v in sources.items() if v is not None)}"
+        + (f" MISSING={missing}." if missing else ".")
+        + (" The refusals above are refusals of the wrong thing, not of everything."
+           if holds else
+           " Without this leg a build that refused every request would still score"
+           " green on every other probe here.")
+    )
+
+
+@probe("A16 an incorrect task is a reviewable incident",
+       "a merchant record that differs from the approved mandate is visible as a mismatch")
+def a16(root: Path):
+    """Spec section 11, "Wrong amount/SKU/date".
+
+    Required result: "Mismatch is visible with source evidence and creates a
+    reviewable incident; it is not automatically denied merely for differing
+    from the mandate."
+
+    The case is the post-execution one: the assertion was inside the mandate,
+    the merchant was called, and what the merchant recorded is not what was
+    approved. A4 covers the pre-execution refusal of an assertion outside the
+    mandate; nothing covered this.
+    """
+    mandate = Mandate("m-a16", "SKU-1", 100)
+    merchant = DivergentMerchant(sku="SKU-OTHER", amount_cents=4_900)
+    store = _store(root)
+    try:
+        grant = _approved(store, "a16", mandate)
+        packet = store.record_case(
+            case_id="a16", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a16", merchant=merchant,
+        )
+    finally:
+        store.close()
+    evidence = packet["sources"]["independent_merchant_evidence"] or {}
+    mismatches = packet["reviewable_mismatches"]
+    fields = {m.get("field") for m in mismatches}
+    # Not denied: the case is still recorded and its sources are still readable.
+    recorded = packet["sources"]["independent_merchant_evidence"] is not None
+    visible = {"amount_cents", "sku"} <= fields
+    return recorded and visible, (
+        f"approved {mandate.sku} at {mandate.amount_cents}c, asserted SKU-1 at 100c,"
+        f" merchant recorded {evidence.get('sku')!r} at {evidence.get('amount_cents')}c"
+        f" -> status={packet['status']!r} reviewable_mismatches={mismatches}."
+        + (" Recorded, not denied, and the divergence is on the case." if recorded and visible
+           else " record_case compares asserted_amount_cents against the mandate only;"
+                " the independent merchant record is stored but never compared to anything,"
+                " so a merchant that charges 49x the approved amount still reads MATCH"
+                " with an empty incident list. The independent-evidence join the spec"
+                " asks for is written to the case but not read.")
+    )
+
+
+@probe("A17 the mandate-to-outcome trace carries time",
+       "occurrence, receipt and processing instants are stored separately and can be ordered")
+def a17(root: Path):
+    """The Stage A exit itself: "one reproducible mandate-to-outcome trace".
+
+    Section 10 requires "a side-by-side view of requested, approved and executed
+    details, with time-ordered changes", and line 218 requires "Store
+    occurrence, receipt and processing timestamps separately".
+
+    Side-by-side content is the part that already works, so this probe reports
+    it and then asks the part nobody had asked: whether the trace can be put in
+    time order at all.
+    """
+    mandate = Mandate("m-a17", "SKU-1", 100)
+    merchant = CountingMerchant()
+    store = _store(root)
+    try:
+        grant = _approved(store, "a17", mandate)
+        packet = store.record_case(
+            case_id="a17", grant_id=grant, asserted_sku="SKU-1",
+            asserted_amount_cents=100, idempotency_key="a17", merchant=merchant,
+        )
+        case_columns = [row[1] for row in store.db.execute("PRAGMA table_info(cases)")]
+        execution_columns = [row[1] for row in store.db.execute("PRAGMA table_info(executions)")]
+    finally:
+        store.close()
+    side_by_side = sorted(k for k, v in packet["sources"].items() if v is not None)
+    stamps = _timestamps(packet)
+    time_columns = [c for c in case_columns + execution_columns
+                    if c.endswith("_at") or "timestamp" in c]
+    holds = len(stamps) >= 3 and bool(time_columns)
+    return holds, (
+        f"side-by-side sources={side_by_side};"
+        f" instants reachable in the packet={stamps or 'none'};"
+        f" time-bearing columns on cases/executions={time_columns or 'none'}."
+        + (" The trace can be ordered." if holds else
+           " The content half of the trace is there and the time half is not:"
+           " the cases and executions tables carry no timestamp column at all, and the"
+           " single instant in the packet is a processing stamp buried inside"
+           " executions.receipt_json. There is no occurrence time, no separate receipt"
+           " time, and nothing to order an approval against its execution - so the"
+           " Stage A exit's 'one reproducible mandate-to-outcome trace' is reproducible"
+           " in content only.")
+    )
+
+
+PROBES = [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, sa8, sa9, sa10, p1_1, p1_2, p1_3, p1_4, a13, a14,
+          a15, a16, a17]
 
 
 def main() -> int:
