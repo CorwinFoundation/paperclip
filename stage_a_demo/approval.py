@@ -40,13 +40,21 @@ def _process_issuer() -> HumanApprovalIssuer:
     execution path passes an issuer in, which is what makes an approval row it
     minted with an issuer of its own refuse to record (BEAAA-35331 SA7).
 
-    What that does not mean (BEAAA-35354 SA10): in-process code can rebind
-    ``_PROCESS_ISSUER`` to an authority of its own and read the secret at
-    ``_process_issuer()._secret``. That holds for any in-process capability in
-    Python and no in-process change closes it. The substitution this resists is
-    substitution across a process boundary, which Stage A does not yet have:
-    the human-side module and the execution path run in the same interpreter.
-    Treat that as the demo's boundary limit, not as isolation it has.
+    What this authority does enforce: the secret is minted fresh per process
+    and appears as a literal nowhere in the tree, and every token is
+    ``sha256(secret : grant_id : canonical-json(mandate))``. A caller that
+    writes its own approvals row, or replays a genuine token under a second
+    grant id, cannot produce a digest this authority will attest to.
+
+    What it does not enforce (BEAAA-35354/35356 SA10): in-process code can
+    rebind ``_PROCESS_ISSUER`` to an authority of its own and read the secret
+    at ``_process_issuer()._secret``. Python has no in-process capability
+    boundary, so no change inside this module closes that, and Stage A must not
+    be described — here, in a datasheet, or to a customer — as isolating the
+    signing capability. The substitution this resists is substitution across a
+    process boundary, which Stage A does not yet have: the human-side module
+    and the execution path run in the same interpreter. Enforcing the seam
+    requires the human-approval side to run behind a process boundary.
     """
     global _PROCESS_ISSUER
     if _PROCESS_ISSUER is None:
