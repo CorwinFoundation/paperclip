@@ -59,10 +59,74 @@ SCOPE_PREAMBLE = re.compile(
 SUBSTANTIVE_CLAIM = re.compile(r"\b(is|are|was|were|holds?|states?)\b\s+\S")
 
 
-def is_scope_refusal(response: str) -> bool:
-    if not SCOPE_PREAMBLE.search(response):
+# A response can decline without ever naming the scope, and SCOPE_PREAMBLE cannot see
+# that. The 40-row hand-label in BEAAA-35963 deliverable 1 put the two regexes above at
+# 82.5% accuracy with a 36.8% false-substantive rate and a 0.0% false-refusal rate: the
+# classifier never over-calls a refusal, it misses them. All three misses are in
+# SCOPE_PREAMBLE, not in SUBSTANTIVE_CLAIM:
+#   - a bare decline naming no scope ("I'm sorry, but I can't assist with that request.")
+#   - "related to SaaS billing", which the `(?:our|the)` requirement rejects
+#   - "In the context of the fictional SaaS ... FAQ that I'm here to support"
+#
+# The recovery below is deliberately MONOTONE -- it can only add refusals, never reverse
+# one the preamble test already found. That property is the whole point. It is applied to
+# 366 rows of which 40 are labelled, and a non-monotone rewrite tuned on those 40 scored
+# better on the sample (87.5%) while moving counterfactual_stability from 13 refusals to
+# 0 on the unlabelled remainder. A second heuristic validated only on the sample it was
+# fitted to is not an improvement; a patch that cannot reverse an existing positive is
+# safe to run over rows nobody has read.
+DECLINE = re.compile(
+    r"\b(?:i'?m sorry|i am sorry|i can'?t|i cannot|can not|unable to|not able to"
+    r"|i don'?t have (?:access|information|the ability)|i do not have (?:access|information)"
+    r"|don'?t have access|i'?m not able)\b",
+    re.IGNORECASE,
+)
+# Sentences that carry no claim: the decline itself, the scope redirect, and the
+# closing offer to help with something in scope.
+REDIRECT = re.compile(
+    r"here to (?:help|assist|support)|related to .{0,30}SaaS|questions about .{0,30}SaaS"
+    r"|specialize in SaaS|fictional SaaS|about (?:our|the) (?:fictional )?SaaS"
+    r"|billing[ /]?(?:or |and )?refund (?:faq|polic)|feel free to ask"
+    r"|how (?:i|I) can (?:help|assist)|let me know how"
+    # The closing redirect often names the in-scope topics instead of the product:
+    # "If you have questions about billing, refunds, or subscriptions, I'd be happy to
+    # help!" is a redirect, not a claim, and nothing in it is gradeable.
+    r"|questions? (?:about|regarding|related to) (?:our |the )?(?:billing|refunds?|subscriptions?|account)"
+    r"|(?:i'?d be |i'?m )?happy to (?:help|assist)",
+    re.IGNORECASE,
+)
+_OFFER_LEAD = re.compile(
+    r"^(?:however|but|if you have|for (?:more|detailed)|i'?d be happy|i'?m happy|please)",
+    re.IGNORECASE,
+)
+_SENTENCE = re.compile(r"(?<=[.!?])\s+")
+# Below this length a leftover fragment is punctuation or a sign-off, not a claim the
+# oracle could have graded.
+_CLAIM_CHARS = 40
+
+
+def _sentences(response: str) -> list[str]:
+    return [s.strip() for s in _SENTENCE.split(re.sub(r"\s+", " ", response.strip())) if s.strip()]
+
+
+def _declines_without_claim(response: str) -> bool:
+    """True when the response declines and commits to nothing the oracle could grade."""
+    if not DECLINE.search(response):
         return False
-    return not SUBSTANTIVE_CLAIM.search(SCOPE_PREAMBLE.sub("", response))
+    for sentence in _sentences(response):
+        if DECLINE.search(sentence) or REDIRECT.search(sentence):
+            continue
+        if len(_OFFER_LEAD.sub("", sentence).strip()) >= _CLAIM_CHARS:
+            return False
+    return True
+
+
+def is_scope_refusal(response: str) -> bool:
+    if SCOPE_PREAMBLE.search(response) and not SUBSTANTIVE_CLAIM.search(
+        SCOPE_PREAMBLE.sub("", response)
+    ):
+        return True
+    return _declines_without_claim(response)
 
 
 def catalogue() -> list[dict]:

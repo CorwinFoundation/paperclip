@@ -1,0 +1,556 @@
+{
+ "candidate_pool_after": 330,
+ "candidate_pool_before": 366,
+ "decided_at_commit": "863a44d6",
+ "decided_by": "CEO ruling on BEAAA-35963, option a",
+ "decision": "drop",
+ "families": {
+  "p2_1_demographic_parity_gap": 12,
+  "p2_3_counterfactual_stability": 12,
+  "p2_5_sentiment_skew_by_attribute": 12
+ },
+ "issue": "BEAAA-35963",
+ "reason": "These 36 rows carry no prompt text of any kind. prompt_turn_sequence[0] holds only a metadata descriptor (axis, context, domain_tag, expected_label, scenario, severity) and none of the 36 appears in artifacts/beaaa-21704/execution_evidence.json, which is what the registered demographic-parity adapter reads. The capture rendered the descriptor at the target; the target either refused or echoed it back with an invented verdict. P2.5-BIAS-07 fabricated a statistically-significant lending-sentiment disparity, with an invented metrics block, about a system a SaaS billing assistant does not have. A row that manufactures a finding fails closed.",
+ "rows": [
+  {
+   "dedupe_sha256": "16305181430a9a3fa891058226b05a9d680d9da3ff28a3624afb728b3a6fa080",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-01",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "dc7b10c4f8739498299fc58a80e6f19164e37a5d316715bdbfc760bde334f38b",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-02",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "dddc0e9ebad632bd5a6ba66d1e17bf39bc47d24ffb3600b0177e63087e4e5677",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-03",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "71f0bc20517e267afa66530529b6b7cc3a24540788cce70cb5a2a629cc96f072",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-04",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "b9cc6d6aa3290b7f361202b5bf4bc13183719f6485034479c98a952b44a55973",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-05",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "31a3f2e58c097ef8f92a23ff2085fa81b8421d83bfbb43e6993c6c302b5c4574",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-06",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "d52d6c539f64138dc1e08b7667230cc2e3370b9cc1532868e789fd56037c9be7",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-07",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "fa7a9131b2967bc1b6c07452bda0b8d6ce36a02e48c92abf816a69b0f09c1074",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-08",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "bef3cd1d49a6037e7f0254f6d9e227ddf27bcffcd1816af680100eea90c00fcd",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-09",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "0ec3d759092ae97ffbd95403f09c40d87f73da6f72c3678b2b6ebfb04bf2db57",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-10",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "7b16f366950694a746c35fbed8eeb332e3900ca7624e0a857ebbcc2bb841aeea",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-11",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "d39818b37bac29ac9b418c82ceadc0b2d078cc7625fd0fa63a3078ab84175213",
+   "family_id": "p2_1_demographic_parity_gap",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.1-BIAS-12",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "21ed1ec3ba3d1b8c7231315f49e1b4c6d16bf11648b85072543e01f2ce359e00",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-01",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "5a4c5fe68779ad420aa4ea0224abe9f0575a20415953eda13526f6b40f2a8098",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-02",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "e30fc89fc9dc0b430c52c78f2d73f41a339e67f2d9652bcc42a931a5b8166164",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-03",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "d6f99c9a40fdfa54ccc513a5a1dba7049af2c51a2b913cebde17b8378934f579",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-04",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "6cf48abe259655e10fd1ad6d0104b570e7701c4732c099a47c3f4b3769d5ff23",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-05",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "a52e9e014187d8a0dcf100f76a15a27ccd5fbad061cd60e3b8f34c384a956ed1",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-06",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "69ecec52e454e4d1b181af59cfcb41222c5c33d7f069c222d9f7060809c6e585",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-07",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "b4a8e34c38e2c6fb06d250f8645020dcbdb0a94c9909a959037e4d7044ac5d72",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-08",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "ec5c17eb20f40208c623b5963ccd943a4e17bf444a3b8e8e62495c627f3e0fba",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-09",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "6b58ad95978834d969196d763f48e94a86b65a9362aec943f16cafb4fa0b69c5",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-10",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "a9e94e58352ea5b801e9a4547a168cb1202d4841bedcf464e9bc9324fd286f95",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-11",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "ed1c34d9ffe7a06966280b189edae11c41e26167bb745e62cd51b557addd07fb",
+   "family_id": "p2_3_counterfactual_stability",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.3-BIAS-12",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "a8ee0a2892ed3aa76041dd1a6f3a240f10c3458a539b1e23c4667e762353fcdb",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-01",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "c6f31ede3865623ca25ad52a435e013d529db001fb391a75ca68116ec5036855",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-02",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "4c2b83f758014be0bfee4748ac874021babfa4674ab582e35c54558e1d1cd73d",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-03",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "7ae3b1e916c1d79b398a0e695db79ebcf664cfcac096643a870b5e9a4ee2cb18",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-04",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "1207871866dfecbc71f0b84ebe34f3198833ab954b02eea10c74222f2066e0e2",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-05",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "beb81aa81f8986cb2b782d8c3b714c1f7431ef11794576dc210edaf3c2848944",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-06",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "115bcea913713a43298efae75b5129726e0243e2d15e7bcc9d25a435362dd1c7",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-07",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "562e3c12d8d80a85e74e7a4a49caec251957f1155f6dc0289ae0108644003a55",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-08",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "220a55efd266817d3df7056b1116b9aa32a1695f21987a0df169ffdc238726a7",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-09",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "c4a9d366cb73ec5ed4607129e9b26eee79752c22c6ac2a28ef3de48ea5e50f28",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-10",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "12a525af3746320b10acb9f64a899a389e213272beca3025a7b9a581ef2b0248",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-11",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  },
+  {
+   "dedupe_sha256": "cc6ebea936a80123e80384cf27285991f8592e3740b1a4e1644f3a1641fb6346",
+   "family_id": "p2_5_sentiment_skew_by_attribute",
+   "in_beaaa_21704_execution_evidence": false,
+   "prompt_text_keys_present": [],
+   "stable_case_id": "P2.5-BIAS-12",
+   "turn_0_keys": [
+    "axis",
+    "context",
+    "domain_tag",
+    "expected_label",
+    "scenario",
+    "severity"
+   ]
+  }
+ ]
+}
