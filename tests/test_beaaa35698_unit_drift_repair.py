@@ -134,6 +134,55 @@ def test_root_repairs_the_drift_and_proves_it(host):
     assert proc.stdout.count("MATCH") >= len(UNITS)
 
 
+def test_unprivileged_reports_drift_on_a_checkout_it_cannot_refresh(host):
+    """The real box: /opt/backbond/src is not writable by the operator.
+
+    `git fetch` there dies EACCES on `.git/FETCH_HEAD`, and because the fetch ran
+    before the drift check under `set -e`, the unprivileged run aborted with a git
+    error and never reported the drift it exists to report. The other tests shim
+    `git` to exit 0, so none of them could see it. This one shims `git` to fail
+    the way the box fails.
+    """
+
+    (host.shim_dir / "git").write_text(
+        "#!/bin/sh\necho \"error: cannot open '.git/FETCH_HEAD': Permission denied\" >&2\nexit 128\n",
+        encoding="utf-8",
+    )
+    (host.shim_dir / "git").chmod(0o755)
+
+    proc = host()
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "drifted" in proc.stderr
+    assert "install-units-only.sh" in proc.stderr
+    assert "not refreshing it" in proc.stderr
+    assert "FETCH_HEAD" not in proc.stderr
+
+
+def test_root_still_fast_forwards_before_checking(host):
+    """The skip is scoped to the unprivileged path; root must still merge first.
+
+    A repair that installs units from a checkout nobody refreshed would put the
+    stale copy back under /etc, which is the whole failure this script exists to
+    end.
+    """
+
+    log = host.checkout.parent / "git-calls"
+    (host.shim_dir / "git").write_text(
+        f'#!/bin/sh\nprintf "%s\\n" "$*" >> {log}\nexit 0\n', encoding="utf-8"
+    )
+    (host.shim_dir / "git").chmod(0o755)
+    # Units already match, so the run stops at "nothing to repair" and needs no
+    # chown it cannot perform; the point here is only what git was asked to do.
+    _install_units(host.unit_dir)
+
+    proc = host(as_root=True)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "nothing to repair" in proc.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "fetch --quiet origin master" in calls
+    assert "merge --ff-only --quiet origin/master" in calls
+
+
 def test_no_timer_is_ever_enabled_or_started():
     """BEAAA-30240: both timers carry Persistent=true.
 

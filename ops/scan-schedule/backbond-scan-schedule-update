@@ -37,8 +37,18 @@ checkout=${1:-/opt/backbond/src}
 unit_dir=${2:-/etc/systemd/system}
 
 test -d "$checkout/.git"
-git -C "$checkout" fetch --quiet origin master
-git -C "$checkout" merge --ff-only --quiet origin/master
+
+# Refreshing the checkout is a root action: /opt/backbond/src is not writable by
+# an ordinary operator, so `git fetch` there dies EACCES on .git/FETCH_HEAD.
+# Attempting it first made the unprivileged path abort under `set -e` before it
+# ever reached the drift check, which is the opposite of the reporting mode this
+# script promises. Unprivileged, report on the checkout as it stands and say so.
+if [ "$(id -u)" -eq 0 ]; then
+  git -C "$checkout" fetch --quiet origin master
+  git -C "$checkout" merge --ff-only --quiet origin/master
+else
+  echo 'Not root: reporting against the checkout as it stands, not refreshing it.' >&2
+fi
 
 schedule_dir="$checkout/ops/scan-schedule"
 test -d "$schedule_dir" || { echo "missing $schedule_dir" >&2; exit 1; }
