@@ -46,6 +46,15 @@ class StageADemoUITests(unittest.TestCase):
         self.assertIn("Simulated receipt", page)
         self.assertIn("Passive Monitor observation does not authorize", page)
 
+    def test_private_receipt_names_source_and_money_at_risk(self):
+        response = self.open_case("correct")
+        self.assertEqual("Verified event", response["evidence_source"])
+        self.assertEqual("$48.00 maximum", response["approval_receipt"]["money_at_risk"])
+        page = render_page()
+        self.assertIn("Evidence source", page)
+        self.assertIn("Money at risk", page)
+        self.assertIn("d.evidence_source", page)
+
     def test_every_required_fixture_is_directly_reachable(self):
         required = {"correct", "incorrect", "duplicate", "missing-evidence", "reconstructed-claim", "over-mandate", "unsupported", "disconnected", "expired", "denied", "error"}
         self.assertEqual(required, set(FIXTURES))
