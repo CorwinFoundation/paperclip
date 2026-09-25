@@ -34,10 +34,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # changes that - it needs the approval authority behind a process boundary.
 KNOWN_FAILING = {
     "SA10": "BEAAA-35021 - in-process capability boundary, parked by design",
-    # The protection window is ordered against an instant the execution side
-    # supplies, while the claim reports the independent one, and nothing
-    # compares them. Open, not parked: this entry comes out with the fix.
-    "A18": "BEAAA-35638 - window ordered against the execution side's clock",
 }
 
 
