@@ -40,9 +40,16 @@ install -d -m 0755 /var/lib/backbond /usr/local/libexec /etc/backbond /etc/syste
 install -d -o "$unit_user" -g "$unit_user" -m 0700 "$runtime_home"
 chmod o+x /var/lib/backbond
 install -o root -g root -m 0644 "$here/scan-schedule.conf" /etc/backbond/scan-schedule.conf
-for unit in backbond-scan-vapi.service backbond-scan-vapi-beaaa30934.service backbond-scan-vapi-garak.service backbond-scan-vapi.timer backbond-scan-zoo.service backbond-scan-zoo.timer; do
-  install -o root -g root -m 0644 "$here/$unit" "/etc/systemd/system/$unit"
-done
+# BEAAA-35791: this used to be a hardcoded six-name loop while both sibling
+# scripts discovered units by glob, so a seventh unit file added beside them
+# reached check-unit-drift.sh and install-units-only.sh but never reached a
+# fresh host -- the full installer skipped it and still exited 0.  Delegate to
+# the narrow installer instead of carrying a third copy of the discovery loop:
+# it globs, fails if it finds nothing, and ends by running check-unit-drift.sh,
+# so unit installation proves itself before the timers are enabled.  Its extra
+# sudoers drop-in is a subset of the wider grant written below, and it enables
+# no timer, so the two lines that follow stay this script's job.
+"$here/install-units-only.sh"
 chown "$unit_user:$unit_user" "$manifest_root"
 chmod 0755 "$manifest_root"
 "$here/relax-run-dir-perms.sh" "$manifest_root" "$unit_user"
@@ -57,4 +64,9 @@ systemctl enable backbond-scan-vapi.timer
 # provider has credit; until then it records reason-coded transport
 # incompletes, which is the outcome BEAAA-31590 asks the nightly run to keep.
 systemctl enable backbond-scan-zoo.timer
+# Enablement is deliberately still named unit by unit: a new unit file should
+# be installed automatically, but switching a schedule on is a decision.
+# Re-check after daemon-reload and enable so the success line below is earned
+# rather than asserted.
+"$here/check-unit-drift.sh"
 echo "Installed the weekly Vapi timer and the nightly zoo timer, both enabled. Root command: $here/install.sh"
