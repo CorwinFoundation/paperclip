@@ -186,7 +186,10 @@ def test_pass_rate_uses_the_scored_denominator_not_the_prompt_count(probes):
     result = bench.score_family(guarded, responses, FAMILY)
     assert result["n_guard_removed"] == len(probes)
     assert result["n_scored"] == 0
-    assert result["pass_rate"] == 0.0
+    # BEAAA-35815: 0.0 here was the same implicit failure one level up. Nothing was
+    # measured, so nothing is reported. See tests/test_beaaa35815_not_measured_family.py.
+    assert result["pass_rate"] is None
+    assert result["family_disposition"] == "not_measured"
     assert result["n_fail"] == 0, "every row was removed, so none of them failed"
 
 

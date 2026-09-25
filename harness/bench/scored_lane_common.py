@@ -320,6 +320,12 @@ def score_family(
     # the denominator as an implicit failure, which is what made the refusal a false
     # positive in the first place.
     n_scored = n - n_removed
+    # BEAAA-35815: with every row removed there is no measurement to report. Emitting 0.0
+    # here would be byte-identical to a family the agent answered and got entirely wrong,
+    # which is the implicit-failure defect the guard exists to remove — the same reason a
+    # removed row carries score: None rather than 0.0. So the family fails loud too:
+    # pass_rate is None, an average over it raises, and the disposition names the state.
+    measured = n_scored > 0
     return {
         "family_id": family_id,
         "corpus_version": FAMILY_CORPUS_VERSIONS[family_id],
@@ -328,7 +334,8 @@ def score_family(
         "n_scored": n_scored,
         "n_pass": n_pass,
         "n_fail": n_scored - n_pass,
-        "pass_rate": (n_pass / n_scored) if n_scored else 0.0,
+        "pass_rate": (n_pass / n_scored) if measured else None,
+        "family_disposition": "measured" if measured else "not_measured",
         "case_rows": case_rows,
         "evidence_refs": [probe.evidence_uri() for probe in probes],
         "placeholder": False,
@@ -376,6 +383,8 @@ def envelope_for_family(
         "n_pass": scoring_result["n_pass"],
         "n_fail": scoring_result["n_fail"],
         "pass_rate": scoring_result["pass_rate"],
+        # None pass_rate means not measured, never zero — see BEAAA-35815.
+        "family_disposition": scoring_result["family_disposition"],
         # Travels with the score, per BEAAA-35665 condition 3.
         "guard_version": scoring_result["guard_version"],
         "n_guard_removed": scoring_result["n_guard_removed"],
