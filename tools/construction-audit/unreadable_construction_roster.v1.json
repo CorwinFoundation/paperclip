@@ -1,0 +1,373 @@
+{
+ "schema": "backbond-unreadable-construction-roster@1",
+ "issue": "BEAAA-35661",
+ "frozen_at_commit": "b24bdf3be7e32a46f112b14e8a1d3ef8e5a541fe",
+ "statement": "The exact production-scored rows whose target-channel construction could not be read at the frozen commit, each with a recorded reason. This roster exempts indeterminate ONLY. A flagged row is never exempt. The roster is frozen: adding a key to it fails tests/test_beaaa35661_construction_promotion_gate.py, so a new row can never be promoted by widening it.",
+ "row_count": 42,
+ "reason_families": {
+  "garak_upstream_probe_module": {
+   "reason": "The mapping record binds a rubric point to an upstream garak probe class by probe_id and carries no prompt text. The prompts live in the installed garak distribution's probe modules and resource files, which this repository does not contain.",
+   "construction_lives_at": "garak/probes/*.py and garak/resources/ in the garak distribution pinned by locks/garak-py312.lock and requirements-eval-garak.txt (resolved here at /home/beai-agent/.local/lib/python3.12/site-packages/garak)",
+   "what_it_would_take": "An extractor that imports each named probe class at the pinned garak version, reads its prompt set, and writes the resolved prompts to a SHA-pinned evidence artifact. The audit must read that artifact, not a live import, or the predicate stops being reproducible."
+  },
+  "unvendored_upstream_benchmark_corpus": {
+   "reason": "The mapping record is a rubric binding only (probe_id, pillar, dim, weight, trigger_id, rationale). The prompts are rows of a public benchmark dataset that this repository does not vendor: no dataset file is git-tracked and no distribution is installed in the scanner image.",
+   "construction_lives_at": "the upstream JailbreakBench JBB-Behaviors, AdvBench harmful_behaviors, HaluEval, FActScore and PromptInject datasets, none of which appear under git ls-files",
+   "what_it_would_take": "Vendor a SHA-pinned slice of each dataset under the corpus tree and repoint source_pack at it. That is a test-corpus change with calibration consequences, so it is out of scope under this issue's guardrail and belongs in its own ticket."
+  },
+  "agentdojo_upstream_suite": {
+   "reason": "The probe_id names an AgentDojo suite and user/injection task pair. The task and injection text lives in the upstream agentdojo package, which is pinned for the eval lane but is not installed in this environment and is not vendored here.",
+   "construction_lives_at": "the agentdojo distribution pinned by locks/agentdojo-py312.lock and requirements-eval-agentdojo.txt, dispatched through scanners/agentdojo_runner.py",
+   "what_it_would_take": "The same pinned-import-then-record treatment as garak, run in an environment where the agentdojo extra is installed."
+  },
+  "no_target_interaction_derived_metric": {
+   "reason": "The row scores a coverage statistic computed over other families' results. There is no prompt and no target turn, so there is no target-channel construction to read. Unreadable is the correct and permanent answer here, not a gap.",
+   "construction_lives_at": "not applicable - no model interaction exists for this row",
+   "what_it_would_take": "Nothing. The predicate has no jurisdiction over a derived metric."
+  },
+  "no_target_interaction_attestation_artifact": {
+   "reason": "The row scores the presence of a required evidence artifact, not a model interaction. rubric/probe_mappings/pii_attestation.yaml has no probe bucket at all - its only list is required_evidence_artifacts - so the audit could not even find a record for the case_id.",
+   "construction_lives_at": "not applicable - no model interaction exists for this row",
+   "what_it_would_take": "Nothing. The predicate has no jurisdiction over an attestation row."
+  }
+ },
+ "rows": [
+  {
+   "key": "advbench.b2b_harmful",
+   "case_id": "advbench.b2b_harmful",
+   "source_pack": "rubric/probe_mappings/advbench.yaml",
+   "family": "b2b_harmful_behaviors",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "docs.attachment.rendered_html.command_hijack",
+   "case_id": "docs.attachment.rendered_html.command_hijack",
+   "source_pack": "rubric/probe_mappings/agentdojo.yaml",
+   "family": "agentdojo",
+   "rubric_point": "P3.2",
+   "reason_id": "agentdojo_upstream_suite"
+  },
+  {
+   "key": "retrieval.citation_card.canary_exfil",
+   "case_id": "retrieval.citation_card.canary_exfil",
+   "source_pack": "rubric/probe_mappings/agentdojo.yaml",
+   "family": "agentdojo",
+   "rubric_point": "P3.2",
+   "reason_id": "agentdojo_upstream_suite"
+  },
+  {
+   "key": "tools.email_thread.injected_followup",
+   "case_id": "tools.email_thread.injected_followup",
+   "source_pack": "rubric/probe_mappings/agentdojo.yaml",
+   "family": "agentdojo",
+   "rubric_point": "P3.2",
+   "reason_id": "agentdojo_upstream_suite"
+  },
+  {
+   "key": "workspace.write_then_summarize.indirect_system_override",
+   "case_id": "workspace.write_then_summarize.indirect_system_override",
+   "source_pack": "rubric/probe_mappings/agentdojo.yaml",
+   "family": "agentdojo",
+   "rubric_point": "P3.2",
+   "reason_id": "agentdojo_upstream_suite"
+  },
+  {
+   "key": "er.derived_coverage",
+   "case_id": "er.derived_coverage",
+   "source_pack": "rubric/probe_mappings/eval_representation.yaml",
+   "family": "eval_representation",
+   "rubric_point": "P2.4",
+   "reason_id": "no_target_interaction_derived_metric"
+  },
+  {
+   "key": "factscore.bio.citation_grounding",
+   "case_id": "factscore.bio.citation_grounding",
+   "source_pack": "rubric/probe_mappings/factscore.yaml",
+   "family": "biographical_fact_density",
+   "rubric_point": "P1.2",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "factscore.bio.factuality",
+   "case_id": "factscore.bio.factuality",
+   "source_pack": "rubric/probe_mappings/factscore.yaml",
+   "family": "biographical_fact_density",
+   "rubric_point": "P1.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "dan.AntiDAN",
+   "case_id": "dan.AntiDAN",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "encoding.InjectBase64",
+   "case_id": "encoding.InjectBase64",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "encoding.InjectROT13",
+   "case_id": "encoding.InjectROT13",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "leakreplay.LiteratureCloze",
+   "case_id": "leakreplay.LiteratureCloze",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.3",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "misleading.FalseAssertion",
+   "case_id": "misleading.FalseAssertion",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P1.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "promptinject.HijackHateHumans",
+   "case_id": "promptinject.HijackHateHumans",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "snowball.GraphConnectivity",
+   "case_id": "snowball.GraphConnectivity",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P1.3",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "xss.MarkdownImageExfil",
+   "case_id": "xss.MarkdownImageExfil",
+   "source_pack": "rubric/probe_mappings/garak.yaml",
+   "family": "garak",
+   "rubric_point": "P3.2",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.atkgen.Tox",
+   "case_id": "garak.atkgen.Tox",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "atkgen",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.continuation.ContinueSlursReclaimedSlurs",
+   "case_id": "garak.continuation.ContinueSlursReclaimedSlurs",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "continuation",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.divergence.Repeat",
+   "case_id": "garak.divergence.Repeat",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "divergence",
+   "rubric_point": "P3.3",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.encoding.InjectBase64",
+   "case_id": "garak.encoding.InjectBase64",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "encoding",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.encoding.InjectROT13",
+   "case_id": "garak.encoding.InjectROT13",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "encoding",
+   "rubric_point": "P3.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.exploitation.SQLInjectionEcho",
+   "case_id": "garak.exploitation.SQLInjectionEcho",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "exploitation",
+   "rubric_point": "P3.2",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.goodside.WhoIsRiley",
+   "case_id": "garak.goodside.WhoIsRiley",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "goodside",
+   "rubric_point": "P3.2",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.leakreplay.LiteratureCloze",
+   "case_id": "garak.leakreplay.LiteratureCloze",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "leakreplay",
+   "rubric_point": "P3.3",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.packagehallucination.Python",
+   "case_id": "garak.packagehallucination.Python",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "packagehallucination",
+   "rubric_point": "P1.1",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.realtoxicityprompts.RTPBlank",
+   "case_id": "garak.realtoxicityprompts.RTPBlank",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "realtoxicityprompts",
+   "rubric_point": "P2.5",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "garak.topic.WordnetControversial",
+   "case_id": "garak.topic.WordnetControversial",
+   "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml",
+   "family": "topic",
+   "rubric_point": "P2.5",
+   "reason_id": "garak_upstream_probe_module"
+  },
+  {
+   "key": "halueval.dialogue",
+   "case_id": "halueval.dialogue",
+   "source_pack": "rubric/probe_mappings/halueval.yaml",
+   "family": "dialogue",
+   "rubric_point": "P1.3",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "halueval.general",
+   "case_id": "halueval.general",
+   "source_pack": "rubric/probe_mappings/halueval.yaml",
+   "family": "general",
+   "rubric_point": "P1.6",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "halueval.qa",
+   "case_id": "halueval.qa",
+   "source_pack": "rubric/probe_mappings/halueval.yaml",
+   "family": "qa",
+   "rubric_point": "P1.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "halueval.summarization.citation_integrity",
+   "case_id": "halueval.summarization.citation_integrity",
+   "source_pack": "rubric/probe_mappings/halueval.yaml",
+   "family": "summarization",
+   "rubric_point": "P1.2",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "halueval.summarization.factuality",
+   "case_id": "halueval.summarization.factuality",
+   "source_pack": "rubric/probe_mappings/halueval.yaml",
+   "family": "summarization",
+   "rubric_point": "P1.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.disinformation",
+   "case_id": "jbb.disinformation",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "disinformation",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.economic_harm",
+   "case_id": "jbb.economic_harm",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "economic_harm",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.expert_advice",
+   "case_id": "jbb.expert_advice",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "expert_advice",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.fraud_deception",
+   "case_id": "jbb.fraud_deception",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "fraud_deception",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.harassment_discrimination",
+   "case_id": "jbb.harassment_discrimination",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "harassment_discrimination",
+   "rubric_point": "P2.5",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.malware_hacking",
+   "case_id": "jbb.malware_hacking",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "malware_hacking",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "jbb.privacy.exfil",
+   "case_id": "jbb.privacy.exfil",
+   "source_pack": "rubric/probe_mappings/jailbreakbench.yaml",
+   "family": "privacy",
+   "rubric_point": "P3.3",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "pii_attestation.evidence_pack",
+   "case_id": "pii_attestation.evidence_pack",
+   "source_pack": "rubric/probe_mappings/pii_attestation.yaml",
+   "family": "pii_attestation",
+   "rubric_point": "GOVERNANCE.PII.HANDLING_ATTESTATION",
+   "reason_id": "no_target_interaction_attestation_artifact"
+  },
+  {
+   "key": "promptinject.direct",
+   "case_id": "promptinject.direct",
+   "source_pack": "rubric/probe_mappings/promptinject.yaml",
+   "family": "direct_injection",
+   "rubric_point": "P3.1",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  },
+  {
+   "key": "promptinject.indirect_goodside",
+   "case_id": "promptinject.indirect_goodside",
+   "source_pack": "rubric/probe_mappings/promptinject.yaml",
+   "family": "indirect_injection",
+   "rubric_point": "P3.2",
+   "reason_id": "unvendored_upstream_benchmark_corpus"
+  }
+ ],
+ "key": "case_id (unique across all registry rows; relocation-stable, unlike source_pack)"
+}

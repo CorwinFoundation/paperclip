@@ -1,0 +1,351 @@
+{
+ "classes": {
+  "aggregate_category_row_over_upstream_dataset": {
+   "cases": [
+    {
+     "case_id": "advbench.b2b_harmful",
+     "family": "b2b_harmful_behaviors",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/advbench.yaml"
+    },
+    {
+     "case_id": "factscore.bio.citation_grounding",
+     "family": "biographical_fact_density",
+     "rubric_point": "P1.2",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/factscore.yaml"
+    },
+    {
+     "case_id": "factscore.bio.factuality",
+     "family": "biographical_fact_density",
+     "rubric_point": "P1.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/factscore.yaml"
+    },
+    {
+     "case_id": "halueval.dialogue",
+     "family": "dialogue",
+     "rubric_point": "P1.3",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/halueval.yaml"
+    },
+    {
+     "case_id": "halueval.general",
+     "family": "general",
+     "rubric_point": "P1.6",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/halueval.yaml"
+    },
+    {
+     "case_id": "halueval.qa",
+     "family": "qa",
+     "rubric_point": "P1.1",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/halueval.yaml"
+    },
+    {
+     "case_id": "halueval.summarization.citation_integrity",
+     "family": "summarization",
+     "rubric_point": "P1.2",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/halueval.yaml"
+    },
+    {
+     "case_id": "halueval.summarization.factuality",
+     "family": "summarization",
+     "rubric_point": "P1.1",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/halueval.yaml"
+    },
+    {
+     "case_id": "jbb.disinformation",
+     "family": "disinformation",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.economic_harm",
+     "family": "economic_harm",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.expert_advice",
+     "family": "expert_advice",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.fraud_deception",
+     "family": "fraud_deception",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.harassment_discrimination",
+     "family": "harassment_discrimination",
+     "rubric_point": "P2.5",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.malware_hacking",
+     "family": "malware_hacking",
+     "rubric_point": "P3.1",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "jbb.privacy.exfil",
+     "family": "privacy",
+     "rubric_point": "P3.3",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/jailbreakbench.yaml"
+    },
+    {
+     "case_id": "promptinject.direct",
+     "family": "direct_injection",
+     "rubric_point": "P3.1",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/promptinject.yaml"
+    },
+    {
+     "case_id": "promptinject.indirect_goodside",
+     "family": "indirect_injection",
+     "rubric_point": "P3.2",
+     "runner": "promptfoo_wrapper",
+     "source_pack": "rubric/probe_mappings/promptinject.yaml"
+    }
+   ],
+   "packs": {
+    "rubric/probe_mappings/advbench.yaml": 1,
+    "rubric/probe_mappings/factscore.yaml": 2,
+    "rubric/probe_mappings/halueval.yaml": 5,
+    "rubric/probe_mappings/jailbreakbench.yaml": 7,
+    "rubric/probe_mappings/promptinject.yaml": 2
+   },
+   "path_that_would_hold_it": "the upstream dataset the wrapper fetches, plus the in-tree per-case corpora that cover part of the same ground (tests/probe_sets/p5_direct_advbench_v1.jsonl, p5_direct_jailbreakbench_v1.jsonl, p4_grounded_factuality_halueval_qa_v1.jsonl, p4_citation_grounded_halueval_summ_v1.jsonl - whose per-case registry rows read clear)",
+   "reason": "The row is one dataset category, not one case: probe_id jbb.<category> / advbench.<slice> / halueval.<split> with a category label and a weight and no case list. Its members are pulled from the upstream dataset by the wrapper at run time, so no single construction text exists to read at the row's granularity.",
+   "rows": 17,
+   "what_it_would_take": "Define an aggregate row's construction as the union of its member cases and require the wrapper to emit a per-case manifest at execution, then run the predicate over the manifest instead of over the category row. That is a change to what the wrapper writes, not a change to the predicate."
+  },
+  "no_model_facing_prompt_by_construction": {
+   "cases": [
+    {
+     "case_id": "er.derived_coverage",
+     "family": "eval_representation",
+     "rubric_point": "P2.4",
+     "runner": "bench_wrapper",
+     "source_pack": "rubric/probe_mappings/eval_representation.yaml"
+    },
+    {
+     "case_id": "pii_attestation.evidence_pack",
+     "family": "pii_attestation",
+     "rubric_point": "GOVERNANCE.PII.HANDLING_ATTESTATION",
+     "runner": "governance_attestation_worker",
+     "source_pack": "rubric/probe_mappings/pii_attestation.yaml"
+    }
+   ],
+   "packs": {
+    "rubric/probe_mappings/eval_representation.yaml": 1,
+    "rubric/probe_mappings/pii_attestation.yaml": 1
+   },
+   "path_that_would_hold_it": "not applicable - no prompt is ever constructed",
+   "reason": "The row has no target channel at all. eval_representation.er.derived_coverage is derived from other rows' coverage and pii_attestation.evidence_pack is a governance attestation over an evidence pack. Neither sends text to a model, so the question the predicate asks does not apply to them.",
+   "rows": 2,
+   "what_it_would_take": "A not_applicable verdict class for non-prompt rows, so they stop being counted as unread. That widens the predicate's vocabulary and is a proposal on BEAAA-35661, not a silent change here: until it exists these two rows stay indeterminate and the gate keeps refusing them, which is the conservative direction."
+  },
+  "upstream_library_generates_prompts_at_dispatch": {
+   "cases": [
+    {
+     "case_id": "dan.AntiDAN",
+     "family": "garak",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "docs.attachment.rendered_html.command_hijack",
+     "family": "agentdojo",
+     "rubric_point": "P3.2",
+     "runner": "live_probe_harness",
+     "source_pack": "rubric/probe_mappings/agentdojo.yaml"
+    },
+    {
+     "case_id": "encoding.InjectBase64",
+     "family": "garak",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "encoding.InjectROT13",
+     "family": "garak",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "garak.atkgen.Tox",
+     "family": "atkgen",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.continuation.ContinueSlursReclaimedSlurs",
+     "family": "continuation",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.divergence.Repeat",
+     "family": "divergence",
+     "rubric_point": "P3.3",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.encoding.InjectBase64",
+     "family": "encoding",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.encoding.InjectROT13",
+     "family": "encoding",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.exploitation.SQLInjectionEcho",
+     "family": "exploitation",
+     "rubric_point": "P3.2",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.goodside.WhoIsRiley",
+     "family": "goodside",
+     "rubric_point": "P3.2",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.leakreplay.LiteratureCloze",
+     "family": "leakreplay",
+     "rubric_point": "P3.3",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.packagehallucination.Python",
+     "family": "packagehallucination",
+     "rubric_point": "P1.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.realtoxicityprompts.RTPBlank",
+     "family": "realtoxicityprompts",
+     "rubric_point": "P2.5",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "garak.topic.WordnetControversial",
+     "family": "topic",
+     "rubric_point": "P2.5",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak_beaaa152.yaml"
+    },
+    {
+     "case_id": "leakreplay.LiteratureCloze",
+     "family": "garak",
+     "rubric_point": "P3.3",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "misleading.FalseAssertion",
+     "family": "garak",
+     "rubric_point": "P1.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "promptinject.HijackHateHumans",
+     "family": "garak",
+     "rubric_point": "P3.1",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "retrieval.citation_card.canary_exfil",
+     "family": "agentdojo",
+     "rubric_point": "P3.2",
+     "runner": "live_probe_harness",
+     "source_pack": "rubric/probe_mappings/agentdojo.yaml"
+    },
+    {
+     "case_id": "snowball.GraphConnectivity",
+     "family": "garak",
+     "rubric_point": "P1.3",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    },
+    {
+     "case_id": "tools.email_thread.injected_followup",
+     "family": "agentdojo",
+     "rubric_point": "P3.2",
+     "runner": "live_probe_harness",
+     "source_pack": "rubric/probe_mappings/agentdojo.yaml"
+    },
+    {
+     "case_id": "workspace.write_then_summarize.indirect_system_override",
+     "family": "agentdojo",
+     "rubric_point": "P3.2",
+     "runner": "live_probe_harness",
+     "source_pack": "rubric/probe_mappings/agentdojo.yaml"
+    },
+    {
+     "case_id": "xss.MarkdownImageExfil",
+     "family": "garak",
+     "rubric_point": "P3.2",
+     "runner": "garak_wrapper",
+     "source_pack": "rubric/probe_mappings/garak.yaml"
+    }
+   ],
+   "packs": {
+    "rubric/probe_mappings/agentdojo.yaml": 4,
+    "rubric/probe_mappings/garak.yaml": 8,
+    "rubric/probe_mappings/garak_beaaa152.yaml": 11
+   },
+   "path_that_would_hold_it": "the installed third-party package (garak probe modules / agentdojo task suites) at the version the wrapper resolves at run time",
+   "reason": "The row names an upstream probe class (garak probe_id, AgentDojo task suite), not a prompt. The text is constructed inside the third-party package when the wrapper dispatches it; the pack carries probe_id, pillar, dim and weight and no prompt text. Neither package is vendored in this tree, so there is nothing in-repo to read.",
+   "rows": 23,
+   "what_it_would_take": "Pin the upstream version, snapshot each named probe class's emitted prompt list into a vendored corpus under tests/probe_sets/, and have the wrapper record a per-case text hash at execution. Size and licence of the vendored snapshot is a decision above this issue, so it is filed as its own row rather than done here."
+  }
+ },
+ "derived_from": "artifacts/beaaa-35660/construction_ledger.json",
+ "issue": "BEAAA-35663",
+ "opening_indeterminate_count_beaaa_35660": 96,
+ "parent": "BEAAA-35661",
+ "produced_by": "tools/construction-audit/beaaa35663_indeterminate_dispositions.py",
+ "production_scored_rows": 479,
+ "recovered_readable_beaaa_35661": 54,
+ "schema": "backbond-indeterminate-disposition@1",
+ "unreadable_with_reason": 42,
+ "verdicts": {
+  "clear": 437,
+  "indeterminate": 42
+ }
+}

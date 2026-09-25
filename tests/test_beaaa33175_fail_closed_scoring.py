@@ -7,12 +7,40 @@ D2 - a row may not be scoring-active while its candidate rubric mapping is
 
 import pytest
 
+from tools import construction_integrity_gate
 from tools.active_test_registry import (
     _scoring_active,
     apply_fail_closed_scoring,
     build_registry,
     row_blocks_scoring_activation,
 )
+
+# BEAAA-35661 added construction integrity as a third fail-closed predicate, so
+# "mapped and evidenced" is no longer on its own enough to carry weight - a row
+# must also have had its target-channel construction read and found clean.
+#
+# The D2 rows below are invented, not corpus rows, so they have no construction
+# to audit and the new predicate bars them. That is the gate behaving correctly;
+# it is pinned directly by test_a_row_that_was_never_audited_is_refused in
+# tests/test_beaaa35661_construction_promotion_gate.py. Declaring these rows
+# audited-clear here keeps the D2 tests measuring D2 - mapping and evidence -
+# instead of silently re-measuring the construction gate.
+#
+# This fixture grants nothing to the gate's own suite and nothing to the live
+# registry: it is scoped to this module and keyed to these invented case ids.
+@pytest.fixture(autouse=True)
+def _synthetic_rows_are_audited_clear(monkeypatch):
+    real = construction_integrity_gate.load_dispositions
+
+    def _with_synthetic(*args, **kwargs):
+        table = dict(real(*args, **kwargs))
+        for case_id in ("c",):
+            table.setdefault(case_id, construction_integrity_gate.CLEAR)
+        return table
+
+    monkeypatch.setattr(
+        construction_integrity_gate, "load_dispositions", _with_synthetic
+    )
 
 # D1 landed on master (BEAAA-33101 terminal `return False`); the hold is over.
 

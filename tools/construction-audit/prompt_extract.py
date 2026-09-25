@@ -24,12 +24,46 @@ PROMPT_NAMES = re.compile(
     r"(prompt|message|messages|system|content|instruction|user_msg|user_text|query|turn)",
     re.IGNORECASE,
 )
-PROMPT_KEYS = re.compile(
-    r"^(prompt|prompts|scenario|scenarios|input|inputs|user|user_prompt|system_prompt|"
-    r"message|messages|content|text|attack|attack_text|injection|payload|instruction|"
-    r"instructions|question|turn|turns|utterance|body|seed|template)$",
-    re.IGNORECASE,
+# BEAAA-35661: the v1 form was an anchored exact-match alternation, so a key
+# named ``prompt_text`` matched neither ``prompt`` nor ``text`` and the probe
+# text was silently unread. That is what made the 34 P1.1 and 20 P1.3 golden
+# rows report ``indeterminate`` while their prompts sat in plain sight. Match on
+# word parts instead: a key is prompt-bearing when one of its underscore-
+# separated parts is a prompt word and none of its parts is a bookkeeping word.
+_PROMPT_WORDS = frozenset(
+    "prompt prompts scenario scenarios input inputs user system message messages "
+    "content text attack injection payload instruction instructions question "
+    "questions turn turns utterance utterances body seed template query request "
+    "ask".split()
 )
+# Bookkeeping parts never reach the model even when they sit beside a prompt
+# word: ``prompt_id``, ``prompt_sha256``, ``input_count`` and friends.
+_BOOKKEEPING_WORDS = frozenset(
+    "id ids uuid sha sha256 hash digest checksum count len length size version "
+    "path paths file files dir ref refs url uri name names type types class "
+    "status index idx offset tag tags weight score scores order rank enabled "
+    "active flag flags schema format encoding".split()
+)
+
+
+def _key_parts(key: str) -> list[str]:
+    return [part for part in re.split(r"[^A-Za-z0-9]+", key.lower()) if part]
+
+
+class _PromptKeyMatcher:
+    """``.match(key)`` truthy when the key names prompt-bearing text."""
+
+    @staticmethod
+    def match(key: str) -> bool:
+        parts = _key_parts(key)
+        if not parts:
+            return False
+        if any(part in _BOOKKEEPING_WORDS for part in parts):
+            return False
+        return any(part in _PROMPT_WORDS for part in parts)
+
+
+PROMPT_KEYS = _PromptKeyMatcher()
 
 
 def _render(node: ast.AST) -> str | None:

@@ -21,6 +21,9 @@ artifacts/beaaa-152/datasets/*
 !artifacts/beaaa-18720/
 artifacts/beaaa-18720/*
 !artifacts/beaaa-18720/unified-probe-inventory.jsonl
+!artifacts/beaaa-35661/
+artifacts/beaaa-35661/*
+!artifacts/beaaa-35661/construction_dispositions.json
 !artifacts/BEAAA-25646/
 artifacts/BEAAA-25646/*
 !artifacts/BEAAA-25646/c10-mapping-ledger-v1.0.jsonl

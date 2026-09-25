@@ -47,6 +47,7 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     "artifacts/BEAAA-33199/capability-manifest.json": "read_required",
     "artifacts/beaaa-152/datasets/halueval_dialogue_summ_general_n300.json": "read_required",
     "artifacts/beaaa-18720/unified-probe-inventory.jsonl": "read_required",
+    "artifacts/beaaa-35661/construction_dispositions.json": "read_required",
     "artifacts/beaaa-19322/vapi-2000-scoreability-ledger-v1.1.json": "read_required",
     "artifacts/beaaa-19929/canonical-probe-vapi-backlog-v1.0.jsonl": "read_required",
     "artifacts/beaaa-21704/execution_evidence.json": "read_required",

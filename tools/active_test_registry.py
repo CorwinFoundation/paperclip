@@ -24,6 +24,9 @@ import yaml
 
 from harness.bench.corpus_pin import load_probe_set_version
 
+from tools.construction_integrity_gate import (
+    row_blocks_construction_activation,
+)
 from tools.founder_dev_mode import (
     ATTESTATION_FOUNDER_DEV,
     ATTESTATION_PRODUCTION_SIGNED,
@@ -605,10 +608,17 @@ def row_blocks_scoring_activation(row: Mapping[str, Any]) -> bool:
     # fields and the exemption is no longer load-bearing. Do not reintroduce a
     # tier-keyed bypass here: pinned by
     # tests/test_beaaa33538_no_tier_exemption.py.
+    #
+    # BEAAA-35661: construction integrity is the third fail-closed predicate. A
+    # row may not carry weight while the text that reaches the target trips a
+    # retired-construction signature, nor while that text cannot be read at all.
+    # See tools/construction_integrity_gate.py for why the judge channel is
+    # reported and not blocked, and for the frozen legacy roster.
     return (
         row.get("candidate_rubric_mapping_status")
         == UNMAPPED_CANDIDATE_RUBRIC_STATUS
         or row.get("execution_evidenced") is not True
+        or row_blocks_construction_activation(row)
     )
 
 

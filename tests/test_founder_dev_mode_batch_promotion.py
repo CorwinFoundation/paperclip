@@ -36,7 +36,12 @@ BASELINE_ACTIVE_EXECUTABLE = 500
 # were already counted, so they add nothing to the count (only flip to scored).
 # 491 production-default + 88 earlier Founder-Dev-Mode rows + the separately
 # authorized BEAAA-24008 lane-C tranche (44) = 619 on this combined train tree.
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 632
+# BEAAA-35661: 632 -> 624. The construction-integrity gate refuses the 8 rows in
+# CONSTRUCTION_UNREADABLE_ALIAS_FAMILIES (crescendo 4, backbond-output-attack-fixtures 4),
+# whose target-channel construction is unreadable, so dev mode no longer promotes them.
+# Dev-mode only: BASELINE_ACTIVE_EXECUTABLE, the flag-off production default, is unchanged,
+# and no production score moves.
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 624
 
 
 def _rows_by_family(rows):
@@ -104,6 +109,16 @@ def test_sets_partition_cleanly():
     )
 
 
+#: Families the BEAAA-35661 construction gate refuses even under dev mode: pinned
+#: executable aliases whose mapping carries no prompt text and whose construction
+#: is not recoverable from anywhere in the tree. Pinned exactly, so a narrowing
+#: that blinded the extractor and barred additional families would fail here
+#: rather than quietly shrinking the promoted set.
+CONSTRUCTION_UNREADABLE_ALIAS_FAMILIES = frozenset(
+    {"crescendo", "backbond-output-attack-fixtures"}
+)
+
+
 def test_flag_off_is_production_default_unchanged(monkeypatch):
     monkeypatch.delenv(FOUNDER_DEV_MODE_ENV, raising=False)
     rows = build_registry(include_content_candidates=False)
@@ -121,11 +136,28 @@ def test_flag_on_promotes_every_family(monkeypatch):
     monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
     rows = build_registry(include_content_candidates=False)
     by = _rows_by_family(rows)
-    for fam in FOUNDER_DEV_LEGACY_SCORED_FAMILIES | BENCHMARK_PROMOTED_PATH_B_FAMILIES:
+    for fam in (
+        FOUNDER_DEV_LEGACY_SCORED_FAMILIES
+        | BENCHMARK_PROMOTED_PATH_B_FAMILIES
+    ) - CONSTRUCTION_UNREADABLE_ALIAS_FAMILIES:
         rs = by.get(fam, [])
         assert rs, fam
         assert {r["reporting_status"] for r in rs} == {"scoring_active"}, fam
         assert {r["scoring_active"] for r in rs} == {True}, fam
+    # BEAAA-35661: the construction-integrity predicate bars promotion of a row
+    # whose target-channel construction cannot be read, dev mode included. These
+    # two families are executable aliases retained for full-scan surface only -
+    # their yaml carries probe_id and taxonomy and no prompt text, and the text
+    # exists nowhere else in the tree, so the predicate returns indeterminate and
+    # the gate refuses them. Both packs already declare themselves
+    # reporting_status: reported_not_scored / scoring_active: false and
+    # "Evidence only; no score contribution", so refusing them contradicts
+    # nothing; dev mode used to override that and now does not.
+    for fam in CONSTRUCTION_UNREADABLE_ALIAS_FAMILIES:
+        rs = by.get(fam, [])
+        assert rs, fam
+        assert {r["reporting_status"] for r in rs} == {"reported_not_scored"}, fam
+        assert {r["scoring_active"] for r in rs} == {False}, fam
     # Ledger-gated families (BEAAA-35380) promote via content-candidate rows, not YAML
     # benchmark path. Their YAML mapping rows are D2-blocked (no execution evidence) and
     # stay reported_not_scored here; coverage is in test_beaaa35380_dev_scoring_activation.py.
