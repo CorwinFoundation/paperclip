@@ -183,21 +183,89 @@ def test_root_still_fast_forwards_before_checking(host):
     assert "merge --ff-only --quiet origin/master" in calls
 
 
-def test_no_timer_is_ever_enabled_or_started():
-    """BEAAA-30240: both timers carry Persistent=true.
-
-    `--now` -- and a bare `start` on a timer whose stamp is missing -- fires an
-    immediate catch-up scan on a host that is still being provisioned, which
-    would spend OpenRouter credit this issue is explicitly not authorised to
-    spend.  A deliberately disabled timer must also survive this script.
-    """
+def _code() -> str:
+    """The script with comments stripped, so pins are about what it runs."""
 
     text = (SCHEDULE_DIR / SCRIPT_NAME).read_text(encoding="utf-8")
-    code = "\n".join(
+    return "\n".join(
         line for line in text.splitlines() if not line.lstrip().startswith("#")
     )
-    assert "systemctl" not in code
+
+
+def test_no_timer_is_ever_started():
+    """BEAAA-30240: both timers carry Persistent=true.
+
+    `--now`, and a bare `start` on a timer whose stamp is stale, fires an
+    immediate catch-up run. For the zoo lane that is unfunded OpenRouter spend;
+    for the VAPI lane it is live production traffic. Enable and disable are the
+    only verbs that change nothing on their own.
+    """
+
+    code = _code()
     assert "--now" not in code
+    assert "systemctl start" not in code
+
+
+def test_the_vapi_timer_is_disarmed_and_never_enabled():
+    """CEO constraint, BEAAA-35698 2026-09-25.
+
+    `/etc/backbond/scan-schedule.conf` points BACKBOND_SCAN_AGENT_ENDPOINT at
+    https://api.vapi.ai -- live production -- and BEAAA-32522 forbids new VAPI
+    traffic without a current written authorization, which lapsed in July. The
+    timer is enabled, active and Persistent=true, and the only reason its
+    2026-09-14 and 2026-09-21 firings sent nothing is the drifted unit this
+    script repairs. Repairing without disarming would re-arm that lane.
+    """
+
+    code = _code()
+    vapi_lines = [ln.strip() for ln in code.splitlines() if "vapi" in ln and "systemctl" in ln]
+    assert vapi_lines, "the VAPI timer must be handled explicitly, not by omission"
+    for line in vapi_lines:
+        assert "systemctl enable" not in line, line
+    joined = "\n".join(vapi_lines)
+    assert "systemctl stop backbond-scan-vapi.timer" in joined
+    assert "systemctl disable backbond-scan-vapi.timer" in joined
+
+
+def test_only_the_zoo_timer_is_enabled_and_only_by_literal_name():
+    """No glob, no loop: a future unit must not be armed by being added.
+
+    The CEO constraint is that the provisioning path enables exactly
+    `backbond-scan-zoo.timer`. A `for unit in ...timer` loop or a
+    `backbond-scan-*.timer` glob would satisfy today's unit list and arm
+    tomorrow's.
+    """
+
+    code = _code()
+    enable_lines = [
+        ln.strip() for ln in code.splitlines() if "systemctl enable" in ln
+    ]
+    assert enable_lines == ["systemctl enable backbond-scan-zoo.timer"]
+    assert "backbond-scan-*.timer" not in code
+    assert "*.timer" not in code
+
+
+def test_disarming_happens_before_the_repair():
+    """An aborted repair must not leave the VAPI lane armed and working."""
+
+    code = _code()
+    assert code.index("_scope_timers\n") < code.index("install-units-only.sh")
+    # And the result is re-read afterwards rather than assumed.
+    assert code.index("install-units-only.sh") < code.rindex("_assert_vapi_disarmed")
+
+
+def test_timer_scoping_is_gated_on_the_real_unit_directory(host):
+    """Enablement is global state, so a temp-dir run must not touch systemd."""
+
+    shim = host.shim_dir / "systemctl"
+    log = host.shim_dir / "systemctl.log"
+    shim.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{log}"\n', encoding="utf-8")
+    shim.chmod(0o755)
+
+    _install_units(host.unit_dir)
+    proc = host(as_root=True)
+    assert proc.returncode == 0, proc.stderr
+    assert not log.exists(), log.read_text(encoding="utf-8") if log.exists() else ""
 
 
 def test_the_script_uses_the_checkout_it_just_fast_forwarded():

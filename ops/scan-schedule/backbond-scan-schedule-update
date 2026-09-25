@@ -25,16 +25,33 @@
 # a unit, so it clears the constraint above.
 #
 # As root it repairs and re-checks; unprivileged it reports and exits non-zero
-# so the drift is visible rather than silent.  Timer enablement is untouched in
-# both paths: a timer that was deliberately switched off stays off, and
-# `systemctl enable --now` stays banned -- both timers carry Persistent=true,
-# so `--now` fires an immediate unfunded catch-up scan (BEAAA-30240).
+# so the drift is visible rather than silent.
+#
+# Timer scoping, which is load-bearing and not incidental.  Repairing the units
+# un-breaks the weekly VAPI lane as a side effect, and that lane is currently
+# failing closed only by accident: `backbond-scan-vapi.timer` is enabled and
+# active with `Persistent=true` and `OnCalendar=Mon *-*-* 03:00:00 UTC`, and
+# `/etc/backbond/scan-schedule.conf` points
+# `BACKBOND_SCAN_AGENT_ENDPOINT` at https://api.vapi.ai -- live production.
+# BEAAA-32522's release boundary forbids new VAPI traffic without a current
+# written authorization and the July one lapsed; the 2026-09-14 and 2026-09-21
+# firings sent nothing only because the drifted unit exits 1.  So this script
+# disarms that one timer, by name, before it repairs anything.  Repair first
+# and an aborted run leaves the lane armed.
+#
+# The zoo timer is enabled, by name, and never started: `--now` on either
+# timer, and a bare `start` on a timer whose stamp is stale, fires an immediate
+# Persistent catch-up run (BEAAA-30240).  No glob, no loop, no
+# `backbond-scan-*.timer` -- the unit list is spelled out so a future unit
+# cannot be armed by being added to the directory (BEAAA-35698, CEO constraint
+# 2026-09-25).
 #
 # Usage:  backbond-scan-schedule-update [checkout_dir] [unit_dir]
 set -eu
 
 checkout=${1:-/opt/backbond/src}
-unit_dir=${2:-/etc/systemd/system}
+default_unit_dir=/etc/systemd/system
+unit_dir=${2:-$default_unit_dir}
 
 test -d "$checkout/.git"
 
@@ -53,7 +70,38 @@ fi
 schedule_dir="$checkout/ops/scan-schedule"
 test -d "$schedule_dir" || { echo "missing $schedule_dir" >&2; exit 1; }
 
+# Exactly one timer is disarmed and exactly one is armed, both by literal name.
+# Enablement is global systemd state, so this is gated on operating against the
+# real unit directory: a test run pointed at a temp dir must not touch it.
+_scope_timers() {
+  test "$unit_dir" = "$default_unit_dir" || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+
+  # Disarm. `stop` on a timer unit triggers nothing; only starting one can.
+  if [ "$(systemctl is-enabled backbond-scan-vapi.timer 2>/dev/null || true)" = enabled ]; then
+    echo 'Disarming backbond-scan-vapi.timer: no current VAPI authorization (BEAAA-32522).'
+    systemctl stop backbond-scan-vapi.timer
+    systemctl disable backbond-scan-vapi.timer
+  fi
+
+  # Arm the nightly zoo lane for the next boot. Never started here.
+  systemctl enable backbond-scan-zoo.timer
+}
+
+_assert_vapi_disarmed() {
+  test "$unit_dir" = "$default_unit_dir" || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+  if [ "$(systemctl is-enabled backbond-scan-vapi.timer 2>/dev/null || true)" = enabled ]; then
+    echo 'backbond-scan-vapi.timer is still enabled after disable; refusing to leave it armed' >&2
+    exit 1
+  fi
+}
+
 if "$schedule_dir/check-unit-drift.sh" "$unit_dir"; then
+  if [ "$(id -u)" -eq 0 ]; then
+    _scope_timers
+    _assert_vapi_disarmed
+  fi
   echo 'Installed units match the checkout; nothing to repair.'
   exit 0
 fi
@@ -64,11 +112,17 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+_scope_timers
+
 echo 'Installed units have drifted from the checkout; repairing.'
 "$schedule_dir/install-units-only.sh" "$unit_dir"
+
+# Reinstalling a unit file does not restore a .wants symlink, but the whole
+# point of this script is that assumptions about /etc go stale, so re-read it.
+_assert_vapi_disarmed
 
 # Prove the repair took rather than asserting it.  install-units-only.sh ends
 # in the same check, but it is re-run here so this script's own exit status
 # reports the state it leaves behind.
 "$schedule_dir/check-unit-drift.sh" "$unit_dir"
-echo 'Units repaired. No timer was enabled or disabled.'
+echo 'Units repaired. backbond-scan-vapi.timer is disarmed; backbond-scan-zoo.timer is enabled, not started.'
