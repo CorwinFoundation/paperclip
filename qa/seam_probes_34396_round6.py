@@ -13,6 +13,7 @@ same three questions A9 asks the case surface: read-back, isolation, control.
 Report-only.
 """
 import pathlib
+import subprocess
 import sys
 import tempfile
 
@@ -43,14 +44,29 @@ def seed(task_id):
     return a
 
 # Y1. Read. A receipt is the most private object Stage A holds.
+#
+# The requirement is that the foreign tenant does not get the receipt. It is not
+# that the refusal takes one particular form. As first written this leg asserted
+# `seen is None`, which made it a test of the shape rather than of the property:
+# when the fix landed as a raised `PermissionError` (BEAAA-35578), the exception
+# went uncaught and killed the whole file at this line, so Y2-Y5 never ran and
+# round six reported nothing at all. A probe that cannot survive the fix it asked
+# for is not evidence. Both refusals count here; what is recorded is which one
+# the implementation chose, so the choice stays visible.
 a = seed("task-y1")
 b = EvidenceStore(ROOT, tenant="tenant-b")
-seen = b.receipt_for("task-y1")
-probe("Y1", "a tenant cannot read another tenant's approval receipt",
-      seen is None,
-      "tenant-b receipt_for('task-y1') -> None" if seen is None else
-      f"tenant-b receipt_for('task-y1') returned it in full: description={seen.proposed_action.description!r} "
-      f"merchant={seen.proposed_action.merchant!r} amount_cents={seen.proposed_action.amount_cents}")
+try:
+    seen = b.receipt_for("task-y1")
+    ok = seen is None
+    detail = ("tenant-b receipt_for('task-y1') -> None (refused as not-found)" if ok else
+              f"tenant-b receipt_for('task-y1') returned it in full: "
+              f"description={seen.proposed_action.description!r} "
+              f"merchant={seen.proposed_action.merchant!r} "
+              f"amount_cents={seen.proposed_action.amount_cents}")
+except PermissionError as exc:
+    ok = True
+    detail = f"tenant-b receipt_for('task-y1') -> refused with {type(exc).__name__}"
+probe("Y1", "a tenant cannot read another tenant's approval receipt", ok, detail)
 
 # Y2. Settle. The claim carries the money at risk on top of the receipt.
 a = seed("task-y2")
@@ -117,7 +133,52 @@ probe("Y5", "the case surface is isolated, so the boundary exists and Y1-Y3 are 
       own is not None and foreign is None,
       f"tenant-a packet('case-y5') -> {'present' if own else 'None'}; tenant-b -> {foreign_state}")
 
+# Y6. The plant direction, and the reason this row is about money and not only
+# about privacy. Y1-Y3 all have the foreign tenant reading or writing something
+# of the owner's. This one runs the other way: the foreign tenant writes an
+# approved receipt of its own on a task id the owner has not used, and then the
+# *owner's* process executes it. `execute_approved_task` takes description and
+# amount straight off the stored receipt and has no mandate check of its own, so
+# on an unscoped read this is not a disclosure -- it is the owner's adapter
+# buying the foreign tenant's basket. Measured at master 69ade651 it executed
+# `purchase('task-y6', 'Gift cards x200', 5000000)`.
+class _RecordingMerchant(SyntheticMerchantAdapter):
+    """Records purchases, so "money did not move" is observed and not inferred."""
+
+    def __init__(self):
+        self.calls = []
+
+    def purchase(self, *, case_id, sku, amount_cents):
+        self.calls.append((case_id, sku, amount_cents))
+        return super().purchase(case_id=case_id, sku=sku, amount_cents=amount_cents)
+
+
+LOOT = ProposedAction(description="Gift cards x200", merchant="attacker.example",
+                      amount_cents=5_000_000, non_recoverable=True,
+                      cancellation_terms="non-refundable")
+b = EvidenceStore(ROOT, tenant="tenant-b")
+b.record_pre_execution_receipt(ApprovalReceipt(
+    "rcpt-task-y6", "task-y6", LOOT, ANSWER_OK,
+    "2026-09-20T09:00:00Z", "2026-09-20T09:01:00Z", "2026-09-20T09:01:05Z"))
+a = EvidenceStore(ROOT, tenant="tenant-a")
+spy = _RecordingMerchant()
+try:
+    a.execute_approved_task("task-y6", merchant=spy, executed_at="2026-09-21T09:00:00Z")
+    ran = "EXECUTED"
+except Exception as exc:
+    ran = f"refused with {type(exc).__name__}"
+probe("Y6", "a receipt planted by another tenant is not executable by this one",
+      not ran.startswith("EXECUTED") and not spy.calls,
+      f"tenant-a execute_approved_task on tenant-b's planted receipt -> {ran}; "
+      f"merchant.purchase calls={spy.calls}")
+
 w = sum(1 for r in ROWS if r[1] == "HOLDS")
-print(f"BEAAA-34396 round-six probes @ 69ade651  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
+# The SHA is read from the checkout rather than written into the file. The
+# original hardcoded `69ade651` kept being printed beside results from other
+# commits, which makes a pasted report unciteable.
+_sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
+                      cwd=pathlib.Path(__file__).resolve().parents[1])
+_at = _sha.stdout.strip() or "unknown"
+print(f"BEAAA-34396 round-six probes @ {_at}  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
 for pid, st, req, detail in ROWS:
     print(f"{pid} {st}: {req}\n      {detail}")
