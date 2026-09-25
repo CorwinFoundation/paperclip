@@ -21,6 +21,8 @@ closed, this list shrinks in the same change.
 from __future__ import annotations
 
 import importlib.util
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -88,3 +90,50 @@ def test_allowlisted_failures_have_not_been_fixed(harness_results):
         f"these probes now hold and must come out of KNOWN_FAILING: "
         + ", ".join(f"{p} ({KNOWN_FAILING[p]})" for p in fixed)
     )
+
+# --------------------------------------------------------------------------
+# The qa/ round scripts, for the same reason the harness is here. The harness
+# guard above caught a broken seam but not a broken *probe*: round seven sat on
+# master dying with CheckNotApproved out of its own Z5 setup, because
+# BEAAA-35553 shut the door the probe walked through, and nothing noticed. A
+# probe that crashes reports no failure, which reads exactly like a probe that
+# passed.
+
+ROUND_SCRIPTS = sorted((REPO_ROOT / "qa").glob("seam_probes_34396*.py"))
+
+# Round scripts expected to report failures, each with the row that owns the
+# gap. Same two-way contract as KNOWN_FAILING: an entry whose script starts
+# holding fails this test, so the exemption cannot outlive the fix.
+ROUNDS_WITH_KNOWN_FAILS: dict[str, str] = {}
+
+SUMMARY = re.compile(r"probes=(\d+)\s+holds=(\d+)\s+fails=(\d+)")
+
+
+def test_round_scripts_are_discovered():
+    """A glob that matches nothing would make every test below vacuous."""
+    assert len(ROUND_SCRIPTS) >= 9, [p.name for p in ROUND_SCRIPTS]
+
+
+@pytest.mark.parametrize("script", ROUND_SCRIPTS, ids=lambda p: p.name)
+def test_round_script_runs_and_reports(script):
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=300,
+    )
+    assert proc.returncode == 0, (
+        f"{script.name} exited {proc.returncode}; a probe that crashes reports no "
+        f"failure and reads like one that passed.\n{proc.stdout[-800:]}\n{proc.stderr[-800:]}"
+    )
+    match = SUMMARY.search(proc.stdout)
+    assert match, f"{script.name} printed no probes/holds/fails summary:\n{proc.stdout[-800:]}"
+    fails = int(match.group(3))
+    reason = ROUNDS_WITH_KNOWN_FAILS.get(script.name)
+    if reason is None:
+        assert fails == 0, (
+            f"{script.name} reports {fails} failing probe(s):\n{proc.stdout[-1500:]}"
+        )
+    else:
+        assert fails > 0, (
+            f"{script.name} now holds throughout and must come out of "
+            f"ROUNDS_WITH_KNOWN_FAILS ({reason})"
+        )

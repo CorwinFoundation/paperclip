@@ -30,7 +30,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from stage_a_demo.core import EvidenceStore, Mandate, SyntheticMerchantAdapter  # noqa: E402
 from stage_a_demo.approval import approve_mandate  # noqa: E402
-from stage_a_demo.receipt import ANSWER_OK, ApprovalReceipt, ProposedAction  # noqa: E402
+from stage_a_demo.receipt import (ANSWER_OK, ApprovalReceipt, ExecutedOutcome,  # noqa: E402
+                                  ProposedAction)
 
 ROOT = pathlib.Path(tempfile.mkdtemp(prefix="qa34396-r7-")) / "evidence.sqlite3"
 ACTION = ProposedAction(description="Hotel Ester, 12-15 Oct, 2 guests", merchant="bookings.example",
@@ -117,18 +118,34 @@ probe("Z4", "a spent approval cannot be withdrawn, and withdrawal never unwinds 
 a = EvidenceStore(ROOT, tenant="tenant-a")
 seed_receipt(a, "task-z5")
 a.revoke_approval("task-z5")
-a.execute_approved_task("task-z5", merchant=SyntheticMerchantAdapter(),
-                        executed_at="2026-09-20T09:30:00Z")
+# BEAAA-35553 landed the Path 1 withdrawal lever after this probe was written,
+# so execute_approved_task now refuses outright and this script used to die here
+# with CheckNotApproved instead of reporting. The refusal is the lever working
+# and Z2 already asserts it, but it is not what Z5 asks. Z5 asks what the claim
+# makes of a charge that happened anyway, and an agent that ignores a withdrawal
+# does not ask permission first - so the execution is recorded through
+# record_outcome, the documented entry point for a task that executed outside
+# this process. Both halves are the requirement now: the door refuses, and a
+# charge that got through it still settles with the withdrawal on the record.
+ran, refusal = outcome_of(a.execute_approved_task, "task-z5",
+                          merchant=SyntheticMerchantAdapter(),
+                          executed_at="2026-09-20T09:30:00Z")
+a.record_outcome("task-z5", ExecutedOutcome(
+    ACTION.description, ACTION.merchant, ACTION.amount_cents,
+    evidence_ref="merchant-confirmation-z5", observed_at="2026-09-20T09:30:00Z"),
+    executed_at="2026-09-20T09:30:00Z")
 claim = a.claim_for("task-z5")
 blob = str(claim).lower()
 recorded = any(w in blob for w in ("revok", "withdraw"))
-probe("Z5", "a settled claim on a charge the user tried to withdraw records the withdrawal",
-      recorded,
-      f"claim={claim.get('claim')!r} covered={claim.get('covered')} "
-      f"at_risk={claim.get('amount_at_risk_cents')}; withdrawal attempt appears in the settled claim: "
-      f"{recorded}")
+probe("Z5", "the withdrawal lever refuses at the door, and a charge that happened anyway "
+      "settles with the withdrawal on the record",
+      (not ran) and recorded,
+      f"execute_approved_task after withdrawal -> {refusal if not ran else 'EXECUTED'}; "
+      f"recorded out-of-process instead -> claim={claim.get('claim')!r} "
+      f"covered={claim.get('covered')} at_risk={claim.get('amount_at_risk_cents')}; "
+      f"withdrawal appears in the settled claim: {recorded}")
 
 w = sum(1 for r in ROWS if r[1] == "HOLDS")
-print(f"BEAAA-34396 round-seven probes @ 0313498b  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
+print(f"BEAAA-34396 round-seven probes  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
 for pid, st, req, detail in ROWS:
     print(f"{pid} {st}: {req}\n      {detail}")
