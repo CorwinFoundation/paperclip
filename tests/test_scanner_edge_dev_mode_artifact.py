@@ -132,3 +132,36 @@ def test_only_the_master_push_deploy_job_contacts_the_scanner_server() -> None:
     assert "secrets.SCANNER_DEPLOY_SSH_KEY" not in deploy_text
     assert "secrets.SCANNER_DEPLOY_KNOWN_HOSTS" not in deploy_text
     assert "-o StrictHostKeyChecking=yes" in deploy_text
+
+
+def test_governed_release_evidence_upload_excludes_the_image_tars() -> None:
+    """BEAAA-35580: governed evidence is kilobytes of receipts, not a 75 MiB image tar.
+
+    The image tar is a transport; the registry is the store. The uploaded
+    receipts keep ``scanner-edge-image.digest`` and
+    ``scanner-edge-image.tar.sha256``, so the evidence still resolves against
+    ``ghcr.io/corwinfoundation/are-scanner`` by digest, and the full payload
+    (image tar included) stays in GHCR under the reference recorded in
+    ``scanner-release-evidence-publication.json``.
+    """
+    _, workflow = _workflow()
+    steps = workflow["jobs"]["image-build"]["steps"]
+
+    upload = next(
+        step for step in steps if step.get("name") == "Upload governed release evidence"
+    )
+    paths = [line for line in upload["with"]["path"].splitlines() if line.strip()]
+    assert paths == [
+        "release-candidate/",
+        "durable-evidence/",
+        "!release-candidate/scanner-edge-image.tar",
+        "!durable-evidence/scanner-release-evidence.tar",
+    ]
+    assert upload["with"]["retention-days"] == 90
+
+    deploy_download = next(
+        step
+        for step in workflow["jobs"]["deploy"]["steps"]
+        if step.get("name") == "Download image built by this run"
+    )
+    assert deploy_download["with"]["name"] == "scanner-immutable-image-${{ github.sha }}"

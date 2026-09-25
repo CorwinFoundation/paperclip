@@ -496,6 +496,8 @@ jobs:
           path: |
             release-candidate/
             durable-evidence/
+            !release-candidate/scanner-edge-image.tar
+            !durable-evidence/scanner-release-evidence.tar
           if-no-files-found: error
           retention-days: 90
 
