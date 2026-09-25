@@ -98,7 +98,34 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # reporting_status distribution is identical, so no row entered the production
     # scored set. Counts stay 2,361 / 2,361 / 2,360 and the exclusion proof stays
     # at master's 146.
-    "2f2ea28bbe06056778d963885ab5589083e4344638dbe764e7b06d937b204e97"
+    #
+    # Re-pinned for BEAAA-35915: the confidence_calibration dev activation. Like
+    # BEAAA-35380 and BEAAA-33992 this moves no row into or out of the registry.
+    # Building the registry at origin/master (b87c90d3) and at this branch and
+    # diffing row by row, keyed by (test_id, case_id): 2,507 rows both sides,
+    # 0 added, 0 removed, exactly 70 changed -- the 70 confidence_calibration
+    # rows the BEAAA-35665 ledger resolves to `scored`. The slice is 98 rows; the
+    # 28 hard-arithmetic rows are `evidence_only` and are correctly absent from
+    # this diff, as are any `held` rows (there are none).
+    #
+    # On those 70 rows the differing fields are only the eight dev-activation
+    # fields, the same set BEAAA-35380 moved: attestation_tier,
+    # dev_scoring_active, candidate_rubric_mapping_status,
+    # candidate_rubric_point_id, candidate_rubric_mapping_rationale,
+    # execution_evidenced, execution_evidence_status, execution_evidence_ref.
+    # No other field moves on any of the 2,507 rows.
+    #
+    # Independent corroboration that nothing entered the production scored set:
+    # the `scoring_active` census is 479 on both sides and the reporting_status
+    # distribution is identical (444 scored / 2,028 reported_not_scored /
+    # 35 scoring_active). Counts stay 2,361 / 2,361 / 2,360 and the exclusion
+    # proof stays at 146, both asserted below.
+    #
+    # Building the registry at master reproduces master's pin
+    # 2f2ea28b...b204e97 exactly, which is what makes the value below
+    # trustworthy rather than merely observed. Prior pin 2f2ea28b...b204e97
+    # came from the BEAAA-35380 merge.
+    "bc6bddc57871ead9461d7196737ec4d84b4f41de76046ffe0f9ac66b46ab3943"
 )
 
 

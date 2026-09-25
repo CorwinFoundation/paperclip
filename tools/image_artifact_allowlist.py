@@ -53,9 +53,24 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     "artifacts/beaaa-21704/execution_evidence.json": "read_required",
     "artifacts/beaaa-31092/rank2-ledger.json": "read_required",
     "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json": "read_required",
+    # BEAAA-35665: read_optional, not read_required. The loader returns {} when this
+    # ledger is absent, because deleting it IS the documented per-slice rollback
+    # (BEAAA-35691) -- so absence is the designed state, not a defect the image must
+    # prevent. The classification rests on that reason alone. The ledger IS present
+    # as of BEAAA-35915; an earlier revision of this comment claimed it was absent
+    # because the first confidence_calibration capture had been denied as an
+    # activation basis, and the BEAAA-35753 refit falsified that.
+    "artifacts/beaaa-35665/cc-dev-activation-ledger.json": "read_optional",
     "artifacts/full-scan-evidence": "output",
     "artifacts/beaaa-18720/reconciliation-validation.json": "reference_only",
     "artifacts/beaaa-35020/tool_misuse_corrected_n5_final.json": "reference_only",
+    # Carried as the execution_evidence_ref string on a promoted row, never opened --
+    # same shape as the beaaa-35020 reference above. cc_slice_capture is the
+    # easy+medium capture the first pass wrote; cc_refit_slice is the BEAAA-35753
+    # refit's aggregate measurement and is the ref the dev-scored rows actually
+    # carry today. Both are strings in the row payload, neither is opened.
+    "artifacts/beaaa-35665/cc_slice_capture.json": "reference_only",
+    "artifacts/beaaa-35753/cc_refit_slice.json": "reference_only",
 }
 
 READ_CLASSIFICATIONS = frozenset({"read_required", "read_optional"})

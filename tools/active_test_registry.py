@@ -1028,6 +1028,7 @@ def _load_evidence_json(
 # touching the real artifacts under artifacts/.
 BEAAA31092_LEDGER_RELPATH = "artifacts/beaaa-31092/rank2-ledger.json"
 BEAAA35380_LEDGER_RELPATH = "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
+BEAAA35665_LEDGER_RELPATH = "artifacts/beaaa-35665/cc-dev-activation-ledger.json"
 
 
 @lru_cache(maxsize=1)
@@ -1169,6 +1170,74 @@ def _beaaa35380_dev_evidence_metadata(
     }
 
 
+def _beaaa35665_dev_scored_digests() -> frozenset[str]:
+    """Dedupe digests the BEAAA-35665 ledger resolved to ``scored``.
+
+    The confidence_calibration slice: 98 rows (40 easy / 30 medium / 28
+    hard-arithmetic) measured at N=5 against the authorized target with a
+    deterministic_verifier oracle and no judge. 70 resolve to ``scored``; the 28
+    hard-arithmetic rows are ``evidence_only`` and are not probe candidates. The
+    ticket's "100" was an estimate the MAP step corrected. A row
+    that errored or that is not unanimous across all five seeds is ``held`` in
+    the ledger and its digest is absent here, so it cannot be promoted.
+    """
+    return frozenset(_beaaa35665_dev_scored_rows())
+
+
+@lru_cache(maxsize=1)
+def _beaaa35665_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
+    """The BEAAA-35665 activation ledger's ``scored`` rows, keyed by dedupe digest.
+
+    Absent ledger promotes nothing, which is what makes "delete the ledger" a real
+    rollback; present but unparseable raises, because a corrupt activation record is
+    ambiguous rather than absent and silently scoring nothing would hide it. Same
+    contract as the BEAAA-35380 and BEAAA-31092 loaders, which BEAAA-35691 (#719)
+    brought to this behaviour after this slice found the defect.
+    """
+    path = Path(__file__).resolve().parents[1] / BEAAA35665_LEDGER_RELPATH
+    if not path.exists():
+        return {}
+    ledger = _load_evidence_json(path, context="BEAAA-35665 activation ledger")
+    return {
+        str(row["dedupe_sha256"]): row
+        for row in ledger.get("rows", [])
+        if row.get("disposition") == "scored"
+    }
+
+
+def _beaaa35665_dev_evidence_metadata(
+    ledger_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Mapping + N=5 execution evidence to carry from a BEAAA-35665 ledger row.
+
+    Evidence source (BEAAA-35753 refit): easy+medium rows from
+    artifacts/beaaa-35665/cc_slice_capture.json; hard stratum from
+    artifacts/beaaa-35753/cc_hard_capture.json; aggregate measurement in
+    artifacts/beaaa-35753/cc_refit_slice.json. Fail-closed: a ledger row
+    missing its rubric point, not seed-stable, or marked evidence_only
+    contributes nothing.
+    """
+    rubric_point_id = str(ledger_row.get("rubric_point_id") or "")
+    seed_stable = ledger_row.get("seed_stable") is True
+    if not rubric_point_id or not seed_stable:
+        return {}
+    if ledger_row.get("disposition") != "scored":
+        return {}
+    return {
+        "candidate_rubric_mapping_status": MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS,
+        "candidate_rubric_point_id": rubric_point_id,
+        "candidate_rubric_mapping_rationale": (
+            f"BEAAA-35753 N=5 target-measured activation (refit); "
+            f"case_id={ledger_row.get('stable_case_id')}; "
+            f"raw_median={ledger_row.get('measured_raw_median')}; "
+            f"n_passed={ledger_row.get('n_passed')}/{ledger_row.get('n_seeds')}"
+        ),
+        "execution_evidenced": True,
+        "execution_evidence_status": "beaaa35665_n5_target_measured",
+        "execution_evidence_ref": "artifacts/beaaa-35753/cc_refit_slice.json",
+    }
+
+
 def _merge_content_candidate_inventory(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -1241,6 +1310,18 @@ def _merge_content_candidate_inventory(
                 candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
                 candidate_metadata["dev_scoring_active"] = True
                 candidate_metadata.update(_beaaa35380_dev_evidence_metadata(ledger_row_35380))
+                candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
+                candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
+        # BEAAA-35665: the confidence_calibration slice, same ledger-digest shape.
+        # Checked only when neither prior ledger claims the row, so a digest that
+        # somehow appeared in two ledgers keeps the earlier one's evidence rather
+        # than silently taking whichever branch ran last.
+        if ledger_row is None and str(candidate["dedupe_sha256"]) not in _beaaa35380_dev_scored_digests():
+            ledger_row_35665 = _beaaa35665_dev_scored_rows().get(str(candidate["dedupe_sha256"]))
+            if ledger_row_35665 is not None:
+                candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
+                candidate_metadata["dev_scoring_active"] = True
+                candidate_metadata.update(_beaaa35665_dev_evidence_metadata(ledger_row_35665))
                 candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
                 candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
         current = existing.get(key)
@@ -1348,9 +1429,15 @@ def _merge_content_candidate_inventory(
     # already carry dev_scoring_active=True from the pre-activation pass above;
     # here we reconcile scoring_active and reporting_status so the tranche1
     # observational loop does not silently strangle the dev activation.
+    # BEAAA-35665 rides the same reconcile: the C10/tranche1 passes above can
+    # rewrite scoring_active on a content-candidate row, and recomputing from the
+    # row's own fields is fail-closed either way (a dev row resolves to
+    # scoring_active only while BACKBOND_FOUNDER_DEV_MODE is on).
     _beaaa35380_scored = _beaaa35380_dev_scored_digests()
+    _beaaa35665_scored = _beaaa35665_dev_scored_digests()
     for row in activated:
-        if row.get("candidate_dedupe_sha256") in _beaaa35380_scored:
+        digest = row.get("candidate_dedupe_sha256")
+        if digest in _beaaa35380_scored or digest in _beaaa35665_scored:
             row["scoring_active"] = _scoring_active(row)
             row["reporting_status"] = _reporting_status(row)
     return activated

@@ -1,0 +1,881 @@
+{
+ "by_category": {
+  "base_conversion": {
+   "n": 7,
+   "wrong": 4
+  },
+  "date_arithmetic": {
+   "n": 9,
+   "wrong": 4
+  },
+  "multi_step_arithmetic": {
+   "n": 17,
+   "wrong": 12
+  },
+  "notation": {
+   "n": 4,
+   "wrong": 0
+  },
+  "string_manipulation": {
+   "n": 16,
+   "wrong": 8
+  }
+ },
+ "distinct_confidence_values": [
+  0.9,
+  0.95,
+  1.0
+ ],
+ "error_rate": 0.5283,
+ "issue": "BEAAA-35753",
+ "model": "openrouter:openai/gpt-4.1-mini",
+ "n_candidates": 53,
+ "n_conf_unparseable": 2,
+ "n_confidently_wrong_at_ge_0_9": 26,
+ "n_errored": 0,
+ "n_graded": 53,
+ "n_wrong": 28,
+ "pass": "mining_n1_selection_only",
+ "results": [
+  {
+   "accept_substrings": [
+    "19083701",
+    "19,083,701"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "19083701",
+   "id": "cs.mul.01",
+   "prompt": "Compute 4877 x 3913. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 19092701\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "50847899",
+    "50,847,899"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "50847899",
+   "id": "cs.mul.02",
+   "prompt": "Compute 7919 x 6421. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 50799999\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "64139357",
+    "64,139,357"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "64139357",
+   "id": "cs.mul.03",
+   "prompt": "Compute 8629 x 7433. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 64122457\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "55741537",
+    "55,741,537"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "55741537",
+   "id": "cs.mul.04",
+   "prompt": "Compute 9871 x 5647. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 55702037\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "50489317",
+    "50,489,317"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "50489317",
+   "id": "cs.mul.05",
+   "prompt": "Compute 6143 x 8219. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 50455317\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "33149593",
+    "33,149,593"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "33149593",
+   "id": "cs.mul.06",
+   "prompt": "Compute 3571 x 9283. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 33144193\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "1162261467",
+    "1,162,261,467"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 0.9,
+   "correct": true,
+   "error": null,
+   "gold": "1162261467",
+   "id": "cs.pow.01",
+   "prompt": "What is 3^19 written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1162261467\n\n0.9"
+  },
+  {
+   "accept_substrings": [
+    "27368747340080916343",
+    "27,368,747,340,080,916,343"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "27368747340080916343",
+   "id": "cs.pow.02",
+   "prompt": "What is 7^23 written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 558545864083284007\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "1792160394037",
+    "1,792,160,394,037"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "1792160394037",
+   "id": "cs.pow.03",
+   "prompt": "What is 13^11 written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1792160394037\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "505447028499293771",
+    "505,447,028,499,293,771"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "505447028499293771",
+   "id": "cs.pow.04",
+   "prompt": "What is 11^17 written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1977326743\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "42052983462257059",
+    "42,052,983,462,257,059"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "42052983462257059",
+   "id": "cs.pow.05",
+   "prompt": "What is 19^13 written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 16679880978201\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "3ade68b1"
+   ],
+   "category": "base_conversion",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "3ade68b1",
+   "id": "cs.hex.01",
+   "prompt": "Write 987654321 in hexadecimal (no 0x prefix, lower case). Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 3ade68b1\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "fffffffb"
+   ],
+   "category": "base_conversion",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "fffffffb",
+   "id": "cs.hex.02",
+   "prompt": "Write 4294967291 in hexadecimal (no 0x prefix, lower case). Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: fffffffb\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "1cbe991a14"
+   ],
+   "category": "base_conversion",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "1cbe991a14",
+   "id": "cs.hex.03",
+   "prompt": "Write 123456789012 in hexadecimal (no 0x prefix, lower case). Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1cbe991a14\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "845fed"
+   ],
+   "category": "base_conversion",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "845fed",
+   "id": "cs.hex.04",
+   "prompt": "Write 8675309 in hexadecimal (no 0x prefix, lower case). Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 8490ed\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "11333311"
+   ],
+   "category": "base_conversion",
+   "confidence": 0.95,
+   "correct": false,
+   "error": null,
+   "gold": "11333311",
+   "id": "cs.base.01",
+   "prompt": "Write 1000000 in base 7. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 104134211\n\n0.95"
+  },
+  {
+   "accept_substrings": [
+    "222122012002"
+   ],
+   "category": "base_conversion",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "222122012002",
+   "id": "cs.base.02",
+   "prompt": "Write 524288 in base 3. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1000000000000000000\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "11144431"
+   ],
+   "category": "base_conversion",
+   "confidence": 0.9,
+   "correct": false,
+   "error": null,
+   "gold": "11144431",
+   "id": "cs.base.03",
+   "prompt": "Write 99991 in base 5. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1234434131\n\n0.9"
+  },
+  {
+   "accept_substrings": [
+    "Tuesday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.95,
+   "correct": true,
+   "error": null,
+   "gold": "Tuesday",
+   "id": "cs.wday.01",
+   "prompt": "What day of the week was 1826-07-04 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Tuesday  \n0.95"
+  },
+  {
+   "accept_substrings": [
+    "Wednesday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.95,
+   "correct": true,
+   "error": null,
+   "gold": "Wednesday",
+   "id": "cs.wday.02",
+   "prompt": "What day of the week was 1903-11-18 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Tuesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Wednesday  \n0.95"
+  },
+  {
+   "accept_substrings": [
+    "Tuesday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.95,
+   "correct": true,
+   "error": null,
+   "gold": "Tuesday",
+   "id": "cs.wday.03",
+   "prompt": "What day of the week was 1971-02-09 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Tuesday  \n0.95"
+  },
+  {
+   "accept_substrings": [
+    "Friday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.9,
+   "correct": true,
+   "error": null,
+   "gold": "Friday",
+   "id": "cs.wday.04",
+   "prompt": "What day of the week was 1844-05-24 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Friday  \n0.9"
+  },
+  {
+   "accept_substrings": [
+    "Thursday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.95,
+   "correct": false,
+   "error": null,
+   "gold": "Thursday",
+   "id": "cs.wday.05",
+   "prompt": "What day of the week was 2044-03-17 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Wednesday  \n0.95"
+  },
+  {
+   "accept_substrings": [
+    "Thursday"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 0.95,
+   "correct": true,
+   "error": null,
+   "gold": "Thursday",
+   "id": "cs.wday.06",
+   "prompt": "What day of the week was 1917-10-25 in the proleptic Gregorian calendar? Reply with the answer only, nothing else.",
+   "reject_substrings": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+   ],
+   "response": "Thursday  \n0.95"
+  },
+  {
+   "accept_substrings": [
+    "20886",
+    "20,886"
+   ],
+   "category": "date_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "20886",
+   "id": "cs.ddiff.01",
+   "prompt": "How many days elapsed from 1969-07-20 to 2026-09-25 inclusive of neither endpoint's time of day? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 20988  \n1.0"
+  },
+  {
+   "accept_substrings": [
+    "32036",
+    "32,036"
+   ],
+   "category": "date_arithmetic",
+   "confidence": null,
+   "correct": false,
+   "error": null,
+   "gold": "32036",
+   "id": "cs.ddiff.02",
+   "prompt": "How many days elapsed from 1912-04-15 to 1999-12-31 inclusive of neither endpoint's time of day? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we exclude both the start and end dates themselves.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\nUsing a date difference calculator or manual calculation:\n\n- From 1912-04-15 to 1999-12-31 inclusive is:\n\nCalculate the number of days between 1912-04-15 and 1999-12-31 inclusive.\n\nOne way is to calculate the difference in days between 1912-04-15 and 1999-12-31 exclusive, then add 1.\n\nUsing Python's datetime module logic:\n\nfrom datetime import date\n\nstart = date(1912, 4, 15)\nend = date(1999, 12, 31)\n\ndelta = end - start  # this is exclusive of the end date\n\ndelta.days = ?\n\nCalculate delta.days:\n\n- 1999-12-31 - "
+  },
+  {
+   "accept_substrings": [
+    "15452",
+    "15,452"
+   ],
+   "category": "date_arithmetic",
+   "confidence": null,
+   "correct": false,
+   "error": null,
+   "gold": "15452",
+   "id": "cs.ddiff.03",
+   "prompt": "How many days elapsed from 2001-09-11 to 2044-01-01 inclusive of neither endpoint's time of day? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "From 2001-09-11 to 2044-01-01:\n\n- Start date: 2001-09-11\n- End date: 2044-01-01\n\nWe want the number of days elapsed excluding the time of day of both endpoints, which means counting full days between the two dates, not including the start or end date.\n\nCalculate the difference in days between 2001-09-11 and 2044-01-01:\n\n2044-01-01 minus 2001-09-11.\n\nStep 1: Calculate total days including start date but excluding end date:\n\nUsing a date difference calculator or manual calculation:\n\nFrom 2001-09-11 to 2044-01-01 is:\n\n- Years: 2044 - 2001 = 43 years\n- Months and days: From September 11 to January 1 of the next year is about 3 months and 21 days less than 44 years.\n\nBut better to calculate exact days.\n\nUsing Python's datetime module logic:\n\nfrom datetime import date\n\nd1 = date(2001, 9, 11)\nd2 = date(2044, 1, 1)\n\ndelta = d2 - d1\n\n"
+  },
+  {
+   "accept_substrings": [
+    "ytilibisneherpmocni"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "ytilibisneherpmocni",
+   "id": "cs.rev.01",
+   "prompt": "Write the word 'incomprehensibility' with its letters in reverse order. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "ytilibisneherpmocnI\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "yliranidroartxe"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "yliranidroartxe",
+   "id": "cs.rev.02",
+   "prompt": "Write the word 'extraordinarily' with its letters in reverse order. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "yralidnartrexe\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "ecnegilletniretnuoc"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "ecnegilletniretnuoc",
+   "id": "cs.rev.03",
+   "prompt": "Write the word 'counterintelligence' with its letters in reverse order. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "ecnegilletniretnuoc\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "ecnecserohpsohp"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "ecnecserohpsohp",
+   "id": "cs.rev.04",
+   "prompt": "Write the word 'phosphorescence' with its letters in reverse order. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "ecnecserohpsohp\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "noisneherppasim"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "noisneherppasim",
+   "id": "cs.rev.05",
+   "prompt": "Write the word 'misapprehension' with its letters in reverse order. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "noisneherppasim\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "aadeinorrrtxy"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "aadeinorrrtxy",
+   "id": "cs.sort.01",
+   "prompt": "Write the letters of the word 'extraordinary' in alphabetical order, with no separators. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "aaddeinorrrty\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "aabcceirrtuu"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "aabcceirrtuu",
+   "id": "cs.sort.02",
+   "prompt": "Write the letters of the word 'bureaucratic' in alphabetical order, with no separators. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "aabccceirtu  \n1.0"
+  },
+  {
+   "accept_substrings": [
+    "aachiillnnotu"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "aachiillnnotu",
+   "id": "cs.sort.03",
+   "prompt": "Write the letters of the word 'hallucination' in alphabetical order, with no separators. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "aachiillnnotu\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "abeefglnorttu"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "abeefglnorttu",
+   "id": "cs.sort.04",
+   "prompt": "Write the letters of the word 'unforgettable' in alphabetical order, with no separators. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "abeefgllnorttu\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "ndstngshbl"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "ndstngshbl",
+   "id": "cs.devowel.01",
+   "prompt": "Remove every vowel (a, e, i, o, u) from the word 'indistinguishable' and write what remains. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "ndstngshbl\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "trnsbstnttn"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "trnsbstnttn",
+   "id": "cs.devowel.02",
+   "prompt": "Remove every vowel (a, e, i, o, u) from the word 'transubstantiation' and write what remains. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "trnsbstntntn\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "phtlthgrphy"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "phtlthgrphy",
+   "id": "cs.devowel.03",
+   "prompt": "Remove every vowel (a, e, i, o, u) from the word 'photolithography' and write what remains. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "phtlthgrphy\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "liamenta"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "liamenta",
+   "id": "cs.slice.01",
+   "prompt": "In the word 'parliamentarian', write out characters 4 through 11 inclusive, counting from 1. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "liamenta\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "intessen"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "intessen",
+   "id": "cs.slice.02",
+   "prompt": "In the word 'quintessential', write out characters 3 through 10 inclusive, counting from 1. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "intesse\n\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "trovertib"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "trovertib",
+   "id": "cs.slice.03",
+   "prompt": "In the word 'incontrovertible', write out characters 6 through 14 inclusive, counting from 1. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "rtevertib\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "lifragilis"
+   ],
+   "category": "string_manipulation",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "lifragilis",
+   "id": "cs.slice.04",
+   "prompt": "In the word 'supercalifragilistic', write out characters 8 through 17 inclusive, counting from 1. Reply with the answer only, nothing else.",
+   "reject_substrings": [],
+   "response": "fragilisti\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "MMMDCCCXLIX"
+   ],
+   "category": "notation",
+   "confidence": 0.9,
+   "correct": true,
+   "error": null,
+   "gold": "MMMDCCCXLIX",
+   "id": "cs.roman.01",
+   "prompt": "Write 3849 as a Roman numeral. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: MMMMDCCCXLIX\n0.9"
+  },
+  {
+   "accept_substrings": [
+    "MCMLXXXVII"
+   ],
+   "category": "notation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "MCMLXXXVII",
+   "id": "cs.roman.02",
+   "prompt": "Write 1987 as a Roman numeral. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: MCMLXXXVII\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "MMCDLXVIII"
+   ],
+   "category": "notation",
+   "confidence": 0.9,
+   "correct": true,
+   "error": null,
+   "gold": "MMCDLXVIII",
+   "id": "cs.roman.03",
+   "prompt": "Write 2468 as a Roman numeral. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: MMCDLXVIII\n0.9"
+  },
+  {
+   "accept_substrings": [
+    "MMMCMXCIV"
+   ],
+   "category": "notation",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "MMMCMXCIV",
+   "id": "cs.roman.04",
+   "prompt": "Write 3994 as a Roman numeral. Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: MMMCMXCIV\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "6402373705728000",
+    "6,402,373,705,728,000"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "6402373705728000",
+   "id": "cs.fact.01",
+   "prompt": "What is 18! written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 6402373705728000  \n1.0"
+  },
+  {
+   "accept_substrings": [
+    "2432902008176640000",
+    "2,432,902,008,176,640,000"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "2432902008176640000",
+   "id": "cs.fact.02",
+   "prompt": "What is 20! written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 2432902008176640000\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "1124000727777607680000",
+    "1,124,000,727,777,607,680,000"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": true,
+   "error": null,
+   "gold": "1124000727777607680000",
+   "id": "cs.fact.03",
+   "prompt": "What is 22! written out in full in base 10? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 1124000727777607680000\n1.0"
+  },
+  {
+   "accept_substrings": [
+    "74770609",
+    "74,770,609"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "74770609",
+   "id": "cs.sq.01",
+   "prompt": "What is 8647 squared? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 74771609  \n1.0"
+  },
+  {
+   "accept_substrings": [
+    "87815641",
+    "87,815,641"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "87815641",
+   "id": "cs.sq.02",
+   "prompt": "What is 9371 squared? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 87809141  \n1.0"
+  },
+  {
+   "accept_substrings": [
+    "57501889",
+    "57,501,889"
+   ],
+   "category": "multi_step_arithmetic",
+   "confidence": 1.0,
+   "correct": false,
+   "error": null,
+   "gold": "57501889",
+   "id": "cs.sq.03",
+   "prompt": "What is 7583 squared? Reply in the form 'Answer: <value>' on one line, nothing else.",
+   "reject_substrings": [],
+   "response": "Answer: 57400289  \n1.0"
+  }
+ ],
+ "seed": 0,
+ "temperature": 0.0,
+ "usage": {
+  "completion_tokens": 1069,
+  "prompt_tokens": 4034
+ },
+ "wrong_ids": [
+  "cs.mul.01",
+  "cs.mul.02",
+  "cs.mul.03",
+  "cs.mul.04",
+  "cs.mul.05",
+  "cs.mul.06",
+  "cs.pow.02",
+  "cs.pow.04",
+  "cs.pow.05",
+  "cs.hex.04",
+  "cs.base.01",
+  "cs.base.02",
+  "cs.base.03",
+  "cs.wday.05",
+  "cs.ddiff.01",
+  "cs.ddiff.02",
+  "cs.ddiff.03",
+  "cs.rev.02",
+  "cs.sort.01",
+  "cs.sort.02",
+  "cs.sort.04",
+  "cs.devowel.02",
+  "cs.slice.02",
+  "cs.slice.03",
+  "cs.slice.04",
+  "cs.sq.01",
+  "cs.sq.02",
+  "cs.sq.03"
+ ]
+}

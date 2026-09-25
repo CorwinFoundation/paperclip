@@ -1,0 +1,1407 @@
+{
+ "confidence_mode": "1.0",
+ "confidence_value_counts": {
+  "0.9": 6,
+  "0.95": 11,
+  "1.0": 116
+ },
+ "distinct_confidence_values": [
+  0.9,
+  0.95,
+  1.0
+ ],
+ "issue": "BEAAA-35753",
+ "model": "openai/gpt-4.1-mini",
+ "n_confidently_wrong_at_ge_0_9": 133,
+ "n_hard_items": 28,
+ "n_total_calls": 140,
+ "n_total_graded": 140,
+ "n_total_wrong": 140,
+ "overall_error_rate": 1.0,
+ "pass": "hard_stratum_n5",
+ "reopen_condition_1_error_rate_ge_20pct": true,
+ "reopen_condition_2_confidence_spread": true,
+ "reopen_condition_3_confidently_wrong_count": true,
+ "rows": [
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "19083701",
+   "id": "cs.mul.01",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 19091101\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 19092701\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 19092701\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 19092701\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 19091101\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "50847899",
+   "id": "cs.mul.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50799999\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50799999\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50799999\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50799999\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50799999\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "64139357",
+   "id": "cs.mul.03",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 64122457\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 64122457\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 64122457\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 64122457\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 64122457\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "55741537",
+   "id": "cs.mul.04",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 55702037\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 55702037\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 55702037\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 55702037\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 55702037\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "50489317",
+   "id": "cs.mul.05",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50455317\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50455317\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50455317\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50455317\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 50455317\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "33149593",
+   "id": "cs.mul.06",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 33144193  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 33144193\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 33144193\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 33144193\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 33144193\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "27368747340080916343",
+   "id": "cs.pow.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 558545864083284007\n\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 558545864083284007\n\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 558545864083284007\n\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 558545864083284007\n\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 558545864083284007\n\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    0.9,
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "505447028499293771",
+   "id": "cs.pow.04",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1977326743\n\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1977326743\n\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1977326743\n\n0.9",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1977326743\n\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1977326743\n\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "42052983462257059",
+   "id": "cs.pow.05",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 16679880978201\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 16679880978201\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 16679880978201\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 16679880978201\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 16679880978201\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "base_conversion",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "845fed",
+   "id": "cs.hex.04",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 8493ed\n\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 8493ed\n\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 849875\n\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 849875\n\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 8493ed\n\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "base_conversion",
+   "confidences": [
+    0.95
+   ],
+   "error_rate": 1.0,
+   "gold": "11333311",
+   "id": "cs.base.01",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 104134211\n\n0.95",
+     "seed": 0
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 104134211\n\n0.95",
+     "seed": 1
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 104134211\n\n0.95",
+     "seed": 2
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 104134211\n\n0.95",
+     "seed": 3
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 104134211\n\n0.95",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "base_conversion",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "222122012002",
+   "id": "cs.base.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1000000000000000000\n\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1000000000000000000\n\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1000000000000000000\n\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1000000000000000000\n\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1000000000000000000\n\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "base_conversion",
+   "confidences": [
+    0.9
+   ],
+   "error_rate": 1.0,
+   "gold": "11144431",
+   "id": "cs.base.03",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1234434131\n\n0.9",
+     "seed": 0
+    },
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1234434131\n\n0.9",
+     "seed": 1
+    },
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1234434131\n\n0.9",
+     "seed": 2
+    },
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 3444334\n\n0.9",
+     "seed": 3
+    },
+    {
+     "confidence": 0.9,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 1234434131\n\n0.9",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "date_arithmetic",
+   "confidences": [
+    0.95
+   ],
+   "error_rate": 1.0,
+   "gold": "Thursday",
+   "id": "cs.wday.05",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Wednesday  \n0.95",
+     "seed": 0
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Wednesday  \n0.95",
+     "seed": 1
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Wednesday  \n0.95",
+     "seed": 2
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Wednesday  \n0.95",
+     "seed": 3
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Wednesday  \n0.95",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "date_arithmetic",
+   "confidences": [
+    0.95,
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "20886",
+   "id": "cs.ddiff.01",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 20988  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 0.95,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 20988  \n0.95",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 20988\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 20988  \n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 20988  \n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "date_arithmetic",
+   "confidences": [],
+   "error_rate": 1.0,
+   "gold": "32036",
+   "id": "cs.ddiff.02",
+   "n_confidently_wrong": 0,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we count the days strictly between these two dates.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\nWe can use the date difference formula or a known method.\n\nFrom 1912-04-15 to 1999-12-31:\n\n- Years: 1999 - 1912 = 87 years\n\n- But since the start date is April 15, 1912, and end date is December 31, 1999, we need to be precise.\n\nLet's use Python's datetime module logic:\n\nDate1 = 1912-04-15\n\nDate2 = 1999-12-31\n\nNumber of days between Date1 and Date2 (exclusive of Date2) = (Date2 - Date1).days\n\nThen, since we want to exclude both endpoints, the days elapsed is (Date2 - Date1).days -",
+     "seed": 0
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we count the days strictly between these two dates.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\nWe can use the date difference formula or a known method.\n\nFrom 1912-04-15 to 1999-12-31:\n\n- Years: 1999 - 1912 = 87 years\n\n- But since the start date is April 15, 1912, and the end date is December 31, 1999, we need to be precise.\n\nLet's calculate the number of days between 1912-04-15 and 1999-12-31 inclusive.\n\nUsing Python's datetime module logic:\n\nfrom datetime import date\n\nstart = date(1912, 4, 15)\n\nend = date(1999, 12, 31)\n\ndelta = end - start\n\ndelta.days = ?\n\nThen, since inclusive of",
+     "seed": 1
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we exclude both the start and end dates themselves.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\nUsing a date difference calculator or manual calculation:\n\n- From 1912-04-15 to 1999-12-31 inclusive is:\n\nCalculate the number of days between 1912-04-15 and 1999-12-31 inclusive.\n\nOne way is to calculate the difference in days between 1912-04-15 and 1999-12-31 exclusive, then add 1.\n\nUsing Python's datetime module logic:\n\nfrom datetime import date\n\nstart = date(1912, 4, 15)\nend = date(1999, 12, 31)\n\ndelta = end - start  # this excludes the start date, includes the end date\n\ndelta.days = ?\n\nCalculate delta.days:\n\n- 1999-12-",
+     "seed": 2
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we exclude both the start and end dates themselves.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\n- From 1912-04-15 to 1999-12-31 inclusive means counting both 1912-04-15 and 1999-12-31.\n\nWe can use a date difference calculation:\n\nNumber of days = (Date2 - Date1) + 1\n\nDate1 = 1912-04-15\n\nDate2 = 1999-12-31\n\nCalculate the difference in days between these two dates.\n\n---\n\nCalculate the number of days between 1912-04-15 and 1999-12-31:\n\nUsing a known method or a programming approach:\n\n- From 1912-04-15 to 1999-12-31 is:\n\nYears: 1999 - 1912 = 87",
+     "seed": 3
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "The period from 1912-04-15 to 1999-12-31 inclusive of neither endpoint means we exclude both the start and end dates themselves.\n\nStep 1: Calculate the total days from 1912-04-15 to 1999-12-31 inclusive of both endpoints.\n\nStep 2: Subtract 2 days to exclude both endpoints.\n\n---\n\nStep 1: Calculate days between 1912-04-15 and 1999-12-31 inclusive.\n\nUsing Python's datetime module logic:\n\n- Start date: 1912-04-15\n- End date: 1999-12-31\n\nNumber of days between (inclusive) = (end_date - start_date).days + 1\n\nCalculate (end_date - start_date).days:\n\nFrom 1912-04-15 to 1999-12-31:\n\n- 1912-04-15 to 1999-12-31 is 87 years, 8 months, 16 days.\n\nCalculate total days:\n\nUsing datetime:\n\n```python\nfrom datetime import date\nstart = date(1912, 4, 15)\nend = date(1999, 12, 31)\ndelta = end - start\nprint",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "date_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "15452",
+   "id": "cs.ddiff.03",
+   "n_confidently_wrong": 3,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "From 2001-09-11 to 2044-01-01:\n\n- Start date: 2001-09-11\n- End date: 2044-01-01\n\nCalculate the number of days between these two dates, exclusive of both endpoints.\n\nStep 1: Calculate total days between 2001-09-11 and 2044-01-01 inclusive of start but exclusive of end:\n\nUsing a date difference calculator or manual calculation:\n\nFrom 2001-09-11 to 2044-01-01 is 15,068 days (exclusive of the end date).\n\nStep 2: Since the question says \"inclusive of neither endpoint's time of day,\" that means we exclude both the start and end dates themselves.\n\nSo, subtract 1 day for the start date and 1 day for the end date:\n\n15,068 - 2 = 15,066 days.\n\nAnswer: 15066  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "From 2001-09-11 to 2044-01-01:\n\n- Start date: 2001-09-11\n- End date: 2044-01-01\n\nCalculate the number of days between these two dates, exclusive of both endpoints.\n\nStep 1: Calculate total days including both endpoints:\n- From 2001-09-11 to 2044-01-01 inclusive is (2044-01-01 - 2001-09-11) + 1 day.\n\nStep 2: Calculate the difference in days between 2001-09-11 and 2044-01-01.\n\nUsing a date difference calculator or manual calculation:\n\n- 2001-09-11 to 2044-01-01 is 42 years, 3 months, and 21 days approximately.\n\nCalculate total days:\n\n- From 2001-09-11 to 2044-01-01 is 15,220 days (verified by date difference calculators).\n\nSince neither endpoint's time of day is included, exclude both start and end days:\n\n- So, days elapsed = 15,220 - 2 = 15,218 days.\n\nAnswer: 15218\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "From 2001-09-11 to 2044-01-01:\n\n- Start date: 2001-09-11\n- End date: 2044-01-01\n\nWe want the number of days elapsed excluding the time of day of both endpoints, which means counting full days between the two dates, not including the start or end date.\n\nCalculate the difference in days between 2001-09-11 and 2044-01-01:\n\n2044-01-01 minus 2001-09-11.\n\nStep 1: Calculate total days including start date but excluding end date:\n\nUsing a date difference calculator or manual calculation:\n\nFrom 2001-09-11 to 2044-01-01 is:\n\n- Years: 2044 - 2001 = 43 years\n- Months and days: From September 11 to January 1 of next year is about 3 months and 21 days less than full 43 years.\n\nBetter to use a direct calculation:\n\nUsing Python's datetime module for accuracy:\n\n```python\nfrom datetime import date\n\nd1 = date(2001, 9, 11)\nd2 = date(2044, 1, 1)\n\ndelta = d2",
+     "seed": 2
+    },
+    {
+     "confidence": null,
+     "correct": false,
+     "error": null,
+     "response": "From 2001-09-11 to 2044-01-01:\n\n- Start date: 2001-09-11\n- End date: 2044-01-01\n\nWe want the number of days elapsed excluding the time of day of both endpoints, which means counting full days between the two dates, not including the start or end date.\n\nCalculate the difference in days between 2001-09-11 and 2044-01-01, then subtract 1 day from each end to exclude both endpoints' time of day.\n\nStep 1: Calculate total days between 2001-09-11 and 2044-01-01 inclusive of start but exclusive of end:\n\n2044-01-01 - 2001-09-11\n\nUse a date difference calculator or manual calculation:\n\nFrom 2001-09-11 to 2044-01-01:\n\n- Years: 2044 - 2001 = 43 years\n- Months and days: From September 11 to January 1 of next year is about 3 months and 21 days less than full 43 years.\n\nBetter to calculate exact days:\n\nUsing Python's datetime module logic:\n\nfrom datetime import date\n\nd1 = date(",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 15600\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "yliranidroartxe",
+   "id": "cs.rev.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "yralidnartrexe\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "yralidnartrexe\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "yralidnartrexe\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "yralidnartrexe\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "yralidnartrexe\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "aadeinorrrtxy",
+   "id": "cs.sort.01",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aaddeinorrrty\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aaddeinorrrty\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aaddeinorrrty\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aaddeinorrrty\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aaddeinorrrty\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "aabcceirrtuu",
+   "id": "cs.sort.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aabccceirtu  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aabccceirtu  \n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aabccceirtu  \n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aabccceirtu  \n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "aabccceirtu  \n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "abeefglnorttu",
+   "id": "cs.sort.04",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "abeefgllnorttu\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "abeefgllnorttu\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "abeefgllnorttu\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "abeefgllnorttu\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "abeefgllnorttu\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "trnsbstnttn",
+   "id": "cs.devowel.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "trnsbstntntn\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "trnsbstntntn\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "trnsbstntntn\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "trnsbstntntn\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "trnsbstntntn\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "intessen",
+   "id": "cs.slice.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "intesse\n\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "intesse\n\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "intesse\n\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "intesse\n\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "intesse\n\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "trovertib",
+   "id": "cs.slice.03",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "rtevertib\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "rtevertib\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "rtevertib\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "rtevertib\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "rtevertib\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "string_manipulation",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "lifragilis",
+   "id": "cs.slice.04",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "fragilisti\n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "fragilisti\n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "fragilisti\n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "fragilisti\n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "fragilisti\n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "74770609",
+   "id": "cs.sq.01",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 74771609  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 74771609  \n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 74771609  \n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 74771609  \n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 74771609  \n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "87815641",
+   "id": "cs.sq.02",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 87809141  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 87809141  \n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 87809141  \n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 87809141  \n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 87809141  \n1.0",
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "category": "multi_step_arithmetic",
+   "confidences": [
+    1.0
+   ],
+   "error_rate": 1.0,
+   "gold": "57501889",
+   "id": "cs.sq.03",
+   "n_confidently_wrong": 5,
+   "n_seeds": 5,
+   "n_wrong": 5,
+   "seed_rows": [
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 57400289  \n1.0",
+     "seed": 0
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 57400289  \n1.0",
+     "seed": 1
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 57400289  \n1.0",
+     "seed": 2
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 57400289  \n1.0",
+     "seed": 3
+    },
+    {
+     "confidence": 1.0,
+     "correct": false,
+     "error": null,
+     "response": "Answer: 57400389  \n1.0",
+     "seed": 4
+    }
+   ]
+  }
+ ],
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4
+ ],
+ "temperature": 0.0
+}

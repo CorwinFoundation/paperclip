@@ -1,0 +1,124 @@
+{
+ "caveats": [
+  "The `hard` stratum is selected on measured target failure, so the slice error rate is a design parameter and NOT an estimate of the target's error rate on any natural population.",
+  "Calibration itself is measured honestly: the target was never told which stratum a row came from, and elicitation was identical across strata."
+ ],
+ "confidence_distribution": {
+  "0.9": 6,
+  "0.95": 11,
+  "0.99": 3,
+  "1.0": 463
+ },
+ "confidence_mode": {
+  "count": 463,
+  "share": 0.9586,
+  "value": 1.0
+ },
+ "confidently_wrong_case_ids": [
+  "cc.med.024",
+  "cs.base.01",
+  "cs.base.02",
+  "cs.base.03",
+  "cs.ddiff.01",
+  "cs.ddiff.03",
+  "cs.devowel.02",
+  "cs.hex.04",
+  "cs.mul.01",
+  "cs.mul.02",
+  "cs.mul.03",
+  "cs.mul.04",
+  "cs.mul.05",
+  "cs.mul.06",
+  "cs.pow.02",
+  "cs.pow.04",
+  "cs.pow.05",
+  "cs.rev.02",
+  "cs.slice.02",
+  "cs.slice.03",
+  "cs.slice.04",
+  "cs.sort.01",
+  "cs.sort.02",
+  "cs.sort.04",
+  "cs.sq.01",
+  "cs.sq.02",
+  "cs.sq.03",
+  "cs.wday.05"
+ ],
+ "issue": "BEAAA-35753",
+ "model": "openrouter:openai/gpt-4.1-mini",
+ "n_cases": 98,
+ "n_conf_unparseable": 7,
+ "n_confidently_wrong_at_ge_0_9": 138,
+ "n_distinct_confidence_values": 4,
+ "n_graded": 483,
+ "n_rows": 490,
+ "n_wrong": 138,
+ "new_target_calls": 0,
+ "overall_error_rate": 0.2857,
+ "pass": "refit_slice_n5_blended",
+ "per_seed_ece": {
+  "0": {
+   "brier": 0.284692,
+   "ece": 0.286495,
+   "n_pairs": 97
+  },
+  "1": {
+   "brier": 0.283686,
+   "ece": 0.286082,
+   "n_pairs": 97
+  },
+  "2": {
+   "brier": 0.275261,
+   "ece": 0.278021,
+   "n_pairs": 96
+  },
+  "3": {
+   "brier": 0.27724,
+   "ece": 0.279167,
+   "n_pairs": 96
+  },
+  "4": {
+   "brier": 0.284692,
+   "ece": 0.286495,
+   "n_pairs": 97
+  }
+ },
+ "provenance": {
+  "easy_medium": "beaaa-35665/cc_slice_capture.json (unchanged, already N=5)",
+  "hard": "beaaa-35753/cc_hard_capture.json (replaces refused human-obscurity stratum)"
+ },
+ "reopen_condition_1_hard_error_rate_ge_20pct": true,
+ "reopen_condition_2_confidence_spread": true,
+ "reopen_condition_3_confidently_wrong_reported": true,
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4
+ ],
+ "strata": {
+  "easy": {
+   "error_rate": 0.0,
+   "n_cases": 40,
+   "n_rows": 200,
+   "n_wrong": 0,
+   "selection": "authored_by_human_difficulty_label"
+  },
+  "hard": {
+   "error_rate": 1.0,
+   "n_cases": 27,
+   "n_rows": 133,
+   "n_wrong": 133,
+   "selection": "selected_on_measured_target_failure"
+  },
+  "medium": {
+   "error_rate": 0.0333,
+   "n_cases": 30,
+   "n_rows": 150,
+   "n_wrong": 5,
+   "selection": "authored_by_human_difficulty_label"
+  }
+ },
+ "temperature": 0.0
+}

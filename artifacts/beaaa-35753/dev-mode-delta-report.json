@@ -1,0 +1,10 @@
+{
+ "agents_with_any_delta": [],
+ "issue": "BEAAA-35753",
+ "max_abs_delta_total_flag_off_vs_master": 0.0,
+ "max_abs_delta_total_flag_on_vs_flag_off": 0.0,
+ "n_agents": 6,
+ "note": "Activation ledger present for both candidate runs. Zero delta is genuine: beaaa33175_n5_calibration.py scores golden agents from eval_outputs.json fixtures directly; the scorer does not re-query the probe registry at scoring time. Activating cc probe rows changes which probes are active for new scans but does not alter the evidence already recorded in golden fixtures. Flag-on and flag-off produce identical BMI; the activation has zero impact on existing scored rows.",
+ "verdict": "EXACT_ZERO_DELTA",
+ "version": 2
+}
