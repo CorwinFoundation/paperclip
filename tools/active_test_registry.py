@@ -865,6 +865,21 @@ def build_registry(
         reconciled = _merge_authorized_tau_support_crm(reconciled)
     # BEAAA-33175 D2: last word on activation, after every merge has run.
     reconciled = apply_fail_closed_scoring(reconciled)
+    # BEAAA-35634: apply BEAAA-35380 N=5 evidence to direct-family rows.
+    # Direct-family rows come from YAML probe mappings and are not processed by
+    # _merge_content_candidate_inventory, so the evidence override must be
+    # applied here, after all other passes. apply_fail_closed_scoring only
+    # demotes scoring_active=True rows and does not touch these report-only rows.
+    _b35380_by_probe = {
+        str(ledger_row.get("probe_id")): ledger_row
+        for ledger_row in _beaaa35380_dev_scored_rows().values()
+    }
+    if _b35380_by_probe:
+        for row in reconciled:
+            if str(row.get("test_id") or "") == "tool_misuse_param_tamper":
+                ledger_row = _b35380_by_probe.get(str(row.get("case_id") or ""))
+                if ledger_row is not None:
+                    row.update(_beaaa35380_dev_evidence_metadata(ledger_row))
     return reconciled
 
 
