@@ -138,16 +138,32 @@ jobs:
       - name: Run bin/are-scan through report-card render
         run: python scripts/min_python_cli_render_smoke.py --output-dir "$RUNNER_TEMP/min-python-cli-render"
 
+  # ---------------------------------------------------------------------------
+  # The Python suite as shards, one check each (BEAAA-35635). The required
+  # branch-protection context is the `python pytest` fan-in job below, not
+  # these; each shard names itself so a failure email says which piece failed.
+  # scripts/ci_shard_tests.py bin-packs the selector's targets by measured
+  # per-file duration (ci/test-durations.json), whole files only.
+  # ---------------------------------------------------------------------------
   pytest:
-    name: python pytest
+    name: python pytest (${{ matrix.shard }}/6)
     needs: changes
-    # Required check. A skipped job counts as passed for branch protection,
-    # so it is only skipped when the selector positively said "no Python
-    # test can be affected"; if the selector itself failed, run everything.
+    # A skipped job counts as passed for branch protection, so the matrix is
+    # only skipped when the selector positively said "no Python test can be
+    # affected"; if the selector itself failed, run everything.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Each shard is budgeted at <= 5 minutes warm; this is the ceiling that
+    # catches a partition that has gone stale, not the expected cost.
+    timeout-minutes: 12
+    strategy:
+      # Every shard reports. One red shard must not hide the other five.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     env:
+      SHARD: ${{ matrix.shard }}
+      SHARDS: "6"
       PYTHONHASHSEED: "0"
       TZ: UTC
       SELECTION_MODE: ${{ needs.changes.outputs.selection_mode }}
@@ -193,19 +209,19 @@ jobs:
           .venv/bin/python -c "import sys; print(sys.executable)"
 
       - name: Ruff critical scoring module
-        if: env.SCORING_CHANGED == 'true'
+        if: env.SHARD == '1' && env.SCORING_CHANGED == 'true'
         run: python -m ruff check rubric/scoring.py
 
       - name: Type-check critical scoring module
-        if: env.SCORING_CHANGED == 'true'
+        if: env.SHARD == '1' && env.SCORING_CHANGED == 'true'
         run: python -m mypy --ignore-missing-imports rubric/scoring.py
 
       - name: Report high-confidence dead code
-        if: env.SCORING_CHANGED == 'true'
+        if: env.SHARD == '1' && env.SCORING_CHANGED == 'true'
         run: python -m vulture rubric/scoring.py --min-confidence 90
 
       - name: Enforce critical scoring coverage
-        if: env.SCORING_CHANGED == 'true'
+        if: env.SHARD == '1' && env.SCORING_CHANGED == 'true'
         run: |
           python -m coverage run --source=rubric.scoring -m pytest -q \
             tests/test_scoring.py \
@@ -215,7 +231,8 @@ jobs:
 
       - name: Prove pytest discovers integration regressions
         # Discovery config only changes with files that force a full run.
-        if: env.SELECTION_MODE != 'SOME'
+        # Suite-wide, so shard 1 carries it for the whole matrix.
+        if: env.SHARD == '1' && env.SELECTION_MODE != 'SOME'
         run: |
           python -m pytest --collect-only -q tests \
             --ignore=tests/test_inspect_runner.py \
@@ -234,17 +251,64 @@ jobs:
         # monkeypatched state never straddle workers. --durations surfaces the
         # slowest tests in the log so the next speed-up is data-driven.
         run: |
-          mapfile -t TARGETS < <(python scripts/ci_select_tests.py --expand)
-          echo "selection=$SELECTION_MODE targets=${#TARGETS[@]}"
+          # One ignore list for both the partition and the run. pytest's
+          # --ignore only filters discovery, so a file named on the command
+          # line runs anyway; the sharder has to drop these itself.
+          IGNORE=(
+            --ignore=tests/test_inspect_runner.py
+            --ignore=tests/unit/test_inspect_provenance_pin.py
+          )
+          python scripts/ci_select_tests.py --expand > all-targets.txt
+          mapfile -t TARGETS < <(python scripts/ci_shard_tests.py \
+            --shard "$SHARD" --of "$SHARDS" --targets-from all-targets.txt \
+            "${IGNORE[@]}")
+          echo "selection=$SELECTION_MODE selected=$(wc -l < all-targets.txt)" \
+            "shard=$SHARD/$SHARDS targets=${#TARGETS[@]}"
           if [ "${#TARGETS[@]}" -eq 0 ]; then
-            echo "selector reported NONE: no Python test can be affected by this diff"
+            echo "nothing partitioned onto shard $SHARD of $SHARDS"
             exit 0
           fi
           python -m pytest -v -ra "${TARGETS[@]}" \
             -n auto --dist loadfile \
             --durations=25 \
-            --ignore=tests/test_inspect_runner.py \
-            --ignore=tests/unit/test_inspect_provenance_pin.py
+            --junit-xml="$RUNNER_TEMP/junit-shard-$SHARD.xml" \
+            "${IGNORE[@]}"
+
+      # No artifact upload: the map is recovered from the run log, so refreshing
+      # the partition costs no Actions storage (BEAAA-35604).
+      #   gh run view <id> --log > run.log
+      #   python scripts/ci_shard_tests.py --from-log run.log --out ci/test-durations.json
+      - name: Emit measured per-file durations
+        if: always()
+        run: |
+          python scripts/ci_shard_tests.py --emit-marker \
+            --from-junit "$RUNNER_TEMP/junit-shard-$SHARD.xml"
+
+  # The one required branch-protection context. Passes iff every shard passed,
+  # so the protected-branch check names on master are unchanged by the split.
+  pytest-aggregate:
+    name: python pytest
+    needs: [changes, pytest]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard to have passed
+        env:
+          SHARDS_RESULT: ${{ needs.pytest.result }}
+        run: |
+          echo "python pytest shard matrix: $SHARDS_RESULT"
+          case "$SHARDS_RESULT" in
+            success)
+              echo "all 6 shards passed" ;;
+            skipped)
+              # The selector positively reported no affected Python test.
+              echo "shard matrix skipped: no Python test can be affected" ;;
+            *)
+              echo "::error::python pytest shards did not pass (matrix result:" \
+                "$SHARDS_RESULT). Open the failing 'python pytest (N/6)' check." >&2
+              exit 1 ;;
+          esac
 
   eval-framework-venvs:
     name: eval venv (${{ matrix.framework }})
