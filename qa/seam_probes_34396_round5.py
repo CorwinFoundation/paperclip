@@ -167,13 +167,25 @@ probe("X6", "a recomputed window is labelled as recomputed, and a stored one as 
 write_registry(expires_at=stamp(-5))
 store = new_store()
 settle(store, "t-rewrite", stamp(-15))             # inside the window
-second = store.record_outcome("t-rewrite", wrong_outcome(stamp(-1)), executed_at=stamp(-1))
-probe("X7", "the window pinned at execution is not rewritable by re-recording the outcome later",
-      (second.get("protection_at_execution") or {}).get("protection_active") is True,
-      f"first recorded at {stamp(-15)} (inside) -> True; re-recorded at {stamp(-1)} (outside) -> "
-      f"protection_at_execution protection_active="
-      f"{(second.get('protection_at_execution') or {}).get('protection_active')}, "
-      f"executed_at={(second.get('protection_at_execution') or {}).get('executed_at')}")
+# BEAAA-35482 landed after this probe was written and now refuses the
+# re-record outright instead of leaving the pinned window intact through it.
+# A refusal satisfies the requirement more strongly than a preserved value, so
+# both outcomes hold; anything else - a rewritten window, or any other
+# exception - still fails.
+try:
+    second = store.record_outcome("t-rewrite", wrong_outcome(stamp(-1)), executed_at=stamp(-1))
+except PermissionError as exc:
+    probe("X7", "the window pinned at execution is not rewritable by re-recording the outcome later",
+          True,
+          f"first recorded at {stamp(-15)} (inside); re-recording at {stamp(-1)} (outside) is "
+          f"refused at the write: PermissionError: {exc}")
+else:
+    probe("X7", "the window pinned at execution is not rewritable by re-recording the outcome later",
+          (second.get("protection_at_execution") or {}).get("protection_active") is True,
+          f"first recorded at {stamp(-15)} (inside) -> True; re-recorded at {stamp(-1)} (outside) -> "
+          f"protection_at_execution protection_active="
+          f"{(second.get('protection_at_execution') or {}).get('protection_active')}, "
+          f"executed_at={(second.get('protection_at_execution') or {}).get('executed_at')}")
 
 w = sum(1 for r in ROWS if r[1] == "HOLDS")
 print(f"BEAAA-34396 round-five probes @ c60b0319  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
