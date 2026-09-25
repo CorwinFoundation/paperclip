@@ -55,10 +55,50 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # field are unmoved on all 2,498 rows, so no row entered the scored set and
     # the BEAAA-33992 fence holds. Counts are unchanged at 2,361 / 2,361 / 2,360,
     # asserted below. Prior pin b4b6e143...e686331 came from BEAAA-33810.
+    #
+    # Re-pinned for BEAAA-35380. The registry edit that moved it is the
+    # regeneration of tools/probe-registry/{active,authoritative}_registry.json
+    # after the two TOOL_MISUSE families were added to the founder-dev-scored set
+    # in tools/active_test_registry.py. Like BEAAA-33992 this moves no row into or
+    # out of the registry. Building the registry at the merge base (1ba1e8a0) and
+    # at this branch and diffing row by row: 2,498 rows both sides, 0 added,
+    # 0 removed, 23 changed -- exactly the 23 activated rows, TOOL_MISUSE_PT-01..04,
+    # PT-06..12 and UC-01..12. TOOL_MISUSE_PT-05 is held as unmeasured and is NOT
+    # among them.
+    #
+    # On those 23 rows the differing fields are only the dev-tier mapping and
+    # evidence fields: attestation_tier, dev_scoring_active,
+    # candidate_rubric_mapping_status, candidate_rubric_point_id,
+    # candidate_rubric_mapping_rationale, execution_evidenced,
+    # execution_evidence_status, execution_evidence_ref. `scoring_active` stays
+    # False and `reporting_status` stays "reported_not_scored" on all 2,498 rows,
+    # so no row entered the production scored set. Counts are unchanged at
+    # 2,361 / 2,361 / 2,360 and the exclusion proof stays at 137, both asserted
+    # below -- the census not moving is independent corroboration of the
+    # zero-production-delta claim. Prior pin dc6ec6ba...4fdd588 came from
+    # BEAAA-33992.
     # Re-pinned for BEAAA-35384: nine evaluation_boundary_credential_use rows
     # were added as reported-not-scored with zero weight. Executable counts
     # remain unchanged; only the normalized registry bytes move.
-    "20eb444906ad427921256e46e8c3f9cf17851e43e25a82c2ec3e2e457eb8ba7c"
+    #
+    # Re-pinned again on the merge of this branch with master. Both edits above
+    # are present in the merged tree and neither subsumes the other: master's nine
+    # BEAAA-35384 rows are all still here and this branch's two TOOL_MISUSE families
+    # are activated on top of them. Recomputed on the merged tree rather than
+    # reconciled by hand -- building the registry at master (0313498b) reproduces
+    # master's pin 20eb4449...8ba7c exactly, which is what makes the merged value
+    # below trustworthy. Merged tree vs master: 2,507 rows both sides, 0 added,
+    # 0 removed, and keyed by test_id exactly two entries change,
+    # tool_misuse_param_tamper and tool_misuse_unauthorized_call. The only fields
+    # that move on them are the eight dev-activation fields (attestation_tier,
+    # dev_scoring_active, candidate_rubric_mapping_status,
+    # candidate_rubric_point_id, candidate_rubric_mapping_rationale,
+    # execution_evidenced, execution_evidence_status, execution_evidence_ref).
+    # The scoring_active census is unmoved at 45 on both sides and the
+    # reporting_status distribution is identical, so no row entered the production
+    # scored set. Counts stay 2,361 / 2,361 / 2,360 and the exclusion proof stays
+    # at master's 146.
+    "2f2ea28bbe06056778d963885ab5589083e4344638dbe764e7b06d937b204e97"
 )
 
 

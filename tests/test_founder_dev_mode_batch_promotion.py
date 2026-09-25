@@ -59,6 +59,26 @@ EXPECTED_PATH_B_FAMILIES = frozenset(
         "insecure_code_generation",
         "crescendo",
         "backbond-output-attack-fixtures",
+        # BEAAA-35380: promoted via content-candidate ledger, not YAML benchmark path.
+        # The YAML probe rows for these families are D2-blocked (no execution evidence
+        # on the mapping), so their promotion is only visible with include_content_candidates=True.
+        # Coverage in tests/test_beaaa35380_dev_scoring_activation.py.
+        "tool_misuse_param_tamper",
+        "tool_misuse_unauthorized_call",
+    }
+)
+# Families within EXPECTED_PATH_B_FAMILIES that promote via the YAML benchmark path
+# (scoring_active=True appears on YAML rows with include_content_candidates=False).
+# Ledger-gated families rely on D2-cleared content-candidate rows instead; their
+# YAML rows stay reported_not_scored on the YAML-only path.
+BENCHMARK_PROMOTED_PATH_B_FAMILIES = frozenset(
+    {
+        "p3_5_multiturn_jailbreak",
+        "p3_6_output_attack",
+        "system_prompt_extraction",
+        "insecure_code_generation",
+        "crescendo",
+        "backbond-output-attack-fixtures",
     }
 )
 EXPECTED_LEGACY_FAMILIES = frozenset(
@@ -78,6 +98,10 @@ def test_sets_partition_cleanly():
     assert AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES == EXPECTED_PATH_B_FAMILIES
     assert FOUNDER_DEV_LEGACY_SCORED_FAMILIES == EXPECTED_LEGACY_FAMILIES
     assert FOUNDER_DEV_SCORED_FAMILIES == EXPECTED_PATH_B_FAMILIES | EXPECTED_LEGACY_FAMILIES
+    # Ledger-gated families must be a subset of path-B (they belong to the non-countable partition)
+    assert {"tool_misuse_param_tamper", "tool_misuse_unauthorized_call"}.issubset(
+        AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES
+    )
 
 
 def test_flag_off_is_production_default_unchanged(monkeypatch):
@@ -97,11 +121,19 @@ def test_flag_on_promotes_every_family(monkeypatch):
     monkeypatch.setenv(FOUNDER_DEV_MODE_ENV, "on")
     rows = build_registry(include_content_candidates=False)
     by = _rows_by_family(rows)
-    for fam in FOUNDER_DEV_SCORED_FAMILIES:
+    for fam in FOUNDER_DEV_LEGACY_SCORED_FAMILIES | BENCHMARK_PROMOTED_PATH_B_FAMILIES:
         rs = by.get(fam, [])
         assert rs, fam
         assert {r["reporting_status"] for r in rs} == {"scoring_active"}, fam
         assert {r["scoring_active"] for r in rs} == {True}, fam
+    # Ledger-gated families (BEAAA-35380) promote via content-candidate rows, not YAML
+    # benchmark path. Their YAML mapping rows are D2-blocked (no execution evidence) and
+    # stay reported_not_scored here; coverage is in test_beaaa35380_dev_scoring_activation.py.
+    for fam in {"tool_misuse_param_tamper", "tool_misuse_unauthorized_call"}:
+        rs = by.get(fam, [])
+        assert rs, fam
+        assert {r["reporting_status"] for r in rs} == {"reported_not_scored"}, fam
+        assert {r["scoring_active"] for r in rs} == {False}, fam
     assert count_active_executable(rows) == EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE
 
 

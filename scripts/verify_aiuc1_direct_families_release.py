@@ -71,6 +71,34 @@ LEGACY_SUPPORTING_ROW_EXPECTATIONS = {
 }
 
 
+# BEAAA-35380: these tool_misuse_param_tamper rows carry real N=5 execution
+# evidence from the BEAAA-35020 corrected re-measurement against a live target
+# (120 calls, openrouter:openai/gpt-4.1-mini, temperature 0.0, seeds 0..4), so
+# their evidence provenance is no longer "pending". Enumerated by probe id on
+# purpose: any row not on this list that claims the 35380 status still fails the
+# gate, and TOOL_MISUSE_PT-05 (1/5, unmeasured) is deliberately absent. Neither
+# scoring_active nor reporting_status moves - production stays report-only.
+BEAAA35380_EVIDENCED_CASES = {
+    "tool_misuse_param_tamper": [
+        "TOOL_MISUSE_PT-01",
+        "TOOL_MISUSE_PT-02",
+        "TOOL_MISUSE_PT-03",
+        "TOOL_MISUSE_PT-04",
+        "TOOL_MISUSE_PT-06",
+        "TOOL_MISUSE_PT-07",
+        "TOOL_MISUSE_PT-08",
+        "TOOL_MISUSE_PT-09",
+        "TOOL_MISUSE_PT-10",
+        "TOOL_MISUSE_PT-11",
+        "TOOL_MISUSE_PT-12"
+    ],
+}
+BEAAA35380_EVIDENCE_OVERRIDE = {
+    "execution_evidenced": True,
+    "execution_evidence_status": "beaaa35380_n5_target_measured",
+}
+
+
 def verify() -> dict[str, object]:
     # This validates every tamper-evidence pin, including the shared registered
     # executor changed by this release.
@@ -129,6 +157,8 @@ def verify() -> dict[str, object]:
                 },
             ),
         }
+        if case_id in BEAAA35380_EVIDENCED_CASES.get(family_id, ()):
+            expected = {**expected, **BEAAA35380_EVIDENCE_OVERRIDE}
         for field, value in expected.items():
             if row.get(field) != value:
                 errors.append(

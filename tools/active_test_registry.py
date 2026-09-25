@@ -158,6 +158,12 @@ AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
         "insecure_code_generation",
         "crescendo",
         "backbond-output-attack-fixtures",
+        # BEAAA-35380: 23 of 24 UC/PT rows activate; the 24th (PT-05) is held as
+        # unmeasured and is excluded by the per-row ledger gate below, not the
+        # family entry. The family entry binds the two families to the dev-scored
+        # non-countable partition so the flag-off production count never moves.
+        "tool_misuse_param_tamper",
+        "tool_misuse_unauthorized_call",
     }
 )
 FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
@@ -1022,6 +1028,65 @@ def _beaaa31092_dev_evidence_metadata(
     }
 
 
+@lru_cache(maxsize=1)
+def _beaaa35380_dev_scored_digests() -> frozenset[str]:
+    """Dedupe digests the BEAAA-35380 ledger resolved to ``scored`` (23 of 24).
+
+    TOOL_MISUSE_PT-05 (measured 1-of-5, unstable) is held as unmeasured per the
+    CEO ruling on BEAAA-35020; its digest is absent from this set so it cannot
+    be promoted even though its family is in FOUNDER_DEV_SCORED_FAMILIES.
+    A missing or unreadable ledger promotes nothing.
+    """
+    return frozenset(_beaaa35380_dev_scored_rows())
+
+
+@lru_cache(maxsize=1)
+def _beaaa35380_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
+    """The BEAAA-35380 activation ledger's ``scored`` rows, keyed by dedupe digest."""
+    path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
+    try:
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {
+        str(row["dedupe_sha256"]): row
+        for row in ledger.get("rows", [])
+        if row.get("disposition") == "scored"
+    }
+
+
+def _beaaa35380_dev_evidence_metadata(
+    ledger_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Mapping + N=5 execution evidence to carry from a BEAAA-35380 ledger row.
+
+    Evidence source: artifacts/beaaa-35020/tool_misuse_corrected_n5_final.json
+    at master 1ba1e8a0 — 120 calls, openrouter:openai/gpt-4.1-mini, temperature 0.0,
+    seeds 0..4. Fail-closed: a ledger row missing its rubric point or that is not
+    seed-stable contributes nothing.
+    """
+    rubric_point_id = str(ledger_row.get("rubric_point_id") or "")
+    seed_stable = ledger_row.get("seed_stable") is True
+    if not rubric_point_id or not seed_stable:
+        return {}
+    return {
+        "candidate_rubric_mapping_status": MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS,
+        "candidate_rubric_point_id": rubric_point_id,
+        "candidate_rubric_mapping_rationale": (
+            f"BEAAA-35380 N=5 target-measured activation; "
+            f"probe_id={ledger_row.get('probe_id')}; "
+            f"raw_median={ledger_row.get('measured_raw_median')}; "
+            f"n_passed={ledger_row.get('n_passed')}/{ledger_row.get('n_seeds')}"
+        ),
+        "execution_evidenced": True,
+        "execution_evidence_status": "beaaa35380_n5_target_measured",
+        "execution_evidence_ref": (
+            "artifacts/beaaa-35020/tool_misuse_corrected_n5_final.json"
+            "@master:1ba1e8a0bb175ad1ce3bfd598a6f1985f25486d7"
+        ),
+    }
+
+
 def _merge_content_candidate_inventory(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -1083,6 +1148,19 @@ def _merge_content_candidate_inventory(
             # resolver that never sees these rows.
             candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
             candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
+        # BEAAA-35380: 23 of 24 TOOL_MISUSE UC/PT rows. The ledger excludes
+        # PT-05 (held as unmeasured at 1-of-5), so the family entry in
+        # AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES cannot promote it
+        # through the benchmark path (content-candidate rows carry no
+        # ``benchmark`` field), and the ledger-digest gate here also excludes it.
+        if ledger_row is None:
+            ledger_row_35380 = _beaaa35380_dev_scored_rows().get(str(candidate["dedupe_sha256"]))
+            if ledger_row_35380 is not None:
+                candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
+                candidate_metadata["dev_scoring_active"] = True
+                candidate_metadata.update(_beaaa35380_dev_evidence_metadata(ledger_row_35380))
+                candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
+                candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
         current = existing.get(key)
         if current is not None and (
             current.get("production_runner_executable") is True
@@ -1183,6 +1261,16 @@ def _merge_content_candidate_inventory(
             row["execution_evidence_status"] = (
                 "registered_case_adapter_not_bound"
             )
+    # BEAAA-35380: re-apply dev scoring after activate_registry_rows, which
+    # forces scoring_active=False on every tool_misuse row. The 23 ledger rows
+    # already carry dev_scoring_active=True from the pre-activation pass above;
+    # here we reconcile scoring_active and reporting_status so the tranche1
+    # observational loop does not silently strangle the dev activation.
+    _beaaa35380_scored = _beaaa35380_dev_scored_digests()
+    for row in activated:
+        if row.get("candidate_dedupe_sha256") in _beaaa35380_scored:
+            row["scoring_active"] = _scoring_active(row)
+            row["reporting_status"] = _reporting_status(row)
     return activated
 
 

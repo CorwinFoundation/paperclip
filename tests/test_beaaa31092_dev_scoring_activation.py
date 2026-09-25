@@ -9,6 +9,16 @@ from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = json.loads((ROOT / "artifacts/beaaa-31092/rank2-ledger.json").read_text(encoding="utf-8"))
 SCORED = {row["dedupe_sha256"] for row in LEDGER["rows"] if row["disposition"] == "scored"}
+# BEAAA-35380 activates 23 TOOL_MISUSE rows on its own ledger and its own N=5
+# evidence. Some of them sit in this roster as held rows. They are named here
+# from that ledger rather than waved through by a predicate, so any OTHER held
+# row that escapes this slice's hold still fails the assertion below.
+BEAAA35380 = json.loads(
+    (ROOT / "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json").read_text(encoding="utf-8")
+)
+BEAAA35380_SCORED = {
+    row["dedupe_sha256"] for row in BEAAA35380["rows"] if row["disposition"] == "scored"
+}
 
 
 def _rows(monkeypatch, flag):
@@ -47,13 +57,16 @@ def test_flag_on_promotes_exactly_the_ledger_rows(monkeypatch):
     # move, so the invariant is stated over the dev tier, not over scoring_active.
     dev = {row["candidate_dedupe_sha256"] for row in mine
            if row.get("dev_scoring_active") is True}
-    assert dev == frozenset(SCORED)
+    # this slice's dev set is exactly its own ledger, plus the rows BEAAA-35380
+    # names on its ledger - nothing else may appear
+    assert dev - BEAAA35380_SCORED == frozenset(SCORED)
     assert {row["attestation_tier"] for row in mine
             if row["candidate_dedupe_sha256"] in SCORED} == {"founder_dev_mode"}
     assert all(row["scoring_active"] is True for row in mine
                if row["candidate_dedupe_sha256"] in SCORED)
-    # every held row stays out of the dev promotion - what the tier gate buys
-    assert not (roster - SCORED) & dev
+    # every held row stays out of the dev promotion - what the tier gate buys -
+    # except the ones BEAAA-35380 names on its own ledger with its own evidence
+    assert not ((roster - SCORED) - BEAAA35380_SCORED) & dev
 
 
 def test_active_executable_count_is_identical_with_the_flag_off(monkeypatch):
