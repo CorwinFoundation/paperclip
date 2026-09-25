@@ -12,6 +12,7 @@ from typing import Any
 from . import MODE
 from .receipt import (
     ApprovalReceipt,
+    action_from_stored_terms,
     CheckNotApproved,
     ExecutedOutcome,
     ProposedAction,
@@ -804,8 +805,14 @@ class EvidenceStore:
 
 
 def _receipt_from_json(raw: str) -> ApprovalReceipt:
-    """Rebuild a receipt from its stored bytes. The store is the only writer."""
+    """Rebuild a receipt from its stored bytes. The store is the only writer.
+
+    BEAAA-35632: the terms go through ``action_from_stored_terms``, not the bare
+    constructor. Reading is not capturing, and a row written before the
+    deadline capture gate landed has to stay readable - otherwise the user
+    cannot see their receipt and the claim cannot be assessed at all.
+    """
     payload = json.loads(raw)
     payload.pop("amount_at_risk_cents", None)
-    payload["proposed_action"] = ProposedAction(**payload["proposed_action"])
+    payload["proposed_action"] = action_from_stored_terms(payload["proposed_action"])
     return ApprovalReceipt(**payload)

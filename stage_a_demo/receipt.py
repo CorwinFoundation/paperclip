@@ -27,7 +27,7 @@ Stage A is fixture-based: no mailbox, no connector, no real agent.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import MISSING, asdict, dataclass, field, fields
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -266,6 +266,47 @@ class ExecutedOutcome:
     performed_source: str = PERFORMANCE_SELF_REPORTED
 
 
+def action_from_stored_terms(payload: dict[str, Any]) -> ProposedAction:
+    """Rebuild a ProposedAction from terms already written to the ledger.
+
+    BEAAA-35632. The capture gate in ``__post_init__`` is correct and stays: an
+    un-orderable deadline must never reach a receipt. But it is a gate on
+    *capture*, and ``EvidenceStore`` reconstructs a ProposedAction on the *read*
+    path too. A row written before the gate landed therefore could not be read
+    at all - ``receipt_for`` and ``claim_for`` both raised
+    ``UnorderableCancellationDeadline`` out of the read, so the user could not
+    see their own receipt and the claim could not be assessed.
+
+    This is not a way around the gate. The ordinary constructor is tried first,
+    so every set of terms that *can* pass the gate passes it, and the only rows
+    that take the rebuild path are ones no caller is able to create any more.
+    What comes back carries ``deadline_capture_defect ==
+    'cancellation_deadline_not_orderable'``, which is how the claim path reads a
+    defect as ours: recorded against the claim, never silently repaired.
+    """
+    declared = {f.name: f for f in fields(ProposedAction)}
+    unknown = sorted(set(payload) - set(declared))
+    if unknown:
+        raise TypeError(f"stored terms carry unknown fields: {', '.join(unknown)}")
+    try:
+        return ProposedAction(**payload)
+    except UnorderableCancellationDeadline:
+        pass
+    # Bytes the gate refuses. Rebuilt field by field so the stored terms are
+    # readable exactly as they were written - nothing is defaulted over, and no
+    # offset is invented to make the deadline order.
+    action = ProposedAction.__new__(ProposedAction)
+    for name, field in declared.items():
+        if name in payload:
+            value = payload[name]
+        elif field.default is not MISSING:
+            value = field.default
+        else:
+            raise TypeError(f"stored terms are missing required field {name!r}")
+        object.__setattr__(action, name, value)
+    return action
+
+
 def observation_instant(stamp: str | None) -> datetime | None:
     """The instant an ISO-8601 stamp denotes, or None if it cannot be ordered.
 
@@ -448,7 +489,12 @@ def review_claim(receipt: ApprovalReceipt, outcome: ExecutedOutcome | None) -> d
         # Record defects are reported alongside the claim rather than folded
         # into it: a missing approval is always on the record even when the
         # money turns out to be recoverable.
-        "record_defects": [],
+        #
+        # BEAAA-35632: seeded from the captured terms, so a deadline we wrote
+        # down and cannot order is on the record whatever shape the claim
+        # settles into. Only a row written before the capture gate can carry
+        # one, and that row must not read as though its terms were clean.
+        "record_defects": receipt.proposed_action.capture_defects(),
     }
 
     if outcome is None or not outcome.independent:
@@ -509,11 +555,9 @@ def _review_cancellation_obligation(
     case the ordinary outcome-matching path applies.
     """
     action = receipt.proposed_action
-    defects = (
-        [f"check_{receipt.answer.lower()}"]
-        if receipt.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED)
-        else []
-    )
+    defects = [*base["record_defects"]]
+    if receipt.answer in (ANSWER_SKIPPED, ANSWER_UNANSWERED):
+        defects.append(f"check_{receipt.answer.lower()}")
     record = {**base, "record_defects": defects}
 
     if outcome.performed:
@@ -539,7 +583,8 @@ def _review_cancellation_obligation(
         # write down properly is never the reason a user's loss reads as no
         # loss at all, and never the reason a live booking reads as one.
         capture_defect = action.deadline_capture_defect or "cancellation_deadline_not_captured"
-        record = {**record, "record_defects": [*record["record_defects"], capture_defect]}
+        if capture_defect not in record["record_defects"]:
+            record = {**record, "record_defects": [*record["record_defects"], capture_defect]}
         deadline = captured_deadline_instant(action.cancellation_deadline)
         if deadline is None:
             return {**record, "outcome_state": "UNKNOWN/INCOMPLETE",
