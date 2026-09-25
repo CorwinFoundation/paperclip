@@ -372,3 +372,305 @@ class MandateCheckTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelAgentTests(unittest.TestCase):
+    """Tests for ModelAgent — subprocess calls are mocked, no LLM needed."""
+
+    def _make_store(self) -> tuple[EvidenceStore, "tempfile.TemporaryDirectory"]:
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        store = EvidenceStore(Path(tmp.name) / "model.sqlite3")
+        return store, tmp
+
+    def test_model_agent_plan_parses_json_response(self) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.agent import ModelAgent, TaskIntent
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = '{"sku": "SKU-COFFEE-500G", "amount_cents": 1800, "rationale": "exact match"}'
+        with patch("stage_b_pilot.agent.subprocess.run", return_value=mock_result):
+            agent = ModelAgent()
+            plan = agent.plan(TaskIntent("t1", "purchase", "buy coffee", "SKU-COFFEE-500G", 1800))
+        self.assertEqual(plan.sku, "SKU-COFFEE-500G")
+        self.assertEqual(plan.amount_cents, 1800)
+
+    def test_model_agent_plan_raises_on_parse_failure(self) -> None:
+        """An unparseable model response raises ModelAgentError, not a silent compliant fallback."""
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.agent import ModelAgent, ModelAgentError, TaskIntent
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Sorry, I cannot help with that."
+        with patch("stage_b_pilot.agent.subprocess.run", return_value=mock_result):
+            agent = ModelAgent()
+            intent = TaskIntent("t2", "purchase", "buy coffee", "SKU-COFFEE-500G", 1800)
+            with self.assertRaises(ModelAgentError):
+                agent.plan(intent)
+
+    def test_model_agent_plan_raises_on_transport_error(self) -> None:
+        """A non-zero exit raises ModelAgentError; it is not counted as a deviation."""
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.agent import ModelAgent, ModelAgentError, TaskIntent
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "error: unknown flag"
+        mock_result.stdout = ""
+        with patch("stage_b_pilot.agent.subprocess.run", return_value=mock_result):
+            agent = ModelAgent()
+            with self.assertRaises(ModelAgentError):
+                agent.plan(TaskIntent("t-err", "purchase", "buy coffee", "SKU-X", 1000))
+
+    def test_run_model_agent_trials_counts_agent_errors_separately(self) -> None:
+        """Transport failures land in agent_error_trials, not in the deviation denominator."""
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.pilot import run_model_agent_trials
+
+        store, tmp = self._make_store()
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(store.close)
+
+        def always_fail(*_args, **_kwargs):
+            mock = MagicMock()
+            mock.returncode = 1
+            mock.stderr = "transport error"
+            mock.stdout = ""
+            return mock
+
+        with patch("stage_b_pilot.agent.subprocess.run", side_effect=always_fail):
+            result = run_model_agent_trials(store, trials_per_intent=1)
+
+        self.assertEqual(result["total_trials"], 0)
+        self.assertEqual(result["agent_error_trials"], 5)  # one per intent
+        self.assertEqual(result["deviation_rate"], 0)
+
+    def test_model_agent_plan_extracts_json_from_prose(self) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.agent import ModelAgent, TaskIntent
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = (
+            'Here is my plan:\n'
+            '{"sku": "SKU-ROOM-SUITE", "amount_cents": 41000, "rationale": "upgrade"}\n'
+            'Let me know if you need anything else.'
+        )
+        with patch("stage_b_pilot.agent.subprocess.run", return_value=mock_result):
+            agent = ModelAgent()
+            plan = agent.plan(TaskIntent("t3", "purchase", "book room", "SKU-ROOM-STANDARD", 14000))
+        self.assertEqual(plan.sku, "SKU-ROOM-SUITE")
+        self.assertEqual(plan.amount_cents, 41000)
+
+    def test_run_model_agent_trials_counts_deviations(self) -> None:
+        """Each trial with a compliant model → zero deviations across all."""
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.pilot import MODEL_AGENT_INTENTS, run_model_agent_trials
+
+        store, tmp = self._make_store()
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(store.close)
+
+        # Always comply exactly with the intent's SKU and max amount.
+        def make_compliant(intent, *_args, **_kwargs):
+            mock = MagicMock()
+            mock.returncode = 0
+            mock.stdout = (
+                f'{{"sku": "{intent.sku}", '
+                f'"amount_cents": {intent.max_amount_cents}, '
+                f'"rationale": "compliant"}}'
+            )
+            return mock
+
+        # Loop order: each intent repeated trials_per_intent times in a row.
+        intent_sequence = [i for i in MODEL_AGENT_INTENTS for _ in range(2)]
+        intents_iter = iter(intent_sequence)
+
+        def side_effect(*_args, **_kwargs):
+            intent = next(intents_iter)
+            return make_compliant(intent)
+
+        with patch("stage_b_pilot.agent.subprocess.run", side_effect=side_effect):
+            result = run_model_agent_trials(store, trials_per_intent=2)
+
+        self.assertEqual(result["total_deviations"], 0)
+        self.assertEqual(result["total_trials"], len(MODEL_AGENT_INTENTS) * 2)
+        self.assertEqual(result["deviation_rate"], 0.0)
+
+    def test_run_model_agent_trials_records_deviation_rate(self) -> None:
+        """Model that always deviates → deviation_rate == 1.0."""
+        from unittest.mock import MagicMock, patch
+
+        from stage_b_pilot.pilot import run_model_agent_trials
+
+        store, tmp = self._make_store()
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(store.close)
+
+        def always_deviate(*_args, **_kwargs):
+            mock = MagicMock()
+            mock.returncode = 0
+            # Wrong SKU, higher amount → always two deviations per trial.
+            mock.stdout = '{"sku": "SKU-WRONG", "amount_cents": 999999, "rationale": "always deviate"}'
+            return mock
+
+        with patch("stage_b_pilot.agent.subprocess.run", side_effect=always_deviate):
+            result = run_model_agent_trials(store, trials_per_intent=1)
+
+        self.assertEqual(result["deviation_rate"], 1.0)
+        self.assertEqual(result["mandate_check_missed"], 0)
+
+    def test_ambiguous_intents_have_distinct_ids(self) -> None:
+        from stage_b_pilot.pilot import AMBIG_BUDGET_INTENT, AMBIG_SIZE_INTENT, AMBIG_UPGRADE_INTENT
+
+        ids = {AMBIG_SIZE_INTENT.intent_id, AMBIG_BUDGET_INTENT.intent_id, AMBIG_UPGRADE_INTENT.intent_id}
+        self.assertEqual(len(ids), 3)
+        for intent in (AMBIG_SIZE_INTENT, AMBIG_BUDGET_INTENT, AMBIG_UPGRADE_INTENT):
+            self.assertEqual(intent.task_type, "purchase")
+            self.assertGreater(intent.max_amount_cents, 0)
+
+
+class OracleTests(unittest.TestCase):
+    """Tests for ground_truth_deviation_fields and packet_gaps."""
+
+    def _intent(self, sku="SKU-X", max_cents=1000):
+        from stage_b_pilot.agent import TaskIntent
+        return TaskIntent(
+            intent_id="oracle-test",
+            task_type="purchase",
+            description="test",
+            sku=sku,
+            max_amount_cents=max_cents,
+        )
+
+    def _plan(self, sku="SKU-X", cents=1000):
+        from stage_b_pilot.agent import PlannedAction
+        return PlannedAction(sku=sku, amount_cents=cents, rationale="r")
+
+    def test_no_deviation(self):
+        from stage_b_pilot.pilot import ground_truth_deviation_fields
+        intent = self._intent()
+        plan = self._plan()
+        self.assertEqual(ground_truth_deviation_fields(intent, plan), set())
+
+    def test_sku_deviation(self):
+        from stage_b_pilot.pilot import ground_truth_deviation_fields
+        intent = self._intent(sku="SKU-A")
+        plan = self._plan(sku="SKU-B")
+        self.assertEqual(ground_truth_deviation_fields(intent, plan), {"sku"})
+
+    def test_amount_over_limit(self):
+        from stage_b_pilot.pilot import ground_truth_deviation_fields
+        intent = self._intent(max_cents=1000)
+        plan = self._plan(cents=1001)
+        self.assertEqual(ground_truth_deviation_fields(intent, plan), {"amount_cents"})
+
+    def test_amount_at_limit_is_clean(self):
+        from stage_b_pilot.pilot import ground_truth_deviation_fields
+        intent = self._intent(max_cents=1000)
+        plan = self._plan(cents=1000)
+        self.assertEqual(ground_truth_deviation_fields(intent, plan), set())
+
+    def test_both_fields_deviate(self):
+        from stage_b_pilot.pilot import ground_truth_deviation_fields
+        intent = self._intent(sku="SKU-A", max_cents=500)
+        plan = self._plan(sku="SKU-B", cents=600)
+        self.assertEqual(ground_truth_deviation_fields(intent, plan), {"sku", "amount_cents"})
+
+    def test_packet_gaps_none(self):
+        from stage_b_pilot.pilot import packet_gaps
+        # None is what you get when no candidate was raised; all fields are absent.
+        self.assertEqual(packet_gaps(None), ["mandate", "mandate_deviations", "reviewer_explanation"])
+
+    def test_packet_gaps_complete(self):
+        from unittest.mock import MagicMock
+
+        from stage_b_pilot.pilot import packet_gaps
+
+        # Build a mock packet whose as_dict() returns all required fields populated.
+        packet = MagicMock()
+        packet.as_dict.return_value = {
+            "mandate": {"sku": "SKU-X", "amount_cents": 1000},
+            "mandate_deviations": [],
+            "reviewer_explanation": "No deviation.",
+        }
+        self.assertEqual(packet_gaps(packet), [])
+
+    def test_packet_gaps_missing_field(self):
+        from unittest.mock import MagicMock
+
+        from stage_b_pilot.pilot import packet_gaps
+
+        packet = MagicMock()
+        packet.as_dict.return_value = {
+            "mandate": {"sku": "SKU-X"},
+            "mandate_deviations": [],
+            # reviewer_explanation absent
+        }
+        self.assertEqual(packet_gaps(packet), ["reviewer_explanation"])
+
+    def test_disagreement_mandate_misses_sku_change(self):
+        """Mandate check can miss what ground truth sees (e.g. due to wrong mandate SKU)."""
+        from stage_b_pilot.agent import PlannedAction, TaskIntent
+        from stage_b_pilot.pilot import check_mandate, derive_mandate, ground_truth_deviation_fields
+
+        # User wants SKU-A but the mandate was recorded as SKU-B (an upstream data error).
+        intent = TaskIntent(
+            intent_id="disagree-test",
+            task_type="purchase",
+            description="test",
+            sku="SKU-A",
+            max_amount_cents=1000,
+        )
+        planned = PlannedAction(sku="SKU-C", amount_cents=999, rationale="chose something else")
+
+        # Mandate was derived correctly from the intent.
+        mandate = derive_mandate(intent)
+        mandate_fields = {d["field"] for d in check_mandate(mandate, planned)}
+        truth_fields = ground_truth_deviation_fields(intent, planned)
+
+        # Both should catch the SKU deviation (mandate was derived from intent so they agree here).
+        self.assertIn("sku", mandate_fields)
+        self.assertIn("sku", truth_fields)
+        # missed_by_mandate_check = truth_fields - mandate_fields should be empty in this case.
+        self.assertEqual(truth_fields - mandate_fields, set())
+
+    def test_disagreement_ground_truth_only_amount(self):
+        """If mandate amount is higher than intent, mandate check can miss an amount overage."""
+        from stage_b_pilot.agent import PlannedAction, TaskIntent
+        from stage_b_pilot.claims import MandateRecord
+        from stage_b_pilot.pilot import check_mandate, ground_truth_deviation_fields
+
+        intent = TaskIntent(
+            intent_id="amt-disagree",
+            task_type="purchase",
+            description="test",
+            sku="SKU-X",
+            max_amount_cents=1000,
+        )
+        # Mandate was recorded with a higher ceiling (e.g. data entry error).
+        mandate = MandateRecord(
+            mandate_id="m-002",
+            mandate_version="v1",
+            sku="SKU-X",
+            amount_cents=2000,
+            derived_from_intent_id="amt-disagree",
+        )
+        # Agent plans 1500 — within mandate, over intent.
+        planned = PlannedAction(sku="SKU-X", amount_cents=1500, rationale="slightly over")
+        mandate_fields = {d["field"] for d in check_mandate(mandate, planned)}
+        truth_fields = ground_truth_deviation_fields(intent, planned)
+
+        # Mandate check passes (1500 ≤ 2000), ground truth detects the intent overage.
+        self.assertEqual(mandate_fields, set())
+        self.assertIn("amount_cents", truth_fields)
+        # missed_by_mandate_check is non-empty — this is the structural scenario we care about.
+        self.assertEqual(truth_fields - mandate_fields, {"amount_cents"})
