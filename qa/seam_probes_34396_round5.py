@@ -187,7 +187,28 @@ else:
           f"{(second.get('protection_at_execution') or {}).get('protection_active')}, "
           f"executed_at={(second.get('protection_at_execution') or {}).get('executed_at')}")
 
+# X8. BEAAA-35482 bounded the window at both ends by reading each record's own
+# start field. The obvious way past that is a record that simply carries no
+# start: if an absent field is skipped rather than refused, a loss predating the
+# programme reads covered again and X2 is back with an extra step.
+write_registry(expires_at=stamp(+60), approved_at=stamp(-10))
+stripped = json.loads(pathlib.Path(ROOT, f"{PV}.json").read_text())
+for key, field in (("executed_backing_authority", "executed_at"),
+                   ("funded_financial_security", "funded_at"),
+                   ("approved_versioned_terms", "approved_at"),
+                   ("approved_consumer_disclosure_set", "approved_at")):
+    stripped[key].pop(field, None)
+pathlib.Path(ROOT, f"{PV}.json").write_text(json.dumps(stripped))
+store = new_store()
+c = settle(store, "t-nostart", stamp(-24))
+pinned = c.get("protection_at_execution", {})
+probe("X8", "a record carrying no start instant is refused, not treated as always in force",
+      pinned.get("protection_active") is False,
+      f"start fields removed from four records, executed {stamp(-24)} -> "
+      f"at_execution protection_active={pinned.get('protection_active')} "
+      f"reasons={[r for r in (pinned.get('reasons') or [])][:3]}")
+
 w = sum(1 for r in ROWS if r[1] == "HOLDS")
-print(f"BEAAA-34396 round-five probes @ c60b0319  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
+print(f"BEAAA-34396 round-five probes @ 15bd3953  probes={len(ROWS)} holds={w} fails={len(ROWS) - w}\n")
 for pid, st, req, detail in ROWS:
     print(f"{pid} {st}: {req}\n      {detail}")
