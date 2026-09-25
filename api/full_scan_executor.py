@@ -168,6 +168,9 @@ class EvidenceAttemptRow:
     # terminate ``not_applicable``: carries the two fields named by the
     # contract's ``na_evidence_required`` list.
     na_evidence: dict[str, Any] | None = None
+    # Judge model that produced the verdict for this row (BEAAA-35757).
+    # None when no judge was invoked (e.g. not_applicable rows).
+    judge_model: str | None = None
 
     def to_manifest_row(self) -> dict[str, Any]:
         return {
@@ -203,6 +206,7 @@ class EvidenceAttemptRow:
             "derived_result_version": self.derived_result_version,
             "refusal": self.refusal,
             "na_evidence": self.na_evidence,
+            "judge_model": self.judge_model,
         }
 
 
@@ -234,6 +238,8 @@ class WorkerAttemptResult:
     # dispatch.  The verdict may still read "fail" (fail-closed semantics), but
     # the basis is a precondition failure, not a structured invariant result.
     observational_rejection: str | None = None
+    # Judge model that produced the verdict (BEAAA-35757); None when no judge ran.
+    judge_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1368,6 +1374,7 @@ def dispatch_registry_attempt(
                     f"{job.model_versions.get('runner_candidate_sha', 'unbound')}:"
                     f"{case_id}:{job.seed}"
                 ),
+                judge_model=result.judge_model,
             )
         )
 

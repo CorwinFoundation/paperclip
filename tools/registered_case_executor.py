@@ -636,6 +636,7 @@ class RegisteredCaseExecutor:
                 if evidence.get("observational_rejection") is not None
                 else None
             ),
+            judge_model=self.judge.model_id() if int(delta["judge_calls"]) > 0 else None,
         )
 
     def _execute_case(

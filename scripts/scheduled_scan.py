@@ -758,6 +758,117 @@ def _operator_manifest(
         "row_results": evidence_rows,
         "final_manifest_hash": job.final_manifest_hash,
         "executor": "api.full_scan_executor.dispatch_registry_attempt",
+        # BEAAA-35757: index for PI/E&O underwriters (Aon five-category framework).
+        # Maps each Aon category to the manifest field that answers it, or records
+        # the gap when no field is present. Derived from data already in this
+        # manifest — no new probe cost.
+        "underwriter_evidence": _underwriter_evidence_index(
+            evidence_rows=evidence_rows,
+            job=job,
+        ),
+    }
+
+
+def _underwriter_evidence_index(
+    *,
+    evidence_rows: list[dict[str, Any]],
+    job: Any,
+) -> dict[str, Any]:
+    """Five-category PI/E&O evidence index for underwriter review (BEAAA-35757).
+
+    Source: Aon September 2026 PI/E&O guidance — five things underwriters ask
+    AI buyers to show. Each key names the category; the value names the manifest
+    path that answers it or records the gap.
+    """
+    # (b) materiality — one row per declared capability with exercised rubric
+    # points and their pass/fail verdicts. Derived from capability_manifest +
+    # row_results. Not rated for dollar exposure (no field for that yet).
+    cap_manifest = getattr(job, "capability_manifest", None) or {}
+    cap_rubrics: dict[str, dict[str, Any]] = {}
+    for row in evidence_rows:
+        cap = str(row.get("rubric_point_id") or "")
+        verdict = row.get("verdict")
+        family = str(row.get("family") or "")
+        for flag, declared in cap_manifest.items():
+            if declared and flag.lower() in cap.lower():
+                entry = cap_rubrics.setdefault(flag, {"pass": 0, "fail": 0, "other": 0, "families": set()})
+                if verdict == "PASS":
+                    entry["pass"] += 1
+                elif verdict == "FAIL":
+                    entry["fail"] += 1
+                else:
+                    entry["other"] += 1
+                if family:
+                    entry["families"].add(family)
+    capability_materiality = {
+        flag: {
+            "declared": cap_manifest.get(flag),
+            "pass": v["pass"],
+            "fail": v["fail"],
+            "other": v["other"],
+            "families_exercised": sorted(v["families"]),
+            "materiality_rating": "not_rated",
+        }
+        for flag, v in cap_rubrics.items()
+    }
+
+    # (d) client-data protection — families list
+    data_protection_families = sorted({
+        str(row.get("family") or "")
+        for row in evidence_rows
+        if str(row.get("family") or "").startswith(("data", "exfil", "leak", "multi_tenant", "pii"))
+    } - {""})
+
+    # (c) human review — GOVERNANCE rubric point rows
+    governance_rows = [
+        r for r in evidence_rows
+        if "governance" in str(r.get("rubric_point_id") or "").lower()
+        or "approval" in str(r.get("probe_id") or "").lower()
+        or "kill" in str(r.get("probe_id") or "").lower()
+        or "logging" in str(r.get("probe_id") or "").lower()
+    ]
+
+    # (e) reconstruction — fields present in every manifest
+    reconstruction_fields = [
+        "evidence_ref",        # per-row
+        "final_manifest_hash", # manifest
+        "started_at",          # manifest
+        "finished_at",         # manifest
+        "scanner_version",     # manifest
+        "corpus_version",      # manifest
+        "seed",                # manifest
+        "judge_models",        # manifest
+    ]
+
+    return {
+        "aon_category_a_ai_use_map": {
+            "status": "present",
+            "manifest_field": "capability_manifest",
+            "supporting_field": "capability_declaration",
+            "note": "Declares what the subject can do; not a per-business-process usage map.",
+        },
+        "aon_category_b_autonomy_and_materiality": {
+            "status": "partial",
+            "manifest_field": "capability_manifest",
+            "gap": "materiality_rating is not_rated — no field ties a capability to financial exposure",
+            "capability_materiality": capability_materiality,
+        },
+        "aon_category_c_human_review": {
+            "status": "present",
+            "manifest_field": "dimensions",
+            "supporting_field": "row_results[rubric_point_id contains governance]",
+            "governance_row_count": len(governance_rows),
+            "note": "Rubric point ids are engineering labels; a glossary mapping is not in this manifest.",
+        },
+        "aon_category_d_client_data_protection": {
+            "status": "present",
+            "manifest_field": "families",
+            "data_protection_families": data_protection_families,
+        },
+        "aon_category_e_incident_reconstruction": {
+            "status": "present",
+            "manifest_fields": reconstruction_fields,
+        },
     }
 
 

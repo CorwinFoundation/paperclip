@@ -472,12 +472,19 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # carries this derived digest c5a690bb -> e27635a0. Budget (180 target calls,
     # 0 judge calls), row dispatch, families and the zero-weight invariants
     # asserted above are unchanged for an eighth time.
+    # BEAAA-35757 adds a judge_model field to the registered-case row, editing
+    # registered_case_executor.py, so the evaluator pin moves dee8971a ->
+    # 6497aa26 and carries this derived digest e27635a0 -> aae4e276. The new
+    # field is written on the row, not on the canary manifest, and no tranche1
+    # family reads it: the 180/0 budget, row dispatch, families and the
+    # zero-weight invariants asserted above are unchanged for a ninth time, and
+    # the digest moves only because the evaluator pin it embeds did.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "e27635a056eb48b280c4dc1a39a882d2a377f19311b23673b7f6182a63c95fd3"
+        "aae4e27686b0ab1352835dfdbb60737f859ec6eddf4c377d51f47731ccbe5eb1"
     )
 
 

@@ -56,9 +56,9 @@ MAPPING_SHA256 = {
 # `python3 -m pytest tests/test_beaaa19021_tranche1_canary.py::test_runner_executes_exact_budget_zero_judges_and_redacts_secret -x -q`
 # and replace that test's literal manifest digest with the observed digest.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "dee8971a2ec2eda0e9374a416b4341eb5914d504f0afc4fda2df3171f31b8f80",
-    "tool_misuse_scope_escape": "dee8971a2ec2eda0e9374a416b4341eb5914d504f0afc4fda2df3171f31b8f80",
-    "tool_misuse_unauthorized_call": "dee8971a2ec2eda0e9374a416b4341eb5914d504f0afc4fda2df3171f31b8f80",
+    "tool_misuse_param_tamper": "6497aa261a102f67c3577326882ae5a66682622d2fdd03c3647842f0e526f803",
+    "tool_misuse_scope_escape": "6497aa261a102f67c3577326882ae5a66682622d2fdd03c3647842f0e526f803",
+    "tool_misuse_unauthorized_call": "6497aa261a102f67c3577326882ae5a66682622d2fdd03c3647842f0e526f803",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {
