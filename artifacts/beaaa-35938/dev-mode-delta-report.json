@@ -1,0 +1,19 @@
+{
+  "before_after": "0 -> 106 hallucination_legal content-candidate rows dev-scored",
+  "dev_mode_delta": 106,
+  "dev_mode_scoring_active_candidate": 925,
+  "dev_mode_scoring_active_candidate_ledger_deleted": 819,
+  "dev_mode_scoring_active_master": 819,
+  "family_id": "hallucination_legal",
+  "hallucination_legal_scoring_active_dev_mode_candidate": 110,
+  "hallucination_legal_scoring_active_production": 4,
+  "issue": "BEAAA-35938",
+  "ledger_held_rows": 14,
+  "ledger_scored_rows": 106,
+  "ledger_total_rows": 120,
+  "note": "Measured by building the registry with tools/active_test_registry.py --registry-out in five configurations and counting scoring_active: master at 7a2a573b flag-off and flag-on in a separate worktree, candidate flag-off, candidate flag-on, and candidate flag-on with the ledger file deleted. Production is 479 in every configuration, so nothing flips outside BACKBOND_FOUNDER_DEV_MODE. Deleting the ledger returns the dev-mode count to the master 819, which is the documented per-slice rollback.",
+  "production_delta": 0,
+  "production_scoring_active_candidate": 479,
+  "production_scoring_active_master": 479,
+  "rubric_point_id": "P1.1"
+}

@@ -1029,6 +1029,7 @@ def _load_evidence_json(
 BEAAA31092_LEDGER_RELPATH = "artifacts/beaaa-31092/rank2-ledger.json"
 BEAAA35380_LEDGER_RELPATH = "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
 BEAAA35665_LEDGER_RELPATH = "artifacts/beaaa-35665/cc-dev-activation-ledger.json"
+BEAAA35938_LEDGER_RELPATH = "artifacts/beaaa-35938/hl-dev-activation-ledger.json"
 
 
 @lru_cache(maxsize=1)
@@ -1238,6 +1239,80 @@ def _beaaa35665_dev_evidence_metadata(
     }
 
 
+def _beaaa35938_dev_scored_digests() -> frozenset[str]:
+    """Dedupe digests the BEAAA-35938 ledger resolved to ``scored``.
+
+    The hallucination_legal slice: the 120 catalogue rows whose provenance is
+    ``rubric/probe_mappings/hallucination_legal.yaml`` v0.3.0 -- 30 each of
+    F1_statute, F2_case, F3_self_context, F4_procedural -- measured at N=5
+    against the authorized target and graded by the judge that YAML pins. The 5
+    further ``hallucination_legal`` catalogue rows sourced from
+    ``corpus/wave0/beaaa-15688-authored-scenarios.jsonl`` are a different file at
+    a different version, were never captured, and are absent here by
+    construction rather than by filter.
+
+    Unlike the BEAAA-35665 slice this family's oracle is ``pinned_llm_judge``, so
+    a row is ``scored`` only when the ensemble verdict was identical across all
+    five seeds. A row that errored, that drew a different verdict on any seed, or
+    whose judge output failed to parse is ``held`` in the ledger and its digest is
+    absent here, so it cannot be promoted.
+    """
+    return frozenset(_beaaa35938_dev_scored_rows())
+
+
+@lru_cache(maxsize=1)
+def _beaaa35938_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
+    """The BEAAA-35938 activation ledger's ``scored`` rows, keyed by dedupe digest.
+
+    Absent ledger promotes nothing, so "delete the ledger" stays a real rollback;
+    present but unparseable raises. Same contract as the BEAAA-31092, BEAAA-35380
+    and BEAAA-35665 loaders.
+    """
+    path = Path(__file__).resolve().parents[1] / BEAAA35938_LEDGER_RELPATH
+    if not path.exists():
+        return {}
+    ledger = _load_evidence_json(path, context="BEAAA-35938 activation ledger")
+    return {
+        str(row["dedupe_sha256"]): row
+        for row in ledger.get("rows", [])
+        if row.get("disposition") == "scored"
+    }
+
+
+def _beaaa35938_dev_evidence_metadata(
+    ledger_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Mapping + N=5 execution evidence to carry from a BEAAA-35938 ledger row.
+
+    Evidence source: artifacts/beaaa-35938/hl_slice_capture.json. Fail-closed: a
+    ledger row missing its rubric point, not seed-stable, or not ``scored``
+    contributes nothing. The rubric point is not inferred here -- it is read from
+    the ledger, which takes it from the four ``scoring_active`` bench_wrapper rows
+    this family already carries in production (all four at P1.1).
+    """
+    rubric_point_id = str(ledger_row.get("rubric_point_id") or "")
+    seed_stable = ledger_row.get("seed_stable") is True
+    if not rubric_point_id or not seed_stable:
+        return {}
+    if ledger_row.get("disposition") != "scored":
+        return {}
+    return {
+        "candidate_rubric_mapping_status": MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS,
+        "candidate_rubric_point_id": rubric_point_id,
+        "candidate_rubric_mapping_rationale": (
+            f"BEAAA-35938 N=5 target-measured activation (pinned_llm_judge); "
+            f"case_id={ledger_row.get('stable_case_id')}; "
+            f"family={ledger_row.get('probe_family')}; "
+            f"verdict={ledger_row.get('verdict_label')}; "
+            f"raw_median={ledger_row.get('measured_raw_median')}; "
+            f"n_passed={ledger_row.get('n_passed')}/{ledger_row.get('n_seeds')}"
+        ),
+        "execution_evidenced": True,
+        "execution_evidence_status": "beaaa35938_n5_target_measured",
+        "execution_evidence_ref": "artifacts/beaaa-35938/hl_slice_capture.json",
+    }
+
+
 def _merge_content_candidate_inventory(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -1322,6 +1397,22 @@ def _merge_content_candidate_inventory(
                 candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
                 candidate_metadata["dev_scoring_active"] = True
                 candidate_metadata.update(_beaaa35665_dev_evidence_metadata(ledger_row_35665))
+                candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
+                candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
+        # BEAAA-35938: the hallucination_legal slice, same ledger-digest shape.
+        # Guarded on both prior ledgers for the same reason: first ledger to
+        # claim a digest keeps it, so a digest present in two ledgers cannot take
+        # whichever branch happens to run last.
+        if (
+            ledger_row is None
+            and str(candidate["dedupe_sha256"]) not in _beaaa35380_dev_scored_digests()
+            and str(candidate["dedupe_sha256"]) not in _beaaa35665_dev_scored_digests()
+        ):
+            ledger_row_35938 = _beaaa35938_dev_scored_rows().get(str(candidate["dedupe_sha256"]))
+            if ledger_row_35938 is not None:
+                candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
+                candidate_metadata["dev_scoring_active"] = True
+                candidate_metadata.update(_beaaa35938_dev_evidence_metadata(ledger_row_35938))
                 candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
                 candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
         current = existing.get(key)
@@ -1435,9 +1526,14 @@ def _merge_content_candidate_inventory(
     # scoring_active only while BACKBOND_FOUNDER_DEV_MODE is on).
     _beaaa35380_scored = _beaaa35380_dev_scored_digests()
     _beaaa35665_scored = _beaaa35665_dev_scored_digests()
+    _beaaa35938_scored = _beaaa35938_dev_scored_digests()
     for row in activated:
         digest = row.get("candidate_dedupe_sha256")
-        if digest in _beaaa35380_scored or digest in _beaaa35665_scored:
+        if (
+            digest in _beaaa35380_scored
+            or digest in _beaaa35665_scored
+            or digest in _beaaa35938_scored
+        ):
             row["scoring_active"] = _scoring_active(row)
             row["reporting_status"] = _reporting_status(row)
     return activated

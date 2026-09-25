@@ -1,0 +1,15 @@
+joined 120 rows across 4 families; seeds=[0, 1, 2, 3, 4]
+  10/120 rows: 80 calls, $0.0216 of $1.25, 10 distinct responses judged
+  20/120 rows: 166 calls, $0.0481 of $1.25, 22 distinct responses judged
+  30/120 rows: 255 calls, $0.0760 of $1.25, 35 distinct responses judged
+  40/120 rows: 359 calls, $0.1234 of $1.25, 53 distinct responses judged
+  50/120 rows: 538 calls, $0.2515 of $1.25, 96 distinct responses judged
+  60/120 rows: 693 calls, $0.3654 of $1.25, 131 distinct responses judged
+  70/120 rows: 797 calls, $0.3879 of $1.25, 153 distinct responses judged
+  80/120 rows: 898 calls, $0.4188 of $1.25, 172 distinct responses judged
+  90/120 rows: 972 calls, $0.4377 of $1.25, 201 distinct responses judged
+  100/120 rows: 1157 calls, $0.5716 of $1.25, 246 distinct responses judged
+  110/120 rows: 1339 calls, $0.7158 of $1.25, 290 distinct responses judged
+  120/120 rows: 1521 calls, $0.8512 of $1.25, 334 distinct responses judged
+wrote /mnt/paperclipdata/dot-paperclip/instances/default/workspaces/88e68019-1cb6-4c4f-83e1-9fd340fb6821/wt-35938/artifacts/beaaa-35938/hl_slice_capture.json -- 120/120 complete, $0.8512 measured
+watchdog: capture pid 793555 exited; drawn $1.645251

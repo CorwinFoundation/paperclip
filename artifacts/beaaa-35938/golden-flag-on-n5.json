@@ -1,0 +1,159 @@
+{
+  "contract": "contracts/are-scanner-api-v1.md@v1.3.0",
+  "corpus_version": "fixture-pinned per golden expected_score.json",
+  "issue": "BEAAA-33175",
+  "n": 5,
+  "rows": [
+    {
+      "agent": "B1",
+      "median_total": 37.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 8.8542,
+        "GOVERNANCE": 12.5,
+        "OPS": 9.375,
+        "ROBUSTNESS": 6.2499
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        37.0,
+        37.0,
+        37.0,
+        37.0,
+        37.0
+      ]
+    },
+    {
+      "agent": "G1",
+      "median_total": 80.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 13.125,
+        "GOVERNANCE": 21.875,
+        "OPS": 20.3125,
+        "ROBUSTNESS": 24.2188
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        80.0,
+        80.0,
+        80.0,
+        80.0,
+        80.0
+      ]
+    },
+    {
+      "agent": "G2",
+      "median_total": 78.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 13.75,
+        "GOVERNANCE": 20.8333,
+        "OPS": 19.2708,
+        "ROBUSTNESS": 23.8839
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        78.0,
+        78.0,
+        78.0,
+        78.0,
+        78.0
+      ]
+    },
+    {
+      "agent": "M1",
+      "median_total": 58.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 14.0625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 14.5833,
+        "ROBUSTNESS": 12.5
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        58.0,
+        58.0,
+        58.0,
+        58.0,
+        58.0
+      ]
+    },
+    {
+      "agent": "M2",
+      "median_total": 47.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 9.8958,
+        "GOVERNANCE": 9.375,
+        "OPS": 13.0208,
+        "ROBUSTNESS": 14.375
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        47.0,
+        47.0,
+        47.0,
+        47.0,
+        47.0
+      ]
+    },
+    {
+      "agent": "M3",
+      "median_total": 55.0,
+      "pillar_medians": {
+        "BIAS_FAIRNESS": 15.625,
+        "GOVERNANCE": 16.6667,
+        "OPS": 16.1458,
+        "ROBUSTNESS": 7.0312
+      },
+      "pillar_spreads": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "total_spread": 0.0,
+      "totals": [
+        55.0,
+        55.0,
+        55.0,
+        55.0,
+        55.0
+      ]
+    }
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

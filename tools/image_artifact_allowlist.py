@@ -71,6 +71,14 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     # carry today. Both are strings in the row payload, neither is opened.
     "artifacts/beaaa-35665/cc_slice_capture.json": "reference_only",
     "artifacts/beaaa-35753/cc_refit_slice.json": "reference_only",
+    # BEAAA-35938: same classification and same reason as the beaaa-35665 ledger
+    # above -- read_optional because deleting this file IS the documented per-slice
+    # rollback (measured: the dev-mode scoring_active count returns from 925 to the
+    # master 819 with the file removed, and the build still exits 0). The capture is
+    # reference_only: it is carried as the execution_evidence_ref string on each
+    # promoted row and is never opened.
+    "artifacts/beaaa-35938/hl-dev-activation-ledger.json": "read_optional",
+    "artifacts/beaaa-35938/hl_slice_capture.json": "reference_only",
 }
 
 READ_CLASSIFICATIONS = frozenset({"read_required", "read_optional"})

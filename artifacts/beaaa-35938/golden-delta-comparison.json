@@ -1,0 +1,139 @@
+{
+  "issue": "BEAAA-35938",
+  "max_abs_delta_pillar_flag_off_vs_master": 0.0,
+  "max_abs_delta_pillar_flag_on_vs_flag_off": 0.0,
+  "max_abs_delta_total_flag_off_vs_master": 0.0,
+  "max_abs_delta_total_flag_on_vs_flag_off": 0.0,
+  "n": 5,
+  "note": "Three real runs of the same producer: origin/master at 7a2a573b in a separate worktree, candidate flag-off (ledger present, BACKBOND_FOUNDER_DEV_MODE unset), candidate flag-on (ledger present, flag set). Computed diff, not asserted prose. The ledger was present for both candidate runs, so zero delta is not a tautology about an absent artifact.",
+  "producer": "scripts/beaaa33175_n5_calibration.py",
+  "rows": [
+    {
+      "agent": "B1",
+      "candidate_flag_off_median_total": 37.0,
+      "candidate_flag_on_median_total": 37.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 37.0
+    },
+    {
+      "agent": "G1",
+      "candidate_flag_off_median_total": 80.0,
+      "candidate_flag_on_median_total": 80.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 80.0
+    },
+    {
+      "agent": "G2",
+      "candidate_flag_off_median_total": 78.0,
+      "candidate_flag_on_median_total": 78.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 78.0
+    },
+    {
+      "agent": "M1",
+      "candidate_flag_off_median_total": 58.0,
+      "candidate_flag_on_median_total": 58.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 58.0
+    },
+    {
+      "agent": "M2",
+      "candidate_flag_off_median_total": 47.0,
+      "candidate_flag_on_median_total": 47.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 47.0
+    },
+    {
+      "agent": "M3",
+      "candidate_flag_off_median_total": 55.0,
+      "candidate_flag_on_median_total": 55.0,
+      "delta_pillars_flag_off_vs_master": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_pillars_flag_on_vs_flag_off": {
+        "BIAS_FAIRNESS": 0.0,
+        "GOVERNANCE": 0.0,
+        "OPS": 0.0,
+        "ROBUSTNESS": 0.0
+      },
+      "delta_total_flag_off_vs_master": 0.0,
+      "delta_total_flag_on_vs_flag_off": 0.0,
+      "master_median_total": 55.0
+    }
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

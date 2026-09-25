@@ -1,0 +1,20 @@
+{
+  "authorized_cap_usd": 3.0,
+  "checks": [
+    "V1 provenance",
+    "V2 responses",
+    "V3 placeholders",
+    "V4 not-a-fixture",
+    "V5 verdicts",
+    "V6 tier",
+    "V7 budget"
+  ],
+  "failures": [],
+  "fixture_files_scanned": 123,
+  "issue": "BEAAA-35938",
+  "metered_spend_usd_not_authoritative": 0.851235,
+  "n_held": 14,
+  "n_scored_checked": 106,
+  "pool_drawn_usd": 1.636633,
+  "result": "PASS"
+}

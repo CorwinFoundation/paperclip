@@ -125,7 +125,22 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # 2f2ea28b...b204e97 exactly, which is what makes the value below
     # trustworthy rather than merely observed. Prior pin 2f2ea28b...b204e97
     # came from the BEAAA-35380 merge.
-    "bc6bddc57871ead9461d7196737ec4d84b4f41de76046ffe0f9ac66b46ab3943"
+    #
+    # Re-pinned for BEAAA-35938: the hallucination_legal dev-activation ledger
+    # flips 106 rows to the dev-scored mapping and evidence fields, which changes
+    # their normalized bytes. Attributed by row-diffing the normalized registry
+    # against 7a2a573b rather than by reasoning from the aggregate: 2,507 rows on
+    # both sides, exactly 106 differ, and the eight fields that move on those rows
+    # are attestation_tier, candidate_rubric_mapping_rationale,
+    # candidate_rubric_mapping_status, candidate_rubric_point_id,
+    # dev_scoring_active, execution_evidence_ref, execution_evidence_status and
+    # execution_evidenced -- the dev tier only. Building the marker at 7a2a573b in
+    # a separate worktree reproduces bc6bddc5...6ab3943 exactly, so the new value
+    # is caused by this change and nothing else in the tree. Production is
+    # unaffected: the scoring_active census is 479 on both sides and the counts
+    # below are unchanged at 2,361 / 2,361 / 2,360. Prior pin bc6bddc5...6ab3943
+    # came from the BEAAA-33810 agent-escape tranche via BEAAA-35915.
+    "49c3e5b4190c77325c372c79a25f0e3c2d6aed9073a574dc43132a3773d9cc79"
 )
 
 
