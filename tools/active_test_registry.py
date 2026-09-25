@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import logging
 from functools import lru_cache
 import re
 import sys
@@ -972,6 +973,46 @@ def _merge_authorized_tau_support_crm(
     return rows
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
+class MissingReleaseEvidenceError(RuntimeError):
+    """A required evidence file is absent or unreadable.
+
+    BEAAA-35637. Evidence reads used to swallow ``OSError``/``ValueError`` and
+    return an empty mapping, so a registry built without its evidence looked
+    well-formed and said nothing. On BEAAA-35634 that shipped twelve
+    ``tool_misuse_param_tamper`` rows with no execution evidence, because
+    ``.dockerignore`` kept the ledger out of the image and every repo-tree check
+    still passed. Missing evidence now raises; a caller that can genuinely
+    tolerate absence passes ``required=False`` and gets a logged skip.
+    """
+
+
+def _load_evidence_json(
+    path: Path, *, required: bool = True, context: str = ""
+) -> Any | None:
+    """Read a JSON evidence file. Absent or malformed raises unless optional."""
+    label = context or str(path)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        if required:
+            raise MissingReleaseEvidenceError(
+                f"{label}: required evidence file {path} is missing or unreadable "
+                f"({exc.__class__.__name__}: {exc}). If the image is the caller, "
+                f"check the artifacts/ allowlist in .dockerignore; see "
+                f"tools/image_artifact_allowlist.py."
+            ) from exc
+        _LOGGER.warning(
+            "%s: optional evidence file %s unavailable (%s); continuing without it",
+            label,
+            path,
+            exc.__class__.__name__,
+        )
+        return None
+
+
 @lru_cache(maxsize=1)
 def _beaaa31092_dev_scored_digests() -> frozenset[str]:
     """Dedupe digests the BEAAA-31092 rank-2 ledger resolved to ``scored``.
@@ -999,10 +1040,7 @@ def _beaaa31092_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
     evidence onto the rows lets them clear D2 on their own fields.
     """
     path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-31092/rank2-ledger.json"
-    try:
-        ledger = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+    ledger = _load_evidence_json(path, context="BEAAA-31092 rank-2 ledger")
     run_manifest = str(ledger.get("run_manifest_sha256") or "")
     return {
         str(row["dedupe_sha256"]): {**row, "run_manifest_sha256": run_manifest}
@@ -1059,10 +1097,7 @@ def _beaaa35380_dev_scored_digests() -> frozenset[str]:
 def _beaaa35380_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
     """The BEAAA-35380 activation ledger's ``scored`` rows, keyed by dedupe digest."""
     path = Path(__file__).resolve().parents[1] / "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
-    try:
-        ledger = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+    ledger = _load_evidence_json(path, context="BEAAA-35380 activation ledger")
     return {
         str(row["dedupe_sha256"]): row
         for row in ledger.get("rows", [])

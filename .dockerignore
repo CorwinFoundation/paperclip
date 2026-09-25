@@ -41,6 +41,12 @@ artifacts/beaaa-19929/*
 !artifacts/beaaa-21704/
 artifacts/beaaa-21704/*
 !artifacts/beaaa-21704/execution_evidence.json
+!artifacts/beaaa-31092/
+artifacts/beaaa-31092/*
+!artifacts/beaaa-31092/rank2-ledger.json
+!artifacts/BEAAA-33199/
+artifacts/BEAAA-33199/*
+!artifacts/BEAAA-33199/capability-manifest.json
 !artifacts/beaaa-35380/
 artifacts/beaaa-35380/*
 !artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json
