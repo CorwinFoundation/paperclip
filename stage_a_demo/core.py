@@ -12,6 +12,7 @@ from typing import Any
 
 from . import MODE
 from .receipt import (
+    CLAIM_COVERED_EXECUTED_AGAINST_WITHDRAWAL,
     ApprovalReceipt,
     action_from_stored_terms,
     CheckNotApproved,
@@ -345,12 +346,12 @@ class EvidenceStore:
             CREATE TABLE IF NOT EXISTS approvals (
               grant_id TEXT PRIMARY KEY, case_id TEXT NOT NULL, mandate_json TEXT NOT NULL,
               approval_token TEXT NOT NULL, origin TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0,
-              approved_at TEXT
+              approved_at TEXT, tenant TEXT
             );
             CREATE TABLE IF NOT EXISTS approval_receipts (
               task_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
               outcome_json TEXT, executed_at TEXT, protection_at_execution_json TEXT,
-              execution_claimed_at TEXT, tenant TEXT
+              execution_claimed_at TEXT, tenant TEXT, withdrawn_at TEXT
             );
             -- BEAAA-35631: the three instants the build specification (line 218)
             -- requires stored separately, as first-class columns rather than
@@ -401,6 +402,16 @@ class EvidenceStore:
             # existed read as owned by the untenanted bootstrap store, which is
             # the only reader that could have written them.
             self.db.execute("ALTER TABLE approval_receipts ADD COLUMN tenant TEXT")
+            self.db.commit()
+        if "withdrawn_at" not in receipt_cols:
+            self.db.execute("ALTER TABLE approval_receipts ADD COLUMN withdrawn_at TEXT")
+            self.db.commit()
+        approval_cols = {row[1] for row in self.db.execute("PRAGMA table_info(approvals)")}
+        if "tenant" not in approval_cols:
+            # Nullable for the same reason approval_receipts.tenant is: rows
+            # written before the column existed are owned by the untenanted
+            # bootstrap store, the only store that could have written them.
+            self.db.execute("ALTER TABLE approvals ADD COLUMN tenant TEXT")
             self.db.commit()
 
     def record_case(
@@ -569,9 +580,9 @@ class EvidenceStore:
         with self.db:
             self.db.execute(
                 "INSERT INTO approvals (grant_id, case_id, mandate_json, approval_token, origin,"
-                " approved_at) VALUES (?, ?, ?, ?, ?, ?)",
+                " approved_at, tenant) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (grant_id, case_id, json.dumps(asdict(mandate), sort_keys=True), approval_token, origin,
-                 processing_instant()),
+                 processing_instant(), self.tenant),
             )
         return grant_id
 
@@ -655,11 +666,68 @@ class EvidenceStore:
         to withdraw: no such grant on this ledger, already spent, or already
         revoked. Revocation never unwinds a purchase that already happened
         (BEAAA-35133 B).
+
+        Scoped to the owner of the grant (BEAAA-35553 Z3). The approvals ledger
+        carries the tenant now, the way ``cases`` has since A9 and
+        ``approval_receipts`` has since BEAAA-35578. A revocation is a write,
+        and the boundary that already held for reads did nothing here: a second
+        store on the same file could name any grant id and cancel a stranger's
+        pending purchase. The harm is denial rather than disclosure, which is
+        why a read-side boundary never caught it.
+
+        Unlike the receipt surface this answers False rather than raising. A
+        grant id is a bearer secret held by the party that requested the
+        approval, not a shared handle like a case id, so "no such grant here"
+        is the whole truth this caller is owed and a refusal that named another
+        owner would confirm the id is live.
+
+        One lever, both paths. A user withdrawing consent knows the id they
+        were given, not which of BackBond's two tables recorded it, so an id
+        that names a Path 1 receipt is withdrawn here too (BEAAA-35553 Z2).
+        ``withdraw_receipt`` remains the explicit Path 1 entry point for a
+        caller that knows it holds a task id and wants to name the instant.
         """
         with self.db:
             cur = self.db.execute(
-                "UPDATE approvals SET consumed = ? WHERE grant_id = ? AND consumed = ?",
-                (APPROVAL_REVOKED, grant_id, APPROVAL_UNSPENT),
+                "UPDATE approvals SET consumed = ? WHERE grant_id = ? AND consumed = ? AND tenant IS ?",
+                (APPROVAL_REVOKED, grant_id, APPROVAL_UNSPENT, self.tenant),
+            )
+        if cur.rowcount == 1:
+            return True
+        return self._withdraw_receipt_by_any_id(grant_id)
+
+    def _withdraw_receipt_by_any_id(self, identifier: str) -> bool:
+        """The Path 1 half of ``revoke_approval``: a task id or a receipt id.
+
+        Owner-scoped in SQL rather than through ``_enforce_receipt_owner``,
+        because this arrives on the mandate lever's contract: a bearer id that
+        is not ours is answered False, not with a refusal that confirms the id
+        is live somewhere else.
+        """
+        task_id = identifier
+        row = self.db.execute(
+            "SELECT task_id FROM approval_receipts WHERE task_id = ? AND tenant IS ?",
+            (identifier, self.tenant),
+        ).fetchone()
+        if row is None:
+            # Not a task id. The receipt id is inside receipt_json rather than
+            # a column of its own, so it is resolved by reading this owner's
+            # rows — never another owner's.
+            for candidate in self.db.execute(
+                "SELECT task_id, receipt_json FROM approval_receipts "
+                "WHERE tenant IS ? AND withdrawn_at IS NULL AND execution_claimed_at IS NULL",
+                (self.tenant,),
+            ):
+                if json.loads(candidate["receipt_json"]).get("receipt_id") == identifier:
+                    task_id = candidate["task_id"]
+                    break
+            else:
+                return False
+        with self.db:
+            cur = self.db.execute(
+                "UPDATE approval_receipts SET withdrawn_at = ? WHERE task_id = ? AND tenant IS ? "
+                "AND withdrawn_at IS NULL AND execution_claimed_at IS NULL",
+                (processing_instant(), task_id, self.tenant),
             )
         return cur.rowcount == 1
 
@@ -708,6 +776,56 @@ class EvidenceStore:
             raise PermissionError(f"task {receipt.task_id} already has a receipt; receipts are not rewritten")
         return receipt.task_id
 
+    def withdraw_receipt(self, task_id: str, *, withdrawn_at: str) -> bool:
+        """Withdraw a Path 1 approval before anything executes.
+
+        The mandate path has had this since BEAAA-35133 (``revoke_approval``).
+        Path 1 had nothing, and Path 1 is the path the consumer demo runs and
+        the one the README calls the evidence root: a user who answered OK and
+        then changed their mind had no lever to pull, and
+        ``execute_approved_task`` still went to the merchant on 48000 cents the
+        user had tried to stop (BEAAA-35553 Z2).
+
+        Same answers the mandate lever gives. False when there is nothing to
+        withdraw: no receipt under that task id, already withdrawn, or the
+        execution slot is already claimed. Withdrawal never unwinds a purchase
+        that already happened (Z4 parity) — once the slot is claimed the money
+        may already be gone, and the honest record is the claim, not a
+        retroactive cancellation.
+
+        The conditional UPDATE is deliberate rather than a read-then-write.
+        ``execute_approved_task`` claims the same row under the same write
+        lock, so of a withdrawal and an execution racing on one file exactly
+        one wins, and neither can observe a stale answer from the other.
+        """
+        if not isinstance(withdrawn_at, str) or not withdrawn_at.strip():
+            raise ValueError("withdraw_receipt needs the instant the user withdrew, as a timestamp")
+        row = self.db.execute(
+            "SELECT tenant FROM approval_receipts WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        if row is None:
+            return False
+        # A withdrawal is a write on the receipt surface, so it answers a
+        # foreign owner the way every other write there does (BEAAA-35578).
+        self._enforce_receipt_owner(row, task_id)
+        with self.db:
+            cur = self.db.execute(
+                "UPDATE approval_receipts SET withdrawn_at = ? WHERE task_id = ? AND tenant IS ? "
+                "AND withdrawn_at IS NULL AND execution_claimed_at IS NULL",
+                (withdrawn_at, task_id, self.tenant),
+            )
+        return cur.rowcount == 1
+
+    def withdrawn_at(self, task_id: str) -> str | None:
+        """When the user withdrew the approval on ``task_id``, or None."""
+        row = self.db.execute(
+            "SELECT withdrawn_at, tenant FROM approval_receipts WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        self._enforce_receipt_owner(row, task_id)
+        return row["withdrawn_at"]
+
     def receipt_for(self, task_id: str) -> ApprovalReceipt | None:
         row = self.db.execute(
             "SELECT receipt_json, tenant FROM approval_receipts WHERE task_id = ?", (task_id,)
@@ -753,6 +871,14 @@ class EvidenceStore:
             raise CheckNotApproved(
                 f"task {task_id} was not approved: the recorded answer is {receipt.answer}"
             )
+        withdrawn = self.withdrawn_at(task_id)
+        if withdrawn is not None:
+            # Read before the merchant is reached, like every other guard on
+            # this path. A withdrawal only visible at claim time is a record of
+            # the loss, not a lever (BEAAA-35553 Z2).
+            raise CheckNotApproved(
+                f"task {task_id} was withdrawn at {withdrawn}; the recorded approval no longer stands"
+            )
         # Claim the one execution this receipt buys, before the merchant is
         # reached. Every other guard on this path lives inside record_outcome,
         # which runs after the purchase; a guard after the side effect is a
@@ -767,10 +893,21 @@ class EvidenceStore:
         with self.db:
             claimed = self.db.execute(
                 "UPDATE approval_receipts SET execution_claimed_at = ? "
-                "WHERE task_id = ? AND tenant IS ? AND execution_claimed_at IS NULL",
+                "WHERE task_id = ? AND tenant IS ? AND execution_claimed_at IS NULL "
+                "AND withdrawn_at IS NULL",
                 (executed_at, task_id, self.tenant),
             )
         if claimed.rowcount != 1:
+            # A withdrawal that landed between the read above and this UPDATE
+            # loses the row here rather than being missed. Named before the
+            # in-flight reading, because "already claimed" would describe the
+            # wrong event and send a recovery down the wrong path.
+            lost_to_withdrawal = self.withdrawn_at(task_id)
+            if lost_to_withdrawal is not None:
+                raise CheckNotApproved(
+                    f"task {task_id} was withdrawn at {lost_to_withdrawal}; "
+                    "the recorded approval no longer stands"
+                )
             settled = self.db.execute(
                 "SELECT outcome_json FROM approval_receipts WHERE task_id = ?", (task_id,)
             ).fetchone()
@@ -869,8 +1006,8 @@ class EvidenceStore:
     def claim_for(self, task_id: str) -> dict[str, Any]:
         """Reconstruct the claim for one task from its stored receipt alone."""
         row = self.db.execute(
-            "SELECT receipt_json, outcome_json, executed_at, protection_at_execution_json, tenant "
-            "FROM approval_receipts WHERE task_id = ?",
+            "SELECT receipt_json, outcome_json, executed_at, protection_at_execution_json, tenant, "
+            "withdrawn_at FROM approval_receipts WHERE task_id = ?",
             (task_id,),
         ).fetchone()
         if row is None:
@@ -881,6 +1018,17 @@ class EvidenceStore:
         if row["outcome_json"]:
             outcome = ExecutedOutcome(**json.loads(row["outcome_json"]))
         review = review_claim(receipt, outcome)
+        # A withdrawal is on the record whether or not anything executed after
+        # it. When something did execute anyway, the verdict is the withdrawal
+        # and not the OK the user had already taken back: settling that charge
+        # as `not_covered_user_approved_this` describes an approval that did
+        # not stand at the moment of execution (BEAAA-35553 Z5). Ordered after
+        # the independence test the same way the STOP branch is, so a
+        # self-reported outcome stays incomplete rather than becoming payable.
+        review["withdrawn_at"] = row["withdrawn_at"]
+        if row["withdrawn_at"] and outcome is not None and outcome.independent:
+            review["claim"] = CLAIM_COVERED_EXECUTED_AGAINST_WITHDRAWAL
+            review["covered"] = receipt.amount_at_risk_cents > 0
         review["executed_at"] = row["executed_at"]
         review["mode"] = MODE
         # Protection status still comes only from the activation gate; a receipt

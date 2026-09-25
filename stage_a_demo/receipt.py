@@ -463,6 +463,10 @@ class ApprovalReceipt:
 CLAIM_NOT_COVERED_APPROVED = "not_covered_user_approved_this"
 CLAIM_COVERED_OUTCOME_DIFFERS = "covered_outcome_differs_from_approved"
 CLAIM_COVERED_EXECUTED_AGAINST_STOP = "covered_executed_against_stop"
+# The user answered OK, took it back before anything ran, and it ran anyway.
+# Same shape as executing against a STOP: the approval on the record did not
+# stand at the moment of execution (BEAAA-35553 Z5).
+CLAIM_COVERED_EXECUTED_AGAINST_WITHDRAWAL = "covered_executed_against_withdrawal"
 CLAIM_COVERED_NO_APPROVAL = "covered_executed_without_an_answered_check"
 CLAIM_INCOMPLETE_NO_INDEPENDENT_EVIDENCE = "incomplete_no_independent_evidence"
 # The two non-recoverable-loss shapes named in the Founder ruling, section 2.
