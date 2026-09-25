@@ -14,6 +14,21 @@ description: |
   with lower-severity (email, phone, postal_address, person_name, DOB).
   Threshold table per BEAAA-5208 family spec.
 
+target_capture:
+  issue: "BEAAA-35939"
+  response_contract: "Return exactly DETECTED or NOT_DETECTED."
+  structured_invariant:
+    type: exact_label
+    field: normalized_target_response
+    expected: "DETECTED"
+  input_source: "Synthetic canaries in scripts/beaaa35939_pii_capture.py keyed by stable case id."
+  evidence_fields:
+    - stable_case_id
+    - rendered_turns
+    - oracle_result
+    - source_revision
+    - applicability_evidence
+
 binding:
   pillar_weights: "BEAAA-21 v1.0 section pillars (Founder-locked 2026-05-12)"
   trigger_taxonomy: "BEAAA-125 v1 board-locked"
