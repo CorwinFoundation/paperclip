@@ -108,6 +108,7 @@ import os
 import signal
 import sys
 import time
+import uuid
 from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
@@ -380,7 +381,7 @@ _PLACEHOLDER_BUNDLE_TOKEN = "no-bundle"
 
 def _canonical_payload(*, vendor: str, label: str, provenance: str,
                        prior_id: str, eval_outputs: dict,
-                       rubric_version: str) -> bytes:
+                       rubric_version: str, run_id: str) -> bytes:
     """Return the canonical JSON byte string that snapshot_hash hashes.
 
     Excludes time-varying fields (scored_at) and the hash/uri pair itself
@@ -395,17 +396,18 @@ def _canonical_payload(*, vendor: str, label: str, provenance: str,
         "prior_id": prior_id,
         "eval_outputs": eval_outputs,
         "rubric_version": rubric_version,
+        "run_id": run_id,
     }
     return json.dumps(canon, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _compute_snapshot_hash(*, vendor: str, label: str, provenance: str,
                            prior_id: str, eval_outputs: dict,
-                           rubric_version: str) -> str:
+                           rubric_version: str, run_id: str) -> str:
     payload = _canonical_payload(
         vendor=vendor, label=label, provenance=provenance,
         prior_id=prior_id, eval_outputs=eval_outputs,
-        rubric_version=rubric_version,
+        rubric_version=rubric_version, run_id=run_id,
     )
     return "sha256:" + hashlib.sha256(payload).hexdigest()
 
@@ -456,6 +458,7 @@ def _render_only(args) -> int:
         prior_id=record["prior_id"],
         eval_outputs=eval_outputs,
         rubric_version=rubric.version,
+        run_id=record["run_id"],
     )
     if recomputed != record.get("snapshot_hash"):
         print(
@@ -546,7 +549,8 @@ def main() -> int:
         "annual_revenue_usd": args.customer_revenue,
         "limit": {"per_claim_usd": 1_000_000, "aggregate_usd": 2_000_000},
     }
-    scored_at = datetime.now(timezone.utc)
+    run_id = str(uuid.uuid4())
+    started_at = datetime.now(timezone.utc)
 
     try:
         if args.vendor in PUBLIC_CHAT_VENDORS:
@@ -584,7 +588,7 @@ def main() -> int:
     _, prior_scores = load_priors(prior_path)
     raw_scores, dim_provenance = merge_measurements_with_priors(measurements, prior_scores)
     eval_outputs = {
-        d: {"raw": r, "evidence_uri": f"https://path-b.beaai.local/{args.vendor}/{d}"}
+        d: {"raw": r, "evidence_uri": f"urn:backbond:path-b:{run_id}:{d}"}
         for d, r in raw_scores.items()
     }
 
@@ -596,6 +600,7 @@ def main() -> int:
         prior_id=prior_id,
         eval_outputs=eval_outputs,
         rubric_version=rubric.version,
+        run_id=run_id,
     )
 
     # forensic_bundle_uri: real attachment URL when emitting a card; the
@@ -623,13 +628,19 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        bundle_uri = _FORENSIC_BUNDLE_PENDING
+        bundle_uri = (Path(args.runs_dir).resolve() / f"{args.vendor}.json").as_uri()
+
+    completed_at = datetime.now(timezone.utc)
 
     result = score(
         rubric, eval_outputs,
         snapshot_hash=snapshot_hash,
         forensic_bundle_uri=bundle_uri,
-        scored_at=scored_at,
+        scored_at=completed_at,
+        corpus_version="0.2.0",
+        seed=42,
+        model_versions={"target": runner.model_id()},
+        contract_version="are-scanner-api-v1@v1.3.0",
     )
     try:
         q = quote(result, customer, rates=rates)
@@ -641,7 +652,12 @@ def main() -> int:
         premium_str = f"manual referral — {exc.reason[:80]}"
         status = "manual_referral"
 
-    record = {
+    record = dict(result)
+    record.update({
+        "run_id": run_id,
+        "run_started_at": started_at.isoformat(),
+        "run_completed_at": completed_at.isoformat(),
+        "agent_id": runner.model_id(),
         "vendor": args.vendor,
         "label": runner.model_id(),
         "provenance": provenance,
@@ -649,7 +665,13 @@ def main() -> int:
         "rubric_version": rubric.version,
         "snapshot_hash": snapshot_hash,
         "forensic_bundle_uri": bundle_uri,
-        "scored_at": scored_at.isoformat(),
+        "scored_at": completed_at.isoformat(),
+        "subscores": {key: value["score"] for key, value in result["pillars"].items()},
+        "confidence": 1.0,
+        "evidence_refs": [
+            {"rubric_point_id": dim_id, "artifact_uri": value["evidence_uri"]}
+            for dim_id, value in eval_outputs.items()
+        ],
         "bmi": result["bmi"],
         "band": result["band"]["display"],
         "posture": result["band"]["posture"],
@@ -666,7 +688,11 @@ def main() -> int:
             {"dim_id": m["dim_id"], "raw": m["raw"], **{k: m[k] for k in m if k.startswith("n_") or k.endswith("_rate")}}
             for m in measurements
         ],
-    }
+    })
+    if args.vendor in PUBLIC_CHAT_VENDORS:
+        for field in ("are_total", "bmi", "band", "pillars", "subscores", "premium"):
+            record.pop(field, None)
+        record.update({"status": "reported_not_scored", "score_input": False})
     runs_dir = Path(args.runs_dir)
     runs_dir.mkdir(parents=True, exist_ok=True)
     artifact = runs_dir / f"{args.vendor}.json"
