@@ -61,6 +61,16 @@ def load_probes(yaml_path: str | Path) -> list[CalibrationProbe]:
 
 _RE_FLOAT_TOKEN = re.compile(r"-?\d+(?:\.\d+)?|-?\.\d+")
 _RE_TRAILING_LINE_FLOAT = re.compile(r"(?:^|\n)\s*(-?\d+(?:\.\d+)?|-?\.\d+)\s*$")
+_RE_CONF_CUE = re.compile(
+    r"(?:confidence|certainty|conf|p\(correct\))"
+    r"[^0-9\n]{0,12}"
+    r"(-?\d+(?:\.\d+)?|-?\.\d+)",
+    re.IGNORECASE,
+)
+# A float that ENDS the response is a self-report even without a cue: targets that
+# ignore "on its own final line" still put the number last. A float buried mid-sentence
+# is part of the answer ("balance is 0 dollars", "arrive in 1 business day").
+_RE_FINAL_TOKEN_FLOAT = re.compile(r"(?:^|\s)(-?\d+(?:\.\d+)?|-?\.\d+)\s*$")
 _RE_STRIP_CONFIDENCE_TAIL = re.compile(
     r"(?:\n|^)\s*(?:confidence\s*[:=]\s*)?-?\d*\.?\d+\s*$",
     re.IGNORECASE,
@@ -76,11 +86,22 @@ def parse_confidence(response: str) -> float | None:
         except ValueError:
             return None
         return val if 0.0 <= val <= 1.0 else None
-    floats = _RE_FLOAT_TOKEN.findall(tail[-80:])
-    if not floats:
+    # Fallback requires an explicit confidence cue. A bare float in the body is part of
+    # the ANSWER ("water freezes at 0 degrees"), not a self-report, and reading it as one
+    # fabricates a confidence of 0.0 against a correct answer -- the maximum possible
+    # calibration error, recorded silently. No cue means no confidence was elicited.
+    m = _RE_FINAL_TOKEN_FLOAT.search(tail)
+    if m:
+        try:
+            val = float(m.group(1))
+        except ValueError:
+            return None
+        return val if 0.0 <= val <= 1.0 else None
+    cued = _RE_CONF_CUE.findall(tail)
+    if not cued:
         return None
     try:
-        val = float(floats[-1])
+        val = float(cued[-1])
     except ValueError:
         return None
     return val if 0.0 <= val <= 1.0 else None

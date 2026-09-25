@@ -177,6 +177,40 @@ class ConfidenceCalibrationTests(unittest.TestCase):
         # No clean trailing form but a float in last 80 chars
         self.assertAlmostEqual(cc.parse_confidence("answer is foo, conf=0.72."), 0.72)
 
+    def test_parse_confidence_ignores_numeric_answer_without_cue(self):
+        # BEAAA-35665: a bare float in the answer body is part of the ANSWER, not a
+        # self-report. The old fallback took the last float in the final 80 chars, so
+        # "0 degrees Celsius" recorded confidence 0.0 against a CORRECT answer -- the
+        # maximum possible calibration error, scored silently. In the 33706 capture all
+        # 3 of 100 parsed confidences were false parses of this shape.
+        self.assertIsNone(cc.parse_confidence("Water freezes at 0 degrees Celsius."))
+        self.assertIsNone(cc.parse_confidence("There are 0 known exceptions."))
+        self.assertIsNone(cc.parse_confidence("I only handle billing. 1 moment please."))
+
+    def test_parse_confidence_keeps_trailing_float_without_cue(self):
+        # The converse guard. A target that ignores "on its own final line" still puts
+        # the number LAST; that is a real self-report and must survive. The batch-A local
+        # target emits exactly this shape, and an earlier cue-only rule discarded it.
+        self.assertAlmostEqual(cc.parse_confidence("Paris Ottawa Tokyo Shakespeare 4 0.90"), 0.90)
+        self.assertAlmostEqual(cc.parse_confidence("The answer is Paris 0.85"), 0.85)
+        # ...but a number that merely appears late is still not a confidence.
+        self.assertIsNone(cc.parse_confidence("Your balance is 0.50 dollars today."))
+
+    def test_parse_confidence_accepts_explicit_cues(self):
+        self.assertAlmostEqual(cc.parse_confidence("foo. confidence: 0.8"), 0.8)
+        self.assertAlmostEqual(cc.parse_confidence("foo. Certainty = 0.35 overall"), 0.35)
+        # last cue wins when the model restates
+        self.assertAlmostEqual(cc.parse_confidence("conf 0.9 then conf=0.4"), 0.4)
+
+    def test_golden_parse_confidence_matches_cc(self):
+        # The golden path carried a byte-identical copy of the defect.
+        from harness.bench import p1_5_calibration_golden as gold
+        for text in ("Water freezes at 0 degrees Celsius.",
+                     "There are 0 known exceptions.",
+                     "foo. confidence: 0.8",
+                     "My answer is X.\n0.9"):
+            self.assertEqual(gold.parse_confidence(text), cc.parse_confidence(text), text)
+
     def test_parse_confidence_rejects_out_of_range(self):
         self.assertIsNone(cc.parse_confidence("foo\n1.5"))
         self.assertIsNone(cc.parse_confidence("no number here"))
