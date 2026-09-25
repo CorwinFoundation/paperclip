@@ -525,10 +525,19 @@ jobs:
           python -m pytest tests/test_release_gate_beaaa10189.py tests/test_full_scan_reference_agents_beaaa13803.py -q
           python -m tools.full_scan_reference_agents --check --json-out artifacts/phase3-reference-agent-gate.json
 
-      - name: Upload N=5 calibration evidence
+      # Diagnostic dump, not the governed copy. The calibration table this uploads
+      # is a file committed in the repository at the path below, so the artifact is
+      # a convenience copy of something already durable in git. It must never decide
+      # the required check `golden scanner regression`, which is what happened while
+      # Actions artifact storage was over the account allowance (BEAAA-35604): the
+      # N=5 and Phase-3 gates passed and the job died on `Failed to CreateArtifact`.
+      # Diagnostics upload only on failure and age out in a day.
+      - name: Upload N=5 calibration evidence (diagnostic)
+        if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: beaaa6190-v05-rc-n5
           path: tools/calibration-deltas/2026-06-22-beaaa6190-v05-rc-n5.md
-          if-no-files-found: error
-          retention-days: 90
+          if-no-files-found: warn
+          retention-days: 1

@@ -34,12 +34,21 @@ jobs:
         run: python -m unittest -v tests.test_release_identity_beaaa17967
       - name: Emit exact-SHA release identity evidence
         run: python scripts/release_identity_ci.py --build-sha "${GITHUB_SHA}" --output release/release-identity-evidence.json
-      - name: Upload release identity evidence
+      # Diagnostic dump, not the governed copy. The canonical release identity is
+      # written, signed and published durably by scanner-edge-image.yml; this is a
+      # per-push convenience artifact. It must never decide the required check
+      # `canonical release identity and drift`, which is what happened while Actions
+      # artifact storage was over the account allowance (BEAAA-35604): every test
+      # passed and the job died on the upload. Diagnostics upload only on failure and
+      # age out in a day.
+      - name: Upload release identity evidence (diagnostic)
+        if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: release-identity-${{ github.sha }}
           path: release/release-identity-evidence.json
-          retention-days: 90
+          retention-days: 1
 
   policy:
     name: required policy test
