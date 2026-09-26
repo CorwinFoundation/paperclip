@@ -22,6 +22,7 @@ set -eu
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 unit_dir=${1:-/etc/systemd/system}
+live_unit_dir=/etc/systemd/system
 
 status=0
 found=0
@@ -45,6 +46,34 @@ for src in "$here"/*.service "$here"/*.timer; do
 done
 
 test "$found" -gt 0 || { echo "no unit files beside $0" >&2; exit 1; }
+
+# File drift and runtime health are different facts.  Only ask systemd when the
+# files being compared are the live installed units: a caller pointing this
+# script at a staging/tmp directory must not receive unrelated host state.
+# Runtime state is reporting-only.  In particular, the Vapi timer may be
+# deliberately disabled and a service's previous scan may have failed for a
+# reason that should not turn an otherwise-correct install into drift.
+if [ "$unit_dir" = "$live_unit_dir" ] && command -v systemctl >/dev/null 2>&1; then
+  for src in "$here"/*.timer; do
+    test -e "$src" || continue
+    name=${src##*/}
+    enabled=$(systemctl is-enabled "$name" 2>/dev/null || true)
+    active=$(systemctl is-active "$name" 2>/dev/null || true)
+    test -n "$enabled" || enabled=unknown
+    test -n "$active" || active=unknown
+    echo "TIMER  $name enabled=$enabled active=$active"
+  done
+
+  for src in "$here"/*.service; do
+    test -e "$src" || continue
+    name=${src##*/}
+    result=$(systemctl show "$name" --property=Result --value 2>/dev/null || true)
+    exec_status=$(systemctl show "$name" --property=ExecMainStatus --value 2>/dev/null || true)
+    test -n "$result" || result=never-run
+    test -n "$exec_status" || exec_status=unknown
+    echo "SERVICE $name Result=$result ExecMainStatus=$exec_status"
+  done
+fi
 
 if [ "$status" -eq 0 ]; then
   echo "All $found unit(s) in $unit_dir match this checkout."

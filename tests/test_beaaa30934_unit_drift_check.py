@@ -15,6 +15,7 @@ on the state of the host it runs on.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -115,6 +116,91 @@ def test_extra_files_in_unit_dir_are_ignored(installed: Path) -> None:
     proc = _run(installed)
     assert proc.returncode == 0, proc.stderr
     assert "unrelated.service" not in proc.stdout
+
+
+def test_tmpdir_does_not_query_systemd(installed: Path, tmp_path: Path) -> None:
+    """A staged unit tree must not be confused with this host's runtime state."""
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    marker = tmp_path / "systemctl-called"
+    fake = shim / "systemctl"
+    fake.write_text(f"#!/bin/sh\n: > {marker}\nexit 99\n", encoding="utf-8")
+    fake.chmod(0o755)
+    env = dict(os.environ)
+    env["PATH"] = f"{shim}:{env['PATH']}"
+
+    proc = subprocess.run(
+        ["sh", str(HELPER), str(installed)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert not marker.exists()
+    assert "TIMER " not in proc.stdout
+    assert "SERVICE " not in proc.stdout
+
+
+def test_live_dir_reports_dead_timer_and_failed_service_without_failing_drift_check(
+    installed: Path, tmp_path: Path
+) -> None:
+    """Runtime failures are visible but advisory, including never-run services."""
+    helper = tmp_path / "check-unit-drift.sh"
+    text = HELPER.read_text(encoding="utf-8").replace(
+        "live_unit_dir=/etc/systemd/system", f"live_unit_dir={installed}"
+    )
+    helper.write_text(text, encoding="utf-8")
+    for source in OPS_DIR.iterdir():
+        if source.suffix in {".service", ".timer"}:
+            shutil.copyfile(source, tmp_path / source.name)
+
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    fake = shim / "systemctl"
+    fake.write_text(
+        """#!/bin/sh
+case "$1:$2:$3" in
+  is-enabled:backbond-scan-vapi.timer:) echo disabled; exit 1 ;;
+  is-enabled:*:) echo enabled ;;
+  is-active:backbond-scan-vapi.timer:) echo inactive; exit 3 ;;
+  is-active:*:) echo active ;;
+  show:backbond-scan-vapi.service:--property=Result) echo exit-code ;;
+  show:backbond-scan-vapi.service:--property=ExecMainStatus) echo 1 ;;
+  show:backbond-scan-vapi-beaaa30934.service:*) exit 0 ;;
+  show:*:--property=Result) echo success ;;
+  show:*:--property=ExecMainStatus) echo 0 ;;
+  *) exit 2 ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    fake.chmod(0o755)
+    env = dict(os.environ)
+    env["PATH"] = f"{shim}:{env['PATH']}"
+
+    proc = subprocess.run(
+        ["sh", str(helper), str(installed)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert (
+        "TIMER  backbond-scan-vapi.timer enabled=disabled active=inactive"
+        in proc.stdout
+    )
+    assert (
+        "SERVICE backbond-scan-vapi.service Result=exit-code ExecMainStatus=1"
+        in proc.stdout
+    )
+    assert (
+        "SERVICE backbond-scan-vapi-beaaa30934.service "
+        "Result=never-run ExecMainStatus=unknown" in proc.stdout
+    )
 
 
 def test_the_units_still_carry_the_558_fix() -> None:
