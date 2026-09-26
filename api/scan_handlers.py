@@ -75,6 +75,7 @@ from api.sla import (
     evaluate_degradation,
     pillars_from_dim_results,
 )
+from api.live_probe_context import serialize_live_probe_evidence
 from harness import egress
 from harness.context_envelope import (
     ContextEnvelopeError,
@@ -124,7 +125,7 @@ def _scrub_live_probe_evidence(
             return [scrub(item) for item in value]
         return value
 
-    return [scrub(dict(record)) for record in records]
+    return [scrub(serialize_live_probe_evidence(record)) for record in records]
 
 
 def _append_report_only_manifest_evidence(
