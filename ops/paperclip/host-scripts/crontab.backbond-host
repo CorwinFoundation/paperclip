@@ -1,0 +1,30 @@
+# Cron schedule for the host scripts tracked in ops/paperclip/host-scripts.
+# Recorded from `crontab -l` on srv1749248 (user beai-agent) on 2026-09-26.
+#
+# The schedule is as load-bearing as the script body and used to live only in
+# `crontab -l` (BEAAA-36015). This file is the record, not an installer: cron
+# entries are edited by the operator. To apply this file wholesale:
+#
+#   crontab ops/paperclip/host-scripts/crontab.backbond-host
+#
+# That REPLACES the whole crontab, so do it only after diffing against the live
+# `crontab -l`. Lines below cover tracked scripts only; the live crontab may
+# also carry short-lived per-issue entries that deliberately are not tracked.
+
+# Fleet Codex OAuth guard. Every five minutes, self-healing, destructive on the
+# repair path. BEAAA-7616 + 36012 + 36013 + 36014.
+*/5 * * * * /home/beai-agent/.local/bin/are-codex-oauth-guard.sh >/dev/null 2>&1
+
+# Run-log offload retention sweep. BEAAA-24540.
+40 3 * * * /home/beai-agent/.local/bin/paperclip-run-log-retention.sh >/dev/null 2>&1
+
+# Numbat capture for the three authorized Claude-runtime seats. BEAAA-24636.
+0 * * * * /home/beai-agent/.local/bin/numbat-claude-cohort-scan.py >> /mnt/paperclipdata/numbat/records/.beaaa-24636-claude-cohort-scan.log 2>&1
+
+# NOT PRESENT HERE, ON PURPOSE -- two live crontab lines invoke
+# /home/beai-agent/.local/bin/mempalace-trial-snapshot.sh, which does not exist
+# anywhere on the box (checked ~/.local/bin, /usr/local/bin, PATH). They have
+# been failing silently since the file was removed. Recorded in BEAAA-36015;
+# the fix is to delete the two lines, which is an operator edit, not a commit.
+#   10 6  * * * /home/beai-agent/.local/bin/mempalace-trial-snapshot.sh
+#   10 18 * * * /home/beai-agent/.local/bin/mempalace-trial-snapshot.sh
