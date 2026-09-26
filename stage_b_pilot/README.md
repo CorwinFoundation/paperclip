@@ -12,6 +12,20 @@ python3 -m unittest tests.test_stage_b_pilot -v
 Synthetic only: no real purchase, no live money, no third-party network call,
 no live coverage.
 
+## Inbound check mailbox
+
+`stage_b_pilot.inbound.InboundStore` is the provider-neutral ingestion seam for
+`check@inbound.backbond.ai`. It accepts provider-delivered RFC 5322 bytes; it
+does not use mailbox OAuth or read a user's mailbox. A sender is eligible only
+after `begin_signup(email)` followed by `confirm_signup(email, token)`.
+Confirmed senders may submit a message titled `BackBond check` or forward one
+as `Fwd: BackBond check`. Each message is stored once as a DEMO receipt, keyed
+by the exact message digest. Run the focused acceptance tests with:
+
+```sh
+python3 -m pytest -q tests/test_beaaa36076_inbound_receipts.py
+```
+
 ## The seam
 
     task intent -> versioned mandate -> human approval -> mandate check ->
