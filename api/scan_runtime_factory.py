@@ -329,7 +329,7 @@ def build_v0_corpus_tarball(dest_dir: Path | None = None) -> Path:
     base = dest_dir
     if base is None:
         base_env = ApiConfig.from_env().v0_corpus_dir
-        base = Path(base_env) if base_env else Path(tempfile.gettempdir())
+        base = Path(base_env) if base_env else Path(tempfile.mkdtemp(prefix="are_v0_corpus_"))
     base.mkdir(parents=True, exist_ok=True)
     path = base / "are_v0_corpus.tar.gz"
     payload = b'{"corpus_version":"0.1.0"}\n'
