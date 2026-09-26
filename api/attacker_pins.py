@@ -53,6 +53,21 @@ ATTACKER_PINS: dict[str, dict[str, Any]] = {
         },
         "determinism": "temperature-0+seed, provider best-effort",
     },
+    # BEAAA-31937: probes/agent_breaker.py:150-153 in garak 0.16.0 ships its own
+    # DEFAULT_PARAMS attacker — red_team_model_type "nim",
+    # red_team_model_name "openai/gpt-oss-120b". Unpinned and pointed at NVIDIA
+    # NIM, which we hold no key for. Pin it to the same OpenRouter snapshot GOAT
+    # resolved to, which is already demonstrated to load (BEAAA-31910 receipt).
+    "agent_breaker": {
+        "red_team_model_type": "openai.OpenAIGenerator",
+        "red_team_model_name": "qwen/qwen-plus-2025-07-28",
+        "red_team_model_config": {
+            "max_tokens": 512,
+            "temperature": 0.0,
+            "seed": 0,
+        },
+        "determinism": "temperature-0+seed, provider best-effort",
+    },
     # BEAAA-31938: atkgen.Tox uses a local HF pipeline, not an API.
     # Pinning to the cached revision closes the drift hole without changing behaviour.
     "atkgen": {

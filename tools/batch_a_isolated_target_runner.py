@@ -31,7 +31,7 @@ FRAMEWORK_FOR = {
 }
 MAPPING_PINS = {
     "garak": "2b3eff536df4680ced8f79e21bce670d25527aa852569bc17083eb128874be5f",
-    "garak_beaaa152": "3210447264f606f077f8a57cd437d148b056465b78f340a150b029278b5f3b45",
+    "garak_beaaa152": "94a79b57ccea66d4f79496cc636d3c1807b6a0395f511918079ac5d19f32d24b",
     "harmbench": "ca1f4288df2135703ea1e9ea0ca1d2d4a8d16cdd56fa0a755f6970ad0667b66d",
 }
 

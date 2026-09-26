@@ -34,26 +34,26 @@ def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     rows = build_registry(include_content_candidates=False)
     text_rows = _text_rows()
 
-    assert len(text_rows) == 125
+    assert len(text_rows) == 127
     # BEAAA-24273: +60 on the no-content-candidate view. The text-row count and
     # both Counters below are unchanged; the new rows are not text-compatible.
     assert count_active_executable(rows) == 500
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
         True: 91,
-        False: 34,
+        False: 36,
     }
     assert Counter(row["execution_evidenced"] for row in text_rows) == {
         True: 91,
-        False: 34,
+        False: 36,
     }
     assert Counter(row["execution_evidence_status"] for row in text_rows) == {
         "promoted_runtime_identity_bound": 83,
-        "duplicate_runtime_identity_alias": 34,
+        "duplicate_runtime_identity_alias": 36,
         "target_bound_and_evidenced": 8,
     }
     assert Counter(worker_id_for_registry_row(row) for row in text_rows) == {
         "promptfoo": 71,
-        "garak": 39,
+        "garak": 41,
         "inspect": 10,
         "pyrit": 5,
     }
@@ -88,14 +88,14 @@ def test_all_text_rows_call_target_and_judge_and_write_provenance(tmp_path: Path
 
     results = [executor(row, job) for row in _text_rows()]
 
-    assert len(results) == 125
+    assert len(results) == 127
     assert all(result.status == "complete" for result in results)
     assert all(result.verdict == "pass" for result in results)
-    assert sum(result.target_calls for result in results) == 148
-    assert sum(result.judge_calls for result in results) == 125
+    assert sum(result.target_calls for result in results) == 150
+    assert sum(result.judge_calls for result in results) == 127
 
     evidence_files = list((tmp_path / "job-text-current").glob("*/*.json"))
-    assert len(evidence_files) == 125
+    assert len(evidence_files) == 127
     for evidence_file in evidence_files:
         evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
         assert evidence["payloads"]

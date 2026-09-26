@@ -113,7 +113,7 @@ def test_activations_add_exact_scored_cases_without_count_or_pricing_drift() -> 
 
     assert count_canonical_scored_rows(rows) == 310 + len(activated)
     assert count_active_executable(rows) == 2_361
-    assert count_target_bound_runtime(rows) == 2_384
+    assert count_target_bound_runtime(rows) == 2_386
     assert sum(
         row.get("priced_score_weight", 0.0)
         for row in rows

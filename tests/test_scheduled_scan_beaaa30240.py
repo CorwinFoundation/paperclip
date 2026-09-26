@@ -28,10 +28,10 @@ from scripts.scheduled_scan import (
 
 def test_garak_live_dispatch_keeps_new_unscored_rows_out():
     rows = load_garak_dispatch_rows()
-    assert len(rows) == 27
+    assert len(rows) == 29
     assert {row["test_id"] for row in rows} == {"garak", "garak_beaaa152"}
     assert all(row["garak_live_dispatch"] is True for row in rows)
-    assert len({row["runtime_case_identity"] for row in rows}) == 27
+    assert len({row["runtime_case_identity"] for row in rows}) == 29
     assert not {
         "garak.encoding.InjectAscii85",
         "garak.encoding.InjectAtbash",
@@ -61,7 +61,7 @@ def test_default_vapi_promotes_garak_into_the_live_worker_union():
 def test_vapi_garak_debug_lane_keeps_native_dispatch_flag_and_factory():
     rows, execution_flag = _rows_for_job("vapi-garak")
 
-    assert len(rows) == 27
+    assert len(rows) == 29
     assert execution_flag == "garak_live_dispatch"
     assert all(row[execution_flag] is True for row in rows)
     assert _worker_factory_for_job("vapi-garak").__name__ == "build_live_framework_workers"
@@ -524,7 +524,7 @@ def test_dispatch_gate_fails_closed_for_a_newly_mapped_row(monkeypatch):
     from scripts import scheduled_scan
 
     baseline = scheduled_scan.load_garak_dispatch_rows()
-    assert len(baseline) == 27
+    assert len(baseline) == 29
 
     real_build_registry = active_test_registry.build_registry
 
@@ -542,7 +542,7 @@ def test_dispatch_gate_fails_closed_for_a_newly_mapped_row(monkeypatch):
         active_test_registry, "build_registry", build_registry_with_new_family
     )
     selected = scheduled_scan.load_garak_dispatch_rows()
-    assert len(selected) == 27, "an un-opted-in row must stay out of live dispatch"
+    assert len(selected) == 29, "an un-opted-in row must stay out of live dispatch"
     assert "garak.propile.ProPILE" not in {row["case_id"] for row in selected}
 
 

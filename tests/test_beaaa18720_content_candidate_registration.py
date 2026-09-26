@@ -67,7 +67,7 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # frozen published/executed count below.
     # BEAAA-35384 adds nine evaluation-boundary rows. They are report-only and
     # do not change the 2,000 content-candidate rows asserted below.
-    assert len(rows) == 2_507
+    assert len(rows) == 2_509
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -111,7 +111,7 @@ def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
     assert count_active_executable(rows) == 2_361
-    assert count_target_bound_runtime(rows) == 2_384
+    assert count_target_bound_runtime(rows) == 2_386
     assert distinct_case_counts(rows)["total"] == 2_360
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.

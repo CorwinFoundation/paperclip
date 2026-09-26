@@ -170,8 +170,8 @@ def load_garak_dispatch_rows() -> list[dict[str, Any]]:
         row["garak_live_dispatch"] = True
         row["runtime_case_identity"] = f"{row['test_id']}:{row['case_id']}"
         selected.append(row)
-    if len(selected) != 27:
-        raise RuntimeError(f"expected 27 Garak dispatch rows, found {len(selected)}")
+    if len(selected) != 29:
+        raise RuntimeError(f"expected 29 Garak dispatch rows, found {len(selected)}")
     return selected
 
 

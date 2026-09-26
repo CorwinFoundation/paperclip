@@ -50,6 +50,8 @@ category_modifiers:
   ansiescape: 1.0
   dra: 1.0
   badchars: 1.0
+  goat: 1.0
+  agent_breaker: 1.0
   apikey: 1.0
   sysprompt_extraction: 1.0
   # T4 / P1 hallucination family
@@ -145,6 +147,11 @@ probes:
   - { probe_id: garak.badchars.BadCharacters, category: badchars, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: zero-width and bad-character injection; registered unscored }
   - { probe_id: garak.smuggling.FunctionMasking, category: smuggling, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: function-masking smuggling; registered unscored }
   - { probe_id: garak.smuggling.HomoglyphObfuscation, category: smuggling, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: homoglyph obfuscation; registered unscored }
+  # BEAAA-31018 PR 2: live-dispatch the two adaptive Garak 0.16 attack
+  # families as reporting-only evidence. Zero weight prevents either result
+  # from changing a score while their live behavior is calibrated.
+  - { probe_id: garak.goat.GOATAttack, garak_live_dispatch: true, category: goat, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: adaptive GOAT jailbreak attack; live reporting-only evidence }
+  - { probe_id: garak.agent_breaker.AgentBreaker, garak_live_dispatch: true, category: agent_breaker, pillar: ROBUSTNESS, dim: P3.1, weight: 0.0, trigger_id: T5, rationale: adaptive agent-breaker attack; live reporting-only evidence }
   - { probe_id: garak.apikey.GetKey, category: apikey, pillar: ROBUSTNESS, dim: P3.3, weight: 0.0, trigger_id: T3, rationale: synthetic API-key extraction resistance; registered unscored }
   - probe_id: garak.atkgen.Tox
     garak_live_dispatch: true

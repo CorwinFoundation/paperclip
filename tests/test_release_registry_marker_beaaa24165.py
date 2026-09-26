@@ -140,7 +140,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # unaffected: the scoring_active census is 479 on both sides and the counts
     # below are unchanged at 2,361 / 2,361 / 2,360. Prior pin bc6bddc5...6ab3943
     # came from the BEAAA-33810 agent-escape tranche via BEAAA-35915.
-    "49c3e5b4190c77325c372c79a25f0e3c2d6aed9073a574dc43132a3773d9cc79"
+    "3a262b9bf2723094a0f3ac3576d2c32d480e4a59b40d159cb75ae31a131af4c4"
 )
 
 
@@ -168,7 +168,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # reduces the exclusion proof by two more.
     # The nine BEAAA-35384 rows are report-only and therefore extend the
     # excluded-row proof without changing executable counts.
-    assert len(marker["excluded_rows"]) == 146
+    assert len(marker["excluded_rows"]) == 148
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",
