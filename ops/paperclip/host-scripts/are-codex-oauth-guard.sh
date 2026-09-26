@@ -21,6 +21,14 @@
 # 401'd on every wake while this guard reported healthy. A guard that needs a manual edit per
 # seat is a guard that silently stops covering the fleet. Pass --dry-run to audit without writing.
 #
+# 2026-09-26 (CTO, BEAAA-36011): added a POSITIVE LIVENESS RECEIPT. The log is deliberately
+# silent on a healthy pass -- only heals and criticals are written -- so a dead cron entry and a
+# healthy fleet produce byte-identical logs, and every check in this family so far could only
+# ever detect a fault the guard itself noticed while running. Absence of complaint was being read
+# as evidence the guard ran. Each successful completion now stamps GUARD_OK_STATE with the time
+# and the counts, and --assert-fresh turns "did the guard actually run recently, over how many
+# seats" into a checkable assertion for a preflight or an operator. Read-only mode: it never heals.
+#
 # 2026-09-26 (CTO, BEAAA-36012, ratifying the above): added a COVERAGE FLOOR. checked=0 catches
 # only total collapse; a drop from 22 seats to 3 was still silent. The guard now persists the
 # highest seat count it has ever covered and logs CRITICAL + exits 4 if a later run covers fewer.
@@ -34,15 +42,21 @@ set -uo pipefail
 TARGET="${GUARD_TARGET:-/home/beai-agent/.codex/auth.json}"
 LOG="${GUARD_LOG:-/home/beai-agent/.local/state/are-codex-oauth-guard.log}"
 COVERAGE_STATE="${GUARD_COVERAGE_STATE:-/home/beai-agent/.local/state/are-codex-oauth-guard.coverage}"
+OK_STATE="${GUARD_OK_STATE:-/home/beai-agent/.local/state/are-codex-oauth-guard.ok}"
+# Three cron intervals (*/5). Tolerates one missed run without crying wolf.
+OK_MAX_AGE="${GUARD_OK_MAX_AGE:-900}"
 AGENTS_ROOT="${GUARD_AGENTS_ROOT:-/home/beai-agent/.paperclip/instances/default/companies/59f8876e-e729-4dda-98f9-1317c2b50492/agents}"
 
 DRY_RUN=0
 RESET_COVERAGE=0
+ASSERT_FRESH=0
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)        DRY_RUN=1 ;;
-    --reset-coverage) RESET_COVERAGE=1 ;;
-    *) echo "usage: $(basename "$0") [--dry-run] [--reset-coverage]" >&2; exit 64 ;;
+    --dry-run)          DRY_RUN=1 ;;
+    --reset-coverage)   RESET_COVERAGE=1 ;;
+    --assert-fresh)     ASSERT_FRESH=1 ;;
+    --assert-fresh=*)   ASSERT_FRESH=1; OK_MAX_AGE="${arg#*=}" ;;
+    *) echo "usage: $(basename "$0") [--dry-run] [--reset-coverage] [--assert-fresh[=SECONDS]]" >&2; exit 64 ;;
   esac
 done
 
@@ -57,6 +71,32 @@ done < <(find "$AGENTS_ROOT" -mindepth 2 -maxdepth 2 -type d -name codex-home 2>
 mkdir -p "$(dirname "$LOG")"
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log() { echo "$(ts) [$1] $2" >>"$LOG"; }
+
+# --assert-fresh: read-only liveness check. Answers "did a full healthy pass complete
+# recently, and over how many seats", which no other mode can answer -- a silent log is
+# equally consistent with a healthy fleet and a cron entry that was deleted. Heals nothing.
+if [[ "$ASSERT_FRESH" == "1" ]]; then
+  if ! [[ "$OK_MAX_AGE" =~ ^[0-9]+$ ]]; then
+    echo "--assert-fresh: SECONDS must be a non-negative integer, got: $OK_MAX_AGE" >&2
+    exit 64
+  fi
+  if [[ ! -r "$OK_STATE" ]]; then
+    echo "STALE: no guard receipt at $OK_STATE — the guard has not completed a pass since this check was introduced, or it is not running" >&2
+    log "CRITICAL" "--assert-fresh: receipt $OK_STATE absent; cannot show the guard ran"
+    exit 5
+  fi
+  now=$(date -u +%s)
+  stamped=$(date -u -r "$OK_STATE" +%s 2>/dev/null || echo 0)
+  age=$((now - stamped))
+  receipt=$(cat "$OK_STATE" 2>/dev/null | tr -d '\n')
+  if [[ "$age" -gt "$OK_MAX_AGE" ]]; then
+    echo "STALE: guard receipt is ${age}s old (max ${OK_MAX_AGE}s) — last pass: $receipt" >&2
+    log "CRITICAL" "--assert-fresh: receipt ${age}s old exceeds ${OK_MAX_AGE}s; last pass: $receipt"
+    exit 5
+  fi
+  echo "OK: guard pass ${age}s ago (max ${OK_MAX_AGE}s) — $receipt"
+  exit 0
+fi
 
 healed=0
 checked=0
@@ -260,6 +300,16 @@ if [[ "$DRY_RUN" != "1" ]]; then
   fi
 else
   log "DRYRUN" "coverage checked=$checked high-water=$prev_max (state file not written)"
+fi
+
+# The receipt. Written only here, which is the single point every success path reaches
+# after coverage has been validated -- so a stale receipt means "no pass completed
+# cleanly", never "a pass completed but was unhappy". Dry runs never stamp it: auditing
+# is not evidence the real thing ran.
+if [[ "$DRY_RUN" != "1" ]]; then
+  printf '%s checked=%s healed=%s credentials_destroyed=%s logins_preserved=%s\n' \
+    "$(ts)" "$checked" "$healed" "$destroyed" "$preserved" >"$OK_STATE" 2>>"$LOG" \
+    || log "ERROR" "failed to write liveness receipt $OK_STATE"
 fi
 
 exit 0
