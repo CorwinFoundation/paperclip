@@ -56,6 +56,7 @@ from harness.bench.hallucination_legal import (  # noqa: E402
     pass_rate_to_raw,
 )
 from harness.runner import ModelRunner, RunnerError  # noqa: E402
+from harness.openrouter_pool import preflight as pool_preflight  # noqa: E402
 
 FAMILY = "hallucination_legal"
 CATALOGUE = ROOT / "artifacts" / "beaaa-18720" / "unified-probe-inventory.jsonl"
@@ -86,9 +87,24 @@ class BudgetExceeded(RuntimeError):
 
 
 class BudgetGuard:
-    """Running spend, measured off the ``usage`` block of every response."""
+    """Running spend, measured off the ``usage`` block of every response.
 
-    def __init__(self, cap_usd: float) -> None:
+    Construction is the fleet gate (BEAAA-36019): the authorized cap is checked
+    against the live OpenRouter account pool before the first paid call, so a
+    cap the account cannot cover fails at launch rather than mid-capture as a
+    402. Pass ``preflight=False`` only where no paid call will follow.
+    """
+
+    def __init__(
+        self,
+        cap_usd: float,
+        *,
+        preflight: bool = True,
+        slice_id: str = "beaaa-35938",
+        preflight_label: str = "capture preflight",
+    ) -> None:
+        if preflight:
+            pool_preflight(cap_usd, label=preflight_label, slice_id=slice_id)
         self.cap_usd = cap_usd
         self.spent_usd = 0.0
         self.calls = 0
@@ -268,7 +284,11 @@ def main() -> int:
     args = ap.parse_args()
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
-    guard = BudgetGuard(args.cap_usd)
+    guard = BudgetGuard(
+        args.cap_usd,
+        slice_id="beaaa-35938",
+        preflight_label=f"BEAAA-35938 hl capture, cap ${args.cap_usd:.2f}",
+    )
     from_yaml, from_wave0 = load_rows()
     probes_by_id, doc = yaml_probe_index()
     judge_spec = doc["judge"]

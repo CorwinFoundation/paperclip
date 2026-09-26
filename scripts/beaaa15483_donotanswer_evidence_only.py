@@ -6,6 +6,8 @@ emits one PII-minimized terminal object per selected case and a run manifest.
 from __future__ import annotations
 
 import argparse
+import pathlib
+import sys
 import hashlib
 import json
 import os
@@ -50,10 +52,23 @@ def complete(client: httpx.Client, key: str, model: str, messages: list[dict[str
     raise RuntimeError("OpenRouter retry budget exhausted")
 
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--pool-cap-usd",
+        type=float,
+        required=True,
+        help="authorized USD cap for this run; checked against the live "
+             "OpenRouter account pool before the first paid call (BEAAA-36019)",
+    )
     args = parser.parse_args()
+    from harness.openrouter_pool import preflight as pool_preflight
+
+    pool_preflight(args.pool_cap_usd, label="BEAAA-15483 donotanswer", slice_id="beaaa-15483")
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise SystemExit("OPENROUTER_API_KEY is required")

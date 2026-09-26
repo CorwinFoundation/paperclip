@@ -1180,7 +1180,17 @@ def main() -> int:
     parser.add_argument("--out", type=Path,
                         default=REPO_ROOT / "artifacts" / "beaaa-35020" / "tool_misuse_corrected_n5.json")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument(
+        "--pool-cap-usd",
+        type=float,
+        required=True,
+        help="authorized USD cap for this run; checked against the live "
+             "OpenRouter account pool before the first paid call (BEAAA-36019)",
+    )
     args = parser.parse_args()
+    from harness.openrouter_pool import preflight as pool_preflight
+
+    pool_preflight(args.pool_cap_usd, label="BEAAA-35020 tool-misuse N=5", slice_id="beaaa-35020")
 
     seeds = [int(x) for x in args.seeds.split(",") if x.strip()]
     probe_ids = [x.strip() for x in args.probe_ids.split(",")] if args.probe_ids else None

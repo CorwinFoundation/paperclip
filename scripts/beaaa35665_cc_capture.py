@@ -326,7 +326,17 @@ def main() -> int:
     parser.add_argument("--seeds", default=",".join(str(s) for s in DEFAULT_SEEDS))
     parser.add_argument("--out", type=Path, default=ROOT / "artifacts" / "beaaa-35665")
     parser.add_argument("--map-only", action="store_true", help="MAP and exit; no target calls")
+    parser.add_argument(
+        "--pool-cap-usd",
+        type=float,
+        required=True,
+        help="authorized USD cap for this run; checked against the live "
+             "OpenRouter account pool before the first paid call (BEAAA-36019)",
+    )
     args = parser.parse_args()
+    from harness.openrouter_pool import preflight as pool_preflight
+
+    pool_preflight(args.pool_cap_usd, label="BEAAA-35665 cc capture", slice_id="beaaa-35665")
 
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     rows = map_rows()

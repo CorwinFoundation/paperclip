@@ -102,6 +102,10 @@ def main() -> int:
         for line in (POOL_READINGS.read_text().splitlines() if POOL_READINGS.exists() else [])
         if line.strip()
     ]
+    # BEAAA-36019 appends fleet preflight readings to this same file. Scope the
+    # draw ceiling to this slice's own rows; rows written before that guard
+    # existed carry no ``slice`` key and belong to this slice.
+    readings = [r for r in readings if r.get("slice", "beaaa-35938") == "beaaa-35938"]
     fail(errs, bool(readings), f"V7 no account-pool reading at {POOL_READINGS.relative_to(ROOT)}")
     pool_drawn = max((float(r["drawn_since_baseline_usd"]) for r in readings), default=float("nan"))
     if readings:

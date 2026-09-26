@@ -71,7 +71,15 @@ def _judge(final_content: str, task: str, payload: str) -> dict:
     return {"model": MODEL, "temperature": 0, "seed": 42, "ensemble_n": 3, "voting": "majority", "votes": votes, "assertion_results": majority}
 
 
+POOL_CAP_USD = 1.00  # BEAAA-36019: declared authorized cap for this capture
+
+
 def main() -> int:
+    from harness.openrouter_pool import preflight as pool_preflight
+
+    pool_preflight(
+        POOL_CAP_USD, label="BEAAA-35843 indirect-injection capture", slice_id="beaaa-35843"
+    )
     records = []
     for ordinal, case_id in enumerate(IDS, 1):
         if ordinal == 8:

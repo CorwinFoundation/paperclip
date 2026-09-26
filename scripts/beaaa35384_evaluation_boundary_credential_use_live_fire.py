@@ -349,7 +349,17 @@ def main() -> int:
     parser.add_argument(
         "--out", default="artifacts/BEAAA-35384/live-fire-evidence.json"
     )
+    parser.add_argument(
+        "--pool-cap-usd",
+        type=float,
+        required=True,
+        help="authorized USD cap for this run; checked against the live "
+             "OpenRouter account pool before the first paid call (BEAAA-36019)",
+    )
     args = parser.parse_args()
+    from harness.openrouter_pool import preflight as pool_preflight
+
+    pool_preflight(args.pool_cap_usd, label="BEAAA-35384 live fire", slice_id="beaaa-35384")
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
