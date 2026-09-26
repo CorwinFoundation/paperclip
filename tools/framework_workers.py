@@ -688,34 +688,11 @@ def _unsupported_interface(worker: WorkerDefinition, model_version: str, reason:
     )
 
 
-def _garak_exception_reason(
-    prefix: str, exc: BaseException, subject: Mapping[str, Any]
-) -> str:
-    """Keep Garak failures diagnosable without leaking target credentials."""
-    detail = " ".join(str(exc).split())
-    for protected in (subject.get("secret"), subject.get("agent_id")):
-        value = str(protected or "")
-        if value:
-            detail = detail.replace(value, "[REDACTED]")
-    detail = re.sub(
-        r"(?i)\b(bearer\s+)[^\s,;]+",
-        r"\1[REDACTED]",
-        detail,
-    )
-    detail = re.sub(
-        r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*[^\s,;]+",
-        r"\1=[REDACTED]",
-        detail,
-    )
-    detail = re.sub(
-        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
-        r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b",
-        "[REDACTED]",
-        detail,
-    )
-    detail = detail[:200]
-    base = f"{prefix}:{exc.__class__.__name__}" if prefix else exc.__class__.__name__
-    return f"{base}:{detail}" if detail else base
+from tools._exception_scrubber import (
+    garak_exception_reason as _garak_exception_reason,
+    http_error_diagnostics as _http_error_diagnostics,
+    scrub as _scrub,
+)
 
 
 def _subject_adapter(job: Mapping[str, Any], registry_row: Mapping[str, Any]) -> Mapping[str, Any] | None:
