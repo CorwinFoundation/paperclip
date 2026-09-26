@@ -45,6 +45,7 @@ from tools.registered_case_executor import (  # noqa: E402
     default_judge_runner,
 )
 from tools.framework_workers import build_live_framework_workers  # noqa: E402
+from tools._exception_scrubber import strip_http_diagnostics  # noqa: E402
 from tools.founder_dev_mode import (  # noqa: E402
     ATTESTATION_FOUNDER_DEV,
     ATTESTATION_PRODUCTION_SIGNED,
@@ -468,7 +469,16 @@ def _incomplete_reason_value(raw: Mapping[str, Any]) -> Any:
 
 
 def _incomplete_group(reason: Any, *, target_calls: int) -> str:
-    value = str(reason or "").lower()
+    # BEAAA-31617 acceptance criterion 4. The reason now carries appended HTTP
+    # diagnostics whose body and header text come from the customer endpoint or
+    # an intermediary CDN, so it is attacker-influenced. The substring rules
+    # below are unanchored, so leaving that text in the classified value would
+    # let a response body choose this row's operator bucket: a body containing
+    # "judge" routes to ``missing_judge`` and sends an operator after a
+    # credential that is working. Classify on the reason as it read before the
+    # diagnostics were appended, which is what keeps ``incomplete_by_reason``
+    # comparable across dispatches.
+    value = strip_http_diagnostics(str(reason or "")).lower()
     if value.startswith("aborted_upstream"):
         return "aborted_upstream"
     # The deterministic applicability gate decides before dispatch, so its rows

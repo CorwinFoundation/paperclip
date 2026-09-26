@@ -11,6 +11,11 @@ from typing import Any, Mapping
 
 _HTTP_HEADER_ALLOWLIST = frozenset({"server", "cf-ray", "via", "x-cache", "content-type"})
 _HTTP_BODY_CAP = 200
+#: Opening delimiter of the appended HTTP diagnostics block. Shared with the
+#: manifest bucketer so both ends agree on where the reason stops being
+#: harness-authored text and starts being endpoint-supplied text.
+_HTTP_DIAGNOSTICS_OPEN = " ["
+HTTP_DIAGNOSTICS_MARKER = f"{_HTTP_DIAGNOSTICS_OPEN}status="
 
 
 def scrub(text: str, subject: Mapping[str, Any]) -> str:
@@ -68,5 +73,29 @@ def garak_exception_reason(
     # manifest (BEAAA-31617).
     if hasattr(exc, "status_code") and hasattr(exc, "body") and hasattr(exc, "headers"):
         diag = http_error_diagnostics(exc, subject)
-        result = f"{result} [{diag}]"
+        # ``diag`` always opens with ``status=``, so this is exactly
+        # HTTP_DIAGNOSTICS_MARKER by construction.
+        result = f"{result}{_HTTP_DIAGNOSTICS_OPEN}{diag}]"
     return result
+
+
+def strip_http_diagnostics(reason: str) -> str:
+    """Return ``reason`` without the appended bounded HTTP diagnostics block.
+
+    ``garak_exception_reason`` appends ``[status=... body='...']`` so a WAF
+    interception is readable from the manifest (BEAAA-31617). That block is
+    endpoint- and CDN-supplied text, so any consumer that classifies a reason
+    with unanchored substring rules has to drop it first or the response body
+    gets a vote on the bucket.
+
+    The *first* marker occurrence is the real one: everything the endpoint
+    controls lives inside the block, so a body that itself contains
+    ``" [status="`` is already to the right of the genuine delimiter and is
+    removed with it.
+    """
+    if not reason.endswith("]"):
+        return reason
+    index = reason.find(HTTP_DIAGNOSTICS_MARKER)
+    if index == -1:
+        return reason
+    return reason[:index]
