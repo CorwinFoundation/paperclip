@@ -17,6 +17,13 @@ file the BEAAA-35938 V7 budget check already reads, so that check keeps working
 and the fleet burn rate stays derivable rather than reconstructed. Guard rows
 carry a ``slice`` field; V7 scopes its draw ceiling to its own slice's rows.
 
+Each reading also carries the seat key's counters, read at the same instant, and
+a ``sole_drawer`` block comparing the two endpoints' *deltas* since the previous
+reading. When they agree, nothing but this key drew on the account in the
+interval. That is diagnostic, not a gate: a mismatch warns, it does not refuse,
+because a second key spending the pool is a fact about the account rather than a
+defect in the caller's cap.
+
 CLI, for proving the guard without spending anything:
 
     python3 -m harness.openrouter_pool --cap-usd 2 --label "preflight check" --slice beaaa-36019
@@ -26,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -43,6 +51,11 @@ BASELINE_REMAINING_USD = 14.284500
 BASELINE_LABEL = "CEO pre-capture reading, BEAAA-35938 2026-09-25T20:19Z"
 
 CREDITS_URL = "https://openrouter.ai/api/v1/credits"
+KEY_URL = "https://openrouter.ai/api/v1/key"
+
+#: Tolerance for the sole-drawer check. The two endpoints have agreed to six
+#: decimals on every interval measured so far.
+SOLE_DRAWER_TOLERANCE_USD = 1e-6
 
 
 class PoolExhausted(RuntimeError):
@@ -71,6 +84,62 @@ def read_pool(*, api_key: str | None = None, timeout: float = 30.0) -> dict[str,
     }
 
 
+def read_key(*, api_key: str | None = None, timeout: float = 30.0) -> dict[str, Any]:
+    """Read the seat key's own counters, at the same instant as the pool.
+
+    ``limit_remaining`` here is *not* spendable money and is never used as the
+    ceiling. The key is read for two other reasons: ``usage`` gives the
+    sole-drawer check something to compare the account against, and
+    ``usage_daily`` / ``usage_weekly`` are OpenRouter's own windowed figures.
+
+    Deliberately absent: any burn rate derived from a ``total_usage`` delta.
+    This account is idle between runs and drains in discrete jumps, so
+    averaging one pass across idle days invents a deadline that does not exist.
+    Price the runs, not the days.
+    """
+    key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise PoolExhausted("OPENROUTER_API_KEY not set; cannot read the seat key")
+    req = urllib.request.Request(KEY_URL, headers={"Authorization": "Bearer " + key})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        d = json.load(resp)["data"]
+    return {
+        "key_label": d.get("label"),
+        "key_usage": float(d["usage"]),
+        "key_limit": d.get("limit"),
+        "key_limit_remaining": d.get("limit_remaining"),
+        "key_usage_daily": d.get("usage_daily"),
+        "key_usage_weekly": d.get("usage_weekly"),
+        "key_usage_monthly": d.get("usage_monthly"),
+    }
+
+
+def sole_drawer_delta(
+    current: dict[str, Any], prior: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """Did anything other than this key draw on the account since ``prior``?
+
+    The two endpoints report different absolute totals -- the key's ``usage`` is
+    this key's lifetime spend, the account's ``total_usage`` is every key's --
+    so only their *deltas* are comparable. When they agree, this key is the only
+    thing drawing on the account, which settles the "something else must have
+    spent it" argument before it starts.
+
+    Returns ``None`` when there is no prior reading carrying ``key_usage``.
+    """
+    if not prior or prior.get("key_usage") is None or current.get("key_usage") is None:
+        return None
+    d_key = float(current["key_usage"]) - float(prior["key_usage"])
+    d_acct = float(current["total_usage"]) - float(prior["total_usage"])
+    return {
+        "since": prior.get("at"),
+        "delta_key_usage_usd": round(d_key, 9),
+        "delta_account_usage_usd": round(d_acct, 9),
+        "unexplained_usd": round(d_acct - d_key, 9),
+        "matched": abs(d_acct - d_key) <= SOLE_DRAWER_TOLERANCE_USD,
+    }
+
+
 def append_reading(record: dict[str, Any], *, path: Path = POOL_READINGS) -> dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as fh:
@@ -78,12 +147,15 @@ def append_reading(record: dict[str, Any], *, path: Path = POOL_READINGS) -> dic
     return record
 
 
-def readings_for_slice(slice_id: str, *, path: Path = POOL_READINGS) -> list[dict[str, Any]]:
-    """Rows this slice drew. Rows written before BEAAA-36019 belong to BEAAA-35938."""
+def readings_all(*, path: Path = POOL_READINGS) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-    return [r for r in rows if r.get("slice", LEGACY_SLICE) == slice_id]
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def readings_for_slice(slice_id: str, *, path: Path = POOL_READINGS) -> list[dict[str, Any]]:
+    """Rows this slice drew. Rows written before BEAAA-36019 belong to BEAAA-35938."""
+    return [r for r in readings_all(path=path) if r.get("slice", LEGACY_SLICE) == slice_id]
 
 
 def preflight(
@@ -103,7 +175,14 @@ def preflight(
     """
     if cap_usd <= 0:
         raise ValueError(f"cap_usd must be positive, got {cap_usd!r}")
-    pool = pool if pool is not None else read_pool(api_key=api_key)
+    if pool is None:
+        pool = read_pool(api_key=api_key)
+        try:
+            pool = {**pool, **read_key(api_key=api_key)}
+        except (urllib.error.URLError, KeyError, ValueError) as exc:  # pragma: no cover
+            # The key read is diagnostic, not the gate. Losing it must not let a
+            # slice start unchecked, and must not stop one the pool can cover.
+            pool = {**pool, "key_read_error": repr(exc)}
     remaining = float(pool["remaining_usd"])
     ok = cap_usd <= remaining
     reading = {
@@ -121,6 +200,16 @@ def preflight(
         "total_credits": pool["total_credits"],
         "total_usage": pool["total_usage"],
     }
+    for field in (
+        "key_label", "key_usage", "key_limit", "key_limit_remaining",
+        "key_usage_daily", "key_usage_weekly", "key_usage_monthly", "key_read_error",
+    ):
+        if field in pool:
+            reading[field] = pool[field]
+    prior = next(
+        (r for r in reversed(readings_all(path=path)) if r.get("key_usage") is not None), None
+    )
+    reading["sole_drawer"] = sole_drawer_delta(reading, prior)
     if record:
         append_reading(reading, path=path)
     if not ok:
@@ -150,6 +239,12 @@ def main(argv: list[str] | None = None) -> int:
     except PoolExhausted as exc:
         print(f"REFUSED: {exc}")
         return 2
+    sd = reading.get("sole_drawer")
+    if sd and not sd["matched"]:
+        print(
+            f"WARNING: ${sd['unexplained_usd']:.6f} of account draw since {sd['since']} is not "
+            f"attributable to {reading.get('key_label')}. Another key is spending this pool."
+        )
     print("PASS: " + json.dumps(reading, sort_keys=True))
     return 0
 
