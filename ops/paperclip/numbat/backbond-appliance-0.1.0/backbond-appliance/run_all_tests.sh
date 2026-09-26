@@ -16,6 +16,9 @@ python3 tests/e2e.py
 echo; echo "== loop (appliance→server→verify, tamper + content rejection) =="
 python3 tests/loop_test.py
 
+echo; echo "== dead-letter (BEAAA-36046: a terminal rejection must not spin) =="
+python3 tests/dead_letter_test.py
+
 echo; echo "== parity + windowing + contract (CEL≡declarative, P0-1, P0-2) =="
 python3 tests/parity_test.py
 

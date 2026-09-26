@@ -33,3 +33,7 @@ producer:                                    # contract-v1.0 pin set
   corpus_version: "na-appliance"
   rule_pack_version: "0.1"
   seed: 0
+
+# Batches that were built but not accepted wait here and are redelivered on the next
+# tick. Delivery is retried; the window is not re-read (BEAAA-36046).
+# ship.dead_letter_dir defaults to <state_dir>/dead-letter.

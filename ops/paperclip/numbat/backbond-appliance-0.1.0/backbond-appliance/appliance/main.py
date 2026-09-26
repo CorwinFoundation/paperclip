@@ -8,7 +8,7 @@ Commands:
 The partner runs one of these. They instrument nothing. Content never leaves.
 """
 from __future__ import annotations
-import argparse, json, os, sys, glob
+import argparse, json, os, re, sys, glob
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,6 +19,30 @@ from appliance.pipeline import normalize, redact, ContentLeak
 from appliance.rules.engine import RuleSet, Allowlist
 from appliance.rules.cel_engine import CelRuleSet, CelAllowlist, is_cel_pack
 from appliance.batch import DEFAULT_MAX_BATCH_BYTES, BatchBuilder, Signer
+
+
+EXIT_OK = 0
+EXIT_NO_SUBSTRATE = 2
+EXIT_REJECTED = 3        # receiver refused the batch terminally (e.g. unknown_appliance)
+EXIT_UNDELIVERED = 4     # receiver unreachable after bounded retries
+
+
+class ShipRejected(RuntimeError):
+    """Terminal rejection. Redelivering these bytes is pointless until something
+    changes on the receiver (enrollment, auth, scope), so the batch is parked
+    rather than rebuilt."""
+
+    def __init__(self, code: int, reason: str, seq):
+        self.code, self.reason, self.seq = code, reason, seq
+        super().__init__(f"receiver rejected batch: http {code} {reason} seq{seq}")
+
+
+class ShipUnavailable(RuntimeError):
+    """Delivery failed transiently after the bounded retries."""
+
+    def __init__(self, detail: str, seq):
+        self.detail, self.seq = detail, seq
+        super().__init__(f"shipping failed: {detail} seq{seq}")
 
 
 def _now() -> str:
@@ -68,13 +92,88 @@ def _ship_http(batch, cfg):
         except urllib.error.HTTPError as e:
             # 4xx (except 429) are terminal — do not retry a rejected batch forever.
             if e.code != 429 and 400 <= e.code < 500:
-                raise RuntimeError(f"receiver rejected batch: http {e.code} seq{batch['batch_seq']}")
+                raise ShipRejected(e.code, _reject_reason(e), batch["batch_seq"])
             last = f"http {e.code}"
         except (urllib.error.URLError, OSError) as e:
             last = str(e)
         if attempt < retries:
             time.sleep(delay); delay *= 2
-    raise RuntimeError(f"shipping failed after {retries} retries: {last} seq{batch['batch_seq']}")
+    raise ShipUnavailable(f"after {retries} retries: {last}", batch["batch_seq"])
+
+
+def _reject_reason(e) -> str:
+    """The receiver's own error string, so the diagnostic names the cause
+    (``unknown_appliance``) and not just the status code. The journal is not
+    readable by every seat; stderr is."""
+    try:
+        raw = e.read()
+    except Exception:
+        return "no_reason_in_response"
+    text = raw.decode("utf-8", "replace") if raw else ""
+    try:
+        doc = json.loads(text)
+    except Exception:
+        return (text.strip()[:200] or "no_reason_in_response")
+    if isinstance(doc, dict):
+        return str(doc.get("error") or doc.get("reason") or doc.get("message") or doc)[:200]
+    return str(doc)[:200]
+
+
+def _dead_letter_dir(cfg) -> str:
+    """Where batches that were built but not accepted wait for redelivery."""
+    d = cfg.get("ship", {}).get("dead_letter_dir") or os.path.join(cfg["state_dir"], "dead-letter")
+    return os.path.expanduser(d)
+
+
+def _dead_letter_pending(cfg) -> list:
+    return sorted(glob.glob(os.path.join(_dead_letter_dir(cfg), "batch-*.json")))
+
+
+def _dead_letter_put(batch, cfg) -> str:
+    """Park a built batch. Written to a temp name and renamed, so a tick that dies
+    mid-write never leaves a half-batch that the next tick would try to deliver."""
+    d = _dead_letter_dir(cfg)
+    os.makedirs(d, exist_ok=True)
+    tag = re.sub(r"[^0-9A-Za-z_.-]", "-", str(batch.get("batch_hash", ""))[:16]) or "nohash"
+    p = os.path.join(d, f"batch-{batch['batch_seq']:06d}-{tag}.json")
+    tmp = f"{p}.tmp"
+    with open(tmp, "w") as fh:
+        json.dump(batch, fh)
+    os.replace(tmp, p)
+    return p
+
+
+def _drain_dead_letter(cfg) -> list:
+    """Retry *delivery* of already-built batches. Deliberately touches neither the
+    reader nor the rule engine: the whole point of BEAAA-36046 is that a rejected
+    batch must not cost a second normalize+rules pass over the same window."""
+    results = []
+    for path in _dead_letter_pending(cfg):
+        with open(path) as fh:
+            batch = json.load(fh)
+        results.append(_ship(batch, cfg))
+        os.unlink(path)
+    return results
+
+
+def _report_undelivered(cfg, err, parked: int, redelivery: bool = False) -> int:
+    """One line on stderr naming the cause and the appliance, and the exit code that
+    goes with it. No traceback: a traceback told us nothing for 2,300 runs."""
+    reason = getattr(err, "reason", None) or getattr(err, "detail", None) or str(err)
+    code = getattr(err, "code", None)
+    what = "redelivery" if redelivery else "delivery"
+    sys.stderr.write(
+        f"ERROR: {what} refused for appliance_id={cfg['appliance_id']}: {reason}"
+        + (f" (http {code})" if code else "")
+        + f"; {parked} batch(es) parked in {_dead_letter_dir(cfg)}"
+        + "; reader checkpoint NOT advanced (no evidence dropped)"
+        + "; next tick retries delivery only, it does not re-read the window.\n")
+    if isinstance(err, ShipRejected) and reason == "unknown_appliance":
+        sys.stderr.write(
+            f"HINT: the receiver is up but does not know appliance_id="
+            f"{cfg['appliance_id']}. Enroll it (root: /etc/backbond/appliance-enrollment.json) "
+            f"or run `appliance.main selftest` to assert admission.\n")
+    return EXIT_REJECTED if isinstance(err, ShipRejected) else EXIT_UNDELIVERED
 
 
 def cmd_enroll(cfg):
@@ -110,13 +209,26 @@ def _build_allowlist(cfg):
 
 
 def cmd_run(cfg, dry=False):
+    # Delivery before discovery. A batch that was built but never accepted is
+    # redelivered before any new window is read; re-reading would redo normalize
+    # and the rule engine over events already analyzed, which is exactly the spin
+    # BEAAA-36046 removes. On a clean drain we fall through, so the tick that heals
+    # is also the tick that finally advances the checkpoint.
+    pending = _dead_letter_pending(cfg)
+    if pending and not dry:
+        try:
+            results = _drain_dead_letter(cfg)
+        except (ShipRejected, ShipUnavailable) as e:
+            return _report_undelivered(cfg, e, len(_dead_letter_pending(cfg)), redelivery=True)
+        print(json.dumps({"redelivered": len(results), "results": results[:3]}, indent=2))
+
     reader = get_reader(cfg["reader"]["name"])(cfg["reader"])
     if not reader.discover():
         sys.stderr.write(
             f"ERROR: reader '{cfg['reader']['name']}' found no substrate at "
             f"{cfg['reader'].get('path','?')}. Not scanning silently — set reader.path "
             f"explicitly or check read access. (available readers: {readers_available()})\n")
-        return 2
+        return EXIT_NO_SUBSTRATE
     rules = _build_ruleset(cfg)
     allowlist = _build_allowlist(cfg)
     signer = Signer(os.path.expanduser(cfg["signing"]["key_path"]), cfg["signing"]["key_id"])
@@ -154,8 +266,21 @@ def cmd_run(cfg, dry=False):
                             max_bytes=max_bytes, persist=checkpoint is None)
     shipped = []
     if not dry:
-        for b in batches:
-            shipped.append(_ship(b, cfg))
+        failure = None
+        for i, b in enumerate(batches):
+            try:
+                shipped.append(_ship(b, cfg))
+            except (ShipRejected, ShipUnavailable) as e:
+                # Park this batch and every one behind it. The work is already done;
+                # the next tick owes delivery, not another pass over the substrate.
+                for undelivered in batches[i:]:
+                    _dead_letter_put(undelivered, cfg)
+                failure = e
+                break
+        if failure is not None:
+            # The checkpoint stays put on purpose: these events are parked, not
+            # accepted, and the window stays claimable until the receiver takes them.
+            return _report_undelivered(cfg, failure, len(batches) - len(shipped))
         if checkpoint is not None:
             builder.commit()
             reader.commit(checkpoint)
@@ -167,6 +292,41 @@ def cmd_run(cfg, dry=False):
                "batches": len(batches),
                "shipped": shipped[:3] + (["..."] if len(shipped) > 3 else [])}
     print(json.dumps(summary, indent=2))
+    return EXIT_OK
+
+
+def _admission_probe(cfg) -> int:
+    """Assert the receiver will admit *this* appliance, at install time.
+
+    The probe is a zero-event batch carrying one deliberately unknown envelope
+    field, so the receiver always rejects it and nothing is ever ingested. What
+    matters is *which* rejection comes back: the enrollment check runs before
+    envelope validation, so ``unknown_appliance`` means this appliance is not
+    enrolled, and any other reason means admission was reached. Accepting the
+    probe also counts as admission.
+    """
+    if cfg.get("ship", {}).get("mode") != "http" or not cfg.get("ship", {}).get("url"):
+        print("ADMISSION: SKIP (ship.mode is not http)")
+        return 0
+    signer = Signer(os.path.expanduser(cfg["signing"]["key_path"]), cfg["signing"]["key_id"])
+    builder = BatchBuilder(cfg["appliance_id"], signer,
+                           os.path.expanduser(cfg["state_dir"]), cfg["producer"])
+    batch = builder._make_batch([], [], {"start": _now(), "end": _now()})
+    batch["admission_probe"] = True          # guarantees rejection; nothing is ingested
+    try:
+        result = _ship_http(batch, cfg)
+    except ShipRejected as e:
+        if e.reason == "unknown_appliance":
+            print("ADMISSION: FAIL")
+            print(f"  receiver does not know appliance_id={cfg['appliance_id']}")
+            print("  enroll it before enabling the timer, or every tick will fail")
+            return 1
+        print(f"ADMISSION: PASS (receiver knows this appliance; probe refused as {e.reason})")
+        return 0
+    except ShipUnavailable as e:
+        print(f"ADMISSION: FAIL\n  receiver unreachable: {e.detail}")
+        return 1
+    print(f"ADMISSION: PASS ({result})")
     return 0
 
 
@@ -194,7 +354,7 @@ def cmd_selftest(cfg):
     print("NO-CONTENT INVARIANT: PASS")
     print("  emittable fields:", sorted(emitted.keys()))
     print("  evidence_hash:", emitted["evidence_hash"])
-    return 0
+    return _admission_probe(cfg)
 
 
 def main(argv=None):
