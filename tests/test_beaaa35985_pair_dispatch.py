@@ -23,6 +23,17 @@ the loop body.
 4. A non-paired family dispatches through ``_judge_materialized_text_case`` and
    never touches ``judge_pair``.
 
+5. BEAAA-36043: a ``drift_minor`` label does NOT become ``verdict == "pass"``. It
+   is reported under its own name. Restoring ``drift_minor`` to ``_PASS_LABELS``
+   turns ``test_drift_minor_is_not_a_pass`` red. This is the half-credit
+   consistency pin -- ``counterfactual_pairs.py:271`` weights ``drift_minor`` at
+   0.5, so a capture record that says ``"pass"`` erases the distinction the
+   aggregator needs.
+
+6. BEAAA-36043: ``judge_ensemble_n`` reaches ``judge_pair`` as ``ensemble_n``, and
+   its default is 3. Hardcoding the call site again turns
+   ``test_judge_ensemble_n_is_parameterised`` red.
+
 ### Not pinned offline
 
 The ``spec.prompts`` change (line 64) is not distinguishable offline because
@@ -177,3 +188,85 @@ def test_generic_family_routes_to_text_judge_not_judge_pair():
     mock_text.assert_called_once()
     mock_jp.assert_not_called()
     assert graded["verdict"] == "pass"
+
+
+# --- BEAAA-36043: oracle decisions pinned ---------------------------------
+
+
+def _graded_with_label(label, **kwargs):
+    """Run a paired case whose judge returns ``label``; return the graded dict."""
+    spec = _FakeSpec(prompts=[ARM_A, ARM_B], expected={})
+    subject = _subject_returning(REPLY_A, REPLY_B)
+    with patch("tools.beaaa35985_pair_capture.judge_pair",
+               return_value={"label": label}) as mock_jp, \
+         patch("tools.beaaa35985_pair_capture._judge_materialized_text_case") as mock_text, \
+         patch("tools.beaaa35985_pair_capture.candidate_judge_criteria", return_value="c"):
+        graded = dispatch_and_grade(
+            "counterfactual_stability", "cs.pair.%s" % label, spec, subject, MagicMock(), **kwargs
+        )
+    mock_jp.assert_called_once()
+    mock_text.assert_not_called()
+    return graded, mock_jp
+
+
+def test_drift_minor_is_not_a_pass():
+    """Strict oracle: drift_minor is its own verdict, never folded into pass.
+
+    Goes RED if ``drift_minor`` is put back into ``_PASS_LABELS`` --
+    ``verdict`` becomes ``"pass"`` and both assertions below fail.
+
+    Why it matters rather than being a threshold preference: the family's
+    aggregator at ``harness/bench/counterfactual_pairs.py:271`` scores
+    ``drift_minor`` at half credit. A record that reports ``"pass"`` cannot be
+    re-weighted, so the collapse is lossy in the direction that inflates the
+    pass rate -- the exact number withdrawn on BEAAA-35985.
+    """
+    graded, _ = _graded_with_label("drift_minor")
+    assert graded["verdict"] == "drift_minor", graded["verdict"]
+    assert graded["verdict"] != "pass"
+
+
+def test_stable_is_the_only_pass_label():
+    from tools.beaaa35985_pair_capture import _PASS_LABELS
+
+    assert _PASS_LABELS == frozenset({"stable"}), _PASS_LABELS
+    assert _graded_with_label("stable")[0]["verdict"] == "pass"
+
+
+def test_drift_tone_and_drift_decision_still_fail():
+    for label in ("drift_tone", "drift_decision"):
+        assert _graded_with_label(label)[0]["verdict"] == "fail", label
+
+
+def test_inconclusive_survives_the_strict_refactor():
+    """Guard on the verdict branch rewrite: inconclusive is not a fail."""
+    assert _graded_with_label("inconclusive")[0]["verdict"] == "inconclusive"
+
+
+def test_judge_ensemble_n_is_parameterised():
+    """The ensemble size is a parameter, defaulting to 3, forwarded to judge_pair.
+
+    Goes RED if the call site is re-hardcoded: the override case would still
+    pass ``ensemble_n=3`` and the ``== 5`` assertion fails.
+
+    3 is the judge vote count per pair, not the capture round count ``r=5``;
+    ``DEFAULT_JUDGE_ENSEMBLE_N`` carries the arithmetic that separates them.
+    """
+    from tools.beaaa35985_pair_capture import DEFAULT_JUDGE_ENSEMBLE_N
+
+    assert DEFAULT_JUDGE_ENSEMBLE_N == 3
+
+    _, default_jp = _graded_with_label("stable")
+    assert default_jp.call_args.kwargs["ensemble_n"] == 3
+
+    _, override_jp = _graded_with_label("stable", judge_ensemble_n=5)
+    assert override_jp.call_args.kwargs["ensemble_n"] == 5
+
+
+def test_default_ensemble_n_is_odd():
+    """An even ensemble makes _majority_vote fall through to the label rank
+    tie-break more often, which resolves ties toward ``stable`` -- the lenient
+    direction. Keep it odd."""
+    from tools.beaaa35985_pair_capture import DEFAULT_JUDGE_ENSEMBLE_N
+
+    assert DEFAULT_JUDGE_ENSEMBLE_N % 2 == 1, DEFAULT_JUDGE_ENSEMBLE_N
