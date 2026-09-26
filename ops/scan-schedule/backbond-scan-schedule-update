@@ -84,8 +84,38 @@ _scope_timers() {
     systemctl disable backbond-scan-vapi.timer
   fi
 
-  # Arm the nightly zoo lane for the next boot. Never started here.
+  # Arm the nightly zoo lane.  `enable` alone only writes the
+  # timers.target.wants symlink; the timer unit stays inactive until something
+  # starts it, which is why this lane has never fired once --
+  # `LastTriggerUSec` and `NextElapseUSecRealtime` are both empty (CEO
+  # measurement, 2026-09-26).  Installing the corrected units fixes the
+  # permission bug and still leaves the zoo dark.
+  #
+  # A bare `start` is not safe either.  The timer is `Persistent=true` with no
+  # stamp file, so systemd treats the last calendar elapse as missed and
+  # triggers the service the instant the timer starts -- a full zoo scan at
+  # whatever moment an operator happens to run this script, against a funding
+  # decision that is still open (BEAAA-31936).  Seeding the stamp first is what
+  # makes the first trigger land on the next OnCalendar elapse, 03:30 UTC,
+  # instead of immediately.  This is also why `--now` is banned rather than
+  # merely avoided: it would start the timer before the stamp exists.
   systemctl enable backbond-scan-zoo.timer
+  _seed_timer_stamp backbond-scan-zoo.timer
+  systemctl start backbond-scan-zoo.timer
+}
+
+# systemd records a Persistent timer's last trigger as the mtime of
+# /var/lib/systemd/timers/stamp-<unit>.  Absent means "never ran", which is a
+# missed elapse.  Present and current means "ran just now", which is not a lie
+# worth telling in general -- but this timer has no history to misreport, and
+# the alternative is firing an unscheduled run to establish one.  An existing
+# stamp is left alone.
+_seed_timer_stamp() {
+  stamp=/var/lib/systemd/timers/stamp-$1
+  test ! -e "$stamp" || return 0
+  install -d -m 0755 /var/lib/systemd/timers
+  : > "$stamp"
+  echo "Seeded $stamp so arming does not fire a catch-up run."
 }
 
 _assert_vapi_disarmed() {

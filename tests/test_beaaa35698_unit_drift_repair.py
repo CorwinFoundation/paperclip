@@ -192,18 +192,53 @@ def _code() -> str:
     )
 
 
-def test_no_timer_is_ever_started():
+def test_no_service_is_ever_started_and_never_with_now():
     """BEAAA-30240: both timers carry Persistent=true.
 
-    `--now`, and a bare `start` on a timer whose stamp is stale, fires an
-    immediate catch-up run. For the zoo lane that is unfunded OpenRouter spend;
-    for the VAPI lane it is live production traffic. Enable and disable are the
-    only verbs that change nothing on their own.
+    `--now` is banned rather than merely avoided. Arming the zoo timer means
+    starting it, and `enable --now` would start it before the stamp seed below
+    exists -- which is exactly the immediate catch-up run the seed prevents.
+    Starting a *service* directly is never this script's business.
     """
 
     code = _code()
     assert "--now" not in code
-    assert "systemctl start" not in code
+    assert "systemctl start backbond-scan-vapi" not in code
+    for line in code.splitlines():
+        if "systemctl start" in line:
+            assert line.strip().endswith(".timer"), line
+
+
+def test_the_zoo_timer_is_armed_now_and_not_at_the_next_boot():
+    """CEO measurement, BEAAA-35698 2026-09-26: the zoo timer has never fired.
+
+    `UnitFileState=disabled`, `ActiveState=inactive`, `LastTriggerUSec` empty,
+    no symlink in timers.target.wants. `enable` alone writes the symlink and
+    leaves the unit inactive until the next boot, so the corrected units would
+    fix the permission bug and still leave the lane dark. It must also start.
+    """
+
+    code = _code()
+    assert "systemctl enable backbond-scan-zoo.timer" in code
+    assert "systemctl start backbond-scan-zoo.timer" in code
+
+
+def test_the_stamp_is_seeded_before_the_zoo_timer_starts():
+    """Order is the whole safety property.
+
+    With no stamp file a Persistent timer treats the last elapse as missed and
+    triggers the moment it starts. Seeding first moves the first trigger to the
+    next 03:30 UTC; seeding after, or not at all, fires an unfunded zoo run at
+    whatever moment the operator runs this script.
+    """
+
+    code = _code()
+    assert code.index("_seed_timer_stamp backbond-scan-zoo.timer") < code.index(
+        "systemctl start backbond-scan-zoo.timer"
+    )
+    # An existing stamp carries real history and must not be overwritten.
+    body = code[code.index("_seed_timer_stamp() {"):]
+    assert 'test ! -e "$stamp" || return 0' in body
 
 
 def test_the_vapi_timer_is_disarmed_and_never_enabled():
