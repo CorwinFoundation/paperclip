@@ -10,6 +10,7 @@ import json
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from report_card.render import render
 from rubric.scoring import Rubric, score
@@ -150,6 +151,26 @@ class DisplayPillarWeightsTest(unittest.TestCase):
         html = render(sr, rubric, display_pillar_weights=_CONTRACT_V1_WEIGHTS)
         # "/ 25" appears in pillar score rows for all four pillars
         self.assertGreaterEqual(html.count("/ 25"), 4)
+
+    def test_sensitivity_uses_display_reweighted_total_as_its_base(self):
+        """The panel explains the score shown on the card, not the raw score."""
+        sr, rubric = _score_fixture(_PASSING_RAWS, "passing")
+        display_weights = {
+            "OPS": 10,
+            "BIAS_FAIRNESS": 10,
+            "ROBUSTNESS": 10,
+            "GOVERNANCE": 70,
+        }
+
+        with patch("report_card.render.render_sensitivity_block", return_value="") as panel:
+            render(sr, rubric, display_pillar_weights=display_weights)
+
+        panel_score = panel.call_args.args[0]
+        self.assertNotEqual(panel_score["bmi"], sr["bmi"])
+        self.assertEqual(
+            {pid: pillar["weight"] for pid, pillar in panel_score["pillars"].items()},
+            display_weights,
+        )
 
 
 if __name__ == "__main__":
