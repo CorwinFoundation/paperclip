@@ -1,0 +1,9 @@
+[Unit]
+Description=BEAAA-35987 shape-log of writes to the shared Codex credential
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/beai-agent/.local/bin/codex-auth-writewatch.py
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=default.target

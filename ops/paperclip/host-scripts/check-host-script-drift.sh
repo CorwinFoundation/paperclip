@@ -32,6 +32,26 @@ while read -r name; do
   fi
 done < <(host_script_names)
 
+# systemd --user units (BEAAA-36045). Same rule: a tracked supervisor that drifts
+# from the box invites the false belief that the repo is the running config.
+unit_dest="$HOST_USER_UNITS_INSTALL_DIR"
+while read -r unit; do
+  [ -n "$unit" ] || continue
+  repo_sha="$(sha256sum "$here/$unit" 2>/dev/null | cut -d' ' -f1)"
+  if [ -z "$repo_sha" ]; then
+    printf 'MISSING-IN-REPO %s\n' "$unit"; rc=1; continue
+  fi
+  if [ ! -f "$unit_dest/$unit" ]; then
+    printf 'ABSENT          %s (repo %s)\n' "$unit" "${repo_sha:0:12}"; rc=1; continue
+  fi
+  host_sha="$(sha256sum "$unit_dest/$unit" | cut -d' ' -f1)"
+  if [ "$repo_sha" = "$host_sha" ]; then
+    printf 'OK              %s %s\n' "$unit" "${repo_sha:0:12}"
+  else
+    printf 'DRIFT           %s repo=%s host=%s\n' "$unit" "${repo_sha:0:12}" "${host_sha:0:12}"; rc=1
+  fi
+done < <(host_user_unit_names)
+
 if [ "$rc" -ne 0 ]; then
   printf '\nDrift or absence detected. Reconcile deliberately:\n'
   printf '  repo is newer  -> ops/paperclip/host-scripts/install-host-scripts.sh\n'

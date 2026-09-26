@@ -12,13 +12,15 @@ It never records a credential. For a key it logs the type prefix
 (everything up to the third '-'), the length, and 12 hex of sha256 - enough to
 correlate two sightings, not enough to use.
 """
-import ctypes, ctypes.util, errno, hashlib, json, os, select, struct, sys, time
+import ctypes, ctypes.util, datetime, errno, hashlib, json, os, select, struct, sys, time
 
 TARGET_DIR = "/home/beai-agent/.codex"
 TARGET_NAME = "auth.json"
 TARGET = os.path.join(TARGET_DIR, TARGET_NAME)
 LOG = os.path.join(TARGET_DIR, "auth-writewatch.log")
 HEARTBEAT_SECONDS = 900
+# Three heartbeats. Tolerates one missed beat plus scheduling slop.
+STALE_AFTER_SECONDS = 3 * HEARTBEAT_SECONDS
 
 IN_MODIFY, IN_CLOSE_WRITE = 0x00000002, 0x00000008
 IN_MOVED_TO, IN_CREATE, IN_DELETE = 0x00000080, 0x00000100, 0x00000200
@@ -125,6 +127,61 @@ def flags(mask):
     return [name for bit, name in NAMES if mask & bit] or [hex(mask)]
 
 
+def assert_fresh(max_age_seconds, log_path=None):
+    """Read-only liveness check over the newest log line. Returns an exit code.
+
+    BEAAA-36045. ``Restart=always`` on the systemd --user unit restarts a process
+    that *exits*; it cannot see a process that is alive but no longer receiving
+    events -- a dropped inotify watch, an inode swapped out from under the watch,
+    a wedged loop. In that state ``systemctl --user is-active`` still says
+    ``active`` and the log simply goes quiet, which is indistinguishable from
+    "nothing was written to the credential". The periodic ``alive`` line exists
+    precisely to separate those two, and until now nothing read it.
+
+    Any event counts as proof of life, not just ``alive``: a burst of ``write``
+    records means the loop is very much running.
+    """
+    path = log_path or LOG
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except FileNotFoundError:
+        sys.stderr.write("STALE: no watcher log at %s — the watcher has never run\n" % path)
+        return 5
+    newest = None
+    for line in reversed(lines):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            newest = json.loads(line)
+        except ValueError:
+            continue
+        break
+    if not newest or not newest.get("ts"):
+        sys.stderr.write("STALE: %s has no parseable timestamped event\n" % path)
+        return 5
+    raw = str(newest["ts"])
+    try:
+        stamped = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        sys.stderr.write("STALE: newest event has an unreadable ts: %r\n" % raw)
+        return 5
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=datetime.timezone.utc)
+    age = (datetime.datetime.now(datetime.timezone.utc) - stamped).total_seconds()
+    if age > max_age_seconds:
+        sys.stderr.write(
+            "STALE: newest watcher event is %ds old (max %ds), event=%s at %s. "
+            "The process may be alive but no longer watching — check "
+            "`systemctl --user status codex-auth-writewatch.service` and restart it.\n"
+            % (age, max_age_seconds, newest.get("event"), raw))
+        return 5
+    sys.stdout.write("OK: newest watcher event %ds ago (max %ds) — event=%s at %s\n"
+                     % (age, max_age_seconds, newest.get("event"), raw))
+    return 0
+
+
 def main():
     libc = ctypes.CDLL(ctypes.util.find_library("c") or "libc.so.6", use_errno=True)
     libc.inotify_init1.argtypes = [ctypes.c_int]
@@ -180,7 +237,28 @@ def main():
         emit(record)
 
 
+def _parse_args(argv):
+    """Returns (mode, max_age) or raises SystemExit(64) on a bad argument."""
+    if not argv:
+        return "watch", None
+    if len(argv) == 1:
+        arg = argv[0]
+        if arg == "--assert-fresh":
+            return "assert-fresh", STALE_AFTER_SECONDS
+        if arg.startswith("--assert-fresh="):
+            raw = arg.split("=", 1)[1]
+            if not raw.isdigit():
+                sys.stderr.write("--assert-fresh: SECONDS must be a non-negative integer, got: %r\n" % raw)
+                raise SystemExit(64)
+            return "assert-fresh", int(raw)
+    sys.stderr.write("usage: %s [--assert-fresh[=SECONDS]]\n" % os.path.basename(sys.argv[0] or "codex-auth-writewatch.py"))
+    raise SystemExit(64)
+
+
 if __name__ == "__main__":
+    mode, max_age = _parse_args(sys.argv[1:])
+    if mode == "assert-fresh":
+        raise SystemExit(assert_fresh(max_age))
     try:
         main()
     except Exception as exc:  # a dead watcher must say so in its own log
