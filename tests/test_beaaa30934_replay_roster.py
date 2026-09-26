@@ -85,3 +85,31 @@ def test_select_rows_returns_registry_rows_for_the_roster() -> None:
     rows = [{"case_id": "case-1"}, {"case_id": "case-2"}, {"case_id": "case-3"}]
 
     assert replay.select_rows(rows, {"case-1", "case-3"}) == [{"case_id": "case-1"}, {"case_id": "case-3"}]
+
+
+def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
+    """BEAAA-35868: the replay unit is the one Vapi path an agent seat can start.
+
+    `install-units-only.sh` drops in a sudoers grant giving `beai-agent`
+    `systemctl start` on `backbond-scan-vapi-beaaa30934.service`, so this script
+    is reachable without root. It must fail closed on the same written
+    authorization as the weekly lane, and it must do so before the credential is
+    read - an exit code alone would not distinguish "refused" from "dispatched
+    and then failed".
+    """
+    import importlib
+
+    scheduled = importlib.import_module("scripts.scheduled_scan")
+    replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
+
+    monkeypatch.delenv(scheduled.VAPI_AUTH_REF_ENV, raising=False)
+    monkeypatch.delenv(scheduled.VAPI_AUTH_EXPIRES_ENV, raising=False)
+
+    def _credential_tripwire(*args, **kwargs):
+        raise AssertionError("credential environment was read after the gate refused")
+
+    monkeypatch.setattr(scheduled, "map_secret_environment", _credential_tripwire)
+
+    with pytest.raises(scheduled.VapiAuthorizationError) as excinfo:
+        replay.main()
+    assert scheduled.VAPI_AUTH_REF_ENV in str(excinfo.value)

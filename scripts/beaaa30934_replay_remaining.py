@@ -89,6 +89,16 @@ def main() -> int:
     from scripts import scheduled_scan as scheduled
     from tools.registered_case_executor import ScanBudget, build_registered_case_workers, default_judge_runner
 
+    # This unit sends live traffic to the same non-production Vapi assistant as
+    # the weekly `vapi` lane, so it gates on the same written authorization
+    # (BEAAA-35702). It runs before the roster read and before
+    # `map_secret_environment()` for the reason that gate's docstring gives:
+    # the order is the control, and a later check would already have read the
+    # credential. BEAAA-35868 found this path ungated while the sudoers
+    # drop-in from install-units-only.sh hands an agent seat `systemctl start`
+    # on it.
+    scheduled.require_vapi_authorization("vapi")
+
     replay_evidence = OUT / "evidence"
     case_ids = pending_case_ids(SOURCE, replay_evidence)
     rows = select_rows(load_default_full_scan_registry_rows(), case_ids)
