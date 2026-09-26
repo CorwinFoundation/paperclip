@@ -22,9 +22,23 @@ def tree_after(root, **kwargs):
     return tree(root)
 
 
+def _head():
+    """The commit this checkout is on.
+
+    BEAAA-36049 made currency a precondition: the installer refuses unless HEAD equals
+    origin/master as the remote advertises it now. A CI checkout is a PR merge commit and
+    a developer checkout is a branch, so neither is ever master -- these sandbox installs
+    have to say which commit they are exercising rather than claim to be current. The
+    override must name the commit, which is exactly what is being asserted here.
+    """
+    return subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
+                          text=True, capture_output=True, check=True).stdout.strip()
+
+
 def invoke(root, *, dry=False, sudoers=False):
     env = {**os.environ, "BACKBOND_INSTALL_ROOT": str(root),
-           "BACKBOND_INSTALL_SKIP_RUNTIME": "1", "BACKBOND_SHIP_TOKEN": "test-token"}
+           "BACKBOND_INSTALL_SKIP_RUNTIME": "1", "BACKBOND_SHIP_TOKEN": "test-token",
+           "BACKBOND_ALLOW_STALE_CHECKOUT": _head()}
     if dry: env["DRY_RUN"] = "1"
     if sudoers: env["BACKBOND_INSTALL_SUDOERS"] = "1"
     return subprocess.run(["bash", str(SCRIPT)], cwd=REPO, env=env,

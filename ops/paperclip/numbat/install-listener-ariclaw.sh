@@ -23,6 +23,16 @@ SOURCE_ID="${BACKBOND_SOURCE_ID:-paperclip-codex-rollouts}"
 BINDING_ID="${BACKBOND_BINDING_ID:-ariclaw}"
 BINDING_FROM="${BACKBOND_BINDING_EFFECTIVE_FROM:-1970-01-01T00:00:00Z}"
 TOKEN="${BACKBOND_SHIP_TOKEN:-}"
+# EXPECTED_SHA above and the archive it pins ship in the same commit, so that gate proves
+# only that the two agree -- never that this checkout is the current one. A checkout that
+# never fetched past an old commit is perfectly self-consistent and installs pre-fix code
+# silently (BEAAA-36049; measured on AriClaw 2026-09-26, where HEAD, refs/remotes/origin/master
+# and the pin all agreed on a commit three releases behind). The one anchor a stale commit
+# cannot forge is the remote's own advertised branch head, read over the network at install
+# time: nothing inside the checkout can move it.
+REMOTE="${BACKBOND_CURRENCY_REMOTE:-origin}"
+REMOTE_BRANCH="${BACKBOND_CURRENCY_BRANCH:-master}"
+ALLOW_STALE="${BACKBOND_ALLOW_STALE_CHECKOUT:-}"
 
 die() { printf 'ERROR %s\n' "$*" >&2; exit 1; }
 target() { printf '%s' "$ROOT$1"; }
@@ -37,7 +47,41 @@ put() {
   if [ -z "$ROOT" ]; then chown "$owner" "$dst"; fi
 }
 
+assert_checkout_is_current() {
+  local head dirty remote_head
+  command -v git >/dev/null || die "git is required to show this checkout is current; pass BACKBOND_ALLOW_STALE_CHECKOUT=<sha> to install without that proof"
+  git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git checkout, so its currency cannot be established; pass BACKBOND_ALLOW_STALE_CHECKOUT=<sha> to install without that proof"
+  head="$(git -C "$REPO" rev-parse HEAD)"
+  # Print the deployed commit before deciding anything, so a stale install is visible in the
+  # transcript even when it is deliberately overridden.
+  printf 'DEPLOYING commit %s from %s\n' "$head" "$REPO"
+  dirty="$(git -C "$REPO" status --porcelain --untracked-files=no -- ops/paperclip/numbat)"
+
+  if [ -n "$ALLOW_STALE" ]; then
+    [ "${#ALLOW_STALE}" -ge 7 ] || die "BACKBOND_ALLOW_STALE_CHECKOUT must name the commit being installed, not '$ALLOW_STALE'; pass BACKBOND_ALLOW_STALE_CHECKOUT=$head"
+    case "$head" in
+      "$ALLOW_STALE"*) ;;
+      *) die "BACKBOND_ALLOW_STALE_CHECKOUT=$ALLOW_STALE does not name the commit being installed; pass BACKBOND_ALLOW_STALE_CHECKOUT=$head" ;;
+    esac
+    printf 'STALE-OVERRIDE installing %s without a currency check\n' "$head" >&2
+    [ -z "$dirty" ] || printf 'STALE-OVERRIDE uncommitted changes under ops/paperclip/numbat:\n%s\n' "$dirty" >&2
+    return 0
+  fi
+
+  [ -z "$dirty" ] || die "ops/paperclip/numbat has uncommitted changes, so the sealed archive and its pin are not the pair commit $head published:
+$dirty
+commit and push them, or pass BACKBOND_ALLOW_STALE_CHECKOUT=$head to install this working tree deliberately"
+
+  remote_head="$(git -C "$REPO" ls-remote "$REMOTE" "refs/heads/$REMOTE_BRANCH" 2>/dev/null | awk 'NR==1{print $1}')" || remote_head=""
+  # No reachable remote means no anchor, which means no proof. Fail closed rather than fall
+  # through to an install whose only evidence is the checkout vouching for itself.
+  [ -n "$remote_head" ] || die "cannot reach $REMOTE to read refs/heads/$REMOTE_BRANCH, so this checkout ($head) cannot be shown to be current -- refusing to install. Restore access to the remote, or pass BACKBOND_ALLOW_STALE_CHECKOUT=$head to install that exact commit deliberately"
+  [ "$head" = "$remote_head" ] || die "stale checkout: HEAD is $head but $REMOTE/$REMOTE_BRANCH is $remote_head. The archive digest gate cannot see this -- the archive and EXPECTED_SHA travel together and agree at every commit, including this one. Run: git -C $REPO fetch $REMOTE && git -C $REPO merge --ff-only $REMOTE/$REMOTE_BRANCH -- or pass BACKBOND_ALLOW_STALE_CHECKOUT=$head to install $head deliberately"
+  printf 'CURRENT commit %s matches %s/%s\n' "$head" "$REMOTE" "$REMOTE_BRANCH"
+}
+
 [ "$(id -u)" = 0 ] || [ -n "$ROOT" ] || die 'run as root'
+assert_checkout_is_current
 command -v sha256sum >/dev/null || die 'sha256sum is required'
 command -v unzip >/dev/null || die 'unzip is required'
 [ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" = "$EXPECTED_SHA" ] || die 'sealed archive checksum mismatch'
