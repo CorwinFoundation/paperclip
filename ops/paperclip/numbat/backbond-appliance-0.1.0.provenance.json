@@ -36,5 +36,15 @@
     "archiveMembersMatchManifestAndUnpackedTree": true,
     "scoreMovingPathTouched": false,
     "n5CalibrationDelta": "0 / not applicable: packaged-source provenance reconciliation only"
+  },
+  "reseal": {
+    "issue": "BEAAA-36047",
+    "basisCommit": "dc2f03ce3a6eadac3e2f6f425e2548e3dbc43564",
+    "basisIssue": "BEAAA-36046",
+    "basisChange": "dead-letter a terminally rejected batch instead of re-reading the window",
+    "versionDecision": "0.1.0 re-sealed in place; not renumbered to 0.1.1",
+    "versionDecisionRationale": "0.1.0 has never shipped a released score and the only consumer is install-listener-ariclaw.sh on one host. Renumbering would move four coupled identifiers -- the installer's archive path and unpack target, the appliance unit's WorkingDirectory, and producer.collector_version in /etc/backbond/config.yaml -- and a collector_version change reaches the receiver's evidence records. Re-sealing moves one digest and touches nothing downstream.",
+    "resealScript": "ops/paperclip/numbat/reseal-appliance-0.1.0.py",
+    "installerPin": "EXPECTED_SHA in ops/paperclip/numbat/install-listener-ariclaw.sh must equal artifact.archiveSha256; enforced by tests/test_appliance_seal_beaaa36046.py"
   }
 }

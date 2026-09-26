@@ -9,7 +9,7 @@ DRY_RUN="${DRY_RUN:-0}"
 # its caller actually asked for; the grant is opt-in and off by default.
 INSTALL_SUDOERS="${BACKBOND_INSTALL_SUDOERS:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
-EXPECTED_SHA=2f82a4601eb9c95bcef5e4ab3f6f2438834b92e7d5d471eaa91ba25761b55029
+EXPECTED_SHA=3078503fb2d358452e1864f3a45e702f5686794214ba86299eaee1d207a2c1ec
 OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"
@@ -152,7 +152,36 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
-if [ -z "$ROOT" ]; then systemctl daemon-reload; systemctl enable --now backbond-appliance-ingest.service backbond-appliance.timer; fi
+if [ -z "$ROOT" ]; then
+  systemctl daemon-reload
+  systemctl enable --now backbond-appliance-ingest.service backbond-appliance.timer
+  # The receiver reads /etc/backbond/appliance-enrollment.json exactly once, in
+  # enroll_from_file() before serve_forever() (log_tracker/appliance_ingest_server.py).
+  # put() deliberately skips rewriting an unchanged file, and `enable --now` is a no-op on a
+  # unit that is already running, so without this restart an install can finish with a
+  # receiver that never read this install's enrollment entry -- and every batch then gets
+  # HTTP 422 unknown_appliance (appliance_ingest.py raises it when appliance_enrollments
+  # holds no row for the appliance_id). Restart unconditionally, whatever put() decided.
+  # Safe to repeat: appliance.main enroll reuses an existing signing key rather than
+  # minting a new one, so re-enrolling at startup cannot raise enrollment_binding_conflict.
+  systemctl try-restart backbond-appliance-ingest.service
+  if command -v curl >/dev/null; then
+    ready=0
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:8787/healthz; then ready=1; break; fi
+      sleep 1
+    done
+    [ "$ready" = 1 ] || printf 'WARN receiver did not answer /healthz within 10s\n' >&2
+  else
+    sleep 3
+  fi
+  # Run the fixed appliance once now instead of waiting up to five minutes for the timer.
+  if systemctl start backbond-appliance.service; then
+    printf 'FIRSTRUN backbond-appliance.service completed\n'
+  else
+    printf 'FIRSTRUN backbond-appliance.service failed -- journalctl -u backbond-appliance.service -n 50\n' >&2
+  fi
+fi
 printf 'INSTALLED listener and five-minute appliance timer\n'
 printf 'CHECK systemctl is-active backbond-appliance-ingest.service backbond-appliance.timer\n'
 printf 'HEALTH curl -fsS http://127.0.0.1:8787/healthz\n'

@@ -29,8 +29,25 @@ ZIP = os.path.join(NUMBAT, "backbond-appliance-0.1.0.zip")
 SRC_MANIFEST = os.path.join(NUMBAT, "backbond-appliance-0.1.0.source-tree.sha256")
 TREE_MANIFEST = os.path.join(NUMBAT, "backbond-appliance-0.1.0.tree.sha256")
 PROVENANCE = os.path.join(NUMBAT, "backbond-appliance-0.1.0.provenance.json")
+INSTALLER = os.path.join(NUMBAT, "install-listener-ariclaw.sh")
 PREFIX = "backbond-appliance/"
+PIN_PREFIX = "EXPECTED_SHA="
 EPOCH = (1980, 1, 1, 0, 0, 0)
+
+
+def _installer_pin(text):
+    """The single EXPECTED_SHA=<digest> literal the installer gates on."""
+    pins = [
+        line[len(PIN_PREFIX):].strip()
+        for line in text.splitlines()
+        if line.startswith(PIN_PREFIX)
+    ]
+    if len(pins) != 1:
+        raise SystemExit(
+            "expected exactly one %s line in install-listener-ariclaw.sh, found %d"
+            % (PIN_PREFIX, len(pins))
+        )
+    return pins[0]
 
 
 def tree_files():
@@ -117,6 +134,17 @@ def main():
     with open(PROVENANCE, "w") as fh:
         json.dump(prov, fh, indent=2)
         fh.write("\n")
+
+    # The installer verifies the archive against a literal digest before it unpacks
+    # anything, so re-sealing without moving that literal leaves a script that refuses to
+    # run. Rewrite it here; tests/test_appliance_seal_beaaa36046.py enforces the match.
+    with open(INSTALLER) as fh:
+        installer = fh.read()
+    pinned = _installer_pin(installer)
+    if pinned != archive_sha:
+        with open(INSTALLER, "w") as fh:
+            fh.write(installer.replace(PIN_PREFIX + pinned, PIN_PREFIX + archive_sha, 1))
+        print("installer pin  %s -> %s" % (pinned, archive_sha))
 
     print("files          %d" % len(paths))
     print("archiveSha256  %s" % archive_sha)

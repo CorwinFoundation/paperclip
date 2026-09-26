@@ -23,7 +23,9 @@ ZIP = os.path.join(NUMBAT, "backbond-appliance-0.1.0.zip")
 SRC_MANIFEST = os.path.join(NUMBAT, "backbond-appliance-0.1.0.source-tree.sha256")
 TREE_MANIFEST = os.path.join(NUMBAT, "backbond-appliance-0.1.0.tree.sha256")
 PROVENANCE = os.path.join(NUMBAT, "backbond-appliance-0.1.0.provenance.json")
+INSTALLER = os.path.join(NUMBAT, "install-listener-ariclaw.sh")
 PREFIX = "backbond-appliance/"
+PIN_PREFIX = "EXPECTED_SHA="
 REGEN = "regenerate with: python3 ops/paperclip/numbat/reseal-appliance-0.1.0.py"
 
 
@@ -163,6 +165,7 @@ def test_reseal_is_byte_reproducible_from_the_tree(tmp_path):
         "backbond-appliance-0.1.0.zip",
         "backbond-appliance-0.1.0.provenance.json",
         "reseal-appliance-0.1.0.py",
+        "install-listener-ariclaw.sh",
     ):
         shutil.copy2(os.path.join(NUMBAT, name), str(stage / name))
     subprocess.run(
@@ -172,3 +175,72 @@ def test_reseal_is_byte_reproducible_from_the_tree(tmp_path):
     assert _sha(str(stage / "backbond-appliance-0.1.0.zip")) == _sha(ZIP), (
         "re-sealing the committed tree does not reproduce the committed archive byte for byte"
     )
+
+
+def _installer():
+    with open(INSTALLER) as fh:
+        return fh.read()
+
+
+def test_installer_pin_matches_the_sealed_archive():
+    """The gap BEAAA-36047 exists to close: the zip moved, EXPECTED_SHA did not.
+
+    install-listener-ariclaw.sh refuses to unpack an archive whose digest is not this
+    literal, so a re-seal that leaves the literal behind produces a script that cannot
+    install anything. Nothing else in the repository compares these two values.
+    """
+    pins = [
+        line[len(PIN_PREFIX):].strip()
+        for line in _installer().splitlines()
+        if line.startswith(PIN_PREFIX)
+    ]
+    assert len(pins) == 1, "expected one EXPECTED_SHA line, found %s" % pins
+    assert pins[0] == _sha(ZIP), (
+        "install-listener-ariclaw.sh pins %s but the sealed archive is %s -- the installer "
+        "would die 'sealed archive checksum mismatch' before writing anything; %s"
+        % (pins[0], _sha(ZIP), REGEN)
+    )
+
+
+def test_installer_restarts_the_receiver_unconditionally():
+    """BEAAA-36047 step 4.
+
+    The receiver reads /etc/backbond/appliance-enrollment.json once, in enroll_from_file()
+    before serve_forever(). put() skips rewriting an unchanged file and `enable --now` is a
+    no-op on a running unit, so without an unconditional restart an install can finish with
+    a receiver that never read this install's enrollment entry -- and every batch then gets
+    HTTP 422 unknown_appliance.
+    """
+    text = _installer()
+    restart = "systemctl try-restart backbond-appliance-ingest.service"
+    assert restart in text, "installer never restarts the receiver"
+    enrollment_write = text.index('put "$ETC/appliance-enrollment.json"')
+    assert text.index(restart) > enrollment_write, (
+        "the receiver is restarted before the enrollment file is written, so it re-reads "
+        "the previous entry"
+    )
+    # Unconditional: the restart line itself must not be gated on a file having changed.
+    line = [ln for ln in text.splitlines() if restart in ln][0]
+    assert line.strip() == restart, (
+        "the restart is conditional (%r); put() may decide the enrollment file is unchanged "
+        "while the running receiver still holds a different one" % line.strip()
+    )
+
+
+def test_installer_runs_the_appliance_once_immediately():
+    """BEAAA-36047 step 4: the fixed code must run now, not at the next timer tick."""
+    text = _installer()
+    assert "systemctl start backbond-appliance.service" in text, (
+        "install leaves the fixed appliance waiting up to five minutes for the timer"
+    )
+
+
+def test_provenance_records_the_reseal_basis():
+    """BEAAA-36047 step 3: re-sealing 0.1.0 in place is conditional on saying why, here."""
+    with open(PROVENANCE) as fh:
+        prov = json.load(fh)
+    reseal = prov["reseal"]
+    assert reseal["basisCommit"] == "dc2f03ce3a6eadac3e2f6f425e2548e3dbc43564"
+    assert reseal["basisIssue"] == "BEAAA-36046"
+    assert "0.1.0" in reseal["versionDecision"]
+    assert reseal["versionDecisionRationale"].strip()
