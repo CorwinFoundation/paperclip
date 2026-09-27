@@ -114,6 +114,43 @@ def test_calibration_delta_supreme_law_breach_only_when_version_aligned():
             )
 
 
+@pytest.mark.parametrize("fixture_id", ["G1", "G2", "G3", "B3"])
+def test_applicability_aware_consumers_preserve_locked_scores(fixture_id):
+    """BEAAA-571: every re-score consumer must apply the fixture's trusted
+    applicability mask before comparing or aggregating scores.
+
+    G3/B3 are the original regression fixtures. G1/G2 protect the existing
+    golden anchors while exercising the same authenticated sidecar path.
+    """
+    delta = compute_delta()
+    delta_fixture = next(
+        fixture for fixture in delta["fixtures"]
+        if fixture["fixture_id"] == fixture_id
+    )
+    assert delta_fixture["current_are"] == delta_fixture["baseline_are"]
+    assert delta_fixture["are_delta"] == 0
+    assert all(value == 0 for value in delta_fixture["pillar_deltas"].values())
+    assert delta_fixture["pillar_breaches"] == []
+
+    band = run_l1_n5()
+    band_fixture = next(
+        fixture for fixture in band["fixtures"]
+        if fixture["fixture_id"] == fixture_id
+    )
+    assert band_fixture["are_min"] == delta_fixture["baseline_are"]
+    assert band_fixture["are_max"] == delta_fixture["baseline_are"]
+    assert band_fixture["are_drift"] == 0
+    assert all(value == 0 for value in band_fixture["pillar_drifts"].values())
+
+    discrimination = compute_discrimination()
+    discrimination_fixture = next(
+        fixture for fixture in discrimination["fixtures"]
+        if fixture["fixture_id"] == fixture_id
+    )
+    assert discrimination_fixture["current_are"] == delta_fixture["baseline_are"]
+    assert discrimination_fixture["baseline_are"] == delta_fixture["baseline_are"]
+
+
 def test_discrimination_emits_spread_buckets_and_by_slot(baselined_ids):
     disc = compute_discrimination()
     baselined = [f for f in disc["fixtures"] if f["baselined"]]
