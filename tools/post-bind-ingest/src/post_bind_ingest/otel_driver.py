@@ -21,6 +21,12 @@ class OTelDriverError(ValueError):
 SOURCE_DRIVER = "otel-collector-direct-v1"
 EVIDENCE_TIER = "vendor-local-redacted"
 SCHEMA_VERSION = "1.0"
+GENAI_SEMCONV_SOURCE = "open-telemetry/semantic-conventions-genai"
+# The dedicated GenAI repository does not currently publish an OTLP schema URL.
+# Absence is truthful and valid in OTLP; a core semantic-conventions URL must not
+# be relabelled as provenance for the dedicated GenAI conventions.
+GENAI_SEMCONV_SCHEMA_URL: None = None
+CORE_SEMCONV_SCHEMA_URL_RE = re.compile(r"^https://opentelemetry\.io/schemas/")
 
 # Deliberately smaller than the OTel semantic-convention surface. Expanding this
 # set is a reviewed implementation change because every admitted value is signed.
@@ -175,6 +181,20 @@ def _normalise_status(status: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _genai_semconv_provenance(*, schema_urls: tuple[Any, Any], span_attrs: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Describe the dedicated GenAI source without inventing a schema URL."""
+    if not any(key.startswith("gen_ai.") for key in span_attrs):
+        return None
+    for schema_url in schema_urls:
+        if schema_url is not None and not isinstance(schema_url, str):
+            raise OTelDriverError("OTLP schemaUrl must be a string")
+        if schema_url and CORE_SEMCONV_SCHEMA_URL_RE.match(schema_url):
+            raise OTelDriverError(
+                "core OpenTelemetry schemaUrl is not GenAI semantic-convention provenance"
+            )
+    return {"source": GENAI_SEMCONV_SOURCE, "schema_url": GENAI_SEMCONV_SCHEMA_URL}
+
+
 def _outcome_status(status: Mapping[str, Any], span_attrs: Mapping[str, Any]) -> str:
     decision = span_attrs.get(AUTHZ_DECISION_ATTRIBUTE)
     if decision == "deny":
@@ -275,6 +295,10 @@ def map_otlp_json(
                     content_enabled=content_enabled,
                 )
                 _normalise_authz(span_attrs)
+                genai_semconv = _genai_semconv_provenance(
+                    schema_urls=(group.get("schemaUrl"), scope.get("schemaUrl")),
+                    span_attrs=span_attrs,
+                )
                 parent_span_id = span.get("parentSpanId") or None
                 if parent_span_id is not None and (
                     not isinstance(parent_span_id, str)
@@ -317,7 +341,7 @@ def map_otlp_json(
                         "causal": causal,
                         "outcome_status": _outcome_status(normalised_status, span_attrs),
                     },
-                    "provenance": {"class": "vendor_otel", "component": "post_bind_ingest.otel_driver", "source_driver": SOURCE_DRIVER, "evidence_tier": EVIDENCE_TIER},
+                    "provenance": {"class": "vendor_otel", "component": "post_bind_ingest.otel_driver", "source_driver": SOURCE_DRIVER, "evidence_tier": EVIDENCE_TIER, **({"genai_semconv": genai_semconv} if genai_semconv else {})},
                     "redaction_applied": [],
                 })
                 if len(candidate) > max_spans:

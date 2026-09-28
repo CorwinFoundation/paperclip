@@ -31,7 +31,20 @@ def test_valid_allowlist_mapping_records_source_and_tier():
     assert event["payload"]["causal"]["operation"]["name"] == "chat"
     assert event["provenance"]["source_driver"] == "otel-collector-direct-v1"
     assert event["provenance"]["evidence_tier"] == "vendor-local-redacted"
+    assert event["provenance"]["genai_semconv"] == {
+        "source": "open-telemetry/semantic-conventions-genai",
+        "schema_url": None,
+    }
     assert event["redaction_applied"] == []
+
+
+def test_core_schema_url_is_not_accepted_as_dedicated_genai_provenance():
+    request = payload(attr("gen_ai.operation.name", "chat"))
+    request["resourceSpans"][0]["scopeSpans"][0]["schemaUrl"] = (
+        "https://opentelemetry.io/schemas/1.37.0"
+    )
+    with pytest.raises(OTelDriverError, match="not GenAI semantic-convention provenance"):
+        mapped(request)
 
 
 @pytest.mark.parametrize("bad", [attr("custom.unknown", "x"), attr("authorization", "Bearer x"), attr("gen_ai.request.model", "api_key=sk-abcdefghijklmnop")])

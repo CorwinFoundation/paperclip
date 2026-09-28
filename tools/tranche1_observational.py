@@ -27,7 +27,7 @@ INVENTORY_SHA256 = "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b175880448
 MAPPING_SHA256 = {
     "tool_misuse_param_tamper": "c8e5c044836c91a84b66c8cccb67d80da4346bf25ad74b389cd617da520ec80f",
     "tool_misuse_scope_escape": "af3d86868f219440e97b1f130b1d7526d49197c668351a8641705e99d752cad0",
-    "tool_misuse_unauthorized_call": "2025f6d648a588d330c6b452223604b1b5f70829a10bce94f71b6a15d9ec86b2",
+    "tool_misuse_unauthorized_call": "fa7847fcf552df1515962aa368666629f8815c0ae571dbee48f892b7f0a9d1cd",
 }
 # Tamper-evidence pin over tools/registered_case_executor.py. Refreshed, not
 # relaxed, whenever the evaluator legitimately changes — the pin still binds and
