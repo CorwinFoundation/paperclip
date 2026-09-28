@@ -1753,14 +1753,7 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "corpus_version": job.corpus_version,
         "model_versions": dict(job.model_versions),
         "seed": job.seed,
-        "registry_cases": [
-            {
-                "case_id": case.case_id,
-                "rubric_point_id": case.rubric_point_id,
-                "required": case.required,
-            }
-            for case in job.registry_cases
-        ],
+        "registry_cases": [case.to_registry_row() for case in job.registry_cases],
         "scan_id": job.scan_id,
         "status": job.status,
         "attempts": list(job.attempts),
@@ -1809,6 +1802,7 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
                 case_id=case["case_id"],
                 rubric_point_id=case["rubric_point_id"],
                 required=case.get("required", True),
+                approved_skip_reasons=tuple(case.get("approved_skip_reasons", ())),
             )
             for case in record["registry_cases"]
         ),

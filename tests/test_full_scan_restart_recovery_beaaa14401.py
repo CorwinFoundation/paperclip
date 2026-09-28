@@ -27,6 +27,7 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
 )
 from api.full_scan_job_persistence import FullScanJobPersistence
+from api.full_suite_manifest import FullSuiteCase, registry_snapshot_hash
 
 
 class Clock:
@@ -118,6 +119,36 @@ def test_queued_job_survives_restart_and_resumes_to_terminal(monkeypatch, tmp_pa
     assert reloaded.status == "complete"
     assert reloaded.final_manifest is not None
     assert reloaded.final_manifest_hash == finalized.final_manifest_hash
+
+
+def test_persisted_registry_cases_preserve_approved_skip_reasons(tmp_path):
+    db = str(tmp_path / "full_scan_jobs.sqlite3")
+    cases = (
+        FullSuiteCase(
+            case_id="promptinject.case_001",
+            rubric_point_id="P3.1",
+            required=True,
+            approved_skip_reasons=("approved_tool_harness_dependency",),
+        ),
+    )
+    original_hash = registry_snapshot_hash(cases)
+
+    p1 = FullScanJobStore(clock=Clock(), persistence=FullScanJobPersistence(db))
+    job = p1.submit(
+        agent_id="agent-14412",
+        scanner_version="1.2.0",
+        corpus_version="registry-baseline-2026-07-13",
+        model_versions={"primary": "fixture-agent-v0", "judges": []},
+        seed=0,
+        registry_cases=cases,
+    )
+    del p1
+
+    p2 = FullScanJobStore(clock=Clock(), persistence=FullScanJobPersistence(db))
+    reloaded = p2.status(job.job_id)
+
+    assert registry_snapshot_hash(reloaded.registry_cases) == original_hash
+    assert reloaded.registry_cases == cases
 
 
 def test_running_job_stale_lease_is_recovered_and_resumes(monkeypatch, tmp_path):
