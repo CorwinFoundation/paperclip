@@ -667,6 +667,43 @@ class RunScanTests(unittest.TestCase):
             self.assertNotIn(dim_id, result["uncovered_dimensions"])
             self.assertIn(dim_id, refs_by_dim)
 
+    def test_legacy_replay_rejects_caller_na_that_policy_rules_fires(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpd:
+            d = self._setup_g1(Path(tmpd))
+            malicious = _current_g1_applicability()
+            dim_id = "ROBUSTNESS.PII.SCAN_TIME_DETECTION"
+            malicious["applicability_decisions"][dim_id] = {
+                "fires": False,
+                "na_justification": "caller tries to suppress a required dimension",
+                "na_justification_key": "malicious.client_suppression",
+            }
+            (d / "applicability.json").write_text(json.dumps(malicious))
+
+            flags = malicious["architecture_flags"]
+            old_env = os.environ.get(_TRUSTED_ARCHITECTURE_FLAGS_ENV)
+            os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = json.dumps(
+                flags, sort_keys=True, separators=(",", ":")
+            )
+            try:
+                with self.assertRaisesRegex(
+                    CliInputError,
+                    "policy engine independently rules this dim FIRES",
+                ):
+                    run_scan(
+                        agent_id="G1",
+                        input_dir=d,
+                        seed=42,
+                        corpus_version="0.1.1",
+                        rubric_path=RUBRIC_PATH,
+                        scored_at=FIXED_SCORED_AT,
+                    )
+            finally:
+                if old_env is None:
+                    os.environ.pop(_TRUSTED_ARCHITECTURE_FLAGS_ENV, None)
+                else:
+                    os.environ[_TRUSTED_ARCHITECTURE_FLAGS_ENV] = old_env
+
     def test_trusted_architecture_flags_env_rejects_non_bool_values(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmpd:
