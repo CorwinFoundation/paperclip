@@ -38,7 +38,8 @@ def test_authenticated_form_renders_persisted_receipts_with_private_headers():
         for thread in threads: thread.join(timeout=5)
 def test_no_confirmation_and_mismatch_states():
     assert project_receipts(ROWS[:1])[0].outcome == "NO CONFIRMATION RECEIVED"
-    assert project_receipts([ROWS[0],dict(ROWS[1],body_text="Proposed action: Reserve two desk lamps")])[0].outcome == "MISMATCH"
+    mismatched=dict(ROWS[1],body_text=ROWS[1]["body_text"].replace("one desk lamp","two desk lamps"))
+    assert project_receipts([ROWS[0],mismatched])[0].outcome == "MISMATCH"
 
 def test_reversed_arrival_and_multiple_open_checks_correlate_by_id():
     check_two=dict(ROWS[0],receipt_id="in_check_2",correlation_key="BB-2",body_text=ROWS[0]["body_text"].replace("BB-1","BB-2").replace("one desk lamp","two desk lamps"))
@@ -49,3 +50,21 @@ def test_reversed_arrival_and_multiple_open_checks_correlate_by_id():
 def test_confirmation_without_matching_explicit_id_never_pairs_by_order():
     unrelated=dict(ROWS[1],correlation_key="BB-other",body_text=ROWS[1]["body_text"].replace("BB-1","BB-other"))
     assert project_receipts([ROWS[0],unrelated])[0].outcome == "NO CONFIRMATION RECEIVED"
+
+def test_exact_live_legacy_format_correlates_with_null_database_keys():
+    legacy=[]
+    for row in ROWS:
+        legacy.append(dict(row,correlation_key=None,body_text=row["body_text"].replace("Check ID: BB-1","Test reference: BB-INSTINCT-20260929-01")))
+    assert project_receipts(list(reversed(legacy)))[0].outcome == "MATCH"
+
+def test_reused_check_id_and_multiple_distinct_confirmations_are_ambiguous():
+    reused=dict(ROWS[0],receipt_id="in_check_reused")
+    assert {item.outcome for item in project_receipts([ROWS[0],reused,ROWS[1]])} == {"AMBIGUOUS EVIDENCE"}
+    differing=dict(ROWS[1],receipt_id="in_confirm_different",body_text=ROWS[1]["body_text"].replace("one desk lamp","two desk lamps"))
+    assert project_receipts([ROWS[0],ROWS[1],differing])[0].outcome == "AMBIGUOUS EVIDENCE"
+
+def test_conflicting_ids_and_missing_required_fields_never_match():
+    conflict=dict(ROWS[0],correlation_key=None,body_text=ROWS[0]["body_text"]+"\nTest reference: BB-OTHER")
+    assert project_receipts([conflict,ROWS[1]])[0].outcome == "AMBIGUOUS EVIDENCE"
+    incomplete=dict(ROWS[1],body_text="Check ID: BB-1\nProposed action: Reserve one desk lamp")
+    assert project_receipts([ROWS[0],incomplete])[0].outcome == "INCOMPLETE EVIDENCE"

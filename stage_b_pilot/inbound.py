@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import secrets
 import sqlite3
 from dataclasses import asdict, dataclass
@@ -18,13 +17,12 @@ from email.parser import BytesParser
 from email.utils import parseaddr
 from pathlib import Path
 
+from .correlation import correlation_key
+
 
 CHECK_SUBJECT = "BackBond check"
+import re
 _FORWARD_PREFIX = re.compile(r"^(?:(?:fwd?|fw):\s*)+", re.IGNORECASE)
-_CORRELATION_LINE = re.compile(
-    r"^(?:backbond\s+)?(?:check|correlation)\s+id\s*:\s*([A-Za-z0-9][A-Za-z0-9._-]{2,79})\s*$",
-    re.IGNORECASE | re.MULTILINE,
-)
 
 
 def _now() -> str:
@@ -43,12 +41,6 @@ def _body(message) -> str:
     if part is None:
         return ""
     return part.get_content().strip()
-
-
-def _correlation_key(body: str) -> str | None:
-    """Read the explicit per-check key; never infer correlation from ordering."""
-    match = _CORRELATION_LINE.search(body)
-    return match.group(1) if match else None
 
 
 @dataclass(frozen=True)
@@ -160,11 +152,28 @@ class InboundStore:
             raise ValueError("subject_not_supported")
         kind = "check" if subject == CHECK_SUBJECT else "forwarded_confirmation"
         digest = hashlib.sha256(raw_message).hexdigest()
+        prior = self.connection.execute(
+            "SELECT * FROM inbound_receipts WHERE message_sha256=?", (digest,)
+        ).fetchone()
+        if prior is not None:
+            return InboundReceipt(**dict(prior))
         body_text = _body(message)
+        key = correlation_key(body_text)
+        if kind == "check" and key is not None:
+            existing = self.connection.execute(
+                "SELECT correlation_key,body_text FROM inbound_receipts "
+                "WHERE user_id=? AND kind='check'", (row["user_id"],),
+            ).fetchall()
+            for prior_check in existing:
+                prior_key = prior_check["correlation_key"]
+                if prior_key is None:
+                    prior_key = correlation_key(prior_check["body_text"])
+                if prior_key == key:
+                    raise ValueError("check_id_reused")
         receipt = InboundReceipt(
             receipt_id="in_" + digest[:24], user_id=row["user_id"], sender_address=sender,
             subject=subject, kind=kind, received_at=_now(), message_sha256=digest,
-            body_text=body_text, correlation_key=_correlation_key(body_text),
+            body_text=body_text, correlation_key=key,
         )
         try:
             self.connection.execute(
@@ -188,7 +197,15 @@ class InboundStore:
             "SELECT r.* FROM inbound_receipts r JOIN inbound_users u USING(user_id) "
             "WHERE u.email=? ORDER BY received_at,receipt_id", (_address(email),)
         ).fetchall()
-        return [dict(row) for row in rows]
+        receipts = [dict(row) for row in rows]
+        for receipt in receipts:
+            if receipt.get("correlation_key") is None:
+                try:
+                    receipt["correlation_key"] = correlation_key(receipt["body_text"])
+                except ValueError:
+                    receipt["correlation_key"] = None
+                    receipt["correlation_error"] = "ambiguous"
+        return receipts
 
     def close(self) -> None:
         self.connection.close()

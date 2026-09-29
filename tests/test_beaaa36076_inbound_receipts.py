@@ -66,6 +66,28 @@ def test_explicit_check_id_is_persisted_and_retry_safe(store):
     assert len(store.receipts_for("ari@example.com")) == 1
 
 
+def test_legacy_test_reference_is_parsed_for_ingest_and_legacy_null_rows(store):
+    confirm(store)
+    receipt = store.ingest(message(body="Test reference: BB-LEGACY-01\nProposed action: Test"))
+    assert receipt.correlation_key == "BB-LEGACY-01"
+    store.connection.execute(
+        "UPDATE inbound_receipts SET correlation_key=NULL WHERE receipt_id=?", (receipt.receipt_id,)
+    )
+    store.connection.commit()
+    assert store.receipts_for("ari@example.com")[0]["correlation_key"] == "BB-LEGACY-01"
+
+
+def test_conflicting_lines_and_reused_check_ids_fail_closed(store):
+    confirm(store)
+    with pytest.raises(ValueError, match="correlation_identifier_conflict"):
+        store.ingest(message(body="Check ID: BB-ONE\nTest reference: BB-TWO"))
+    raw = message(body="Test reference: BB-REUSE\nProposed action: First")
+    store.ingest(raw)
+    assert store.ingest(raw).correlation_key == "BB-REUSE"
+    with pytest.raises(ValueError, match="check_id_reused"):
+        store.ingest(message(body="Test reference: BB-REUSE\nProposed action: Second"))
+
+
 def test_sender_identity_comes_from_normalized_from_address(store):
     confirm(store)
     receipt = store.ingest(message(sender="Ari <ARI@EXAMPLE.COM>"))

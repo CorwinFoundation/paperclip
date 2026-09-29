@@ -8,6 +8,7 @@ Type=simple
 User=backbond-stage-b
 Group=backbond-stage-b
 WorkingDirectory=/opt/backbond-stage-b/app
+EnvironmentFile=/etc/backbond/stage-b-receipts.env
 ExecStart=/usr/bin/python3 -m stage_b_pilot.receipt_page --host 127.0.0.1 --port 8789 --upstream-host 127.0.0.1 --upstream-port 8788
 Restart=on-failure
 RestartSec=2

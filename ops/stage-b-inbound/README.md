@@ -8,6 +8,7 @@ not modify the scanner container or its release configuration.
 - Private receipts: `https://scanner.backbond.ai/stage-b-demo/receipts?email=<enrolled-email>`
 - Loopback service: `127.0.0.1:8788`
 - Secret: `/etc/backbond/stage-b-inbound.env`, root-owned mode `0600`
+- Receipt session secret: `/etc/backbond/stage-b-receipts.env`, root-owned mode `0600`
 - Receipt store: `/var/lib/backbond-stage-b/inbound.sqlite3`, service-user-owned
 - Unit: `backbond-stage-b-inbound.service`
 
@@ -23,7 +24,10 @@ file, installs the separate service and nginx location, validates nginx, starts
 the service, and checks loopback health. It inserts only into the unique
 `scanner.backbond.ai` TLS block, backs up the vhost, and rolls back if nginx,
 service health, or the existing release-identity/SLA routes change. Re-running
-it preserves the secret and receipt database. After public health returns 200,
+it preserves both secrets and the receipt database. Each update explicitly
+restarts both isolated services and prints the installed runtime hash after its
+health checks. The receipt service never receives the Mailgun signing key.
+After public health returns 200,
 configure the prepared route:
 
 ```text

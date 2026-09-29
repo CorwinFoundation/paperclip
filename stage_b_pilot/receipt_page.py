@@ -6,6 +6,7 @@ from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
+from .correlation import correlation_key
 
 @dataclass(frozen=True)
 class DemoReceipt:
@@ -13,7 +14,7 @@ class DemoReceipt:
     money_at_risk: str; user_answer: str; outcome: str; outcome_detail: str
 
 def _structured_body(body: str) -> dict[str, str]:
-    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer"}
+    allowed = {"proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer"}
     values = {}
     for line in body.splitlines():
         key, separator, value = line.partition(":")
@@ -23,24 +24,42 @@ def _structured_body(body: str) -> dict[str, str]:
 
 def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
     projected = []
-    confirmations: dict[str, dict[str, object]] = {}
+    confirmations: dict[str, list[dict[str, object]]] = {}
+    check_counts: dict[str, int] = {}
     for row in rows:
-        if row.get("kind") != "forwarded_confirmation": continue
-        fields = _structured_body(str(row.get("body_text", "")))
-        key = str(row.get("correlation_key") or fields.get("correlation_key") or "")
-        if key and key not in confirmations: confirmations[key] = row
+        try:
+            parsed = correlation_key(str(row.get("body_text", "")))
+            stored = row.get("correlation_key")
+            if stored and parsed and str(stored) != parsed: raise ValueError("correlation_identifier_conflict")
+            key = str(stored or parsed or "") or None
+        except ValueError:
+            key = None
+            pass
+        if row.get("kind") == "check" and key: check_counts[key] = check_counts.get(key, 0) + 1
+        if row.get("kind") == "forwarded_confirmation" and key: confirmations.setdefault(key, []).append(row)
     for row in (row for row in rows if row.get("kind") == "check"):
         fields = _structured_body(str(row.get("body_text", "")))
-        key = str(row.get("correlation_key") or fields.get("correlation_key") or "")
-        confirmation = confirmations.get(key) if key else None
-        if confirmation is None:
+        try:
+            parsed = correlation_key(str(row.get("body_text", "")))
+            stored = row.get("correlation_key")
+            if stored and parsed and str(stored) != parsed: raise ValueError
+            key = str(stored or parsed or "") or None
+        except ValueError:
+            key = None
+        candidates = confirmations.get(key, []) if key else []
+        if (not key) or check_counts.get(key, 0) > 1 or len(candidates) > 1:
+            outcome, detail = "AMBIGUOUS EVIDENCE", "The check identifier or confirmation evidence is ambiguous."
+        elif not candidates:
             outcome, detail = "NO CONFIRMATION RECEIVED", "No independent confirmation has arrived for this check."
         else:
-            confirmed = _structured_body(str(confirmation.get("body_text", "")))
-            comparable = {key:value for key,value in fields.items() if key != "user_answer"}
-            matches = bool(comparable) and all(confirmed.get(key) == value for key,value in comparable.items())
-            outcome = "MATCH" if matches else "MISMATCH"
-            detail = "The observed result matched the submitted check." if matches else "The observed result differed from the submitted check."
+            confirmed = _structured_body(str(candidates[0].get("body_text", "")))
+            required = {"proposed_action", "terms", "deposit", "money_at_risk"}
+            if not required.issubset(fields) or not required.issubset(confirmed):
+                outcome, detail = "INCOMPLETE EVIDENCE", "Required comparison fields are missing."
+            else:
+                matches = all(confirmed[name] == fields[name] for name in required)
+                outcome = "MATCH" if matches else "MISMATCH"
+                detail = "The observed result matched the submitted check." if matches else "The observed result differed from the submitted check."
         projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], fields.get("proposed_action", "Not provided"), fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), fields.get("user_answer", "Not provided"), outcome, detail))
     return projected
 
