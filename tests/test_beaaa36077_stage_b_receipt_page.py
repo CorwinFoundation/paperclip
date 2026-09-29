@@ -8,7 +8,7 @@ class Upstream(BaseHTTPRequestHandler):
         body=json.dumps({"mode":"DEMO","receipts":ROWS}).encode(); self.send_response(200); self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
     def log_message(self,*_): pass
 def _servers():
-    upstream=ThreadingHTTPServer(("127.0.0.1",0),Upstream); page=build_server("127.0.0.1",0,"127.0.0.1",upstream.server_port); threads=[threading.Thread(target=s.serve_forever,daemon=True) for s in (upstream,page)]
+    upstream=ThreadingHTTPServer(("127.0.0.1",0),Upstream); page=build_server("127.0.0.1",0,"127.0.0.1",upstream.server_port,"test-session-secret"); threads=[threading.Thread(target=s.serve_forever,daemon=True) for s in (upstream,page)]
     for thread in threads: thread.start()
     return upstream,page,threads
 def test_persisted_rows_are_projected_and_sanitized():
@@ -22,7 +22,14 @@ def test_authenticated_form_renders_persisted_receipts_with_private_headers():
             assert "no-store" in response.headers["Cache-Control"]; assert response.headers["Referrer-Policy"] == "no-referrer"; assert "noindex" in response.headers["X-Robots-Tag"]; assert b'type="password"' in response.read()
         data=urllib.parse.urlencode({"email":"user@example.com","token":"confirmed-token"}).encode()
         with urllib.request.urlopen(urllib.request.Request(base+"/stage-b-demo/receipts",data=data)) as response:
-            body=response.read().decode(); assert "in_check" in body and "MATCH" in body; assert "sender_address" not in body and "message_sha256" not in body
+            body=response.read().decode(); cookie=response.headers["Set-Cookie"]; assert "in_check" in body and "MATCH" in body; assert "sender_address" not in body and "message_sha256" not in body
+            for flag in ("HttpOnly", "Secure", "SameSite=Strict"): assert flag in cookie
+            assert "confirmed-token" not in cookie and "user@example.com" not in cookie
+        request=urllib.request.Request(base+"/stage-b-demo/receipts",headers={"Cookie":cookie.split(";",1)[0]})
+        with urllib.request.urlopen(request) as response: assert "in_check" in response.read().decode()
+        request=urllib.request.Request(base+"/stage-b-demo/receipts",headers={"Cookie":"bb_demo_session=revoked.invalid"})
+        with urllib.request.urlopen(request) as response:
+            body=response.read().decode(); assert 'type="password"' in body and "in_check" not in body
         bad=urllib.parse.urlencode({"email":"user@example.com","token":"wrong"}).encode()
         try: urllib.request.urlopen(urllib.request.Request(base+"/stage-b-demo/receipts",data=bad)); assert False
         except urllib.error.HTTPError as error: assert error.code == 401

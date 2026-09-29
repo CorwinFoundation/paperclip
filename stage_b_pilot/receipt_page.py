@@ -1,9 +1,10 @@
 """Private authenticated HTML view over persisted Stage B DEMO receipts."""
 from __future__ import annotations
-import argparse, html, json
+import argparse, hashlib, hmac, html, json, os, secrets, time
 from dataclasses import dataclass
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 
 @dataclass(frozen=True)
@@ -70,14 +71,39 @@ def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[st
     if response.status != 200: raise PermissionError
     return payload.get("receipts", [])
 
-def make_handler(upstream_host: str, upstream_port: int) -> type[BaseHTTPRequestHandler]:
+def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
+                 session_ttl: int = 900) -> type[BaseHTTPRequestHandler]:
+    if session_ttl < 1: raise ValueError("session TTL must be positive")
+    sessions: dict[str, tuple[int, str, str]] = {}
+
+    def signed_session(session_id: str) -> str:
+        signature = hmac.new((session_secret or "").encode(), session_id.encode(), hashlib.sha256).hexdigest()
+        return f"{session_id}.{signature}"
+
+    def session_credentials(value: str) -> tuple[str, str] | None:
+        if session_secret is None: return None
+        try: session_id, supplied = value.rsplit(".", 1)
+        except ValueError: return None
+        if not hmac.compare_digest(signed_session(session_id).rsplit(".", 1)[1], supplied): return None
+        record = sessions.get(session_id)
+        if record is None or record[0] <= int(time.time()):
+            sessions.pop(session_id, None)
+            return None
+        return record[1], record[2]
+
     class Handler(BaseHTTPRequestHandler):
-        def _reply(self, status: int, body: str) -> None:
+        def _reply(self, status: int, body: str, cookie: str | None = None) -> None:
             encoded = body.encode(); self.send_response(status)
             for name,value in (("Content-Type","text/html; charset=utf-8"),("Content-Length",str(len(encoded))),("Cache-Control","private, no-store"),("X-Robots-Tag","noindex, nofollow,noarchive"),("Referrer-Policy","no-referrer"),("X-Content-Type-Options","nosniff"),("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")): self.send_header(name,value)
+            if cookie: self.send_header("Set-Cookie", cookie)
             self.end_headers(); self.wfile.write(encoded)
         def do_GET(self):
             if urlparse(self.path).path != "/stage-b-demo/receipts": self.send_error(404); return
+            morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
+            credentials = session_credentials(morsel.value) if morsel else None
+            if credentials:
+                try: self._reply(200, render_receipts(project_receipts(fetch_receipts(upstream_host, upstream_port, *credentials)))); return
+                except (PermissionError, OSError, json.JSONDecodeError): pass
             self._reply(200, render_login())
         def do_POST(self):
             if urlparse(self.path).path != "/stage-b-demo/receipts": self.send_error(404); return
@@ -87,13 +113,19 @@ def make_handler(upstream_host: str, upstream_port: int) -> type[BaseHTTPRequest
                 form = parse_qs(self.rfile.read(length).decode()); email, token = form.get("email",[""])[-1], form.get("token",[""])[-1]
                 rows = fetch_receipts(upstream_host, upstream_port, email, token)
             except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(401, render_login("Email or confirmation token was not accepted.")); return
-            self._reply(200, render_receipts(project_receipts(rows)))
+            cookie = None
+            if session_secret is not None:
+                session_id = secrets.token_urlsafe(24)
+                sessions[session_id] = (int(time.time()) + session_ttl, email, token)
+                cookie = f"bb_demo_session={signed_session(session_id)}; Max-Age={session_ttl}; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"
+            self._reply(200, render_receipts(project_receipts(rows)), cookie)
         def log_message(self, *_): return
     return Handler
 
-def build_server(host: str, port: int, upstream_host: str, upstream_port: int) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port))
+def build_server(host: str, port: int, upstream_host: str, upstream_port: int,
+                 session_secret: str | None = None, session_ttl: int = 900) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port, session_secret, session_ttl))
 
 def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("--host",default="127.0.0.1"); parser.add_argument("--port",type=int,default=8789); parser.add_argument("--upstream-host",default="127.0.0.1"); parser.add_argument("--upstream-port",type=int,default=8788); args = parser.parse_args(); build_server(args.host,args.port,args.upstream_host,args.upstream_port).serve_forever()
+    parser = argparse.ArgumentParser(); parser.add_argument("--host",default="127.0.0.1"); parser.add_argument("--port",type=int,default=8789); parser.add_argument("--upstream-host",default="127.0.0.1"); parser.add_argument("--upstream-port",type=int,default=8788); parser.add_argument("--session-secret",default=os.environ.get("BB_DEMO_SESSION_SECRET")); parser.add_argument("--session-ttl",type=int,default=900); args = parser.parse_args(); build_server(args.host,args.port,args.upstream_host,args.upstream_port,args.session_secret,args.session_ttl).serve_forever()
 if __name__ == "__main__": main()

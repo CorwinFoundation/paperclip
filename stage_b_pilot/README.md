@@ -20,6 +20,10 @@ The confirmed enrollment email and token are submitted in the POST body. The
 page uses them only for a server-side receiver request. Responses are
 non-cacheable, non-indexable and send no referrer.
 
+Set `BB_DEMO_SESSION_SECRET` to issue an opaque, short-lived browser session
+after a successful submission. The cookie is signed, HttpOnly, Secure and
+SameSite=Strict. Expired or invalid sessions return to the private login page.
+
 Synthetic only: no real purchase, no live money, no third-party network call,
 no live coverage.
 
