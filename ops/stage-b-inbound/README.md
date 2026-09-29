@@ -7,8 +7,9 @@ not modify the scanner container or its release configuration.
 - Public health: `https://scanner.backbond.ai/stage-b-demo/healthz`
 - Private receipts: `https://scanner.backbond.ai/stage-b-demo/receipts?email=<enrolled-email>`
 - Loopback service: `127.0.0.1:8788`
-- Secret: `/etc/backbond/stage-b-inbound.env`, root-owned mode `0600`
-- Receipt session secret: `/etc/backbond/stage-b-receipts.env`, root-owned mode `0600`
+- Mailgun-only secret: `/etc/backbond/stage-b-inbound.env`, root-owned mode `0600`
+- Receipt-only config: `/etc/backbond/stage-b-receipts.env`, root-owned mode `0600`
+- Receipt credentials: `/var/lib/backbond-stage-b/receipt-logins.json`, service-user-owned mode `0600`
 - Receipt store: `/var/lib/backbond-stage-b/inbound.sqlite3`, service-user-owned
 - Unit: `backbond-stage-b-inbound.service`
 
@@ -19,12 +20,14 @@ SMTP password, or domain-management credential. From a trusted checkout, run:
 sudo ops/stage-b-inbound/install.sh
 ```
 
-The installer prompts with terminal echo disabled, writes the restricted env
-file, installs the separate service and nginx location, validates nginx, starts
-the service, and checks loopback health. It inserts only into the unique
+The installer prompts with terminal echo disabled, writes separate restricted
+receiver and receipt-service files, installs the separate services and nginx
+location, then explicitly restarts both units so changed Python is loaded. It
+prints the deployed commit and both main PIDs after health checks. It inserts only into the unique
 `scanner.backbond.ai` TLS block, backs up the vhost, and rolls back if nginx,
 service health, or the existing release-identity/SLA routes change. Re-running
-it preserves both secrets and the receipt database. Each update explicitly
+it restores the prior application tree and unit files before restarting. Re-running
+it preserves both secrets, receipt credentials, and the receipt database. Each update explicitly
 restarts both isolated services and prints the installed runtime hash after its
 health checks. The receipt service never receives the Mailgun signing key.
 After public health returns 200,

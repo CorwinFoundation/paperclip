@@ -16,8 +16,16 @@ python3 -m stage_b_pilot.receipt_page --upstream-host 127.0.0.1 --upstream-port 
 # http://127.0.0.1:8789/stage-b-demo/receipts
 ```
 
-The confirmed enrollment email and token are submitted in the POST body. The
-page uses them only for a server-side receiver request. Responses are
+Provision each confirmed pilot user from an interactive terminal:
+
+```bash
+python3 -m stage_b_pilot.receipt_page --credential-file /run/backbond/stage-b-logins.json --provision user@example.com
+```
+
+Hidden input keeps secrets out of argv, URLs, logs, and task comments. The user
+signs in with email and the provisioned passphrase. The mode-0600 runtime file
+holds a salted scrypt passphrase hash plus the existing receiver credential.
+Use `--revoke user@example.com` to disable future login. Responses are
 non-cacheable, non-indexable and send no referrer.
 
 Set `BB_DEMO_SESSION_SECRET` to issue an opaque, short-lived browser session

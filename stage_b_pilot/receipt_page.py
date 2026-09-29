@@ -1,12 +1,46 @@
 """Private authenticated HTML view over persisted Stage B DEMO receipts."""
 from __future__ import annotations
-import argparse, hashlib, hmac, html, json, os, secrets, time
+import argparse, getpass, hashlib, hmac, html, json, os, secrets, time
 from dataclasses import dataclass
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 from .correlation import correlation_key
+
+class CredentialStore:
+    """Mode-0600 mapping with salted scrypt passphrase hashes."""
+    def __init__(self, path: str): self.path = path
+    def _read(self):
+        try:
+            if os.stat(self.path).st_mode & 0o077: raise PermissionError("credential file must be mode 0600")
+            with open(self.path, encoding="utf-8") as source: return json.load(source)
+        except FileNotFoundError: return {}
+    def verify(self, email: str, passphrase: str):
+        row = self._read().get(email.strip().lower())
+        if not row or row.get("revoked"): return None
+        try: actual = hashlib.scrypt(passphrase.encode(), salt=bytes.fromhex(row["salt"]), n=16384, r=8, p=1).hex()
+        except (KeyError, TypeError, ValueError): return None
+        if not hmac.compare_digest(actual, row.get("digest", "")): return None
+        return row["upstream_token"], int(row.get("generation", 0))
+    def active(self, email: str, token: str, generation: int) -> bool:
+        row = self._read().get(email.strip().lower())
+        return bool(row and not row.get("revoked") and
+                    hmac.compare_digest(str(row.get("upstream_token", "")), token) and
+                    int(row.get("generation", 0)) == generation)
+    def _write(self, rows):
+        temporary = self.path + ".new"; descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as target: json.dump(rows, target, sort_keys=True)
+        os.replace(temporary, self.path)
+    def provision(self, email: str, passphrase: str, upstream_token: str):
+        if len(passphrase) < 12 or not upstream_token: raise ValueError("passphrase must be at least 12 characters and token non-empty")
+        rows = self._read(); salt = secrets.token_bytes(16)
+        address = email.strip().lower(); generation = int(rows.get(address, {}).get("generation", 0)) + 1
+        rows[address] = {"salt":salt.hex(), "digest":hashlib.scrypt(passphrase.encode(), salt=salt, n=16384, r=8, p=1).hex(), "upstream_token":upstream_token, "revoked":False, "generation":generation}; self._write(rows)
+    def revoke(self, email: str):
+        rows = self._read(); address = email.strip().lower()
+        if address in rows: rows[address]["revoked"] = True
+        self._write(rows)
 
 @dataclass(frozen=True)
 class DemoReceipt:
@@ -69,7 +103,7 @@ def _page(content: str) -> str:
 
 def render_login(error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
-    return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with the email and confirmation token used for this private pilot.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="token">Confirmation token</label><input id="token" name="token" type="password" autocomplete="off" required><button type="submit">View receipts</button></form>''')
+    return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with your private pilot passphrase.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="passphrase">Passphrase</label><input id="passphrase" name="passphrase" type="password" autocomplete="current-password" required><button type="submit">View receipts</button></form>''')
 
 def render_receipts(receipts: list[DemoReceipt]) -> str:
     if not receipts: body = '<p class="muted" role="status">No checks have been received for this account yet.</p>'
@@ -79,7 +113,7 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
             blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
         body = "".join(blocks)
-    return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div>{body}')
+    return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
 def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[str, object]]:
     connection = HTTPConnection(host, port, timeout=5)
@@ -91,9 +125,16 @@ def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[st
     return payload.get("receipts", [])
 
 def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
-                 session_ttl: int = 900) -> type[BaseHTTPRequestHandler]:
+                 session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256) -> type[BaseHTTPRequestHandler]:
     if session_ttl < 1: raise ValueError("session TTL must be positive")
-    sessions: dict[str, tuple[int, str, str]] = {}
+    if max_sessions < 1: raise ValueError("max sessions must be positive")
+    sessions: dict[str, tuple[int, str, str, int]] = {}; credentials = CredentialStore(credential_file) if credential_file else None
+    def purge_expired():
+        now = int(time.time())
+        for key in [key for key, value in sessions.items() if value[0] <= now]: sessions.pop(key, None)
+    def make_room():
+        purge_expired()
+        while len(sessions) >= max_sessions: sessions.pop(min(sessions, key=lambda key:sessions[key][0]), None)
 
     def signed_session(session_id: str) -> str:
         signature = hmac.new((session_secret or "").encode(), session_id.encode(), hashlib.sha256).hexdigest()
@@ -104,8 +145,11 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
         try: session_id, supplied = value.rsplit(".", 1)
         except ValueError: return None
         if not hmac.compare_digest(signed_session(session_id).rsplit(".", 1)[1], supplied): return None
-        record = sessions.get(session_id)
+        purge_expired(); record = sessions.get(session_id)
         if record is None or record[0] <= int(time.time()):
+            sessions.pop(session_id, None)
+            return None
+        if credentials is None or not credentials.active(record[1], record[2], record[3]):
             sessions.pop(session_id, None)
             return None
         return record[1], record[2]
@@ -125,26 +169,47 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 except (PermissionError, OSError, json.JSONDecodeError): pass
             self._reply(200, render_login())
         def do_POST(self):
-            if urlparse(self.path).path != "/stage-b-demo/receipts": self.send_error(404); return
+            path = urlparse(self.path).path
+            if path == "/stage-b-demo/logout":
+                morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
+                if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
+                self._reply(200, render_login(), "bb_demo_session=; Max-Age=0; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"); return
+            if path != "/stage-b-demo/receipts": self.send_error(404); return
             try:
                 length = int(self.headers.get("Content-Length","0"))
                 if length <= 0 or length > 8192: raise ValueError
-                form = parse_qs(self.rfile.read(length).decode()); email, token = form.get("email",[""])[-1], form.get("token",[""])[-1]
+                form = parse_qs(self.rfile.read(length).decode()); email, passphrase = form.get("email",[""])[-1], form.get("passphrase",[""])[-1]
+                verified = credentials.verify(email, passphrase) if credentials else None
+                if not verified: raise PermissionError
+                token, generation = verified
                 rows = fetch_receipts(upstream_host, upstream_port, email, token)
-            except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(401, render_login("Email or confirmation token was not accepted.")); return
+            except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(401, render_login("Email or passphrase was not accepted.")); return
             cookie = None
             if session_secret is not None:
                 session_id = secrets.token_urlsafe(24)
-                sessions[session_id] = (int(time.time()) + session_ttl, email, token)
+                make_room(); sessions[session_id] = (int(time.time()) + session_ttl, email, token, generation)
                 cookie = f"bb_demo_session={signed_session(session_id)}; Max-Age={session_ttl}; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"
             self._reply(200, render_receipts(project_receipts(rows)), cookie)
         def log_message(self, *_): return
     return Handler
 
 def build_server(host: str, port: int, upstream_host: str, upstream_port: int,
-                 session_secret: str | None = None, session_ttl: int = 900) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port, session_secret, session_ttl))
+                 session_secret: str | None = None, session_ttl: int = 900,
+                 credential_file: str | None = None, max_sessions: int = 256) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port, session_secret, session_ttl, credential_file, max_sessions))
 
 def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("--host",default="127.0.0.1"); parser.add_argument("--port",type=int,default=8789); parser.add_argument("--upstream-host",default="127.0.0.1"); parser.add_argument("--upstream-port",type=int,default=8788); parser.add_argument("--session-secret",default=os.environ.get("BB_DEMO_SESSION_SECRET")); parser.add_argument("--session-ttl",type=int,default=900); args = parser.parse_args(); build_server(args.host,args.port,args.upstream_host,args.upstream_port,args.session_secret,args.session_ttl).serve_forever()
+    parser = argparse.ArgumentParser(); parser.add_argument("--host",default="127.0.0.1"); parser.add_argument("--port",type=int,default=8789); parser.add_argument("--upstream-host",default="127.0.0.1"); parser.add_argument("--upstream-port",type=int,default=8788); parser.add_argument("--session-secret",default=os.environ.get("BB_DEMO_SESSION_SECRET")); parser.add_argument("--session-ttl",type=int,default=900); parser.add_argument("--max-sessions",type=int,default=256); parser.add_argument("--credential-file",default=os.environ.get("BB_DEMO_CREDENTIAL_FILE")); parser.add_argument("--provision",metavar="EMAIL"); parser.add_argument("--revoke",metavar="EMAIL"); args = parser.parse_args()
+    if args.provision or args.revoke:
+        if not args.credential_file: parser.error("--credential-file is required")
+        store = CredentialStore(args.credential_file)
+        if args.revoke: store.revoke(args.revoke); return
+        first=getpass.getpass("Pilot passphrase: "); second=getpass.getpass("Repeat passphrase: ")
+        if first != second: parser.error("passphrases do not match")
+        store.provision(args.provision, first, getpass.getpass("Enrollment token: ")); return
+    if not args.session_secret or len(args.session_secret) < 32:
+        parser.error("BB_DEMO_SESSION_SECRET must be at least 32 characters")
+    if not args.credential_file:
+        parser.error("BB_DEMO_CREDENTIAL_FILE is required")
+    build_server(args.host,args.port,args.upstream_host,args.upstream_port,args.session_secret,args.session_ttl,args.credential_file,args.max_sessions).serve_forever()
 if __name__ == "__main__": main()

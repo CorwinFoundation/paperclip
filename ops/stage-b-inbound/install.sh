@@ -7,6 +7,7 @@ state_dir=/var/lib/backbond-stage-b
 config_dir=/etc/backbond
 secret_file=$config_dir/stage-b-inbound.env
 receipt_secret_file=$config_dir/stage-b-receipts.env
+credential_file=$state_dir/receipt-logins.json
 unit_file=/etc/systemd/system/backbond-stage-b-inbound.service
 receipt_unit_file=/etc/systemd/system/backbond-stage-b-receipts.service
 snippet=/etc/nginx/snippets/backbond-stage-b-inbound.conf
@@ -51,7 +52,9 @@ installed=1
 rm -rf "$app_dir/stage_b_pilot"
 cp -a "$repo_root/stage_b_pilot" "$app_dir/stage_b_pilot"
 runtime_version=$(find "$repo_root/stage_b_pilot" -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || printf 'unversioned')
 printf '%s\n' "$runtime_version" >"$app_dir/.backbond-stage-b-version"
+printf '%s\n' "$candidate_commit" >"$app_dir/DEPLOYED_COMMIT"
 chown -R root:root "$app_dir/stage_b_pilot"
 find "$app_dir/stage_b_pilot" -type d -exec chmod 0755 {} +
 find "$app_dir/stage_b_pilot" -type f -exec chmod 0644 {} +
@@ -74,20 +77,30 @@ chown root:root "$secret_file"
 chmod 0600 "$secret_file"
 
 if [ ! -s "$receipt_secret_file" ]; then
+    session_secret=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
     umask 077
-    session_secret=$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')
-    printf 'BB_DEMO_SESSION_SECRET=%s\n' "$session_secret" >"$receipt_secret_file"
+    {
+        printf 'BB_DEMO_SESSION_SECRET=%s\n' "$session_secret"
+        printf 'BB_DEMO_CREDENTIAL_FILE=%s\n' "$credential_file"
+    } >"$receipt_secret_file"
 fi
 chown root:root "$receipt_secret_file"
 chmod 0600 "$receipt_secret_file"
+grep -Eq '^BB_DEMO_SESSION_SECRET=.{32,}$' "$receipt_secret_file" || { echo 'ERROR receipt_session_secret_missing' >&2; exit 2; }
+grep -Fxq "BB_DEMO_CREDENTIAL_FILE=$credential_file" "$receipt_secret_file" || { echo 'ERROR receipt_credential_file_invalid' >&2; exit 2; }
+if [ ! -e "$credential_file" ]; then
+    install -o backbond-stage-b -g backbond-stage-b -m 0600 /dev/null "$credential_file"
+    printf '{}\n' >"$credential_file"
+fi
+chown backbond-stage-b:backbond-stage-b "$credential_file"
+chmod 0600 "$credential_file"
 
 baseline_release=$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/release-identity)
 baseline_sla=$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/sla)
 python3 "$repo_root/ops/stage-b-inbound/patch_tls_vhost.py" "$vhost"
 nginx -t
 systemctl daemon-reload
-systemctl enable backbond-stage-b-inbound.service
-systemctl enable backbond-stage-b-receipts.service
+systemctl enable backbond-stage-b-inbound.service backbond-stage-b-receipts.service
 systemctl restart backbond-stage-b-inbound.service
 systemctl restart backbond-stage-b-receipts.service
 systemctl reload nginx
@@ -98,7 +111,11 @@ curl --fail --silent http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/release-identity)" = "$baseline_release"
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/sla)" = "$baseline_sla"
 test "$(cat "$app_dir/.backbond-stage-b-version")" = "$runtime_version"
-printf 'stage_b_runtime_version=%s\n' "$runtime_version"
+test "$(cat "$app_dir/DEPLOYED_COMMIT")" = "$candidate_commit"
+printf 'stage_b_candidate=%s stage_b_runtime_version=%s inbound_main_pid=%s receipts_main_pid=%s\n' \
+    "$candidate_commit" "$runtime_version" \
+    "$(systemctl show --property MainPID --value backbond-stage-b-inbound.service)" \
+    "$(systemctl show --property MainPID --value backbond-stage-b-receipts.service)"
 rm -f "$backup"
 rm -rf "$runtime_backup"
 installed=0
