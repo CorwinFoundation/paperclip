@@ -26,6 +26,14 @@ by the exact message digest. Run the focused acceptance tests with:
 python3 -m pytest -q tests/test_beaaa36076_inbound_receipts.py
 ```
 
+`stage_b_pilot.mailgun.ingest_route` is the authenticated Mailgun Routes seam.
+It verifies the webhook-signing HMAC and a 15-minute timestamp window before
+accepting only `check@inbound.backbond.ai`. The signing key is a runtime secret;
+it is never stored in the repository. Configure the Mailgun route to a receiver
+URL ending in `/mime` so delivery includes the original `body-mime`. The DEMO
+service is deployed separately from the scanner application; see
+`ops/stage-b-inbound/README.md`.
+
 ## The seam
 
     task intent -> versioned mandate -> human approval -> mandate check ->

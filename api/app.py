@@ -273,7 +273,6 @@ def create_app(
     def deployed_version() -> dict[str, str]:
         """Return the immutable source revision baked into this image."""
         return {"git_sha": os.environ.get("BACKBOND_BUILD_SHA", "unknown")}
-
     app.state.rubric = rubric or Rubric.load(RUBRIC_PATH)
     app.state.runtime_profile = runtime_profile
     app.state.bundles = bundles or bundle_store_from_env()

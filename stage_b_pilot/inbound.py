@@ -117,6 +117,19 @@ class InboundStore:
         self.connection.commit()
         return row["user_id"]
 
+    def authenticate(self, email: str, token: str) -> str:
+        """Authenticate a confirmed enrollee for private receipt retrieval."""
+        address = _address(email)
+        row = self.connection.execute(
+            "SELECT user_id,confirmation_digest,confirmed_at FROM inbound_users WHERE email=?",
+            (address,),
+        ).fetchone()
+        if row is None or row["confirmed_at"] is None or not secrets.compare_digest(
+            row["confirmation_digest"], hashlib.sha256(token.encode()).hexdigest()
+        ):
+            raise PermissionError("enrollment_authentication_invalid")
+        return row["user_id"]
+
     def ingest(self, raw_message: bytes) -> InboundReceipt:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
         sender = _address(message.get("From", ""))
