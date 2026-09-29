@@ -23,6 +23,11 @@ ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
 # on disk; only the 0710 mode on the state directory keeps the deploy seat out.
 EVIDENCE_STATE_DIR="${SCANNER_EVIDENCE_STATE_DIR:-/var/lib/are-scanner}"
 EVIDENCE_EXPORT_DIR="${SCANNER_EVIDENCE_EXPORT_DIR:-/var/tmp/are-scanner-evidence-exports}"
+DISK_PATH="${SCANNER_DISK_PATH:-/}"
+DISK_MIN_FREE_BYTES="${SCANNER_DISK_MIN_FREE_BYTES:-21474836480}"
+DISK_MIN_FREE_INODE_PERCENT="${SCANNER_DISK_MIN_FREE_INODE_PERCENT:-10}"
+DISK_RETENTION_DAYS="${SCANNER_DISK_RETENTION_DAYS:-7}"
+PROTECTED_RECOVERY_ARCHIVE="${SCANNER_PROTECTED_RECOVERY_ARCHIVE:-/root/backbond-stage-b-dbcee248-recovered-20260929.tar}"
 
 REVISION_LABEL=org.opencontainers.image.revision
 # BEAAA-23948: the Development Mode helper remains argument-driven, but this
@@ -109,6 +114,71 @@ PY
   "$DOCKER" builder prune -f >/dev/null
   find "$ARCHIVE_DIR" -maxdepth 1 -type f -name 'backbond-scanner-*.tar' ! -path "$ARCHIVE" -delete
   log 'reclaimed stale deploy data; retained current and keep-last rollback images'
+}
+
+# BEAAA-36769: bounded, dry-run-first disk diagnostics and retention. Only
+# helper-owned stale temporaries and dangling Docker images are candidates.
+# Tagged active/rollback images, deploy state (including receipts), credentials,
+# application data, and the named recovery archive cannot enter either set.
+disk_maintenance() {
+  mode=dry-run
+  case "${1:-}" in
+    '') ;;
+    --apply) mode=apply ;;
+    *) die 'usage: scanner-deploy disk-maintenance [--apply]' ;;
+  esac
+  [[ "$DISK_MIN_FREE_BYTES" =~ ^[0-9]+$ ]] || die 'SCANNER_DISK_MIN_FREE_BYTES must be an integer'
+  [[ "$DISK_MIN_FREE_INODE_PERCENT" =~ ^[0-9]+$ ]] || die 'SCANNER_DISK_MIN_FREE_INODE_PERCENT must be an integer'
+  [[ "$DISK_RETENTION_DAYS" =~ ^[0-9]+$ ]] || die 'SCANNER_DISK_RETENTION_DAYS must be an integer'
+  [ "$DISK_MIN_FREE_INODE_PERCENT" -le 100 ] || die 'inode threshold must be at most 100 percent'
+
+  read -r free_bytes free_inodes total_inodes <<EOF
+$(df -Pk --block-size=1 "$DISK_PATH" | awk 'NR==2 {print $4}') $(df -Pi "$DISK_PATH" | awk 'NR==2 {print $4, $2}')
+EOF
+  [ -n "$free_bytes" ] && [ -n "$free_inodes" ] && [ -n "$total_inodes" ] || die 'cannot read disk diagnostics'
+  inode_percent=$((free_inodes * 100 / total_inodes))
+  log "disk path=$DISK_PATH free_bytes=$free_bytes free_inodes=$free_inodes free_inode_percent=$inode_percent"
+  "$DOCKER" system df >&2 || die 'cannot read Docker disk usage'
+
+  temp_list="$(mktemp)" || die 'cannot allocate disk-maintenance temporary list'
+  image_list="$(mktemp)" || { rm -f -- "$temp_list"; die 'cannot allocate disk-maintenance image list'; }
+  trap 'rm -f -- "$temp_list" "$image_list"' RETURN
+  find "$ARCHIVE_DIR" -xdev -maxdepth 1 -type f -name '.scanner-deploy.*.tmp' \
+    -mtime "+$DISK_RETENTION_DAYS" -print0 >"$temp_list"
+  "$DOCKER" image ls --filter dangling=true --format '{{.ID}}' | awk 'NF' | sort -u | while IFS= read -r image_id; do
+    created="$($DOCKER image inspect --format '{{.Created}}' "$image_id")" || exit 1
+    python3 - "$image_id" "$created" "$DISK_RETENTION_DAYS" <<'PY'
+from datetime import datetime, timezone
+import sys
+image_id, created, days = sys.argv[1:]
+stamp = datetime.fromisoformat(created.replace("Z", "+00:00"))
+if (datetime.now(timezone.utc) - stamp).total_seconds() > int(days) * 86400:
+    print(image_id)
+PY
+  done >"$image_list" || die 'cannot identify dangling Docker images'
+
+  while IFS= read -r -d '' path; do
+    [ "$path" != "$PROTECTED_RECOVERY_ARCHIVE" ] || die 'protected recovery archive selected'
+    log "$mode temporary: $path"
+    [ "$mode" = dry-run ] || rm -f -- "$path"
+  done <"$temp_list"
+  while IFS= read -r image_id; do
+    [ -n "$image_id" ] || continue
+    log "$mode dangling-image: $image_id"
+    [ "$mode" = dry-run ] || "$DOCKER" image rm "$image_id" >/dev/null
+  done <"$image_list"
+  rm -f -- "$temp_list" "$image_list"
+  trap - RETURN
+
+  # Re-read after apply; dry-run intentionally reports current headroom.
+  free_bytes="$(df -Pk --block-size=1 "$DISK_PATH" | awk 'NR==2 {print $4}')"
+  read -r free_inodes total_inodes <<EOF
+$(df -Pi "$DISK_PATH" | awk 'NR==2 {print $4, $2}')
+EOF
+  inode_percent=$((free_inodes * 100 / total_inodes))
+  [ "$free_bytes" -ge "$DISK_MIN_FREE_BYTES" ] || die "free bytes below minimum: $free_bytes < $DISK_MIN_FREE_BYTES"
+  [ "$inode_percent" -ge "$DISK_MIN_FREE_INODE_PERCENT" ] || die "free inodes below minimum: $inode_percent% < $DISK_MIN_FREE_INODE_PERCENT%"
+  log "OK: disk headroom meets minimums (mode=$mode)"
 }
 
 # BEAAA-31542: `scanner-deploy export-evidence` copies the retained-evidence
@@ -212,7 +282,13 @@ if [ "${1:-}" = export-evidence ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>]'
+if [ "${1:-}" = disk-maintenance ]; then
+  shift
+  disk_maintenance "$@"
+  exit 0
+fi
+
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply]'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
