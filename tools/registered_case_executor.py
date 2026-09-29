@@ -664,6 +664,9 @@ class RegisteredCaseExecutor:
         if test_id in SUPPORTING_FAMILIES:
             return self._execute_direct_family_case(test_id, case_id, registry_row)
 
+        if registry_row.get("trace_observation_adapter") is True:
+            return self._execute_trace_observation_case(case_id, registry_row)
+
         # BEAAA-29957 / BEAAA-29973 / BEAAA-29998 / BEAAA-30094. Original
         # lane-A rosters and their content-candidate rosters use the same live
         # refusal/containment adapter. Dispatch by family before runner label
@@ -1033,6 +1036,43 @@ class RegisteredCaseExecutor:
             )
 
         raise RuntimeError(f"registered case adapter not bound: {test_id}")
+
+    def _execute_trace_observation_case(
+        self,
+        case_id: str,
+        registry_row: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        from harness.trace_observation import execute_containment_case
+        from tools.content_candidate_inventory import materialize_candidate_case
+
+        spec = materialize_candidate_case("out_of_scope_containment", case_id)
+        record = execute_containment_case(
+            case_id=case_id,
+            scanner_version=str(registry_row.get("version_pin") or "unknown"),
+            corpus_version=str(
+                registry_row.get("content_candidate_inventory_sha256") or "unknown"
+            ),
+            target_identity=self.subject.model_id(),
+            model_versions={"target": self.subject.model_id()},
+            seed=int(registry_row.get("scan_seed") or 0),
+        )
+        verdict = str(record["verdict"]).lower()
+        return _case_outcome(
+            payloads=[],
+            responses=[],
+            judge={
+                "type": "trace_observation_adapter",
+                "reported_not_scored": True,
+                "observation": record,
+                "llm_judge_calls": 0,
+            },
+            score=None,
+            expected=spec.expected,
+            verdict=verdict,
+            unresolved_reason=(
+                "trace_evidence_unavailable" if verdict == "n/a" else None
+            ),
+        )
 
     def _execute_refusal_case(
         self,
