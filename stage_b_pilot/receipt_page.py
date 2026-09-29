@@ -12,7 +12,7 @@ class DemoReceipt:
     money_at_risk: str; user_answer: str; outcome: str; outcome_detail: str
 
 def _structured_body(body: str) -> dict[str, str]:
-    allowed = {"proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer"}
+    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer"}
     values = {}
     for line in body.splitlines():
         key, separator, value = line.partition(":")
@@ -21,10 +21,17 @@ def _structured_body(body: str) -> dict[str, str]:
     return values
 
 def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
-    projected, confirmations = [], [row for row in rows if row.get("kind") == "forwarded_confirmation"]
-    for index, row in enumerate(row for row in rows if row.get("kind") == "check"):
+    projected = []
+    confirmations: dict[str, dict[str, object]] = {}
+    for row in rows:
+        if row.get("kind") != "forwarded_confirmation": continue
         fields = _structured_body(str(row.get("body_text", "")))
-        confirmation = confirmations[index] if index < len(confirmations) else None
+        key = str(row.get("correlation_key") or fields.get("correlation_key") or "")
+        if key and key not in confirmations: confirmations[key] = row
+    for row in (row for row in rows if row.get("kind") == "check"):
+        fields = _structured_body(str(row.get("body_text", "")))
+        key = str(row.get("correlation_key") or fields.get("correlation_key") or "")
+        confirmation = confirmations.get(key) if key else None
         if confirmation is None:
             outcome, detail = "NO CONFIRMATION RECEIVED", "No independent confirmation has arrived for this check."
         else:

@@ -21,6 +21,10 @@ from pathlib import Path
 
 CHECK_SUBJECT = "BackBond check"
 _FORWARD_PREFIX = re.compile(r"^(?:(?:fwd?|fw):\s*)+", re.IGNORECASE)
+_CORRELATION_LINE = re.compile(
+    r"^(?:backbond\s+)?(?:check|correlation)\s+id\s*:\s*([A-Za-z0-9][A-Za-z0-9._-]{2,79})\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def _now() -> str:
@@ -41,6 +45,12 @@ def _body(message) -> str:
     return part.get_content().strip()
 
 
+def _correlation_key(body: str) -> str | None:
+    """Read the explicit per-check key; never infer correlation from ordering."""
+    match = _CORRELATION_LINE.search(body)
+    return match.group(1) if match else None
+
+
 @dataclass(frozen=True)
 class InboundReceipt:
     receipt_id: str
@@ -51,6 +61,7 @@ class InboundReceipt:
     received_at: str
     message_sha256: str
     body_text: str
+    correlation_key: str | None = None
     mode: str = "DEMO"
 
 
@@ -78,10 +89,15 @@ class InboundStore:
               received_at TEXT NOT NULL,
               message_sha256 TEXT NOT NULL UNIQUE,
               body_text TEXT NOT NULL,
+              correlation_key TEXT,
               mode TEXT NOT NULL CHECK(mode = 'DEMO')
             );
             """
         )
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(inbound_receipts)")}
+        if "correlation_key" not in columns:
+            self.connection.execute("ALTER TABLE inbound_receipts ADD COLUMN correlation_key TEXT")
+            self.connection.commit()
 
     def begin_signup(self, email: str) -> tuple[str, str]:
         """Create or replace the one-step confirmation challenge.
@@ -144,14 +160,17 @@ class InboundStore:
             raise ValueError("subject_not_supported")
         kind = "check" if subject == CHECK_SUBJECT else "forwarded_confirmation"
         digest = hashlib.sha256(raw_message).hexdigest()
+        body_text = _body(message)
         receipt = InboundReceipt(
             receipt_id="in_" + digest[:24], user_id=row["user_id"], sender_address=sender,
             subject=subject, kind=kind, received_at=_now(), message_sha256=digest,
-            body_text=_body(message),
+            body_text=body_text, correlation_key=_correlation_key(body_text),
         )
         try:
             self.connection.execute(
-                "INSERT INTO inbound_receipts VALUES(?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO inbound_receipts "
+                "(receipt_id,user_id,sender_address,subject,kind,received_at,message_sha256,body_text,correlation_key,mode) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
                 tuple(asdict(receipt).values()),
             )
             self.connection.commit()

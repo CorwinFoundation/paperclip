@@ -58,6 +58,14 @@ def test_provider_retry_is_idempotent(store):
     assert len(store.receipts_for("ari@example.com")) == 1
 
 
+def test_explicit_check_id_is_persisted_and_retry_safe(store):
+    confirm(store)
+    raw = message(body="Check ID: BB-42\nProposed action: Reserve a lamp")
+    assert store.ingest(raw).correlation_key == "BB-42"
+    assert store.ingest(raw).correlation_key == "BB-42"
+    assert len(store.receipts_for("ari@example.com")) == 1
+
+
 def test_sender_identity_comes_from_normalized_from_address(store):
     confirm(store)
     receipt = store.ingest(message(sender="Ari <ARI@EXAMPLE.COM>"))

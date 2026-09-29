@@ -1,7 +1,7 @@
 import json, threading, urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from stage_b_pilot.receipt_page import build_server, project_receipts, render_receipts
-ROWS=[{"receipt_id":"in_check","kind":"check","body_text":"Proposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum\nYour answer: Approved"},{"receipt_id":"in_confirm","kind":"forwarded_confirmation","body_text":"Proposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum"}]
+ROWS=[{"receipt_id":"in_check","kind":"check","correlation_key":"BB-1","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum\nYour answer: Approved"},{"receipt_id":"in_confirm","kind":"forwarded_confirmation","correlation_key":"BB-1","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum"}]
 class Upstream(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("Authorization") != "Bearer confirmed-token": self.send_response(401); self.end_headers(); return
@@ -32,3 +32,13 @@ def test_authenticated_form_renders_persisted_receipts_with_private_headers():
 def test_no_confirmation_and_mismatch_states():
     assert project_receipts(ROWS[:1])[0].outcome == "NO CONFIRMATION RECEIVED"
     assert project_receipts([ROWS[0],dict(ROWS[1],body_text="Proposed action: Reserve two desk lamps")])[0].outcome == "MISMATCH"
+
+def test_reversed_arrival_and_multiple_open_checks_correlate_by_id():
+    check_two=dict(ROWS[0],receipt_id="in_check_2",correlation_key="BB-2",body_text=ROWS[0]["body_text"].replace("BB-1","BB-2").replace("one desk lamp","two desk lamps"))
+    confirm_two=dict(ROWS[1],receipt_id="in_confirm_2",correlation_key="BB-2",body_text=ROWS[1]["body_text"].replace("BB-1","BB-2").replace("one desk lamp","two desk lamps"))
+    projected=project_receipts([confirm_two,ROWS[1],check_two,ROWS[0]])
+    assert [(row.check_id,row.outcome) for row in projected] == [("in_check_2","MATCH"),("in_check","MATCH")]
+
+def test_confirmation_without_matching_explicit_id_never_pairs_by_order():
+    unrelated=dict(ROWS[1],correlation_key="BB-other",body_text=ROWS[1]["body_text"].replace("BB-1","BB-other"))
+    assert project_receipts([ROWS[0],unrelated])[0].outcome == "NO CONFIRMATION RECEIVED"
