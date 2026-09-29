@@ -9,6 +9,17 @@ python3 -m stage_b_pilot --counts-only --db /tmp/stage-b-pilot.sqlite3
 python3 -m unittest tests.test_stage_b_pilot -v
 ```
 
+Private DEMO receipt pages authenticate against the persisted receiver:
+
+```bash
+python3 -m stage_b_pilot.receipt_page --upstream-host 127.0.0.1 --upstream-port 8788
+# http://127.0.0.1:8789/stage-b-demo/receipts
+```
+
+The confirmed enrollment email and token are submitted in the POST body. The
+page uses them only for a server-side receiver request. Responses are
+non-cacheable, non-indexable and send no referrer.
+
 Synthetic only: no real purchase, no live money, no third-party network call,
 no live coverage.
 

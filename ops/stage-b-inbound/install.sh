@@ -7,6 +7,7 @@ state_dir=/var/lib/backbond-stage-b
 config_dir=/etc/backbond
 secret_file=$config_dir/stage-b-inbound.env
 unit_file=/etc/systemd/system/backbond-stage-b-inbound.service
+receipt_unit_file=/etc/systemd/system/backbond-stage-b-receipts.service
 snippet=/etc/nginx/snippets/backbond-stage-b-inbound.conf
 vhost=/etc/nginx/sites-available/scanner.backbond.ai
 include_line='    include /etc/nginx/snippets/backbond-stage-b-inbound.conf;'
@@ -35,6 +36,7 @@ chown -R root:root "$app_dir/stage_b_pilot"
 find "$app_dir/stage_b_pilot" -type d -exec chmod 0755 {} +
 find "$app_dir/stage_b_pilot" -type f -exec chmod 0644 {} +
 install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/backbond-stage-b-inbound.service" "$unit_file"
+install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/backbond-stage-b-receipts.service" "$receipt_unit_file"
 install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/nginx-location.conf" "$snippet"
 
 if [ ! -s "$secret_file" ]; then
@@ -60,9 +62,12 @@ installed=1
 nginx -t
 systemctl daemon-reload
 systemctl enable --now backbond-stage-b-inbound.service
+systemctl enable --now backbond-stage-b-receipts.service
 systemctl reload nginx
 systemctl is-active --quiet backbond-stage-b-inbound.service
+systemctl is-active --quiet backbond-stage-b-receipts.service
 curl --fail --silent http://127.0.0.1:8788/healthz
+curl --fail --silent http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/release-identity)" = "$baseline_release"
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/sla)" = "$baseline_sla"
 rm -f "$backup"
