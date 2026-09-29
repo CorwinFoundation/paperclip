@@ -44,8 +44,8 @@ def harness(tmp_path: Path, *, duplicate=False, curl_fail=False, rollback_fail=F
     _write_exe(bin_dir / "docker", f'''#!/bin/sh
 echo "docker $*" >>"{calls}"
 case "$1 $2" in
- "image ls") echo sha256:loaded;;
- "image inspect") echo "$STUB_SHA";;
+ "image ls") case "$*" in *"label=org.opencontainers.image.revision=$STUB_SHA"*) echo sha256:loaded;; *) printf '%s\n' "${{STUB_IMAGE_IDS:-sha256:loaded}}";; esac;;
+ "image inspect") case "$*" in *"{{.ID}}"*) case "$*" in *old:image*) echo sha256:current;; *rollback:image*) echo sha256:rollback;; *) echo sha256:loaded;; esac;; *) echo "$STUB_SHA";; esac;;
  "inspect --format") case "$*" in *Labels*) echo "$STUB_SHA";; *) echo sha256:running;; esac;;
 esac
 case "$1" in
@@ -255,6 +255,26 @@ def test_duplicate_env_rejected_before_load(tmp_path):
     result=run(e,archive,archive_sha)
     assert result.returncode != 0 and "duplicate" in result.stderr.lower()
     assert not calls.exists()
+
+
+def test_preload_cleanup_preserves_current_and_keep_last_then_removes_stale(tmp_path):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    rollback = state / "releases" / ("d" * 40 + ".json")
+    rollback.parent.mkdir()
+    rollback.write_text(json.dumps({"configured_image":"rollback:image","status":"activated","recorded_at":"2026-09-01T00:00:00Z"}))
+    e["STUB_IMAGE_IDS"] = "sha256:current\nsha256:rollback\nsha256:stale"
+    stale_archive = archive.parent / ("backbond-scanner-" + "e" * 40 + ".tar")
+    stale_archive.write_bytes(b"stale")
+    result = run(e, archive, archive_sha)
+    assert result.returncode == 0, result.stderr
+    trace = calls.read_text()
+    assert "docker container prune -f" in trace
+    assert "docker image rm sha256:stale" in trace
+    assert "docker image rm sha256:current" not in trace
+    assert "docker image rm sha256:rollback" not in trace
+    assert "docker image prune -f" in trace
+    assert "docker builder prune -f" in trace
+    assert not stale_archive.exists()
 
 
 def test_exact_embedded_manifest_identity_success_writes_activated_receipt(tmp_path):

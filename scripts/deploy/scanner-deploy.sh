@@ -71,6 +71,46 @@ wait_200() {
   return 1
 }
 
+reclaim_deploy_space() {
+  current_ref="$(sed -n 's/^SCANNER_EDGE_IMAGE=//p' "$ENV_FILE")"
+  [ -n "$current_ref" ] || die 'current scanner image is not configured'
+  current_id="$("$DOCKER" image inspect --format '{{.ID}}' "$current_ref")" \
+    || die 'cannot resolve current scanner image'
+  rollback_ref="$(python3 - "$STATE_DIR/releases" "$current_ref" <<'PY'
+import glob, json, os, sys
+release_dir, current = sys.argv[1:]
+candidates = []
+for path in glob.glob(os.path.join(release_dir, '*.json')):
+    try:
+        data = json.load(open(path, encoding='utf-8'))
+    except (OSError, ValueError):
+        continue
+    ref = data.get('configured_image')
+    if ref and ref != current and data.get('status') == 'activated':
+        candidates.append((data.get('recorded_at', ''), path, ref))
+print(max(candidates)[2] if candidates else '')
+PY
+)"
+  rollback_id=
+  if [ -n "$rollback_ref" ]; then
+    rollback_id="$("$DOCKER" image inspect --format '{{.ID}}' "$rollback_ref")" \
+      || die 'cannot resolve rollback scanner image'
+  fi
+
+  # Active containers are never pruned. Remove stale stopped containers first so
+  # their image references cannot pin obsolete scanner layers.
+  "$DOCKER" container prune -f >/dev/null
+  for image_id in $("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL" --format '{{.ID}}' | sort -u); do
+    [ "$image_id" = "$current_id" ] && continue
+    [ -n "$rollback_id" ] && [ "$image_id" = "$rollback_id" ] && continue
+    "$DOCKER" image rm "$image_id" >/dev/null
+  done
+  "$DOCKER" image prune -f >/dev/null
+  "$DOCKER" builder prune -f >/dev/null
+  find "$ARCHIVE_DIR" -maxdepth 1 -type f -name 'backbond-scanner-*.tar' ! -path "$ARCHIVE" -delete
+  log 'reclaimed stale deploy data; retained current and keep-last rollback images'
+}
+
 # BEAAA-31542: `scanner-deploy export-evidence` copies the retained-evidence
 # subtree out to a directory the invoking seat user owns, with a per-file
 # sha256 manifest. Self-contained on purpose: the 2026-09-10 07:00Z run failed
@@ -192,7 +232,8 @@ require_root_owned "$ENV_FILE"; require_root_owned "$STATE_DIR"; require_root_ow
 [ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$ENV_FILE")" -le 1 ] || die 'duplicate BACKBOND_RELEASE_IDENTITY_PATH assignment'
 grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro' "$UNIT_FILE" || die 'unit lacks exact read-only identity mount'
 
-# Loading is pre-mutation. No registry operation is permitted.
+# Reclaim before containerd ingests the new archive. No registry operation is permitted.
+reclaim_deploy_space
 "$DOCKER" load -i "$ARCHIVE" >/dev/null
 IMAGE_ID="$("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL=$SHA" --format '{{.ID}}' | awk 'NF' | sort -u)"
 [ "$(printf '%s\n' "$IMAGE_ID" | awk 'NF{n++} END{print n+0}')" = 1 ] || die 'expected exactly one image with requested OCI revision'
