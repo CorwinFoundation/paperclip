@@ -21,6 +21,14 @@ def test_installer_restarts_changed_services_and_records_version_evidence():
     assert "systemctl restart backbond-stage-b-receipts.service" in INSTALLER
     assert "systemctl enable --now" not in INSTALLER
     assert "DEPLOYED_COMMIT" in INSTALLER
+    assert "SOURCE_COMMIT" in INSTALLER
+    assert "candidate_commit_missing_or_invalid" in INSTALLER
+
+
+def test_loopback_readiness_waits_for_restarted_services() -> None:
+    assert INSTALLER.count("--retry 10 --retry-delay 1 --retry-connrefused") == 2
+    assert "http://127.0.0.1:8788/healthz" in INSTALLER
+    assert "http://127.0.0.1:8789/stage-b-demo/receipts" in INSTALLER
     assert "stage_b_candidate=" in INSTALLER
     assert "inbound_main_pid=" in INSTALLER
     assert "receipts_main_pid=" in INSTALLER

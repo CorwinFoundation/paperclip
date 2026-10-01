@@ -52,7 +52,14 @@ installed=1
 rm -rf "$app_dir/stage_b_pilot"
 cp -a "$repo_root/stage_b_pilot" "$app_dir/stage_b_pilot"
 runtime_version=$(find "$repo_root/stage_b_pilot" -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
-candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || printf 'unversioned')
+candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
+if [ -z "$candidate_commit" ] && [ -f "$repo_root/SOURCE_COMMIT" ]; then
+    candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")
+fi
+printf '%s\n' "$candidate_commit" | grep -Eq '^[0-9a-f]{40}$' || {
+    echo 'ERROR candidate_commit_missing_or_invalid' >&2
+    exit 2
+}
 printf '%s\n' "$runtime_version" >"$app_dir/.backbond-stage-b-version"
 printf '%s\n' "$candidate_commit" >"$app_dir/DEPLOYED_COMMIT"
 chown -R root:root "$app_dir/stage_b_pilot"
@@ -106,8 +113,8 @@ systemctl restart backbond-stage-b-receipts.service
 systemctl reload nginx
 systemctl is-active --quiet backbond-stage-b-inbound.service
 systemctl is-active --quiet backbond-stage-b-receipts.service
-curl --fail --silent http://127.0.0.1:8788/healthz
-curl --fail --silent http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
+curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8788/healthz
+curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/release-identity)" = "$baseline_release"
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/sla)" = "$baseline_sla"
 test "$(cat "$app_dir/.backbond-stage-b-version")" = "$runtime_version"
