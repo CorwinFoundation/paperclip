@@ -88,7 +88,8 @@ class InboundStore:
               user_id TEXT PRIMARY KEY,
               email TEXT NOT NULL UNIQUE,
               confirmation_digest TEXT NOT NULL,
-              confirmed_at TEXT
+              confirmed_at TEXT,
+              agent_recipient TEXT
             );
             CREATE TABLE IF NOT EXISTS inbound_receipts (
               receipt_id TEXT PRIMARY KEY,
@@ -116,6 +117,13 @@ class InboundStore:
             """
         )
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(inbound_receipts)")}
+        user_columns = {
+            row[1] for row in self.connection.execute("PRAGMA table_info(inbound_users)")
+        }
+        if "agent_recipient" not in user_columns:
+            self.connection.execute(
+                "ALTER TABLE inbound_users ADD COLUMN agent_recipient TEXT"
+            )
         if "correlation_key" not in columns:
             self.connection.execute("ALTER TABLE inbound_receipts ADD COLUMN correlation_key TEXT")
         migrations = {
@@ -197,6 +205,17 @@ class InboundStore:
         ):
             raise PermissionError("enrollment_authentication_invalid")
         return row["user_id"]
+
+    def configure_agent_recipient(self, email: str, token: str, recipient: str) -> str:
+        """Bind an enrolled user to one operator-authenticated agent address."""
+        user_id = self.authenticate(email, token)
+        agent_recipient = _address(recipient)
+        self.connection.execute(
+            "UPDATE inbound_users SET agent_recipient=? WHERE user_id=?",
+            (agent_recipient, user_id),
+        )
+        self.connection.commit()
+        return agent_recipient
 
     def ingest(self, raw_message: bytes) -> InboundReceipt:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
@@ -379,6 +398,29 @@ class InboundStore:
             "WHERE check_id=? AND delivery_id IS NULL", (error[:120], check_id)
         )
         self.connection.commit()
+
+    def answer_relay_payload(self, check_id: str) -> dict[str, str]:
+        """Load the immutable check and registered agent destination for relay."""
+        row = self.connection.execute(
+            "SELECT r.receipt_id,r.correlation_key,r.body_text,u.agent_recipient,a.answer "
+            "FROM inbound_receipts r JOIN inbound_users u USING(user_id) "
+            "JOIN receipt_answers a ON a.check_id=r.receipt_id "
+            "WHERE r.receipt_id=? AND r.kind='check'",
+            (check_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("answered_check_not_found")
+        if not row["agent_recipient"]:
+            raise ValueError("agent_recipient_not_configured")
+        reference = row["correlation_key"] or correlation_key(row["body_text"])
+        if not reference:
+            raise ValueError("check_reference_missing")
+        return {
+            "agent_recipient": row["agent_recipient"],
+            "answer": row["answer"],
+            "reference": reference,
+            "body_text": row["body_text"],
+        }
     def close(self) -> None:
         self.connection.close()
 

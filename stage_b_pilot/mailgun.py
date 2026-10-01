@@ -33,13 +33,29 @@ class MailgunAnswerSender:
         self.api_key = api_key
         self.from_address = from_address
 
-    def __call__(self, fields, recorded) -> str:
+    def __call__(self, relay: Mapping[str, str]) -> str:
+        values = {}
+        for line in relay["body_text"].splitlines():
+            label, separator, value = line.partition(":")
+            if separator:
+                values[label.strip().lower()] = value.strip()
+        answer = relay["answer"]
+        decision = "APPROVED" if answer == "OK" else "STOP"
+        reference = relay["reference"]
+        text = "\n".join((
+            f"BackBond DEMO decision: {decision}",
+            f"Check reference: {reference}",
+            f"Proposed action: {values.get('proposed action') or 'Unknown'}",
+            f"Price: {values.get('price') or values.get('money at risk') or 'Unknown'}",
+            f"Deposit: {values.get('deposit') or 'Unknown'}",
+            f"Terms: {values.get('terms') or 'Unknown'}",
+        ))
         body = urlencode({
             "from": self.from_address,
-            "to": fields["email"],
-            "subject": f"BackBond check answer: {recorded['answer']}",
-            "text": f"Your authenticated BackBond DEMO answer is {recorded['answer']}. Check: {fields['check_id']}",
-            "v:backbond-check-id": fields["check_id"],
+            "to": relay["agent_recipient"],
+            "subject": f"BackBond {decision} {reference}",
+            "text": text,
+            "v:backbond-check-id": reference,
         }).encode()
         authorization = base64.b64encode(f"api:{self.api_key}".encode()).decode()
         request = Request(self.api_url, data=body, headers={
@@ -157,7 +173,7 @@ def make_handler(db_path: str, signing_key: str, answer_sender=None):
                         self._reply(202, {"mode": "DEMO", "answer": recorded["answer"], "delivery_id": None, "retryable": True})
                         return
                     try:
-                        delivery_id = answer_sender(fields, recorded)
+                        delivery_id = answer_sender(store.answer_relay_payload(fields["check_id"]))
                         store.record_delivery_id(fields["check_id"], delivery_id)
                     except Exception as exc:
                         store.record_delivery_failure(fields["check_id"], type(exc).__name__)

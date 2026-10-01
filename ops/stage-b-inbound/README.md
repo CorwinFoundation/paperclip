@@ -67,3 +67,17 @@ The same token is the synthetic user's bearer for private receipt retrieval.
 This proves completion of the controlled enrollment challenge, not the origin
 of every later MIME `From`; results must describe the address as enrolled, not
 cryptographically verified.
+
+Bind the already-enrolled human to the registered agent address without
+resetting the enrollment or changing its token. The command prompts for the
+existing enrollment token with terminal echo disabled:
+
+```sh
+sudo -u backbond-stage-b /usr/bin/python3 -m stage_b_pilot.enrollment \
+  --db /var/lib/backbond-stage-b/inbound.sqlite3 set-agent-recipient \
+  --email katzzzari@gmail.com --agent-email ia5p01@mail.instinct.com
+```
+
+The answer endpoint ignores any recipient supplied by a browser form or inbound
+message. It reloads the registered agent address and immutable check fields from
+the receipt database before constructing the relay.

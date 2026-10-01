@@ -110,8 +110,16 @@ def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(t
     from stage_b_pilot.inbound import InboundStore
     from email.message import EmailMessage
     db=tmp_path/"answers.sqlite3"; store=InboundStore(db); _,token=store.begin_signup("user@example.com"); store.confirm_signup("user@example.com",token)
+    store.configure_agent_recipient("user@example.com", token, "registered-agent@example.net")
+    assert store.authenticate("user@example.com", token)
+    with pytest.raises(PermissionError, match="enrollment_authentication_invalid"):
+        store.configure_agent_recipient("user@example.com", "wrong-token", "attacker@example.net")
     message=EmailMessage(); message["From"]="user@example.com"; message["To"]="check@inbound.backbond.ai"; message["Subject"]="BackBond check"; message.set_content("Check ID: BB-4\nProposed action: Demo task\nTerms: demo only\nMoney at risk: $0.00\nTask limit: over\nObligation status: cancelled")
     check=store.ingest(message.as_bytes()); saved=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
+    relay = store.answer_relay_payload(check.receipt_id)
+    assert relay["agent_recipient"] == "registered-agent@example.net"
+    assert relay["reference"] == "BB-4"
+    assert "Demo task" in relay["body_text"]
     assert saved["channel"] == "receipt_page" and saved["authorship"] == "authenticated" and saved["delivery_id"] is None
     store.record_delivery_failure(check.receipt_id,"mailgun_acceptance_id_missing")
     pending=store.receipts_for("user@example.com")[0]["authenticated_answer"]
