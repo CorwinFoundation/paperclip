@@ -121,7 +121,7 @@ def test_conflicting_ids_and_missing_required_fields_never_match():
     incomplete=dict(ROWS[1],body_text="Check ID: BB-1\nProposed action: Reserve one desk lamp")
     assert project_receipts([ROWS[0],incomplete])[0].outcome == "INCOMPLETE EVIDENCE"
 
-def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(tmp_path):
+def test_addendum_four_cancellation_registers_without_approval_or_answer(tmp_path):
     from stage_b_pilot.inbound import InboundStore
     from email.message import EmailMessage
     db=tmp_path/"answers.sqlite3"; store=InboundStore(db); _,token=store.begin_signup("user@example.com"); store.confirm_signup("user@example.com",token)
@@ -129,22 +129,15 @@ def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(t
     assert store.authenticate("user@example.com", token)
     with pytest.raises(PermissionError, match="enrollment_authentication_invalid"):
         store.configure_agent_recipient("user@example.com", "wrong-token", "attacker@example.net")
-    message=EmailMessage(); message["From"]="user@example.com"; message["To"]="check@inbound.backbond.ai"; message["Subject"]="BackBond check"; message.set_content("Check ID: BB-4\nProposed action: Demo task\nTerms: demo only\nMoney at risk: $0.00\nTask limit: over\nObligation status: cancelled")
-    check=store.ingest(message.as_bytes()); saved=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
-    relay = store.answer_relay_payload(check.receipt_id)
-    assert relay["agent_recipient"] == "registered-agent@example.net"
-    assert relay["reference"] == "BB-4"
-    assert "Demo task" in relay["body_text"]
-    assert saved["channel"] == "receipt_page" and saved["authorship"] == "authenticated" and saved["delivery_id"] is None
-    store.record_delivery_failure(check.receipt_id,"mailgun_acceptance_id_missing")
-    pending=store.receipts_for("user@example.com")[0]["authenticated_answer"]
-    assert pending["delivery_attempts"] == 1 and pending["delivery_id"] is None
-    assert pending["last_delivery_error"] == "mailgun_acceptance_id_missing"
-    store.record_delivery_id(check.receipt_id,"delivery-4"); row=store.receipts_for("user@example.com")[0]; receipt=project_receipts([row])[0]
-    assert receipt.user_answer == "STOP" and receipt.limit_state == "over your limit" and receipt.obligation_status == "cancelled"
-    assert row["authenticated_answer"]["delivery_id"] == "delivery-4" and row["authenticated_answer"]["delivery_attempts"] == 2
-    page=render_receipts([receipt]); assert 'value="OK"' in page and 'value="STOP"' in page
-    assert "Email accepted for sending; agent acknowledgement not yet observed" in page
+    message=EmailMessage(); message["From"]="user@example.com"; message["To"]="check@inbound.backbond.ai"; message["Subject"]="BackBond check"; message.set_content("Check ID: BB-4\nProposed action: Cancel the demo booking\nTerms: demo only\nMoney at risk: $0.00\nTask limit: over\nObligation status: open")
+    store.ingest(message.as_bytes()); row=store.receipts_for("user@example.com")[0]; receipt=project_receipts([row])[0]
+    assert receipt.user_answer == "No response required"
+    assert receipt.limit_state == "over your limit" and receipt.obligation_status == "open"
+    assert receipt.response_required is False and receipt.decision_allowed is False
+    page=render_receipts([receipt])
+    assert 'name="answer"' not in page and "BackBond APPROVED" not in page
+    assert "No OK or STOP response is required for a cancellation check." in page
+    assert "Cancellation obligation registered; reminders started" in page
     store.close()
 
 
