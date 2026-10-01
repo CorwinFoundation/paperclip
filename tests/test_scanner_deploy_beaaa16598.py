@@ -46,6 +46,15 @@ echo "docker $*" >>"{calls}"
 case "$1 $2" in
  "image ls") case "$*" in *"label=org.opencontainers.image.revision=$STUB_SHA"*) echo sha256:loaded;; *) printf '%b\n' "${{STUB_IMAGE_ROWS:-loaded:tag\\tsha256:loaded}}";; esac;;
  "image inspect") case "$*" in *"{{.ID}}"*) case "$*" in *old:image*) echo sha256:current;; *rollback:image*) echo sha256:rollback;; *) echo sha256:loaded;; esac;; *) echo "$STUB_SHA";; esac;;
+ "image rm")
+   if [ -n "$STUB_IMAGE_RM_CONFLICT_REF" ] && [ "$3" = "$STUB_IMAGE_RM_CONFLICT_REF" ]; then
+     echo "Error response from daemon: conflict: unable to remove repository reference \"$STUB_IMAGE_RM_CONFLICT_REF\" (must force) - container abc123 is using its referenced image deadbeef" >&2
+     exit 1
+   fi
+   if [ -n "$STUB_IMAGE_RM_FAIL_REF" ] && [ "$3" = "$STUB_IMAGE_RM_FAIL_REF" ]; then
+     echo "Error response from daemon: unexpected storage failure" >&2
+     exit 1
+   fi;;
  "inspect --format") case "$*" in *Labels*) echo "$STUB_SHA";; *) echo sha256:running;; esac;;
 esac
 case "$1" in
@@ -305,6 +314,27 @@ def test_preload_cleanup_ignores_non_scanner_images_with_revision_labels(tmp_pat
     trace = calls.read_text()
     assert "docker image rm backbond-scanner-live:old" in trace
     assert "docker image rm docker.openhands.dev/openhands/openhands:1.7" not in trace
+
+
+def test_preload_cleanup_skips_stale_reference_used_by_running_container(tmp_path):
+    e, _, _, archive, archive_sha, calls = harness(tmp_path)
+    stale_ref = "ghcr.io/corwinfoundation/are-scanner:old"
+    e["STUB_IMAGE_ROWS"] = f"current:tag\\tsha256:current\n{stale_ref}\\tsha256:stale"
+    e["STUB_IMAGE_RM_CONFLICT_REF"] = stale_ref
+    result = run(e, archive, archive_sha)
+    assert result.returncode == 0, result.stderr
+    assert f"docker image rm {stale_ref}" in calls.read_text()
+    assert f"retained stale image reference used by a running container: {stale_ref}" in result.stderr
+
+
+def test_preload_cleanup_still_fails_on_unexpected_image_removal_error(tmp_path):
+    e, _, _, archive, archive_sha, _ = harness(tmp_path)
+    stale_ref = "backbond-scanner-live:old"
+    e["STUB_IMAGE_ROWS"] = f"current:tag\\tsha256:current\n{stale_ref}\\tsha256:stale"
+    e["STUB_IMAGE_RM_FAIL_REF"] = stale_ref
+    result = run(e, archive, archive_sha)
+    assert result.returncode != 0
+    assert "unexpected storage failure" in result.stderr
 
 
 def test_exact_embedded_manifest_identity_success_writes_activated_receipt(tmp_path):

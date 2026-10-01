@@ -76,6 +76,19 @@ wait_200() {
   return 1
 }
 
+remove_stale_image_ref() {
+  image_ref=$1
+  if removal_output="$("$DOCKER" image rm "$image_ref" 2>&1)"; then
+    return 0
+  fi
+  if printf '%s\n' "$removal_output" | grep -Eqi 'conflict:.*(running container|container .* is using)'; then
+    log "retained stale image reference used by a running container: $image_ref"
+    return 0
+  fi
+  printf '%s\n' "$removal_output" >&2
+  return 1
+}
+
 reclaim_deploy_space() {
   current_ref="$(sed -n 's/^SCANNER_EDGE_IMAGE=//p' "$ENV_FILE")"
   [ -n "$current_ref" ] || die 'current scanner image is not configured'
@@ -117,9 +130,9 @@ PY
     [ "$image_id" = "$current_id" ] && continue
     [ -n "$rollback_id" ] && [ "$image_id" = "$rollback_id" ] && continue
     if [ "$image_ref" = '<none>:<none>' ]; then
-      "$DOCKER" image rm "$image_id" >/dev/null
+      remove_stale_image_ref "$image_id"
     else
-      "$DOCKER" image rm "$image_ref" >/dev/null
+      remove_stale_image_ref "$image_ref"
     fi
   done < <("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL" \
     --format '{{.Repository}}:{{.Tag}}\t{{.ID}}' | sort -u)
