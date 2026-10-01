@@ -29,6 +29,12 @@ def confirm(store, address="ari@example.com"):
     return user_id
 
 
+def confirm_with_token(store, address="ari@example.com"):
+    user_id, token = store.begin_signup(address)
+    assert store.confirm_signup(address, token) == user_id
+    return user_id, token
+
+
 def test_confirmed_sender_check_is_written_as_demo_receipt(store):
     user_id = confirm(store)
     receipt = store.ingest(message())
@@ -146,8 +152,9 @@ def confirmation_body(merchant="Example Hotel", amount="USD 25.00", date="2026-1
 
 
 def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(store):
-    confirm(store)
+    _, token = confirm_with_token(store)
     check = store.ingest(message(body=linked_check_body()))
+    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
@@ -166,20 +173,34 @@ def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(
     ],
 )
 def test_nonmatching_confirmation_stays_unlinked(store, body):
-    confirm(store)
-    store.ingest(message(body=linked_check_body()))
+    _, token = confirm_with_token(store)
+    check = store.ingest(message(body=linked_check_body()))
+    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
     confirmation = store.ingest(message(subject="Fwd: Booking confirmed", body=body))
     assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
     assert store.receipts_for("ari@example.com")[1]["link_state"] == "unlinked"
 
 
 def test_multiple_matching_checks_are_ambiguous_and_stay_unlinked(store):
-    confirm(store)
-    store.ingest(message(body=linked_check_body("BB-LINK-1")))
-    store.ingest(message(body=linked_check_body("BB-LINK-2")))
+    _, token = confirm_with_token(store)
+    first = store.ingest(message(body=linked_check_body("BB-LINK-1")))
+    second = store.ingest(message(body=linked_check_body("BB-LINK-2")))
+    store.record_authenticated_answer("ari@example.com", token, first.receipt_id, "OK")
+    store.record_authenticated_answer("ari@example.com", token, second.receipt_id, "OK")
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
+    assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
+
+
+def test_embedded_approval_text_does_not_replace_authenticated_answer(store):
+    _, token = confirm_with_token(store)
+    check = store.ingest(message(body=linked_check_body()))
+    confirmation = store.ingest(
+        message(subject="Fwd: Booking confirmed", body=confirmation_body())
+    )
+    assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
+    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "STOP")
     assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
 
 

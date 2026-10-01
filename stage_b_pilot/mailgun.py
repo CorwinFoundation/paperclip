@@ -46,7 +46,8 @@ class MailgunAnswerSender:
             f"BackBond DEMO decision: {decision}",
             f"Check reference: {reference}",
             f"Proposed action: {values.get('proposed action') or 'Unknown'}",
-            f"Price: {values.get('price') or values.get('money at risk') or 'Unknown'}",
+            f"Price: {values.get('price') or 'Unknown'}",
+            f"Money at risk: {values.get('money at risk') or 'Unknown'}",
             f"Deposit: {values.get('deposit') or 'Unknown'}",
             f"Terms: {values.get('terms') or 'Unknown'}",
         ))

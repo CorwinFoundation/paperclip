@@ -40,7 +40,7 @@ def test_sender_returns_only_mailgun_provider_acceptance_id():
     assert "attacker@example.test" not in opened.call_args.args[0].data.decode()
     assert posted["subject"] == ["BackBond APPROVED BB-INSTINCT-1"]
     assert posted["v:backbond-check-id"] == ["BB-INSTINCT-1"]
-    assert posted["text"] == ["BackBond DEMO decision: APPROVED\nCheck reference: BB-INSTINCT-1\nProposed action: Reserve one lamp\nPrice: $48.00\nDeposit: $0.00\nTerms: No substitutions"]
+    assert posted["text"] == ["BackBond DEMO decision: APPROVED\nCheck reference: BB-INSTINCT-1\nProposed action: Reserve one lamp\nPrice: $48.00\nMoney at risk: Unknown\nDeposit: $0.00\nTerms: No substitutions"]
 
 
 @pytest.mark.parametrize("payload", [{}, {"message": "Queued. Thank you."}, {"id": ""}])
@@ -61,4 +61,15 @@ def test_missing_persisted_fields_are_unknown():
         sender({"agent_recipient": "agent@example.test", "answer": "STOP", "reference": "BB-2", "body_text": "Proposed action: Cancel demo"})
     posted = parse_qs(opened.call_args.args[0].data.decode())
     assert posted["subject"] == ["BackBond STOP BB-2"]
-    assert "Price: Unknown\nDeposit: Unknown\nTerms: Unknown" in posted["text"][0]
+    assert "Price: Unknown\nMoney at risk: Unknown\nDeposit: Unknown\nTerms: Unknown" in posted["text"][0]
+
+
+def test_price_never_falls_back_to_money_at_risk():
+    sender = MailgunAnswerSender(
+        "https://api.mailgun.test/v3/demo/messages", "secret", "BackBond <checks@demo.test>"
+    )
+    relay = {"agent_recipient": "agent@example.test", "answer": "OK", "reference": "BB-3", "body_text": "Proposed action: Demo\nMoney at risk: $500.00"}
+    with patch("stage_b_pilot.mailgun.urlopen", return_value=Response({"id": "accepted"})) as opened:
+        sender(relay)
+    posted = parse_qs(opened.call_args.args[0].data.decode())
+    assert "Price: Unknown\nMoney at risk: $500.00" in posted["text"][0]

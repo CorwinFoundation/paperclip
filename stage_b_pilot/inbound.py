@@ -324,10 +324,19 @@ class InboundStore:
         except ValueError:
             return "unlinked"
         checks = self.connection.execute(
-            "SELECT receipt_id,body_text FROM inbound_receipts WHERE user_id=? AND kind='check'",
+            "SELECT r.receipt_id,r.body_text,a.answer,a.authorship,a.channel "
+            "FROM inbound_receipts r LEFT JOIN receipt_answers a ON a.check_id=r.receipt_id "
+            "WHERE r.user_id=? AND r.kind='check'",
             (confirmation["user_id"],),
         ).fetchall()
-        matches = [row for row in checks if check_matches_confirmation(row["body_text"], facts)]
+        matches = [
+            row
+            for row in checks
+            if row["answer"] == "OK"
+            and row["authorship"] == "authenticated"
+            and row["channel"] == "receipt_page"
+            and check_matches_confirmation(row["body_text"], facts)
+        ]
         if len(matches) != 1:
             return "unlinked"
         self.connection.execute(
