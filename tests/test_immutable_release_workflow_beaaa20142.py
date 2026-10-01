@@ -78,6 +78,11 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertEqual(deploy["env"]["DEPLOY_HOST"], "srv1749248.hstgr.cloud")
         self.assertEqual(deploy["env"]["DEPLOY_USER"], "are-deploy")
         self.assertEqual(deploy["env"]["DEPLOY_HELPER"], "/usr/local/sbin/scanner-deploy")
+        self.assertIn('remote_helper="/var/tmp/scanner-deploy-${SHA}"', text)
+        self.assertIn(
+            'scp "${ssh_opts[@]}" scripts/deploy/scanner-deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_helper}"',
+            text,
+        )
         self.assertIn("/home/ghrunner/.ssh/scanner_deploy_key", text)
         self.assertIn("/home/ghrunner/.ssh/known_hosts_scanner", text)
         self.assertIn("ghrunner 600", text)

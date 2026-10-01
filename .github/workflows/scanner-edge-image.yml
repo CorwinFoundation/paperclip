@@ -575,7 +575,9 @@ jobs:
         run: |
           set -euo pipefail
           remote_archive="/var/tmp/${ARCHIVE}"
+          remote_helper="/var/tmp/scanner-deploy-${SHA}"
           ssh_opts=(-4 -i /home/ghrunner/.ssh/scanner_deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/ghrunner/.ssh/known_hosts_scanner)
+          scp "${ssh_opts[@]}" scripts/deploy/scanner-deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_helper}"
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
