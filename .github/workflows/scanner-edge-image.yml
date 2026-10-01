@@ -580,7 +580,7 @@ jobs:
           scp "${ssh_opts[@]}" scripts/deploy/scanner-deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_helper}"
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
+            "set -euo pipefail; cleanup() { rm -f '${remote_archive}' '${remote_helper}'; }; trap cleanup EXIT; sudo install -o root -g root -m 0755 '${remote_helper}' '${DEPLOY_HELPER}'; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
 
       - name: Verify public release identity
         shell: bash

@@ -83,6 +83,14 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
             'scp "${ssh_opts[@]}" scripts/deploy/scanner-deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_helper}"',
             text,
         )
+        self.assertIn(
+            "sudo install -o root -g root -m 0755 '${remote_helper}' '${DEPLOY_HELPER}'",
+            text,
+        )
+        self.assertLess(
+            text.index("sudo install -o root -g root -m 0755 '${remote_helper}' '${DEPLOY_HELPER}'"),
+            text.index("sudo '${DEPLOY_HELPER}' '${SHA}'"),
+        )
         self.assertIn("/home/ghrunner/.ssh/scanner_deploy_key", text)
         self.assertIn("/home/ghrunner/.ssh/known_hosts_scanner", text)
         self.assertIn("ghrunner 600", text)
