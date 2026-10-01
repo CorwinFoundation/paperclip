@@ -84,6 +84,15 @@ class InboundStore:
               correlation_key TEXT,
               mode TEXT NOT NULL CHECK(mode = 'DEMO')
             );
+            CREATE TABLE IF NOT EXISTS receipt_answers (
+              check_id TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL REFERENCES inbound_users(user_id),
+              answer TEXT NOT NULL CHECK(answer IN ('OK','STOP')),
+              answered_at TEXT NOT NULL,
+              channel TEXT NOT NULL CHECK(channel = 'receipt_page'),
+              authorship TEXT NOT NULL CHECK(authorship = 'authenticated'),
+              delivery_id TEXT
+            );
             """
         )
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(inbound_receipts)")}
@@ -205,7 +214,39 @@ class InboundStore:
                 except ValueError:
                     receipt["correlation_key"] = None
                     receipt["correlation_error"] = "ambiguous"
+            answer = self.connection.execute(
+                "SELECT answer,answered_at,channel,authorship,delivery_id FROM receipt_answers WHERE check_id=? AND user_id=?",
+                (receipt["receipt_id"], receipt["user_id"]),
+            ).fetchone()
+            if answer is not None:
+                receipt["authenticated_answer"] = dict(answer)
         return receipts
+
+    def record_authenticated_answer(self, email: str, token: str, check_id: str, answer: str) -> dict[str, str | None]:
+        """Persist a signed-in page decision before any outbound notification."""
+        user_id = self.authenticate(email, token)
+        normalized = answer.strip().upper()
+        if normalized not in {"OK", "STOP"}:
+            raise ValueError("answer_not_supported")
+        check = self.connection.execute(
+            "SELECT receipt_id FROM inbound_receipts WHERE receipt_id=? AND user_id=? AND kind='check'",
+            (check_id, user_id),
+        ).fetchone()
+        if check is None:
+            raise ValueError("check_not_found")
+        self.connection.execute(
+            "INSERT INTO receipt_answers(check_id,user_id,answer,answered_at,channel,authorship,delivery_id) VALUES(?,?,?,?,?,?,NULL) "
+            "ON CONFLICT(check_id) DO UPDATE SET answer=excluded.answer,answered_at=excluded.answered_at,channel=excluded.channel,authorship=excluded.authorship,delivery_id=NULL",
+            (check_id, user_id, normalized, _now(), "receipt_page", "authenticated"),
+        )
+        self.connection.commit()
+        return dict(self.connection.execute("SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)).fetchone())
+
+    def record_delivery_id(self, check_id: str, delivery_id: str) -> None:
+        if not delivery_id:
+            raise ValueError("delivery_id_missing")
+        self.connection.execute("UPDATE receipt_answers SET delivery_id=? WHERE check_id=?", (delivery_id, check_id))
+        self.connection.commit()
 
     def close(self) -> None:
         self.connection.close()

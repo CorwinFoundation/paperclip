@@ -73,7 +73,7 @@ def ingest_route(
     return store.ingest(message_bytes)
 
 
-def make_handler(db_path: str, signing_key: str):
+def make_handler(db_path: str, signing_key: str, answer_sender=None):
     """Build the localhost HTTP receiver used behind the TLS reverse proxy."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -108,6 +108,26 @@ def make_handler(db_path: str, signing_key: str):
                 store.close()
 
         def do_POST(self) -> None:  # noqa: N802
+            if self.path == "/answers":
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    fields = {key: values[-1] for key, values in parse_qs(self.rfile.read(length).decode()).items() if values}
+                    authorization = self.headers.get("Authorization", "")
+                    token = authorization[7:] if authorization.startswith("Bearer ") else ""
+                    store = InboundStore(db_path)
+                    recorded = store.record_authenticated_answer(fields.get("email", ""), token, fields.get("check_id", ""), fields.get("answer", ""))
+                    # Persistence deliberately precedes delivery. A delivery failure leaves
+                    # a durable authenticated decision with no misleading delivery id.
+                    delivery_id = answer_sender(fields, recorded) if answer_sender else "demo-no-delivery"
+                    store.record_delivery_id(fields["check_id"], delivery_id)
+                    self._reply(200, {"mode": "DEMO", "answer": recorded["answer"], "delivery_id": delivery_id})
+                except (PermissionError, ValueError, KeyError):
+                    self._reply(400, {"error": "answer_rejected"})
+                except Exception:
+                    self._reply(502, {"error": "answer_saved_delivery_failed"})
+                finally:
+                    if "store" in locals(): store.close()
+                return
             if self.path != "/mailgun/mime":
                 self._reply(404, {"error": "not_found"})
                 return

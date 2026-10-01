@@ -102,3 +102,16 @@ def test_conflicting_ids_and_missing_required_fields_never_match():
     assert project_receipts([conflict,ROWS[1]])[0].outcome == "AMBIGUOUS EVIDENCE"
     incomplete=dict(ROWS[1],body_text="Check ID: BB-1\nProposed action: Reserve one desk lamp")
     assert project_receipts([ROWS[0],incomplete])[0].outcome == "INCOMPLETE EVIDENCE"
+
+def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(tmp_path):
+    from stage_b_pilot.inbound import InboundStore
+    from email.message import EmailMessage
+    db=tmp_path/"answers.sqlite3"; store=InboundStore(db); _,token=store.begin_signup("user@example.com"); store.confirm_signup("user@example.com",token)
+    message=EmailMessage(); message["From"]="user@example.com"; message["To"]="check@inbound.backbond.ai"; message["Subject"]="BackBond check"; message.set_content("Check ID: BB-4\nProposed action: Demo task\nTerms: demo only\nMoney at risk: $0.00\nTask limit: over\nObligation status: cancelled")
+    check=store.ingest(message.as_bytes()); saved=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
+    assert saved["channel"] == "receipt_page" and saved["authorship"] == "authenticated" and saved["delivery_id"] is None
+    store.record_delivery_id(check.receipt_id,"delivery-4"); row=store.receipts_for("user@example.com")[0]; receipt=project_receipts([row])[0]
+    assert receipt.user_answer == "STOP" and receipt.limit_state == "over your limit" and receipt.obligation_status == "cancelled"
+    assert row["authenticated_answer"]["delivery_id"] == "delivery-4"
+    page=render_receipts([receipt]); assert 'value="OK"' in page and 'value="STOP"' in page
+    store.close()

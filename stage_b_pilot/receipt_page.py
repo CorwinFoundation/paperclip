@@ -46,9 +46,10 @@ class CredentialStore:
 class DemoReceipt:
     check_id: str; proposed_action: str; terms: str; deposit: str
     money_at_risk: str; user_answer: str; outcome: str; outcome_detail: str
+    limit_state: str = "limit not set"; obligation_status: str = "open"
 
 def _structured_body(body: str) -> dict[str, str]:
-    allowed = {"proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer"}
+    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "task limit":"task_limit", "obligation status":"obligation_status"}
     values = {}
     for line in body.splitlines():
         key, separator, value = line.partition(":")
@@ -94,7 +95,13 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
                 matches = all(confirmed[name] == fields[name] for name in required)
                 outcome = "MATCH" if matches else "MISMATCH"
                 detail = "The observed result matched the submitted check." if matches else "The observed result differed from the submitted check."
-        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], fields.get("proposed_action", "Not provided"), fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), fields.get("user_answer", "Not provided"), outcome, detail))
+        stored = row.get("authenticated_answer") or {}
+        answer = str(stored.get("answer") or fields.get("user_answer", "Not provided"))
+        limit = fields.get("task_limit", "limit not set")
+        limit_state = "over your limit" if limit.lower() == "over" else "limit not set" if limit.lower() in {"", "not set"} else limit
+        obligation = fields.get("obligation_status", "open").lower()
+        if obligation not in {"open", "cancelled", "missed"}: obligation = "open"
+        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], fields.get("proposed_action", "Not provided"), fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, limit_state, obligation))
     return projected
 
 def _page(content: str) -> str:
@@ -111,7 +118,7 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
         blocks = []
         for receipt in receipts:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
-            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
+            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl><form method="post" action="/stage-b-demo/answer"><input type="hidden" name="check_id" value="{v['check_id']}"><button name="answer" value="OK" type="submit">OK</button> <button name="answer" value="STOP" type="submit">STOP</button></form></article>''')
         body = "".join(blocks)
     return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
@@ -123,6 +130,15 @@ def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[st
     finally: connection.close()
     if response.status != 200: raise PermissionError
     return payload.get("receipts", [])
+
+def submit_answer(host: str, port: int, email: str, token: str, check_id: str, answer: str) -> None:
+    body = __import__("urllib.parse").parse.urlencode({"email":email, "check_id":check_id, "answer":answer})
+    connection = HTTPConnection(host, port, timeout=5)
+    try:
+        connection.request("POST", "/answers", body, {"Authorization":f"Bearer {token}", "Content-Type":"application/x-www-form-urlencoded"})
+        response = connection.getresponse(); response.read()
+    finally: connection.close()
+    if response.status != 200: raise PermissionError
 
 def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
                  session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256) -> type[BaseHTTPRequestHandler]:
@@ -174,6 +190,17 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
                 if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
                 self._reply(200, render_login(), "bb_demo_session=; Max-Age=0; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"); return
+            if path == "/stage-b-demo/answer":
+                morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
+                identity = session_credentials(morsel.value) if morsel else None
+                try:
+                    length = int(self.headers.get("Content-Length", "0")); form = parse_qs(self.rfile.read(length).decode())
+                    check_id, answer = form.get("check_id", [""])[-1], form.get("answer", [""])[-1]
+                    if not identity or answer not in {"OK", "STOP"}: raise PermissionError
+                    submit_answer(upstream_host, upstream_port, *identity, check_id, answer)
+                    rows = fetch_receipts(upstream_host, upstream_port, *identity)
+                except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(400, _page('<p class="error" role="alert">The answer could not be saved.</p>')); return
+                self._reply(200, render_receipts(project_receipts(rows))); return
             if path != "/stage-b-demo/receipts": self.send_error(404); return
             try:
                 length = int(self.headers.get("Content-Length","0"))
