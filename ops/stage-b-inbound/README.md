@@ -16,6 +16,12 @@ not modify the scanner container or its release configuration.
 The required secret is the Mailgun **HTTP Webhook Signing Key**, not an API key,
 SMTP password, or domain-management credential. From a trusted checkout, run:
 
+Outbound answers use `BACKBOND_MAILGUN_MESSAGES_URL`,
+`BACKBOND_MAILGUN_API_KEY`, and `BACKBOND_MAILGUN_FROM`. Without all three, the
+authenticated decision is persisted and reported as retryable but unsent. A
+Mailgun response counts only as provider acceptance when its JSON body includes
+a non-empty `id`; HTTP 200 alone never marks an answer sent or acknowledged.
+
 ```sh
 sudo ops/stage-b-inbound/install.sh
 ```

@@ -7,6 +7,9 @@ class Upstream(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("Authorization") != "Bearer confirmed-token": self.send_response(401); self.end_headers(); return
         body=json.dumps({"mode":"DEMO","receipts":ROWS}).encode(); self.send_response(200); self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
+    def do_POST(self):
+        if self.path != "/answers" or self.headers.get("Authorization") != "Bearer confirmed-token": self.send_response(401); self.end_headers(); return
+        body=json.dumps({"mode":"DEMO","answer":"OK","delivery_id":"demo-no-delivery"}).encode(); self.send_response(200); self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
     def log_message(self,*_): pass
 def _servers(tmp_path, ttl=900, max_sessions=256):
     path=tmp_path/"credentials.json"; path.touch(mode=0o600); path.write_text("{}")
@@ -110,8 +113,45 @@ def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(t
     message=EmailMessage(); message["From"]="user@example.com"; message["To"]="check@inbound.backbond.ai"; message["Subject"]="BackBond check"; message.set_content("Check ID: BB-4\nProposed action: Demo task\nTerms: demo only\nMoney at risk: $0.00\nTask limit: over\nObligation status: cancelled")
     check=store.ingest(message.as_bytes()); saved=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
     assert saved["channel"] == "receipt_page" and saved["authorship"] == "authenticated" and saved["delivery_id"] is None
+    store.record_delivery_failure(check.receipt_id,"mailgun_acceptance_id_missing")
+    pending=store.receipts_for("user@example.com")[0]["authenticated_answer"]
+    assert pending["delivery_attempts"] == 1 and pending["delivery_id"] is None
+    assert pending["last_delivery_error"] == "mailgun_acceptance_id_missing"
     store.record_delivery_id(check.receipt_id,"delivery-4"); row=store.receipts_for("user@example.com")[0]; receipt=project_receipts([row])[0]
     assert receipt.user_answer == "STOP" and receipt.limit_state == "over your limit" and receipt.obligation_status == "cancelled"
-    assert row["authenticated_answer"]["delivery_id"] == "delivery-4"
+    assert row["authenticated_answer"]["delivery_id"] == "delivery-4" and row["authenticated_answer"]["delivery_attempts"] == 2
     page=render_receipts([receipt]); assert 'value="OK"' in page and 'value="STOP"' in page
+    assert "Email accepted for sending; agent acknowledgement not yet observed" in page
+    same=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
+    assert same["answered_at"] == saved["answered_at"] and same["answer"] == "STOP"
+    with pytest.raises(ValueError, match="answer_already_recorded"):
+        store.record_authenticated_answer("user@example.com",token,check.receipt_id,"OK")
     store.close()
+
+
+def test_saved_answer_without_delivery_is_labelled_truthfully():
+    row = dict(ROWS[0], authenticated_answer={"answer": "OK", "delivery_id": None})
+    page = render_receipts(project_receipts([row]))
+    assert "Answer saved; not sent to the agent" in page
+    assert "Email accepted for sending" not in page
+
+    demo_row = dict(ROWS[0], authenticated_answer={"answer": "STOP", "delivery_id": "demo-no-delivery"})
+    demo_page = render_receipts(project_receipts([demo_row]))
+    assert "Answer saved; not sent to the agent" in demo_page
+    assert "Email accepted for sending" not in demo_page
+
+
+def test_answer_route_discloses_demo_no_delivery(tmp_path):
+    upstream,page,threads,store=_servers(tmp_path); base=f"http://127.0.0.1:{page.server_port}"
+    try:
+        login=urllib.parse.urlencode({"email":"user@example.com","passphrase":"correct horse battery"}).encode()
+        cookie=urllib.request.urlopen(urllib.request.Request(base+"/stage-b-demo/receipts",data=login)).headers["Set-Cookie"].split(";",1)[0]
+        answer=urllib.parse.urlencode({"check_id":"in_check","answer":"OK"}).encode()
+        request=urllib.request.Request(base+"/stage-b-demo/answer",data=answer,headers={"Cookie":cookie})
+        with urllib.request.urlopen(request) as response:
+            body=response.read().decode()
+            assert "Answer saved; it has not been sent to the agent" in body
+            assert "Answer saved and sent to the agent" not in body
+    finally:
+        for server in (page,upstream): server.shutdown(); server.server_close()
+        for thread in threads: thread.join(timeout=5)
