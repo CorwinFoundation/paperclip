@@ -19,8 +19,23 @@ def _servers(tmp_path, ttl=900, max_sessions=256):
     return upstream,page,threads,store
 def test_persisted_rows_are_projected_and_sanitized():
     receipt=project_receipts(ROWS)[0]; assert receipt.outcome == "MATCH"; page=render_receipts([receipt])
-    for label in ("DEMO PRIVATE","Proposed action","Terms","Deposit","Money at risk","Your answer","Later outcome"): assert label in page
+    for label in ("DEMO PRIVATE","Check ID / email reference","BB-1","Internal receipt ID","Proposed action","Terms","Deposit","Money at risk","Your answer","Later outcome"): assert label in page
     hostile=dict(ROWS[0],body_text="Proposed action: <script>alert(1)</script>"); assert "<script>" not in render_receipts(project_receipts([hostile]))
+
+def test_identical_actions_keep_distinct_stop_ok_references_and_escape_them():
+    first=dict(ROWS[0],receipt_id="in_stop",correlation_key="ARI-STOP",body_text=ROWS[0]["body_text"].replace("BB-1","ARI-STOP"))
+    second=dict(ROWS[0],receipt_id='in_ok"><script>alert(1)</script>',correlation_key="ARI-OK",body_text=ROWS[0]["body_text"].replace("BB-1","ARI-OK"))
+    page=render_receipts(project_receipts([first,second]))
+    assert "ARI-STOP" in page and "ARI-OK" in page
+    assert 'name="check_id" value="in_stop"' in page and 'in_ok&quot;&gt;&lt;script&gt;' in page
+    assert "<script>" not in page
+
+def test_missing_or_conflicting_reference_prevents_decision():
+    missing=dict(ROWS[0],correlation_key=None,body_text="Proposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum")
+    conflict=dict(ROWS[0],correlation_key="BB-STORED",body_text=ROWS[0]["body_text"].replace("BB-1","BB-BODY"))
+    page=render_receipts(project_receipts([missing,conflict]))
+    assert page.count("Decision unavailable: the email reference is missing or conflicting.") == 2
+    assert 'name="answer"' not in page
 def test_authenticated_form_renders_persisted_receipts_with_private_headers(tmp_path):
     upstream,page,threads,store=_servers(tmp_path); base=f"http://127.0.0.1:{page.server_port}"
     try:
@@ -130,10 +145,6 @@ def test_addendum_four_states_and_authenticated_answer_persist_before_delivery(t
     assert row["authenticated_answer"]["delivery_id"] == "delivery-4" and row["authenticated_answer"]["delivery_attempts"] == 2
     page=render_receipts([receipt]); assert 'value="OK"' in page and 'value="STOP"' in page
     assert "Email accepted for sending; agent acknowledgement not yet observed" in page
-    same=store.record_authenticated_answer("user@example.com",token,check.receipt_id,"STOP")
-    assert same["answered_at"] == saved["answered_at"] and same["answer"] == "STOP"
-    with pytest.raises(ValueError, match="answer_already_recorded"):
-        store.record_authenticated_answer("user@example.com",token,check.receipt_id,"OK")
     store.close()
 
 

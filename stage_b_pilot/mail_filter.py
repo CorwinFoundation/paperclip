@@ -71,10 +71,8 @@ def confirmation_facts(body: str) -> LinkFacts:
 def check_matches_confirmation(check_body: str, confirmation: LinkFacts) -> bool:
     values = _fields(check_body)
     try:
-        approved = values.get("your answer", values.get("user answer", "")).casefold()
         return (
-            approved in {"approved", "ok"}
-            and values["merchant"].casefold() == confirmation.merchant
+            values["merchant"].casefold() == confirmation.merchant
             and _amount(values["amount"]) == confirmation.amount
             and _timestamp(values["window start"])
             <= confirmation.occurred_at

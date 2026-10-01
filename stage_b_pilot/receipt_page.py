@@ -46,6 +46,8 @@ class CredentialStore:
 class DemoReceipt:
     check_id: str; proposed_action: str; terms: str; deposit: str
     money_at_risk: str; user_answer: str; outcome: str; outcome_detail: str
+    correlation_reference: str = "Reference unavailable"
+    decision_allowed: bool = False
     limit_state: str = "limit not set"; obligation_status: str = "open"
     relay_status: str = "No answer sent"
 
@@ -83,6 +85,7 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
         except ValueError:
             key = None
         candidates = confirmations.get(key, []) if key else []
+        decision_allowed = bool(key) and check_counts.get(key, 0) == 1
         if (not key) or check_counts.get(key, 0) > 1 or len(candidates) > 1:
             outcome, detail = "AMBIGUOUS EVIDENCE", "The check identifier or confirmation evidence is ambiguous."
         elif not candidates:
@@ -105,7 +108,7 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
         delivery_id = stored.get("delivery_id")
         was_sent = bool(delivery_id and delivery_id != "demo-no-delivery")
         relay_status = "Email accepted for sending; agent acknowledgement not yet observed" if was_sent else "Answer saved; not sent to the agent" if stored else "No answer sent"
-        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], fields.get("proposed_action", "Not provided"), fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, limit_state, obligation, relay_status))
+        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], fields.get("proposed_action", "Not provided"), fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, str(key) if key else "Reference unavailable", decision_allowed, limit_state, obligation, relay_status))
     return projected
 
 def _page(content: str) -> str:
@@ -122,7 +125,8 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
         blocks = []
         for receipt in receipts:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
-            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Relay status</dt><dd>{v['relay_status']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl><form method="post" action="/stage-b-demo/answer"><input type="hidden" name="check_id" value="{v['check_id']}"><button name="answer" value="OK" type="submit">OK</button> <button name="answer" value="STOP" type="submit">STOP</button></form></article>''')
+            controls = f'''<form method="post" action="/stage-b-demo/answer"><input type="hidden" name="check_id" value="{v['check_id']}"><button name="answer" value="OK" type="submit">OK</button> <button name="answer" value="STOP" type="submit">STOP</button></form>''' if receipt.decision_allowed else '<p class="error" role="alert">Decision unavailable: the email reference is missing or conflicting.</p>'
+            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Relay status</dt><dd>{v['relay_status']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl>{controls}</article>''')
         body = "".join(blocks)
     return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
@@ -205,6 +209,8 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                     length = int(self.headers.get("Content-Length", "0")); form = parse_qs(self.rfile.read(length).decode())
                     check_id, answer = form.get("check_id", [""])[-1], form.get("answer", [""])[-1]
                     if not identity or answer not in {"OK", "STOP"}: raise PermissionError
+                    current = {receipt.check_id: receipt for receipt in project_receipts(fetch_receipts(upstream_host, upstream_port, *identity))}
+                    if check_id not in current or not current[check_id].decision_allowed: raise PermissionError
                     relay_result = submit_answer(upstream_host, upstream_port, *identity, check_id, answer)
                     rows = fetch_receipts(upstream_host, upstream_port, *identity)
                 except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(400, _page('<p class="error" role="alert">The answer could not be saved.</p>')); return

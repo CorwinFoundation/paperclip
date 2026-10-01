@@ -110,9 +110,7 @@ class InboundStore:
               answered_at TEXT NOT NULL,
               channel TEXT NOT NULL CHECK(channel = 'receipt_page'),
               authorship TEXT NOT NULL CHECK(authorship = 'authenticated'),
-              delivery_id TEXT,
-              delivery_attempts INTEGER NOT NULL DEFAULT 0,
-              last_delivery_error TEXT
+              delivery_id TEXT
             );
             """
         )
@@ -304,12 +302,70 @@ class InboundStore:
                     receipt["correlation_key"] = None
                     receipt["correlation_error"] = "ambiguous"
             answer = self.connection.execute(
-                "SELECT answer,answered_at,channel,authorship,delivery_id,delivery_attempts,last_delivery_error FROM receipt_answers WHERE check_id=? AND user_id=?",
+                "SELECT answer,answered_at,channel,authorship,delivery_id,delivery_attempts,last_delivery_error "
+                "FROM receipt_answers WHERE check_id=? AND user_id=?",
                 (receipt["receipt_id"], receipt["user_id"]),
             ).fetchone()
             if answer is not None:
                 receipt["authenticated_answer"] = dict(answer)
         return receipts
+
+    def record_authenticated_answer(
+        self, email: str, token: str, check_id: str, answer: str
+    ) -> dict[str, str | None]:
+        """Persist one authenticated decision; identical retries are idempotent."""
+        user_id = self.authenticate(email, token)
+        normalized = answer.strip().upper()
+        if normalized not in {"OK", "STOP"}:
+            raise ValueError("answer_not_supported")
+        check = self.connection.execute(
+            "SELECT receipt_id FROM inbound_receipts "
+            "WHERE receipt_id=? AND user_id=? AND kind='check'",
+            (check_id, user_id),
+        ).fetchone()
+        if check is None:
+            raise ValueError("check_not_found")
+        existing = self.connection.execute(
+            "SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)
+        ).fetchone()
+        if existing is not None:
+            if existing["user_id"] != user_id or existing["answer"] != normalized:
+                raise ValueError("answer_already_recorded")
+            return dict(existing)
+        self.connection.execute(
+            "INSERT INTO receipt_answers"
+            "(check_id,user_id,answer,answered_at,channel,authorship,delivery_id) "
+            "VALUES(?,?,?,?,?,?,NULL)",
+            (check_id, user_id, normalized, _now(), "receipt_page", "authenticated"),
+        )
+        self.connection.commit()
+        return dict(self.connection.execute(
+            "SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)
+        ).fetchone())
+
+    def record_delivery_id(self, check_id: str, delivery_id: str) -> None:
+        if not delivery_id or delivery_id == "demo-no-delivery":
+            raise ValueError("delivery_id_missing")
+        existing = self.connection.execute(
+            "SELECT delivery_id FROM receipt_answers WHERE check_id=?", (check_id,)
+        ).fetchone()
+        if existing is None:
+            raise ValueError("answer_not_found")
+        if existing["delivery_id"] not in {None, delivery_id}:
+            raise ValueError("delivery_already_recorded")
+        self.connection.execute(
+            "UPDATE receipt_answers SET delivery_id=?,delivery_attempts=delivery_attempts+1,last_delivery_error=NULL WHERE check_id=? AND delivery_id IS NULL",
+            (delivery_id, check_id),
+        )
+        self.connection.commit()
+
+    def record_delivery_failure(self, check_id: str, error: str) -> None:
+        self.connection.execute(
+            "UPDATE receipt_answers SET delivery_attempts=delivery_attempts+1,last_delivery_error=? "
+            "WHERE check_id=? AND delivery_id IS NULL",
+            (error[:120], check_id),
+        )
+        self.connection.commit()
 
     def link_confirmation(self, receipt_id: str) -> str:
         confirmation = self.connection.execute(
@@ -366,47 +422,6 @@ class InboundStore:
         )
         self.connection.commit()
         return state
-    def record_authenticated_answer(self, email: str, token: str, check_id: str, answer: str) -> dict[str, str | None]:
-        """Persist a signed-in page decision before any outbound notification."""
-        user_id = self.authenticate(email, token)
-        normalized = answer.strip().upper()
-        if normalized not in {"OK", "STOP"}:
-            raise ValueError("answer_not_supported")
-        check = self.connection.execute(
-            "SELECT receipt_id FROM inbound_receipts WHERE receipt_id=? AND user_id=? AND kind='check'",
-            (check_id, user_id),
-        ).fetchone()
-        if check is None:
-            raise ValueError("check_not_found")
-        existing = self.connection.execute(
-            "SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)
-        ).fetchone()
-        if existing is not None:
-            if existing["user_id"] != user_id or existing["answer"] != normalized:
-                raise ValueError("answer_already_recorded")
-            return dict(existing)
-        self.connection.execute(
-            "INSERT INTO receipt_answers(check_id,user_id,answer,answered_at,channel,authorship,delivery_id) VALUES(?,?,?,?,?,?,NULL)",
-            (check_id, user_id, normalized, _now(), "receipt_page", "authenticated"),
-        )
-        self.connection.commit()
-        return dict(self.connection.execute("SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)).fetchone())
-
-    def record_delivery_id(self, check_id: str, delivery_id: str) -> None:
-        if not delivery_id or delivery_id == "demo-no-delivery":
-            raise ValueError("delivery_id_missing")
-        self.connection.execute(
-            "UPDATE receipt_answers SET delivery_id=?,delivery_attempts=delivery_attempts+1,last_delivery_error=NULL "
-            "WHERE check_id=? AND delivery_id IS NULL", (delivery_id, check_id)
-        )
-        self.connection.commit()
-
-    def record_delivery_failure(self, check_id: str, error: str) -> None:
-        self.connection.execute(
-            "UPDATE receipt_answers SET delivery_attempts=delivery_attempts+1,last_delivery_error=? "
-            "WHERE check_id=? AND delivery_id IS NULL", (error[:120], check_id)
-        )
-        self.connection.commit()
 
     def answer_relay_payload(self, check_id: str) -> dict[str, str]:
         """Load the immutable check and registered agent destination for relay."""

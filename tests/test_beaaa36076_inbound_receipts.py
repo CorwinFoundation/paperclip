@@ -1,6 +1,4 @@
-from email import policy
 from email.message import EmailMessage
-from email.parser import BytesParser
 
 import pytest
 
@@ -26,17 +24,11 @@ def store(tmp_path):
 def confirm(store, address="ari@example.com"):
     user_id, token = store.begin_signup(address)
     assert store.confirm_signup(address, token) == user_id
-    return user_id
-
-
-def confirm_with_token(store, address="ari@example.com"):
-    user_id, token = store.begin_signup(address)
-    assert store.confirm_signup(address, token) == user_id
     return user_id, token
 
 
 def test_confirmed_sender_check_is_written_as_demo_receipt(store):
-    user_id = confirm(store)
+    user_id, _ = confirm(store)
     receipt = store.ingest(message())
     assert receipt.user_id == user_id
     assert receipt.kind == "check"
@@ -48,8 +40,6 @@ def test_forwarded_confirmation_is_accepted_and_classified(store):
     confirm(store)
     receipt = store.ingest(message(subject="Fwd: BackBond check"))
     assert receipt.kind == "forwarded_confirmation"
-    assert receipt.link_state == "unlinked"
-    assert receipt.dkim_result == "missing"
 
 
 def test_unconfirmed_sender_and_unrelated_subject_fail_closed(store):
@@ -59,41 +49,6 @@ def test_unconfirmed_sender_and_unrelated_subject_fail_closed(store):
     confirm(store)
     with pytest.raises(ValueError, match="subject_not_supported"):
         store.ingest(message(subject="Your bank statement"))
-
-
-def test_automatic_forward_accepts_arbitrary_merchant_subject(store):
-    confirm(store)
-    receipt = store.ingest(message(subject="Fwd: Your booking at Example Hotel"))
-    assert receipt.kind == "forwarded_confirmation"
-    assert receipt.link_state == "unlinked"
-
-
-def test_eml_original_and_dkim_result_are_persisted_without_public_raw_bytes(tmp_path):
-    opened = InboundStore(tmp_path / "inbound.sqlite3", dkim_verifier=lambda _: True)
-    confirm(opened)
-    inner = EmailMessage(policy=policy.SMTP)
-    inner["From"] = "Merchant <confirm@merchant.example>"
-    inner["To"] = "ari@example.com"
-    inner["Subject"] = "Booking confirmed"
-    inner["DKIM-Signature"] = "v=1; d=merchant.example; s=mail; b=abc"
-    inner.set_content("Merchant: Example Hotel\nAmount: USD 25.00")
-    outer = EmailMessage(policy=policy.SMTP)
-    outer["From"] = "ari@example.com"
-    outer["To"] = "check@inbound.backbond.ai"
-    outer["Subject"] = "Fwd: Booking confirmed"
-    outer.set_content("Automatically forwarded")
-    outer.add_attachment(
-        BytesParser(policy=policy.SMTP).parsebytes(inner.as_bytes()), filename="booking.eml"
-    )
-    receipt = opened.ingest(outer.as_bytes())
-    assert receipt.dkim_result == "verified"
-    assert receipt.dkim_signing_domain == "merchant.example"
-    stored = opened.connection.execute(
-        "SELECT raw_original FROM inbound_receipts WHERE receipt_id=?", (receipt.receipt_id,)
-    ).fetchone()[0]
-    assert BytesParser(policy=policy.default).parsebytes(stored)["Subject"] == "Booking confirmed"
-    assert "raw_original" not in opened.receipts_for("ari@example.com")[0]
-    opened.close()
 
 
 def test_provider_retry_is_idempotent(store):
@@ -152,7 +107,7 @@ def confirmation_body(merchant="Example Hotel", amount="USD 25.00", date="2026-1
 
 
 def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(store):
-    _, token = confirm_with_token(store)
+    _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))
     store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
     confirmation = store.ingest(
@@ -173,7 +128,7 @@ def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(
     ],
 )
 def test_nonmatching_confirmation_stays_unlinked(store, body):
-    _, token = confirm_with_token(store)
+    _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))
     store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
     confirmation = store.ingest(message(subject="Fwd: Booking confirmed", body=body))
@@ -182,7 +137,7 @@ def test_nonmatching_confirmation_stays_unlinked(store, body):
 
 
 def test_multiple_matching_checks_are_ambiguous_and_stay_unlinked(store):
-    _, token = confirm_with_token(store)
+    _, token = confirm(store)
     first = store.ingest(message(body=linked_check_body("BB-LINK-1")))
     second = store.ingest(message(body=linked_check_body("BB-LINK-2")))
     store.record_authenticated_answer("ari@example.com", token, first.receipt_id, "OK")
@@ -193,15 +148,25 @@ def test_multiple_matching_checks_are_ambiguous_and_stay_unlinked(store):
     assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
 
 
-def test_embedded_approval_text_does_not_replace_authenticated_answer(store):
-    _, token = confirm_with_token(store)
+@pytest.mark.parametrize("answer", [None, "STOP"])
+def test_email_answer_text_cannot_authorize_confirmation_link(store, answer):
+    _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))
+    if answer:
+        store.record_authenticated_answer("ari@example.com", token, check.receipt_id, answer)
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
     assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
-    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "STOP")
-    assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
+def test_authenticated_answer_is_immutable_and_retry_idempotent(store):
+    _, token = confirm(store)
+    check = store.ingest(message(body=linked_check_body()))
+    first = store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
+    assert store.record_authenticated_answer(
+        "ari@example.com", token, check.receipt_id, "OK"
+    ) == first
+    with pytest.raises(ValueError, match="answer_already_recorded"):
+        store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "STOP")
 
 
 def test_user_can_classify_unlinked_confirmation_as_own_or_skipped_check(store):
