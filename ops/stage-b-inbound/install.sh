@@ -15,6 +15,7 @@ vhost=/etc/nginx/sites-available/scanner.backbond.ai
 include_line='    include /etc/nginx/snippets/backbond-stage-b-inbound.conf;'
 backup=$(mktemp /tmp/backbond-stage-b-nginx.XXXXXX)
 runtime_backup=$(mktemp -d /tmp/backbond-stage-b-runtime.XXXXXX)
+chmod 0700 "$runtime_backup"
 installed=0
 
 rollback() {
@@ -29,6 +30,12 @@ rollback() {
         [ ! -f "$runtime_backup/inbound.service" ] || cp -a "$runtime_backup/inbound.service" "$unit_file"
         [ ! -f "$runtime_backup/receipts.service" ] || cp -a "$runtime_backup/receipts.service" "$receipt_unit_file"
         [ ! -f "$runtime_backup/snippet.conf" ] || cp -a "$runtime_backup/snippet.conf" "$snippet"
+        if [ -d "$runtime_backup/state" ]; then
+            rm -rf "$state_dir"
+            cp -a "$runtime_backup/state" "$state_dir"
+        fi
+        [ ! -f "$runtime_backup/stage-b-inbound.env" ] || cp -a "$runtime_backup/stage-b-inbound.env" "$secret_file"
+        [ ! -f "$runtime_backup/stage-b-receipts.env" ] || cp -a "$runtime_backup/stage-b-receipts.env" "$receipt_secret_file"
         systemctl daemon-reload || true
         systemctl restart backbond-stage-b-inbound.service backbond-stage-b-receipts.service || true
         nginx -t && systemctl reload nginx || true
@@ -48,6 +55,10 @@ cp -a "$vhost" "$backup"
 [ ! -f "$unit_file" ] || cp -a "$unit_file" "$runtime_backup/inbound.service"
 [ ! -f "$receipt_unit_file" ] || cp -a "$receipt_unit_file" "$runtime_backup/receipts.service"
 [ ! -f "$snippet" ] || cp -a "$snippet" "$runtime_backup/snippet.conf"
+systemctl stop backbond-stage-b-receipts.service backbond-stage-b-inbound.service || true
+[ ! -d "$state_dir" ] || cp -a "$state_dir" "$runtime_backup/state"
+[ ! -f "$secret_file" ] || cp -a "$secret_file" "$runtime_backup/stage-b-inbound.env"
+[ ! -f "$receipt_secret_file" ] || cp -a "$receipt_secret_file" "$runtime_backup/stage-b-receipts.env"
 installed=1
 rm -rf "$app_dir/stage_b_pilot"
 cp -a "$repo_root/stage_b_pilot" "$app_dir/stage_b_pilot"

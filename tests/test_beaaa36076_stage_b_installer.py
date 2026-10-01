@@ -13,6 +13,16 @@ def test_installer_restarts_both_units_and_records_runtime_version():
     assert "runtime_backup" in text and "rollback" in text
 
 
+def test_installer_protects_mutable_state_and_credentials_for_rollback():
+    text = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
+    assert 'chmod 0700 "$runtime_backup"' in text
+    assert 'systemctl stop backbond-stage-b-receipts.service backbond-stage-b-inbound.service' in text
+    assert 'cp -a "$state_dir" "$runtime_backup/state"' in text
+    assert 'cp -a "$runtime_backup/state" "$state_dir"' in text
+    assert 'cp -a "$secret_file" "$runtime_backup/stage-b-inbound.env"' in text
+    assert 'cp -a "$receipt_secret_file" "$runtime_backup/stage-b-receipts.env"' in text
+
+
 def test_receipt_service_has_its_own_protected_secret_file():
     unit = (ROOT / "ops/stage-b-inbound/backbond-stage-b-receipts.service").read_text()
     installer = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
