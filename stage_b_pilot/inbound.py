@@ -31,6 +31,9 @@ from .mail_filter import (
 CHECK_SUBJECT = "BackBond check"
 import re
 _FORWARD_PREFIX = re.compile(r"^(?:(?:fwd?|fw):\s*)+", re.IGNORECASE)
+_CANCELLATION_ACTION = re.compile(
+    r"^proposed action:\s*(?:cancel|cancellation)\b", re.IGNORECASE | re.MULTILINE
+)
 
 
 def _now() -> str:
@@ -319,12 +322,14 @@ class InboundStore:
         if normalized not in {"OK", "STOP"}:
             raise ValueError("answer_not_supported")
         check = self.connection.execute(
-            "SELECT receipt_id FROM inbound_receipts "
+            "SELECT receipt_id,body_text FROM inbound_receipts "
             "WHERE receipt_id=? AND user_id=? AND kind='check'",
             (check_id, user_id),
         ).fetchone()
         if check is None:
             raise ValueError("check_not_found")
+        if _CANCELLATION_ACTION.search(check["body_text"]):
+            raise ValueError("cancellation_answer_not_required")
         existing = self.connection.execute(
             "SELECT * FROM receipt_answers WHERE check_id=?", (check_id,)
         ).fetchone()
@@ -422,7 +427,6 @@ class InboundStore:
         )
         self.connection.commit()
         return state
-
     def answer_relay_payload(self, check_id: str) -> dict[str, str]:
         """Load the immutable check and registered agent destination for relay."""
         row = self.connection.execute(

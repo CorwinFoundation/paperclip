@@ -52,6 +52,11 @@ class DemoReceipt:
     limit_state: str = "limit not set"; obligation_status: str = "open"
     relay_status: str = "No answer sent"
 
+    @property
+    def is_cancellation_obligation(self) -> bool:
+        action = self.proposed_action.strip().lower()
+        return action.startswith("cancel ") or action.startswith("cancellation ")
+
 def _structured_body(body: str) -> dict[str, str]:
     allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "task limit":"task_limit", "obligation status":"obligation_status"}
     values = {}

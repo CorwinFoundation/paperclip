@@ -141,6 +141,37 @@ def test_addendum_four_cancellation_registers_without_approval_or_answer(tmp_pat
     store.close()
 
 
+def test_cancellation_registers_without_answer_or_approval(tmp_path):
+    from stage_b_pilot.inbound import InboundStore
+    from email.message import EmailMessage
+
+    store = InboundStore(tmp_path / "cancellation.sqlite3")
+    _, token = store.begin_signup("user@example.com")
+    store.confirm_signup("user@example.com", token)
+    message = EmailMessage()
+    message["From"] = "user@example.com"
+    message["To"] = "check@inbound.backbond.ai"
+    message["Subject"] = "BackBond check"
+    message.set_content(
+        "Check ID: BB-CANCEL-1\nProposed action: Cancel the demo booking\n"
+        "Terms: cancel before the deadline\nMoney at risk: $0.00"
+    )
+    check = store.ingest(message.as_bytes())
+
+    receipt = project_receipts(store.receipts_for("user@example.com"))[0]
+    page = render_receipts([receipt])
+
+    assert check.receipt_id
+    assert "Cancellation obligation registered" in page
+    assert "No OK or STOP response is required" in page
+    assert 'action="/stage-b-demo/answer"' not in page
+    assert 'value="OK"' not in page and 'value="STOP"' not in page
+    assert "APPROVED" not in page
+    with pytest.raises(ValueError, match="cancellation_answer_not_required"):
+        store.record_authenticated_answer("user@example.com", token, check.receipt_id, "OK")
+    store.close()
+
+
 def test_saved_answer_without_delivery_is_labelled_truthfully():
     row = dict(ROWS[0], authenticated_answer={"answer": "OK", "delivery_id": None})
     page = render_receipts(project_receipts([row]))
