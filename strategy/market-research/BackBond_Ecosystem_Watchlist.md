@@ -6,7 +6,7 @@ phase: 1
 canonical_terms_only: true
 focus_claim: "This watchlist protects BackBond's vendor-embedded trust-layer position by defining evidence thresholds for competitive action while preventing isolated market signals from changing the locked Focus."
 contracts_referenced: []
-ticket_refs: ["BEAAA-18312", "BEAAA-18363", "BEAAA-18366", "BEAAA-28318"]
+ticket_refs: ["BEAAA-18312", "BEAAA-18363", "BEAAA-18366", "BEAAA-28318", "BEAAA-37336"]
 proof_points_cited:
   - "Intercom Fin AIUC-1 certification and quarterly testing across 1,000+ scenarios"
   - "Schellman as the first authorized independent AIUC-1 auditor"
@@ -16,7 +16,9 @@ proof_points_cited:
   - "Complyance and DSALTA publicly market AIUC-1 workflow or compliance tooling"
   - "Drata publicly markets native AIUC-1 framework support"
   - "AIUC-1 lists Sensiba and A-LIGN as provisionally accredited auditors from 2026-08-01"
-version: 0.4
+  - "MSCI used AIUC-1 testing and reporting for a high-risk SecOps agent and as input to its 2026 SOX audit"
+  - "Sierra achieved AIUC-1 certification for its conversational AI system"
+version: 0.5
 prior_version: "BackBond_Ecosystem_Watchlist.md"
 self_audit_passed: true
 escalations_noted:
@@ -31,7 +33,7 @@ escalations_noted:
 **Status:** Internal operating ledger  
 **Owner:** CMO  
 **Cadence:** Monthly, first calendar day at 09:00 America/New_York, beginning 2026-08-01  
-**Last updated:** 2026-09-01
+**Last updated:** 2026-10-01
 **Issue authority:** BEAAA-18312  
 
 ## Purpose
@@ -113,6 +115,21 @@ Detect changes that affect BackBond's category position without reacting to isol
 | Owner and follow-up issue | CMO; [BEAAA-28318](/BEAAA/issues/BEAAA-28318). No separate follow-up issue: this execution records the monthly evidence and retains the existing interoperation posture. |
 | Strategy impact | No strategy change. Continue preparing for Scanner evidence and continuity signals to interoperate with AIUC-1 readiness and audit workflows without making certification the BackBond promise. Keep the launch protection path TBD and the `1,180+` figure frozen. |
 | Sources | [Drata AIUC-1 integration announcement](https://drata.com/blog/introducing-aiuc-1) (published 2026-07-16; checked 2026-09-01); [AIUC-1 accredited-auditor directory](https://www.aiuc-1.com/accredited-auditors) (checked 2026-09-01); [AIUC-1 certification overview](https://www.aiuc-1.com/aiuc-1-certification) (checked 2026-09-01); [AIUC-1 audit scoping](https://www.aiuc-1.com/scoping) (checked 2026-09-01) |
+
+### 2026-10-01 - monthly review
+
+| Field | Entry |
+|---|---|
+| New primary-source signals | AIUC's MSCI case study says MSCI used about 1,400 AIUC-1 tests on a privileged-access SecOps agent and provided the resulting attestation and report to its external auditors for the 2026 SOX audit. MSCI plans AIUC-1 certification for its highest-risk agent tier. AIUC also announced Sierra's conversational AI system certification and said Schellman reviewed Sierra's operational, governance, and security controls. AIUC's September company update reports that its consortium has grown to more than 250 security and risk leaders and that participating organizations help drive AIUC-1 adoption. |
+| Appetite-guide citation | None found in a published primary-source carrier or broker appetite guide or underwriting requirement during this review. AIUC's own insurance and underwriting positioning is an ecosystem signal, not a carrier or broker appetite guide. |
+| Procurement asks | No new verifiable buyer RFP, procurement requirement, or BackBond design-partner request naming AIUC-1 was found. MSCI's use is direct enterprise-adoption evidence, but the case study does not describe procurement language or a buyer requirement imposed on a vendor. |
+| Tooling vendors | Existing threshold remains met. No newly verified AIUC-1 implementation or compliance-tooling vendor was added in this review; Drata, Complyance, and DSALTA remain the directly sourced set in this ledger. |
+| Auditors | Existing threshold remains met. The current AIUC-1 directory lists Schellman as fully accredited and Coalfire, BDO, Grant Thornton, Mastermind, Sensiba, and A-LIGN as provisional. No additional audit firm was added since the September entry. |
+| Trigger state | Additional-tooling-vendors and additional-auditors thresholds remain met. Enterprise adoption broadened, but no carrier/broker appetite-guide or procurement-by-name trigger was verified. |
+| Disposition | `prepare interoperation` |
+| Owner and follow-up issue | CMO; [BEAAA-37336](/BEAAA/issues/BEAAA-37336). No separate follow-up issue: this execution records the monthly evidence and retains the existing interoperation posture. |
+| Strategy impact | No strategy change. MSCI's use of AIUC-1 evidence in a SOX context increases the value of audit-ready interoperability, while Sierra extends adoption in customer-facing agents. Continue preparing Scanner evidence and continuity signals for AIUC-1 readiness and audit workflows. Keep certification distinct from BackBond's company promise, the protection path TBD, and the `1,180+` figure frozen. |
+| Sources | [AIUC-1 MSCI case study](https://www.aiuc-1.com/research/how-msci-secures-its-highest-risk-ai-agents-with-aiuc-1) (published 2026-09-24; checked 2026-10-01); [AIUC-1 Sierra certification announcement](https://www.aiuc-1.com/research/sierra-achieves-aiuc-1-certification) (published 2026-09-17; checked 2026-10-01); [AIUC company update](https://aiuc.com/updates/series-a-announcement) (published 2026-09-15; checked 2026-10-01); [AIUC-1 accredited-auditor directory](https://standard.aiuc-1.com/accredited-auditors) (checked 2026-10-01) |
 
 ## Monthly entry template
 
