@@ -262,14 +262,14 @@ def test_preload_cleanup_preserves_current_and_keep_last_then_removes_stale(tmp_
     rollback = state / "releases" / ("d" * 40 + ".json")
     rollback.parent.mkdir()
     rollback.write_text(json.dumps({"configured_image":"rollback:image","status":"activated","recorded_at":"2026-09-01T00:00:00Z"}))
-    e["STUB_IMAGE_ROWS"] = "current:tag\\tsha256:current\nrollback:tag\\tsha256:rollback\nstale:tag\\tsha256:stale"
+    e["STUB_IMAGE_ROWS"] = "current:tag\\tsha256:current\nrollback:tag\\tsha256:rollback\nghcr.io/corwinfoundation/are-scanner:stale\\tsha256:stale"
     stale_archive = archive.parent / ("backbond-scanner-" + "e" * 40 + ".tar")
     stale_archive.write_bytes(b"stale")
     result = run(e, archive, archive_sha)
     assert result.returncode == 0, result.stderr
     trace = calls.read_text()
     assert "docker container prune -f" in trace
-    assert "docker image rm stale:tag" in trace
+    assert "docker image rm ghcr.io/corwinfoundation/are-scanner:stale" in trace
     assert "docker image rm current:tag" not in trace
     assert "docker image rm rollback:tag" not in trace
     assert "docker image prune -f" in trace
@@ -281,16 +281,30 @@ def test_preload_cleanup_removes_each_repository_reference_for_stale_image(tmp_p
     e, _, _, archive, archive_sha, calls = harness(tmp_path)
     e["STUB_IMAGE_ROWS"] = (
         "current:tag\\tsha256:current\n"
-        "registry.example/scanner:old\\tsha256:stale\n"
+        "ghcr.io/corwinfoundation/are-scanner:old\\tsha256:stale\n"
         "backbond-scanner-live:old\\tsha256:stale"
     )
     result = run(e, archive, archive_sha)
     assert result.returncode == 0, result.stderr
     trace = calls.read_text()
-    assert "docker image rm registry.example/scanner:old" in trace
+    assert "docker image rm ghcr.io/corwinfoundation/are-scanner:old" in trace
     assert "docker image rm backbond-scanner-live:old" in trace
     assert "docker image rm sha256:stale" not in trace
     assert "docker image rm current:tag" not in trace
+
+
+def test_preload_cleanup_ignores_non_scanner_images_with_revision_labels(tmp_path):
+    e, _, _, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_IMAGE_ROWS"] = (
+        "current:tag\\tsha256:current\n"
+        "docker.openhands.dev/openhands/openhands:1.7\\tsha256:unrelated\n"
+        "backbond-scanner-live:old\\tsha256:stale"
+    )
+    result = run(e, archive, archive_sha)
+    assert result.returncode == 0, result.stderr
+    trace = calls.read_text()
+    assert "docker image rm backbond-scanner-live:old" in trace
+    assert "docker image rm docker.openhands.dev/openhands/openhands:1.7" not in trace
 
 
 def test_exact_embedded_manifest_identity_success_writes_activated_receipt(tmp_path):

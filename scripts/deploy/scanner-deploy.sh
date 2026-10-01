@@ -110,6 +110,10 @@ PY
   # refs individually releases the same layers without broad --force deletion.
   while IFS=$'\t' read -r image_ref image_id; do
     [ -n "$image_ref" ] || continue
+    case "$image_ref" in
+      ghcr.io/corwinfoundation/are-scanner:*|backbond-scanner-live:*|'<none>:<none>') ;;
+      *) continue ;;
+    esac
     [ "$image_id" = "$current_id" ] && continue
     [ -n "$rollback_id" ] && [ "$image_id" = "$rollback_id" ] && continue
     if [ "$image_ref" = '<none>:<none>' ]; then
