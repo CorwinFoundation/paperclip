@@ -44,7 +44,7 @@ def harness(tmp_path: Path, *, duplicate=False, curl_fail=False, rollback_fail=F
     _write_exe(bin_dir / "docker", f'''#!/bin/sh
 echo "docker $*" >>"{calls}"
 case "$1 $2" in
- "image ls") case "$*" in *"label=org.opencontainers.image.revision=$STUB_SHA"*) echo sha256:loaded;; *) printf '%s\n' "${{STUB_IMAGE_IDS:-sha256:loaded}}";; esac;;
+ "image ls") case "$*" in *"label=org.opencontainers.image.revision=$STUB_SHA"*) echo sha256:loaded;; *) printf '%b\n' "${{STUB_IMAGE_ROWS:-loaded:tag\\tsha256:loaded}}";; esac;;
  "image inspect") case "$*" in *"{{.ID}}"*) case "$*" in *old:image*) echo sha256:current;; *rollback:image*) echo sha256:rollback;; *) echo sha256:loaded;; esac;; *) echo "$STUB_SHA";; esac;;
  "inspect --format") case "$*" in *Labels*) echo "$STUB_SHA";; *) echo sha256:running;; esac;;
 esac
@@ -262,19 +262,35 @@ def test_preload_cleanup_preserves_current_and_keep_last_then_removes_stale(tmp_
     rollback = state / "releases" / ("d" * 40 + ".json")
     rollback.parent.mkdir()
     rollback.write_text(json.dumps({"configured_image":"rollback:image","status":"activated","recorded_at":"2026-09-01T00:00:00Z"}))
-    e["STUB_IMAGE_IDS"] = "sha256:current\nsha256:rollback\nsha256:stale"
+    e["STUB_IMAGE_ROWS"] = "current:tag\\tsha256:current\nrollback:tag\\tsha256:rollback\nstale:tag\\tsha256:stale"
     stale_archive = archive.parent / ("backbond-scanner-" + "e" * 40 + ".tar")
     stale_archive.write_bytes(b"stale")
     result = run(e, archive, archive_sha)
     assert result.returncode == 0, result.stderr
     trace = calls.read_text()
     assert "docker container prune -f" in trace
-    assert "docker image rm sha256:stale" in trace
-    assert "docker image rm sha256:current" not in trace
-    assert "docker image rm sha256:rollback" not in trace
+    assert "docker image rm stale:tag" in trace
+    assert "docker image rm current:tag" not in trace
+    assert "docker image rm rollback:tag" not in trace
     assert "docker image prune -f" in trace
     assert "docker builder prune -f" in trace
     assert not stale_archive.exists()
+
+
+def test_preload_cleanup_removes_each_repository_reference_for_stale_image(tmp_path):
+    e, _, _, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_IMAGE_ROWS"] = (
+        "current:tag\\tsha256:current\n"
+        "registry.example/scanner:old\\tsha256:stale\n"
+        "backbond-scanner-live:old\\tsha256:stale"
+    )
+    result = run(e, archive, archive_sha)
+    assert result.returncode == 0, result.stderr
+    trace = calls.read_text()
+    assert "docker image rm registry.example/scanner:old" in trace
+    assert "docker image rm backbond-scanner-live:old" in trace
+    assert "docker image rm sha256:stale" not in trace
+    assert "docker image rm current:tag" not in trace
 
 
 def test_exact_embedded_manifest_identity_success_writes_activated_receipt(tmp_path):

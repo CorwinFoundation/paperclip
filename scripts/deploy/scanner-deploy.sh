@@ -105,11 +105,20 @@ PY
   # Active containers are never pruned. Remove stale stopped containers first so
   # their image references cannot pin obsolete scanner layers.
   "$DOCKER" container prune -f >/dev/null
-  for image_id in $("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL" --format '{{.ID}}' | sort -u); do
+  # Remove repository references, not image IDs. Docker rejects an unforced ID
+  # removal when one image is referenced by multiple repositories; removing its
+  # refs individually releases the same layers without broad --force deletion.
+  while IFS=$'\t' read -r image_ref image_id; do
+    [ -n "$image_ref" ] || continue
     [ "$image_id" = "$current_id" ] && continue
     [ -n "$rollback_id" ] && [ "$image_id" = "$rollback_id" ] && continue
-    "$DOCKER" image rm "$image_id" >/dev/null
-  done
+    if [ "$image_ref" = '<none>:<none>' ]; then
+      "$DOCKER" image rm "$image_id" >/dev/null
+    else
+      "$DOCKER" image rm "$image_ref" >/dev/null
+    fi
+  done < <("$DOCKER" image ls --no-trunc --filter "label=$REVISION_LABEL" \
+    --format '{{.Repository}}:{{.Tag}}\t{{.ID}}' | sort -u)
   "$DOCKER" image prune -f >/dev/null
   "$DOCKER" builder prune -f >/dev/null
   find "$ARCHIVE_DIR" -maxdepth 1 -type f -name 'backbond-scanner-*.tar' ! -path "$ARCHIVE" -delete
