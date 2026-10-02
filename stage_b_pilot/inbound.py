@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from email import policy
 from email.parser import BytesParser
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
 from typing import Callable
 
@@ -31,6 +31,9 @@ from .mail_filter import (
 CHECK_SUBJECT = "BackBond check"
 import re
 _FORWARD_PREFIX = re.compile(r"^(?:(?:fwd?|fw):\s*)+", re.IGNORECASE)
+_AGENT_ANSWER_SUBJECT = re.compile(
+    r"^BackBond answer\s+([^:]+):\s*(YES|NO)\s*$", re.IGNORECASE
+)
 _CANCELLATION_ACTION = re.compile(
     r"^proposed action:\s*(?:cancel|cancellation)\b", re.IGNORECASE | re.MULTILINE
 )
@@ -114,6 +117,24 @@ class InboundStore:
               channel TEXT NOT NULL CHECK(channel = 'receipt_page'),
               authorship TEXT NOT NULL CHECK(authorship = 'authenticated'),
               delivery_id TEXT
+            );
+            CREATE TABLE IF NOT EXISTS agent_email_answers (
+              check_id TEXT PRIMARY KEY REFERENCES inbound_receipts(receipt_id),
+              answer_receipt_id TEXT NOT NULL UNIQUE,
+              user_id TEXT NOT NULL REFERENCES inbound_users(user_id),
+              answer TEXT NOT NULL CHECK(answer IN ('YES','NO')),
+              answer_reported_at TEXT NOT NULL,
+              received_at TEXT NOT NULL,
+              channel TEXT NOT NULL CHECK(channel = 'agent_report'),
+              authorship TEXT NOT NULL CHECK(authorship = 'agent_reported'),
+              message_sha256 TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS booking_flags (
+              confirmation_receipt_id TEXT PRIMARY KEY REFERENCES inbound_receipts(receipt_id),
+              check_id TEXT NOT NULL REFERENCES inbound_receipts(receipt_id),
+              reason TEXT NOT NULL CHECK(reason IN ('answer_no','answer_missing','answer_late')),
+              flagged_at TEXT NOT NULL,
+              reminder_delivery_id TEXT
             );
             """
         )
@@ -221,12 +242,57 @@ class InboundStore:
     def ingest(self, raw_message: bytes) -> InboundReceipt:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
         sender = _address(message.get("From", ""))
+        subject = str(message.get("Subject", "")).strip()
+        answer_match = _AGENT_ANSWER_SUBJECT.match(subject)
         row = self.connection.execute(
             "SELECT user_id FROM inbound_users WHERE email=? AND confirmed_at IS NOT NULL", (sender,)
         ).fetchone()
+        if row is None and answer_match:
+            row = self.connection.execute(
+                "SELECT user_id FROM inbound_users WHERE agent_recipient=? AND confirmed_at IS NOT NULL",
+                (sender,),
+            ).fetchone()
         if row is None:
             raise PermissionError("sender_not_confirmed")
-        subject = str(message.get("Subject", "")).strip()
+        digest = hashlib.sha256(raw_message).hexdigest()
+        received_at = _now()
+        if answer_match:
+            reference, answer = answer_match.group(1).strip(), answer_match.group(2).upper()
+            checks = self.connection.execute(
+                "SELECT receipt_id FROM inbound_receipts WHERE user_id=? AND kind='check' "
+                "AND correlation_key=?", (row["user_id"], reference),
+            ).fetchall()
+            if len(checks) != 1:
+                raise ValueError("answer_check_not_found")
+            try:
+                reported = parsedate_to_datetime(str(message.get("Date", "")))
+                if reported.tzinfo is None:
+                    raise ValueError
+                answer_reported_at = reported.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+            except (TypeError, ValueError):
+                raise ValueError("answer_reported_time_invalid")
+            answer_receipt_id = "in_" + digest[:24]
+            existing = self.connection.execute(
+                "SELECT * FROM agent_email_answers WHERE check_id=? OR message_sha256=?",
+                (checks[0]["receipt_id"], digest),
+            ).fetchone()
+            if existing:
+                if existing["message_sha256"] != digest:
+                    raise ValueError("agent_answer_already_recorded")
+            else:
+                self.connection.execute(
+                    "INSERT INTO agent_email_answers"
+                    "(check_id,answer_receipt_id,user_id,answer,answer_reported_at,received_at,channel,authorship,message_sha256) "
+                    "VALUES(?,?,?,?,?,?,?,?,?)",
+                    (checks[0]["receipt_id"], answer_receipt_id, row["user_id"], answer,
+                     answer_reported_at, received_at, "agent_report", "agent_reported", digest),
+                )
+                self.connection.commit()
+            return InboundReceipt(
+                receipt_id=answer_receipt_id, user_id=row["user_id"], sender_address=sender,
+                subject=subject, kind="agent_answer", received_at=received_at,
+                message_sha256=digest, body_text=_body(message), correlation_key=reference,
+            )
         is_forward = bool(_FORWARD_PREFIX.match(subject))
         if subject == CHECK_SUBJECT:
             kind = "check"
@@ -234,7 +300,6 @@ class InboundStore:
             kind = "forwarded_confirmation"
         else:
             raise ValueError("subject_not_supported")
-        digest = hashlib.sha256(raw_message).hexdigest()
         prior = self.connection.execute(
             "SELECT * FROM inbound_receipts WHERE message_sha256=?", (digest,)
         ).fetchone()
@@ -258,7 +323,7 @@ class InboundStore:
                     raise ValueError("check_id_reused")
         receipt = InboundReceipt(
             receipt_id="in_" + digest[:24], user_id=row["user_id"], sender_address=sender,
-            subject=subject, kind=kind, received_at=_now(), message_sha256=digest,
+            subject=subject, kind=kind, received_at=received_at, message_sha256=digest,
             body_text=body_text, correlation_key=key,
             original_sha256=hashlib.sha256(raw_original).hexdigest(),
             dkim_signing_domain=dkim.signing_domain if dkim else None,
@@ -311,6 +376,13 @@ class InboundStore:
             ).fetchone()
             if answer is not None:
                 receipt["authenticated_answer"] = dict(answer)
+            agent_report = self.connection.execute(
+                "SELECT answer,answer_reported_at,received_at,channel,authorship,answer_receipt_id "
+                "FROM agent_email_answers WHERE check_id=? AND user_id=?",
+                (receipt["receipt_id"], receipt["user_id"]),
+            ).fetchone()
+            if agent_report is not None:
+                receipt["agent_report"] = dict(agent_report)
         return receipts
 
     def record_authenticated_answer(
@@ -374,7 +446,7 @@ class InboundStore:
 
     def link_confirmation(self, receipt_id: str) -> str:
         confirmation = self.connection.execute(
-            "SELECT receipt_id,user_id,body_text FROM inbound_receipts "
+            "SELECT receipt_id,user_id,body_text,received_at FROM inbound_receipts "
             "WHERE receipt_id=? AND kind='forwarded_confirmation'",
             (receipt_id,),
         ).fetchone()
@@ -385,21 +457,29 @@ class InboundStore:
         except ValueError:
             return "unlinked"
         checks = self.connection.execute(
-            "SELECT r.receipt_id,r.body_text,a.answer,a.authorship,a.channel "
-            "FROM inbound_receipts r LEFT JOIN receipt_answers a ON a.check_id=r.receipt_id "
+            "SELECT r.receipt_id,r.body_text,e.answer,e.received_at AS answer_received_at "
+            "FROM inbound_receipts r LEFT JOIN agent_email_answers e ON e.check_id=r.receipt_id "
             "WHERE r.user_id=? AND r.kind='check'",
             (confirmation["user_id"],),
         ).fetchall()
-        matches = [
-            row
-            for row in checks
-            if row["answer"] == "OK"
-            and row["authorship"] == "authenticated"
-            and row["channel"] == "receipt_page"
-            and check_matches_confirmation(row["body_text"], facts)
-        ]
+        matches = [row for row in checks if check_matches_confirmation(row["body_text"], facts)]
         if len(matches) != 1:
             return "unlinked"
+        match = matches[0]
+        answer_late = bool(match["answer_received_at"] and match["answer_received_at"] > confirmation["received_at"])
+        if match["answer"] != "YES" or answer_late:
+            reason = "answer_late" if answer_late else ("answer_no" if match["answer"] == "NO" else "answer_missing")
+            self.connection.execute(
+                "INSERT OR IGNORE INTO booking_flags"
+                "(confirmation_receipt_id,check_id,reason,flagged_at) VALUES(?,?,?,?)",
+                (receipt_id, match["receipt_id"], reason, _now()),
+            )
+            self.connection.execute(
+                "UPDATE inbound_receipts SET link_state=? ,linked_check_receipt_id=? WHERE receipt_id=?",
+                (reason, match["receipt_id"], receipt_id),
+            )
+            self.connection.commit()
+            return reason
         self.connection.execute(
             "UPDATE inbound_receipts SET link_state='linked',linked_check_receipt_id=? "
             "WHERE receipt_id=?",
@@ -407,6 +487,35 @@ class InboundStore:
         )
         self.connection.commit()
         return "linked"
+
+    def cancellation_reminder_payload(self, confirmation_receipt_id: str) -> dict[str, str]:
+        row = self.connection.execute(
+            "SELECT f.reason,f.check_id,u.agent_recipient,r.correlation_key "
+            "FROM booking_flags f JOIN inbound_receipts r ON r.receipt_id=f.check_id "
+            "JOIN inbound_users u ON u.user_id=r.user_id WHERE f.confirmation_receipt_id=?",
+            (confirmation_receipt_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("booking_flag_not_found")
+        if not row["agent_recipient"]:
+            raise ValueError("agent_recipient_not_configured")
+        return {"agent_recipient": row["agent_recipient"], "reference": row["correlation_key"], "reason": row["reason"]}
+
+    def record_reminder_delivery(self, confirmation_receipt_id: str, delivery_id: str) -> None:
+        if not delivery_id:
+            raise ValueError("delivery_id_missing")
+        self.connection.execute(
+            "UPDATE booking_flags SET reminder_delivery_id=? WHERE confirmation_receipt_id=? AND reminder_delivery_id IS NULL",
+            (delivery_id, confirmation_receipt_id),
+        )
+        self.connection.commit()
+
+    def reminder_was_delivered(self, confirmation_receipt_id: str) -> bool:
+        row = self.connection.execute(
+            "SELECT reminder_delivery_id FROM booking_flags WHERE confirmation_receipt_id=?",
+            (confirmation_receipt_id,),
+        ).fetchone()
+        return bool(row and row["reminder_delivery_id"])
 
     def classify_unlinked(self, email: str, receipt_id: str, ownership: str) -> str:
         if ownership not in {"own_booking", "agent_booking"}:

@@ -98,6 +98,8 @@ def test_http_receiver_health_and_authenticated_delivery(tmp_path, monkeypatch):
         assert receipts[0]["sender_address"] == "user@example.com"
         client.request("GET", "/receipts?email=user%40example.com")
         assert client.getresponse().status == 401
+        client.request("POST", "/answers", "")
+        assert client.getresponse().status == 404
     finally:
         server.shutdown()
         server.server_close()

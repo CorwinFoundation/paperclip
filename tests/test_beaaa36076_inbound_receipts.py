@@ -1,15 +1,19 @@
 from email.message import EmailMessage
+from email.utils import format_datetime
+from datetime import datetime, timezone
 
 import pytest
 
 from stage_b_pilot.inbound import InboundStore
 
 
-def message(sender="ari@example.com", subject="BackBond check", body="Merchant confirmation #42"):
+def message(sender="ari@example.com", subject="BackBond check", body="Merchant confirmation #42", *, sent_at=None):
     item = EmailMessage()
     item["From"] = sender
     item["To"] = "check@inbound.backbond.ai"
     item["Subject"] = subject
+    if sent_at is not None:
+        item["Date"] = format_datetime(sent_at)
     item.set_content(body)
     return item.as_bytes()
 
@@ -106,10 +110,14 @@ def confirmation_body(merchant="Example Hotel", amount="USD 25.00", date="2026-1
     return f"Merchant: {merchant}\nAmount: {amount}\nDate: {date}"
 
 
-def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(store):
+def test_confirmation_links_only_one_agent_yes_check_by_merchant_date_and_amount(store):
     _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))
-    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
+    store.configure_agent_recipient("ari@example.com", token, "agent@example.com")
+    store.ingest(message(
+        sender="agent@example.com", subject="BackBond answer BB-LINK-1: YES",
+        sent_at=datetime(2026, 10, 1, 10, 30, tzinfo=timezone.utc),
+    ))
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
@@ -129,8 +137,12 @@ def test_confirmation_links_only_one_approved_check_by_merchant_date_and_amount(
 )
 def test_nonmatching_confirmation_stays_unlinked(store, body):
     _, token = confirm(store)
-    check = store.ingest(message(body=linked_check_body()))
-    store.record_authenticated_answer("ari@example.com", token, check.receipt_id, "OK")
+    store.ingest(message(body=linked_check_body()))
+    store.configure_agent_recipient("ari@example.com", token, "agent@example.com")
+    store.ingest(message(
+        sender="agent@example.com", subject="BackBond answer BB-LINK-1: YES",
+        sent_at=datetime(2026, 10, 1, 10, 30, tzinfo=timezone.utc),
+    ))
     confirmation = store.ingest(message(subject="Fwd: Booking confirmed", body=body))
     assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
     assert store.receipts_for("ari@example.com")[1]["link_state"] == "unlinked"
@@ -138,10 +150,14 @@ def test_nonmatching_confirmation_stays_unlinked(store, body):
 
 def test_multiple_matching_checks_are_ambiguous_and_stay_unlinked(store):
     _, token = confirm(store)
-    first = store.ingest(message(body=linked_check_body("BB-LINK-1")))
-    second = store.ingest(message(body=linked_check_body("BB-LINK-2")))
-    store.record_authenticated_answer("ari@example.com", token, first.receipt_id, "OK")
-    store.record_authenticated_answer("ari@example.com", token, second.receipt_id, "OK")
+    store.ingest(message(body=linked_check_body("BB-LINK-1")))
+    store.ingest(message(body=linked_check_body("BB-LINK-2")))
+    store.configure_agent_recipient("ari@example.com", token, "agent@example.com")
+    for ref in ("BB-LINK-1", "BB-LINK-2"):
+        store.ingest(message(
+            sender="agent@example.com", subject=f"BackBond answer {ref}: YES",
+            sent_at=datetime(2026, 10, 1, 10, 30, tzinfo=timezone.utc),
+        ))
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
@@ -149,7 +165,7 @@ def test_multiple_matching_checks_are_ambiguous_and_stay_unlinked(store):
 
 
 @pytest.mark.parametrize("answer", [None, "STOP"])
-def test_email_answer_text_cannot_authorize_confirmation_link(store, answer):
+def test_old_receipt_page_answer_does_not_replace_agent_report(store, answer):
     _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))
     if answer:
@@ -157,7 +173,7 @@ def test_email_answer_text_cannot_authorize_confirmation_link(store, answer):
     confirmation = store.ingest(
         message(subject="Fwd: Booking confirmed", body=confirmation_body())
     )
-    assert store.link_confirmation(confirmation.receipt_id) == "unlinked"
+    assert store.link_confirmation(confirmation.receipt_id) == "answer_missing"
 def test_authenticated_answer_is_immutable_and_retry_idempotent(store):
     _, token = confirm(store)
     check = store.ingest(message(body=linked_check_body()))

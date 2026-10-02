@@ -25,8 +25,8 @@ MAX_CLOCK_SKEW_SECONDS = 900
 MAX_REQUEST_BYTES = 10 * 1024 * 1024
 
 
-class MailgunAnswerSender:
-    """Send one persisted decision and return provider acceptance identity."""
+class MailgunCancellationReminderSender:
+    """Send a DEMO cancellation reminder to the registered agent address."""
 
     def __init__(self, api_url: str, api_key: str, from_address: str) -> None:
         self.api_url = api_url
@@ -34,27 +34,18 @@ class MailgunAnswerSender:
         self.from_address = from_address
 
     def __call__(self, relay: Mapping[str, str]) -> str:
-        values = {}
-        for line in relay["body_text"].splitlines():
-            label, separator, value = line.partition(":")
-            if separator:
-                values[label.strip().lower()] = value.strip()
-        answer = relay["answer"]
-        decision = "APPROVED" if answer == "OK" else "STOP"
         reference = relay["reference"]
         text = "\n".join((
-            f"BackBond DEMO decision: {decision}",
+            "BackBond DEMO cancellation reminder",
             f"Check reference: {reference}",
-            f"Proposed action: {values.get('proposed action') or 'Unknown'}",
-            f"Price: {values.get('price') or 'Unknown'}",
-            f"Money at risk: {values.get('money at risk') or 'Unknown'}",
-            f"Deposit: {values.get('deposit') or 'Unknown'}",
-            f"Terms: {values.get('terms') or 'Unknown'}",
+            f"Reason: {relay['reason']}",
+            "A matching merchant confirmation was reported. Review and cancel the booking if appropriate.",
+            "This is an agent-reported DEMO observation, not a verified decision.",
         ))
         body = urlencode({
             "from": self.from_address,
             "to": relay["agent_recipient"],
-            "subject": f"BackBond {decision} {reference}",
+            "subject": f"BackBond cancellation reminder {reference}",
             "text": text,
             "v:backbond-check-id": reference,
         }).encode()
@@ -122,7 +113,7 @@ def ingest_route(
     return store.ingest(message_bytes)
 
 
-def make_handler(db_path: str, signing_key: str, answer_sender=None):
+def make_handler(db_path: str, signing_key: str, reminder_sender=None):
     """Build the localhost HTTP receiver used behind the TLS reverse proxy."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -157,37 +148,6 @@ def make_handler(db_path: str, signing_key: str, answer_sender=None):
                 store.close()
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path == "/answers":
-                try:
-                    length = int(self.headers.get("Content-Length", "0"))
-                    fields = {key: values[-1] for key, values in parse_qs(self.rfile.read(length).decode()).items() if values}
-                    authorization = self.headers.get("Authorization", "")
-                    token = authorization[7:] if authorization.startswith("Bearer ") else ""
-                    store = InboundStore(db_path)
-                    recorded = store.record_authenticated_answer(fields.get("email", ""), token, fields.get("check_id", ""), fields.get("answer", ""))
-                    # Persistence deliberately precedes delivery. A delivery failure leaves
-                    # a durable authenticated decision with no misleading delivery id.
-                    if recorded.get("delivery_id"):
-                        self._reply(200, {"mode": "DEMO", "answer": recorded["answer"], "delivery_id": recorded["delivery_id"], "provider_accepted": True, "idempotent_replay": True})
-                        return
-                    if answer_sender is None:
-                        self._reply(202, {"mode": "DEMO", "answer": recorded["answer"], "delivery_id": None, "retryable": True})
-                        return
-                    try:
-                        delivery_id = answer_sender(store.answer_relay_payload(fields["check_id"]))
-                        store.record_delivery_id(fields["check_id"], delivery_id)
-                    except Exception as exc:
-                        store.record_delivery_failure(fields["check_id"], type(exc).__name__)
-                        self._reply(502, {"error": "answer_saved_delivery_failed", "retryable": True})
-                        return
-                    self._reply(200, {"mode": "DEMO", "answer": recorded["answer"], "delivery_id": delivery_id, "provider_accepted": True})
-                except (PermissionError, ValueError, KeyError):
-                    self._reply(400, {"error": "answer_rejected"})
-                except Exception:
-                    self._reply(502, {"error": "answer_saved_delivery_failed"})
-                finally:
-                    if "store" in locals(): store.close()
-                return
             if self.path != "/mailgun/mime":
                 self._reply(404, {"error": "not_found"})
                 return
@@ -216,6 +176,12 @@ def make_handler(db_path: str, signing_key: str, answer_sender=None):
             except Exception:
                 self._reply(500, {"error": "receipt_write_failed"})
             else:
+                if receipt.kind == "forwarded_confirmation":
+                    outcome = store.link_confirmation(receipt.receipt_id)
+                    if (outcome in {"answer_no", "answer_missing", "answer_late"}
+                            and reminder_sender and not store.reminder_was_delivered(receipt.receipt_id)):
+                        delivery_id = reminder_sender(store.cancellation_reminder_payload(receipt.receipt_id))
+                        store.record_reminder_delivery(receipt.receipt_id, delivery_id)
                 self._reply(200, {"accepted": True, "receipt_id": receipt.receipt_id})
             finally:
                 store.close()
@@ -238,7 +204,7 @@ def main() -> None:
     api_url = os.environ.get("BACKBOND_MAILGUN_MESSAGES_URL", "")
     api_key = os.environ.get("BACKBOND_MAILGUN_API_KEY", "")
     from_address = os.environ.get("BACKBOND_MAILGUN_FROM", "")
-    sender = MailgunAnswerSender(api_url, api_key, from_address) if all((api_url, api_key, from_address)) else None
+    sender = MailgunCancellationReminderSender(api_url, api_key, from_address) if all((api_url, api_key, from_address)) else None
     ThreadingHTTPServer((args.host, args.port), make_handler(args.db, signing_key, sender)).serve_forever()
 
 
