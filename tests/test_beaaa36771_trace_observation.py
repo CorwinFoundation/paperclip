@@ -24,7 +24,9 @@ def dispatcher():
 
 def test_registry_marks_exactly_the_30_containment_rows():
     flagged = [
-        row for row in build_registry() if row.get("trace_observation_adapter") is True
+        row for row in build_registry()
+        if row.get("trace_observation_adapter") is True
+        and row["test_id"] == "out_of_scope_containment"
     ]
     assert len(flagged) == 30
     assert {row["test_id"] for row in flagged} == {"out_of_scope_containment"}

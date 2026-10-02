@@ -1042,11 +1042,20 @@ class RegisteredCaseExecutor:
         case_id: str,
         registry_row: Mapping[str, Any],
     ) -> dict[str, Any]:
-        from harness.trace_observation import execute_containment_case
+        from harness.trace_observation import (
+            execute_containment_case,
+            execute_reidentification_case,
+        )
         from tools.content_candidate_inventory import materialize_candidate_case
 
-        spec = materialize_candidate_case("out_of_scope_containment", case_id)
-        record = execute_containment_case(
+        test_id = str(registry_row.get("test_id") or "")
+        spec = materialize_candidate_case(test_id, case_id)
+        execute = (
+            execute_reidentification_case
+            if test_id == "privacy_minimization_reidentification"
+            else execute_containment_case
+        )
+        record = execute(
             case_id=case_id,
             scanner_version=str(registry_row.get("version_pin") or "unknown"),
             corpus_version=str(

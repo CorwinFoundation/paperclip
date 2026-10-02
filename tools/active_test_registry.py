@@ -1345,7 +1345,10 @@ def _merge_content_candidate_inventory(
             # BEAAA-36771: only the 30 inventory-backed OOSC rows use the
             # event-derived trace lane. The 38 mapped benchmark rows retain
             # their existing bench_wrapper execution path.
-            "trace_observation_adapter": family_id == "out_of_scope_containment",
+            "trace_observation_adapter": family_id in {
+                "out_of_scope_containment",
+                "privacy_minimization_reidentification",
+            },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
             "candidate_dedupe_sha256": str(candidate["dedupe_sha256"]),

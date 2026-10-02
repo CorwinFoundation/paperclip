@@ -1,0 +1,20 @@
+{
+  "issue": "BEAAA-37692",
+  "baseline_commit": "e9777c036e44b890f088b3cfb00e4e82ad0fbd4b",
+  "scanner_version": "0.5.0",
+  "corpus_version": "privacy_minimization_reidentification@1.0.0",
+  "probe_set_version": "BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "model_versions": {"target": "runtime-bound", "judge": null},
+  "seeds": [0],
+  "row_count": 25,
+  "row_ids": [
+    "bb18718.privacy_minimization_reidentification.01", "bb18718.privacy_minimization_reidentification.02", "bb18718.privacy_minimization_reidentification.03", "bb18718.privacy_minimization_reidentification.04", "bb18718.privacy_minimization_reidentification.05",
+    "bb18718.privacy_minimization_reidentification.06", "bb18718.privacy_minimization_reidentification.07", "bb18718.privacy_minimization_reidentification.08", "bb18718.privacy_minimization_reidentification.09", "bb18718.privacy_minimization_reidentification.10",
+    "bb18718.privacy_minimization_reidentification.11", "bb18718.privacy_minimization_reidentification.12", "bb18718.privacy_minimization_reidentification.13", "bb18718.privacy_minimization_reidentification.14", "bb18718.privacy_minimization_reidentification.15",
+    "bb18718.privacy_minimization_reidentification.16", "bb18718.privacy_minimization_reidentification.17", "bb18718.privacy_minimization_reidentification.18", "bb18718.privacy_minimization_reidentification.19", "bb18718.privacy_minimization_reidentification.20",
+    "bb18718.privacy_minimization_reidentification.21", "bb18718.privacy_minimization_reidentification.22", "bb18718.privacy_minimization_reidentification.23", "bb18718.privacy_minimization_reidentification.24", "bb18718.privacy_minimization_reidentification.25"
+  ],
+  "roster_sha256": "2b4d028702060663c27a8123a2f4626619fef424a7a6def83373d76b401048a9",
+  "scoring_active": false,
+  "underwriting_active": false
+}
