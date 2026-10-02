@@ -42,9 +42,8 @@ def test_installer_preserves_application_and_units_for_rollback():
     assert "systemctl restart backbond-stage-b-inbound.service backbond-stage-b-receipts.service" in INSTALLER
 
 
-def test_public_receipt_and_logout_routes_reach_isolated_service():
+def test_public_receipt_and_logout_routes_reach_isolated_service_without_answer_relay():
     assert "location = /stage-b-demo/receipts" in NGINX
     assert "location = /stage-b-demo/logout" in NGINX
     assert "http://127.0.0.1:8789/stage-b-demo/logout" in NGINX
-    assert "location = /stage-b-demo/answer" in NGINX
-    assert "http://127.0.0.1:8789/stage-b-demo/answer" in NGINX
+    assert "stage-b-demo/answer" not in NGINX

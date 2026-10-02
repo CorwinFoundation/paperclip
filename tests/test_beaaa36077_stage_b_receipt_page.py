@@ -2,7 +2,7 @@ import json, threading, time, urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from stage_b_pilot.receipt_page import CredentialStore, build_server, project_receipts, render_receipts
-ROWS=[{"receipt_id":"in_check","kind":"check","correlation_key":"BB-1","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum\nYour answer: Approved"},{"receipt_id":"in_confirm","kind":"forwarded_confirmation","correlation_key":"BB-1","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum"}]
+ROWS=[{"receipt_id":"in_check","kind":"check","correlation_key":"BB-1","received_at":"2026-10-02T04:05:06Z","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum\nWindow start: 2026-10-03T10:00:00Z\nWindow end: 2026-10-03T12:00:00Z\nYour answer: Approved"},{"receipt_id":"in_confirm","kind":"forwarded_confirmation","correlation_key":"BB-1","body_text":"Check ID: BB-1\nProposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum"}]
 class Upstream(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("Authorization") != "Bearer confirmed-token": self.send_response(401); self.end_headers(); return
@@ -19,23 +19,24 @@ def _servers(tmp_path, ttl=900, max_sessions=256):
     return upstream,page,threads,store
 def test_persisted_rows_are_projected_and_sanitized():
     receipt=project_receipts(ROWS)[0]; assert receipt.outcome == "MATCH"; page=render_receipts([receipt])
-    for label in ("DEMO PRIVATE","Check ID / email reference","BB-1","Internal receipt ID","Proposed action","Terms","Deposit","Money at risk","Your answer","Later outcome"): assert label in page
+    for label in ("DEMO PRIVATE","Check ID / email reference","BB-1","Internal receipt ID","Proposed action","Terms","Deposit","Money at risk","Reported by your agent","Agent-reported window start","2026-10-03T10:00:00Z","Agent-reported window end","2026-10-03T12:00:00Z","Agent report received","2026-10-02T04:05:06Z","Later outcome"): assert label in page
+    assert 'name="answer"' not in page and "/stage-b-demo/answer" not in page
     hostile=dict(ROWS[0],body_text="Proposed action: <script>alert(1)</script>"); assert "<script>" not in render_receipts(project_receipts([hostile]))
 
-def test_identical_actions_keep_distinct_stop_ok_references_and_escape_them():
+def test_identical_actions_keep_distinct_references_and_escape_them():
     first=dict(ROWS[0],receipt_id="in_stop",correlation_key="ARI-STOP",body_text=ROWS[0]["body_text"].replace("BB-1","ARI-STOP"))
     second=dict(ROWS[0],receipt_id='in_ok"><script>alert(1)</script>',correlation_key="ARI-OK",body_text=ROWS[0]["body_text"].replace("BB-1","ARI-OK"))
     page=render_receipts(project_receipts([first,second]))
     assert "ARI-STOP" in page and "ARI-OK" in page
-    assert 'name="check_id" value="in_stop"' in page and 'in_ok&quot;&gt;&lt;script&gt;' in page
+    assert "in_stop" in page and 'in_ok&quot;&gt;&lt;script&gt;' in page
     assert "<script>" not in page
 
-def test_missing_or_conflicting_reference_prevents_decision():
+def test_missing_or_conflicting_reference_remains_view_only():
     missing=dict(ROWS[0],correlation_key=None,body_text="Proposed action: Reserve one desk lamp\nTerms: Ask before substitutions\nDeposit: $0.00\nMoney at risk: $48.00 maximum")
     conflict=dict(ROWS[0],correlation_key="BB-STORED",body_text=ROWS[0]["body_text"].replace("BB-1","BB-BODY"))
     page=render_receipts(project_receipts([missing,conflict]))
-    assert page.count("Decision unavailable: the email reference is missing or conflicting.") == 2
-    assert 'name="answer"' not in page
+    assert page.count("AMBIGUOUS EVIDENCE") == 4
+    assert 'name="answer"' not in page and "/stage-b-demo/answer" not in page
 def test_authenticated_form_renders_persisted_receipts_with_private_headers(tmp_path):
     upstream,page,threads,store=_servers(tmp_path); base=f"http://127.0.0.1:{page.server_port}"
     try:
@@ -133,14 +134,9 @@ def test_addendum_four_cancellation_registers_without_approval_or_answer(tmp_pat
     store.ingest(message.as_bytes()); row=store.receipts_for("user@example.com")[0]; receipt=project_receipts([row])[0]
     assert receipt.user_answer == "No response required"
     assert receipt.limit_state == "over your limit" and receipt.obligation_status == "open"
-    assert receipt.response_required is False and receipt.decision_allowed is False
     page=render_receipts([receipt])
     assert 'name="answer"' not in page and "BackBond APPROVED" not in page
-    assert "No OK or STOP response is required for a cancellation check." in page
-    assert "Cancellation obligation registered; reminders started" in page
-    store.close()
-
-
+    assert "Reported by your agent" in page
 def test_cancellation_registers_without_answer_or_approval(tmp_path):
     from stage_b_pilot.inbound import InboundStore
     from email.message import EmailMessage
@@ -162,39 +158,39 @@ def test_cancellation_registers_without_answer_or_approval(tmp_path):
     page = render_receipts([receipt])
 
     assert check.receipt_id
-    assert "Cancellation obligation registered" in page
-    assert "No OK or STOP response is required" in page
+    assert "Reported by your agent" in page
+    assert "No response required" in page
     assert 'action="/stage-b-demo/answer"' not in page
     assert 'value="OK"' not in page and 'value="STOP"' not in page
     assert "APPROVED" not in page
     with pytest.raises(ValueError, match="cancellation_answer_not_required"):
         store.record_authenticated_answer("user@example.com", token, check.receipt_id, "OK")
     store.close()
+    store.close()
 
 
-def test_saved_answer_without_delivery_is_labelled_truthfully():
+def test_authenticated_page_answer_is_ignored_in_favour_of_agent_report():
     row = dict(ROWS[0], authenticated_answer={"answer": "OK", "delivery_id": None})
     page = render_receipts(project_receipts([row]))
-    assert "Answer saved; not sent to the agent" in page
-    assert "Email accepted for sending" not in page
+    assert "Reported by your agent</dt><dd>Approved" in page
+    assert "Answer saved" not in page
 
     demo_row = dict(ROWS[0], authenticated_answer={"answer": "STOP", "delivery_id": "demo-no-delivery"})
     demo_page = render_receipts(project_receipts([demo_row]))
-    assert "Answer saved; not sent to the agent" in demo_page
-    assert "Email accepted for sending" not in demo_page
+    assert "Reported by your agent</dt><dd>Approved" in demo_page
+    assert "Answer saved" not in demo_page
 
 
-def test_answer_route_discloses_demo_no_delivery(tmp_path):
+def test_answer_route_is_disabled(tmp_path):
     upstream,page,threads,store=_servers(tmp_path); base=f"http://127.0.0.1:{page.server_port}"
     try:
         login=urllib.parse.urlencode({"email":"user@example.com","passphrase":"correct horse battery"}).encode()
         cookie=urllib.request.urlopen(urllib.request.Request(base+"/stage-b-demo/receipts",data=login)).headers["Set-Cookie"].split(";",1)[0]
         answer=urllib.parse.urlencode({"check_id":"in_check","answer":"OK"}).encode()
         request=urllib.request.Request(base+"/stage-b-demo/answer",data=answer,headers={"Cookie":cookie})
-        with urllib.request.urlopen(request) as response:
-            body=response.read().decode()
-            assert "Answer saved; it has not been sent to the agent" in body
-            assert "Answer saved and sent to the agent" not in body
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request)
+        assert error.value.code == 404
     finally:
         for server in (page,upstream): server.shutdown(); server.server_close()
         for thread in threads: thread.join(timeout=5)

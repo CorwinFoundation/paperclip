@@ -47,10 +47,10 @@ class DemoReceipt:
     check_id: str; proposed_action: str; terms: str; deposit: str
     money_at_risk: str; user_answer: str; outcome: str; outcome_detail: str
     correlation_reference: str = "Reference unavailable"
-    decision_allowed: bool = False
-    response_required: bool = True
     limit_state: str = "limit not set"; obligation_status: str = "open"
-    relay_status: str = "No answer sent"
+    reported_window_start: str = "Not provided"
+    reported_window_end: str = "Not provided"
+    reported_at: str = "Not provided"
 
     @property
     def is_cancellation_obligation(self) -> bool:
@@ -58,7 +58,7 @@ class DemoReceipt:
         return action.startswith("cancel ") or action.startswith("cancellation ")
 
 def _structured_body(body: str) -> dict[str, str]:
-    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "task limit":"task_limit", "obligation status":"obligation_status"}
+    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "window start":"window_start", "window end":"window_end", "task limit":"task_limit", "obligation status":"obligation_status"}
     values = {}
     for line in body.splitlines():
         key, separator, value = line.partition(":")
@@ -93,7 +93,6 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
         candidates = confirmations.get(key, []) if key else []
         proposed_action = fields.get("proposed_action", "Not provided")
         cancellation_check = proposed_action.strip().lower().startswith("cancel ")
-        decision_allowed = (not cancellation_check) and bool(key) and check_counts.get(key, 0) == 1
         if (not key) or check_counts.get(key, 0) > 1 or len(candidates) > 1:
             outcome, detail = "AMBIGUOUS EVIDENCE", "The check identifier or confirmation evidence is ambiguous."
         elif not candidates:
@@ -107,16 +106,12 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
                 matches = all(confirmed[name] == fields[name] for name in required)
                 outcome = "MATCH" if matches else "MISMATCH"
                 detail = "The observed result matched the submitted check." if matches else "The observed result differed from the submitted check."
-        stored = row.get("authenticated_answer") or {}
-        answer = "No response required" if cancellation_check else str(stored.get("answer") or fields.get("user_answer", "Not provided"))
+        answer = "No response required" if cancellation_check else fields.get("user_answer", "Not provided")
         limit = fields.get("task_limit", "limit not set")
         limit_state = "over your limit" if limit.lower() == "over" else "limit not set" if limit.lower() in {"", "not set"} else limit
         obligation = fields.get("obligation_status", "open").lower()
         if obligation not in {"open", "cancelled", "missed"}: obligation = "open"
-        delivery_id = stored.get("delivery_id")
-        was_sent = bool(delivery_id and delivery_id != "demo-no-delivery")
-        relay_status = "Cancellation obligation registered; reminders started" if cancellation_check else "Email accepted for sending; agent acknowledgement not yet observed" if was_sent else "Answer saved; not sent to the agent" if stored else "No answer sent"
-        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], proposed_action, fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, str(key) if key else "Reference unavailable", decision_allowed, not cancellation_check, limit_state, obligation, relay_status))
+        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], proposed_action, fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, str(key) if key else "Reference unavailable", limit_state, obligation, fields.get("window_start", "Not provided"), fields.get("window_end", "Not provided"), str(row.get("received_at") or "Not provided")))
     return projected
 
 def _page(content: str) -> str:
@@ -133,13 +128,7 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
         blocks = []
         for receipt in receipts:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
-            if not receipt.response_required:
-                controls = '<p role="status">No OK or STOP response is required for a cancellation check.</p>'
-            elif receipt.decision_allowed:
-                controls = f'''<form method="post" action="/stage-b-demo/answer"><input type="hidden" name="check_id" value="{v['check_id']}"><button name="answer" value="OK" type="submit">OK</button> <button name="answer" value="STOP" type="submit">STOP</button></form>'''
-            else:
-                controls = '<p class="error" role="alert">Decision unavailable: the email reference is missing or conflicting.</p>'
-            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Your answer</dt><dd>{v['user_answer']}</dd><dt>Relay status</dt><dd>{v['relay_status']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl>{controls}</article>''')
+            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Reported by your agent</dt><dd>{v['user_answer']}</dd><dt>Agent-reported window start</dt><dd>{v['reported_window_start']}</dd><dt>Agent-reported window end</dt><dd>{v['reported_window_end']}</dd><dt>Agent report received</dt><dd>{v['reported_at']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
         body = "".join(blocks)
     return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
@@ -151,19 +140,6 @@ def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[st
     finally: connection.close()
     if response.status != 200: raise PermissionError
     return payload.get("receipts", [])
-
-def submit_answer(host: str, port: int, email: str, token: str, check_id: str, answer: str) -> str:
-    body = __import__("urllib.parse").parse.urlencode({"email":email, "check_id":check_id, "answer":answer})
-    connection = HTTPConnection(host, port, timeout=5)
-    try:
-        connection.request("POST", "/answers", body, {"Authorization":f"Bearer {token}", "Content-Type":"application/x-www-form-urlencoded"})
-        response = connection.getresponse(); payload = response.read()
-    finally: connection.close()
-    if response.status == 200:
-        result = json.loads(payload)
-        return "sent" if result.get("provider_accepted") is True and result.get("delivery_id") else "saved_not_sent"
-    if response.status in {202, 502}: return "saved_not_sent"
-    raise PermissionError
 
 def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
                  session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256) -> type[BaseHTTPRequestHandler]:
@@ -215,20 +191,6 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
                 if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
                 self._reply(200, render_login(), "bb_demo_session=; Max-Age=0; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"); return
-            if path == "/stage-b-demo/answer":
-                morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
-                identity = session_credentials(morsel.value) if morsel else None
-                try:
-                    length = int(self.headers.get("Content-Length", "0")); form = parse_qs(self.rfile.read(length).decode())
-                    check_id, answer = form.get("check_id", [""])[-1], form.get("answer", [""])[-1]
-                    if not identity or answer not in {"OK", "STOP"}: raise PermissionError
-                    current = {receipt.check_id: receipt for receipt in project_receipts(fetch_receipts(upstream_host, upstream_port, *identity))}
-                    if check_id not in current or not current[check_id].decision_allowed: raise PermissionError
-                    relay_result = submit_answer(upstream_host, upstream_port, *identity, check_id, answer)
-                    rows = fetch_receipts(upstream_host, upstream_port, *identity)
-                except (ValueError, PermissionError, OSError, json.JSONDecodeError): self._reply(400, _page('<p class="error" role="alert">The answer could not be saved.</p>')); return
-                notice = '<p role="status">Answer saved. Email accepted for sending; agent acknowledgement has not been observed.</p>' if relay_result == "sent" else '<p class="error" role="status">Answer saved; it has not been sent to the agent. You can retry safely.</p>'
-                self._reply(200, _page(notice + render_receipts(project_receipts(rows)).split("<main>", 1)[1].split("</main>", 1)[0])); return
             if path != "/stage-b-demo/receipts": self.send_error(404); return
             try:
                 length = int(self.headers.get("Content-Length","0"))
