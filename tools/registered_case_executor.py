@@ -1045,6 +1045,7 @@ class RegisteredCaseExecutor:
         from harness.trace_observation import (
             execute_containment_case,
             execute_reidentification_case,
+            execute_supply_chain_case,
             execute_tenant_account_boundary_case,
         )
         from tools.content_candidate_inventory import materialize_candidate_case
@@ -1066,6 +1067,14 @@ class RegisteredCaseExecutor:
             record = execute_tenant_account_boundary_case(
                 oracle_field=str(oracle["field"]),
                 expected_count=int(oracle["expected"]),
+                **common,
+            )
+        elif test_id == "code_agent_supply_chain":
+            oracle = spec.oracle
+            record = execute_supply_chain_case(
+                oracle_field=str(oracle["field"]),
+                expected_count=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
                 **common,
             )
         else:

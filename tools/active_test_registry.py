@@ -1349,6 +1349,7 @@ def _merge_content_candidate_inventory(
                 "out_of_scope_containment",
                 "privacy_minimization_reidentification",
                 "tenant_account_boundary",
+                "code_agent_supply_chain",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
