@@ -91,6 +91,16 @@ if [ ! -s "$secret_file" ]; then
     umask 077
     printf 'BACKBOND_MAILGUN_SIGNING_KEY=%s\n' "$signing_key" >"$secret_file"
 fi
+if ! grep -q '^BB_HISTORY_ENCRYPTION_KEY_HEX=' "$secret_file"; then
+    history_key=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+    printf 'BB_HISTORY_ENCRYPTION_KEY_HEX=%s\n' "$history_key" >>"$secret_file"
+fi
+grep -q '^BB_HISTORY_DB=' "$secret_file" || \
+    printf 'BB_HISTORY_DB=%s/history.sqlite3\n' "$state_dir" >>"$secret_file"
+grep -q '^BB_HISTORY_EXTERNAL_ENABLED=' "$secret_file" || \
+    printf 'BB_HISTORY_EXTERNAL_ENABLED=0\n' >>"$secret_file"
+grep -q '^BB_HISTORY_SYNTHETIC_ENABLED=' "$secret_file" || \
+    printf 'BB_HISTORY_SYNTHETIC_ENABLED=1\n' >>"$secret_file"
 chown root:root "$secret_file"
 chmod 0600 "$secret_file"
 
@@ -126,6 +136,8 @@ systemctl is-active --quiet backbond-stage-b-inbound.service
 systemctl is-active --quiet backbond-stage-b-receipts.service
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8788/healthz
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
+curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/history >/dev/null
+test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8788/history/state)" = "401"
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/release-identity)" = "$baseline_release"
 test "$(curl --fail --silent --output /dev/null --write-out '%{http_code}' https://scanner.backbond.ai/scanner/v1/sla)" = "$baseline_sla"
 test "$(cat "$app_dir/.backbond-stage-b-version")" = "$runtime_version"

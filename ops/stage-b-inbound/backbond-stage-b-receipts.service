@@ -7,6 +7,7 @@ Requires=backbond-stage-b-inbound.service
 Type=simple
 User=backbond-stage-b
 Group=backbond-stage-b
+UMask=0077
 EnvironmentFile=/etc/backbond/stage-b-receipts.env
 WorkingDirectory=/opt/backbond-stage-b/app
 EnvironmentFile=/etc/backbond/stage-b-receipts.env

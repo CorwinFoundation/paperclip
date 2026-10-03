@@ -13,7 +13,8 @@ class CredentialStore:
     def __init__(self, path: str): self.path = path
     def _read(self):
         try:
-            if os.stat(self.path).st_mode & 0o077: raise PermissionError("credential file must be mode 0600")
+            if os.name != "nt" and os.stat(self.path).st_mode & 0o077:
+                raise PermissionError("credential file must be mode 0600")
             with open(self.path, encoding="utf-8") as source: return json.load(source)
         except FileNotFoundError: return {}
     def verify(self, email: str, passphrase: str):
@@ -116,7 +117,7 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
 
 def _page(content: str) -> str:
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="no-referrer"><title>Private receipts | BackBond</title><style>
-:root{{--ink:#0c2030;--paper:#f7f8f6;--copper:#9a4f24;--line:#cbd3d6;--muted:#52636c;--white:#fff;font-family:Inter,Arial,sans-serif;color:var(--ink);background:var(--paper);color-scheme:light}}*{{box-sizing:border-box}}body{{margin:0}}header{{min-height:68px;padding:1rem max(20px,calc((100vw - 980px)/2));display:flex;align-items:center;justify-content:space-between;gap:1rem;border-bottom:1px solid var(--line);background:var(--white)}}.brand{{font:800 1.25rem Archivo,Arial,sans-serif}}.demo{{border:2px solid var(--copper);padding:.4rem .7rem;font:800 .8rem 'IBM Plex Mono',monospace;letter-spacing:.08em}}main{{width:min(100% - 40px,980px);margin:0 auto;padding:clamp(2rem,6vw,5rem) 0}}.intro{{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:3rem;align-items:end;border-bottom:3px solid var(--ink);padding-bottom:2rem}}h1{{font:800 clamp(2.25rem,7vw,5rem)/.98 Archivo,Arial,sans-serif;letter-spacing:-.045em;margin:0}}h2{{font:800 clamp(1.25rem,3vw,1.7rem) Archivo,Arial,sans-serif;margin:0}}p{{line-height:1.55}}.privacy,.muted{{color:var(--muted)}}.receipt{{padding:2rem 0;border-bottom:3px solid var(--ink)}}.outcome{{padding:1rem 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:1rem;align-items:center}}.outcome span{{color:var(--copper);font:800 .84rem 'IBM Plex Mono',monospace;text-align:right}}dl{{margin:0;display:grid;grid-template-columns:13rem 1fr}}dt,dd{{margin:0;padding:1.1rem 0;border-bottom:1px solid var(--line)}}dt{{color:var(--muted)}}dd{{font-weight:700;overflow-wrap:anywhere}}form{{max-width:34rem;margin-top:2rem}}label{{display:block;font-weight:700;margin-top:1rem}}input{{width:100%;margin-top:.45rem;border:1px solid #64737a;border-radius:4px;background:var(--white);color:var(--ink);font:inherit;padding:.8rem}}button{{margin-top:1.25rem;border:0;border-radius:4px;background:var(--ink);color:var(--white);font:800 1rem Archivo,Arial,sans-serif;padding:.85rem 1.1rem;cursor:pointer}}button:active{{transform:translateY(1px)}}.error{{border-left:4px solid var(--copper);padding:.75rem 1rem;background:var(--white)}}footer{{margin-top:2rem;color:var(--muted);font-size:.875rem}}:focus-visible{{outline:3px solid #2877ad;outline-offset:3px}}@media(max-width:640px){{header{{align-items:flex-start;flex-direction:column}}main{{width:min(100% - 32px,980px);padding:2rem 0}}.intro{{display:block}}.privacy{{margin-top:1rem}}.outcome{{align-items:flex-start;flex-direction:column}}.outcome span{{text-align:left}}dl{{grid-template-columns:1fr}}dt{{padding-bottom:.25rem;border-bottom:0}}dd{{padding-top:0}}}}</style></head><body><header><span class="brand">BackBond</span><span class="demo">DEMO PRIVATE</span></header><main>{content}<footer>DEMO data only. No payment or account connection.</footer></main></body></html>'''
+:root{{--ink:#0B1A38;--paper:#FCFBF8;--copper:#BD6A34;--line:#cbd3d6;--muted:#535E77;--white:#fff;font-family:Inter,Arial,sans-serif;color:var(--ink);background:var(--paper);color-scheme:light}}*{{box-sizing:border-box}}body{{margin:0}}header{{min-height:68px;padding:1rem max(20px,calc((100vw - 980px)/2));display:flex;align-items:center;justify-content:space-between;gap:1rem;border-bottom:1px solid var(--line);background:var(--white)}}.brand{{font:700 1rem Inter,Arial,sans-serif}}.demo{{border:2px solid var(--copper);padding:.4rem .7rem;font:800 .8rem 'IBM Plex Mono Medium',monospace;letter-spacing:.08em}}main{{width:min(100% - 40px,980px);margin:0 auto;padding:clamp(2rem,6vw,5rem) 0}}.intro{{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:3rem;align-items:end;border-bottom:3px solid var(--ink);padding-bottom:2rem}}h1{{font:800 clamp(2.25rem,7vw,5rem)/.98 Archivo,Arial,sans-serif;letter-spacing:-.045em;margin:0}}h2{{font:800 clamp(1.25rem,3vw,1.7rem) Archivo,Arial,sans-serif;margin:0}}p{{line-height:1.55}}.privacy,.muted{{color:var(--muted)}}.receipt{{padding:2rem 0;border-bottom:3px solid var(--ink)}}.outcome{{padding:1rem 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:1rem;align-items:center}}.outcome span{{color:var(--copper);font:800 .84rem 'IBM Plex Mono Medium',monospace;text-align:right}}dl{{margin:0;display:grid;grid-template-columns:13rem 1fr}}dt,dd{{margin:0;padding:1.1rem 0;border-bottom:1px solid var(--line)}}dt{{color:var(--muted)}}dd{{font-weight:700;overflow-wrap:anywhere}}form{{max-width:34rem;margin-top:2rem}}label{{display:block;font-weight:700;margin-top:1rem}}input,select,textarea{{width:100%;margin-top:.45rem;border:1px solid #64737a;border-radius:4px;background:var(--white);color:var(--ink);font:inherit;padding:.8rem}}input[type=checkbox]{{width:auto;margin-right:.5rem}}textarea{{max-width:100%;overflow-wrap:anywhere}}nav{{margin-bottom:2rem}}details{{padding:1rem 0;border-bottom:1px solid var(--line)}}summary{{cursor:pointer;font-weight:700}}button{{margin-top:1.25rem;border:0;border-radius:4px;background:var(--ink);color:var(--white);font:800 1rem Archivo,Arial,sans-serif;padding:.85rem 1.1rem;cursor:pointer}}button:active{{transform:translateY(1px)}}.error{{border-left:4px solid var(--copper);padding:.75rem 1rem;background:var(--white)}}footer{{margin-top:2rem;color:var(--muted);font-size:.875rem}}:focus-visible{{outline:3px solid #2877ad;outline-offset:3px}}@media(max-width:640px){{header{{align-items:flex-start;flex-direction:column}}main{{width:min(100% - 32px,980px);padding:2rem 0}}.intro{{display:block}}.privacy{{margin-top:1rem}}.outcome{{align-items:flex-start;flex-direction:column}}.outcome span{{text-align:left}}dl{{grid-template-columns:1fr}}dt{{padding-bottom:.25rem;border-bottom:0}}dd{{padding-top:0}}}}</style></head><body><header><span class="brand">BackBond</span><span class="demo">DEMO PRIVATE</span></header><main>{content}<footer>Pilot only. No payment or insurance activation.</footer></main></body></html>'''
 
 def render_login(error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
@@ -130,7 +131,7 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
             blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Reported by your agent</dt><dd>{v['user_answer']}</dd><dt>Agent-reported window start</dt><dd>{v['reported_window_start']}</dd><dt>Agent-reported window end</dt><dd>{v['reported_window_end']}</dd><dt>Agent report received</dt><dd>{v['reported_at']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
         body = "".join(blocks)
-    return _page(f'<div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
+    return _page(f'<nav><a href="/stage-b-demo/history">Onboarding history</a> | <a href="/stage-b-demo/receipts">Ongoing task support</a></nav><div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
 def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[str, object]]:
     connection = HTTPConnection(host, port, timeout=5)
@@ -140,6 +141,126 @@ def fetch_receipts(host: str, port: int, email: str, token: str) -> list[dict[st
     finally: connection.close()
     if response.status != 200: raise PermissionError
     return payload.get("receipts", [])
+
+
+def history_api(host: str, port: int, email: str, token: str,
+                action: str | None = None, fields: dict | None = None) -> dict:
+    path = f"/history/{action}" if action else f"/history/state?email={quote(email)}"
+    connection = HTTPConnection(host, port, timeout=5)
+    try:
+        body = json.dumps({"email": email, **(fields or {})}).encode() if action else None
+        headers = {"Authorization": f"Bearer {token}"}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        connection.request("POST" if action else "GET", path, body=body, headers=headers)
+        response = connection.getresponse()
+        payload = json.loads(response.read())
+    finally:
+        connection.close()
+    if response.status != 200:
+        raise ValueError(str(payload.get("error", "history_request_failed")))
+    if action is None and not {"onboarding", "imports"}.issubset(payload):
+        raise ValueError("history_response_invalid")
+    return payload
+
+
+def history_instruction(address: str, email: str, days: int, *, synthetic: bool) -> str:
+    task_kind = "fictional test tasks" if synthetic else "your Instinct task records"
+    example_row = {key: "unknown" for key in (
+        "occurred_at", "timezone", "task_id", "category", "proposed_action",
+        "external_action", "approval_status", "approval_source", "action_taken",
+        "outcome", "amount", "currency", "recovery", "evidence_origin", "gaps",
+    )}
+    example_row["evidence_origin"] = "agent_reported"
+    example_row["synthetic"] = synthetic
+    example = json.dumps({"schema_version": "instinct-history/v1", "row_count": 1,
+                          "rows": [example_row], "end_marker": "END INSTINCT HISTORY"})
+    return (
+        f"Send one email from {email} to {address} with subject 'BackBond Instinct history'. "
+        f"Use only {task_kind} from the last {days} days. Do not use connected email, "
+        "calendar, files, credentials, card details, health data, raw chats, or third-party "
+        "personal information. Reply in chat without emailing if there are no tasks. "
+        "The email's plain-text body must be one JSON object with schema_version "
+        "'instinct-history/v1', row_count equal to the number of rows, rows, and "
+        "end_marker 'END INSTINCT HISTORY'. Include between 1 and 500 rows. "
+        "Each row must contain occurred_at (ISO 8601 date or timestamp), timezone, task_id, category, "
+        "proposed_action, external_action, approval_status, approval_source, "
+        "action_taken, outcome, amount, currency, recovery, evidence_origin, gaps, "
+        f"and synthetic. Use 'unknown' for unavailable facts. Set evidence_origin "
+        f"to 'agent_reported' and synthetic to {'true' if synthetic else 'false'} "
+        "for every row. Do not invent an approval, charge, loss, or result. "
+        "No attachments, CC, or BCC. Use this exact JSON structure, replacing "
+        f"the example row with the actual scoped rows: {example}"
+    )
+
+
+def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None = None,
+                   error: str = "") -> str:
+    escape = lambda value: html.escape(str(value), quote=True)
+    onboarding = payload.get("onboarding", {})
+    support = payload.get("support", {})
+    imports = payload.get("imports", [])
+    external = payload.get("external_enabled") is True
+    synthetic_enabled = payload.get("synthetic_enabled") is True
+    notice = f'<p class="error" role="alert">{escape(error)}</p>' if error else ""
+    form = ""
+    if external or synthetic_enabled:
+        synthetic_field = ('<input type="hidden" name="synthetic" value="yes">'
+                           if not external else "")
+        label = "Create synthetic test request" if not external else "Create history request"
+        form = f'''<form method="post" action="/stage-b-demo/history/request">
+<input type="hidden" name="csrf" value="{escape(csrf)}">{synthetic_field}
+<label for="purpose">Use</label><select id="purpose" name="purpose"><option value="onboarding">New user onboarding</option><option value="support">Ongoing support update</option></select>
+<label for="lookback">Lookback</label><select id="lookback" name="lookback_days"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
+<label><input type="checkbox" name="consent" value="yes" required> I ask BackBond to receive this selected Instinct task history for a private review. I can correct or delete it. This does not start insurance or coverage.</label>
+<button type="submit">{label}</button></form>'''
+    else:
+        form = '<p class="muted">History requests are not enabled for this account yet.</p>'
+    instruction = ""
+    if issued:
+        days = int(issued.get("lookback_days", 7))
+        instruction_text = history_instruction(str(issued["address"]), str(issued["sender_email"]), days,
+                                               synthetic=bool(issued.get("synthetic")))
+        instruction = f'''<section class="receipt"><h2>Give Instinct this instruction</h2>
+<p>The one-time address expires at {escape(issued['expires_at'])}. Review the received report here before confirming it.</p>
+<textarea readonly rows="11">{escape(instruction_text)}</textarea></section>'''
+    blocks = []
+    for imported in imports:
+        preview_id = escape(imported["preview_id"])
+        report = imported.get("report", {})
+        rows = report.get("rows", [])
+        entries = []
+        for index, row in enumerate(rows):
+            details = "".join(
+                f"<dt>{escape(key.replace('_', ' ').title())}</dt><dd>{escape(value)}</dd>"
+                for key, value in row.items() if key != "user_corrections"
+            )
+            corrections = row.get("user_corrections", {})
+            if corrections:
+                details += "<dt>Your corrections</dt><dd>" + escape(corrections) + "</dd>"
+            correction_form = ""
+            if imported["state"] == "pending_confirmation":
+                options = "".join(
+                    f'<option value="{escape(key)}">{escape(key.replace("_", " ").title())}</option>'
+                    for key in ("approval_status", "approval_source", "action_taken", "outcome", "amount", "currency", "gaps")
+                )
+                correction_form = f'''<form method="post" action="/stage-b-demo/history/action">
+<input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="action" value="correct_field">
+<input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="row_index" value="{index}">
+<label>Correct a field <select name="field">{options}</select></label><input name="value" maxlength="500" required><button type="submit">Save correction</button></form>'''
+            entries.append(f'<details><summary>Task {index + 1}: {escape(row.get("category", "unknown"))}</summary><dl>{details}</dl>{correction_form}</details>')
+        actions = ""
+        if imported["state"] == "pending_confirmation":
+            for action, label in (("confirm", "Confirm selected history"), ("discard", "Discard")):
+                actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="{action}"><button type="submit">{label}</button></form>'''
+        actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="delete"><button type="submit">Delete import</button></form>'''
+        blocks.append(f'''<section class="receipt"><h2>{escape(imported['purpose'].title())} report</h2>
+<p>Received {escape(imported['created_at'])}; {len(rows)} rows; {escape(imported['state'])}. Source: Instinct, agent-reported. User corrections appear separately. No charge, loss, approval, or coverage is verified by this report alone.</p>
+{''.join(entries)}{actions}</section>''')
+    return _page(f'''<nav><a href="/stage-b-demo/history">Onboarding history</a> | <a href="/stage-b-demo/receipts">Ongoing task support</a></nav>
+<div class="intro"><h1>Instinct history</h1><p class="privacy">Select a period, ask Instinct once, then review what arrived.</p></div>
+{notice}<p>Onboarding evidence: {escape(onboarding.get('underwriting_evidence', 'incomplete'))}. Support update: {escape(support.get('history_state', 'history_not_supplied'))}.</p>
+{form}{instruction}{''.join(blocks)}<form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>''')
 
 def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
                  session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256) -> type[BaseHTTPRequestHandler]:
@@ -171,6 +292,10 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             return None
         return record[1], record[2]
 
+    def csrf_for(value: str) -> str:
+        return hmac.new((session_secret or "").encode(),
+                        (value + ":history").encode(), hashlib.sha256).hexdigest()
+
     class Handler(BaseHTTPRequestHandler):
         def _reply(self, status: int, body: str, cookie: str | None = None) -> None:
             encoded = body.encode(); self.send_response(status)
@@ -178,12 +303,22 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             if cookie: self.send_header("Set-Cookie", cookie)
             self.end_headers(); self.wfile.write(encoded)
         def do_GET(self):
-            if urlparse(self.path).path != "/stage-b-demo/receipts": self.send_error(404); return
+            path = urlparse(self.path).path
+            if path not in {"/stage-b-demo/receipts", "/stage-b-demo/history"}:
+                self.send_error(404); return
             morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
             credentials = session_credentials(morsel.value) if morsel else None
             if credentials:
-                try: self._reply(200, render_receipts(project_receipts(fetch_receipts(upstream_host, upstream_port, *credentials)))); return
-                except (PermissionError, OSError, json.JSONDecodeError): pass
+                try:
+                    if path == "/stage-b-demo/history":
+                        payload = history_api(upstream_host, upstream_port, *credentials)
+                        self._reply(200, render_history(payload, credentials[0], csrf_for(morsel.value)))
+                    else:
+                        self._reply(200, render_receipts(project_receipts(fetch_receipts(upstream_host, upstream_port, *credentials))))
+                    return
+                except (PermissionError, ValueError, OSError, json.JSONDecodeError):
+                    self._reply(503, _page('<p role="alert">Private data is temporarily unavailable. Please retry.</p>'))
+                    return
             self._reply(200, render_login())
         def do_POST(self):
             path = urlparse(self.path).path
@@ -191,6 +326,44 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
                 if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
                 self._reply(200, render_login(), "bb_demo_session=; Max-Age=0; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"); return
+            if path in {"/stage-b-demo/history/request", "/stage-b-demo/history/action"}:
+                morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
+                active_user = session_credentials(morsel.value) if morsel else None
+                if not active_user:
+                    self._reply(401, render_login("Please sign in again.")); return
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 8192: raise ValueError("request_size_invalid")
+                    form = {key: values[-1] for key, values in parse_qs(self.rfile.read(length).decode()).items() if values}
+                    if not hmac.compare_digest(form.get("csrf", ""), csrf_for(morsel.value)):
+                        raise PermissionError("request_token_invalid")
+                    if path.endswith("/request"):
+                        fields = {"purpose": form.get("purpose", "onboarding"),
+                                  "lookback_days": int(form.get("lookback_days", "0")),
+                                  "consent": form.get("consent") == "yes",
+                                  "synthetic": form.get("synthetic") == "yes"}
+                        issued = history_api(upstream_host, upstream_port, *active_user,
+                                             action="request", fields=fields)
+                        issued["lookback_days"] = fields["lookback_days"]
+                    else:
+                        fields = {"preview_id": form.get("preview_id", ""),
+                                  "action": form.get("action", "")}
+                        if fields["action"] == "correct_field":
+                            fields.update(row_index=int(form.get("row_index", "-1")),
+                                          field=form.get("field", ""), value=form.get("value", ""))
+                        history_api(upstream_host, upstream_port, *active_user,
+                                    action="action", fields=fields)
+                        issued = None
+                    payload = history_api(upstream_host, upstream_port, *active_user)
+                    self._reply(200, render_history(payload, active_user[0], csrf_for(morsel.value), issued=issued))
+                except (ValueError, PermissionError, OSError, json.JSONDecodeError) as exc:
+                    try:
+                        payload = history_api(upstream_host, upstream_port, *active_user)
+                    except (ValueError, OSError, json.JSONDecodeError):
+                        payload = {}
+                    self._reply(400, render_history(payload, active_user[0], csrf_for(morsel.value),
+                                                     error=str(exc)))
+                return
             if path != "/stage-b-demo/receipts": self.send_error(404); return
             try:
                 length = int(self.headers.get("Content-Length","0"))
@@ -206,7 +379,12 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 session_id = secrets.token_urlsafe(24)
                 make_room(); sessions[session_id] = (int(time.time()) + session_ttl, email, token, generation)
                 cookie = f"bb_demo_session={signed_session(session_id)}; Max-Age={session_ttl}; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"
-            self._reply(200, render_receipts(project_receipts(rows)), cookie)
+            try:
+                payload = history_api(upstream_host, upstream_port, email, token)
+                content = render_history(payload, email, csrf_for(signed_session(session_id))) if cookie else render_receipts(project_receipts(rows))
+            except (ValueError, OSError, json.JSONDecodeError):
+                content = render_receipts(project_receipts(rows))
+            self._reply(200, content, cookie)
         def log_message(self, *_): return
     return Handler
 

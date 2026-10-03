@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from .inbound import InboundReceipt, InboundStore
+from .history_import import HistoryImportStore, MAX_MESSAGE_BYTES
 
 
 RECIPIENT = "check@inbound.backbond.ai"
@@ -113,10 +114,56 @@ def ingest_route(
     return store.ingest(message_bytes)
 
 
-def make_handler(db_path: str, signing_key: str, reminder_sender=None):
+def ingest_history_route(
+    store: HistoryImportStore, fields: Mapping[str, str], signing_key: str,
+    *, now: int | None = None,
+) -> str:
+    """Accept an enrolled user's one-time history email via signed Mailgun POST.
+
+    The Mailgun signature authenticates transport, not Instinct's authorship.
+    Instinct has no documented report-signing key for user-directed email.
+    """
+    verify_signature(fields, signing_key, now=now)
+    recipient = fields.get("recipient", "").strip().lower()
+    raw = fields.get("body-mime", "")
+    if not raw or len(raw.encode("utf-8")) > MAX_MESSAGE_BYTES:
+        raise ValueError("history_mime_missing_or_too_large")
+    from email import policy
+    from email.parser import BytesParser
+    from email.utils import parseaddr
+    message = BytesParser(policy=policy.default).parsebytes(raw.encode("utf-8"))
+    if parseaddr(str(message.get("To", "")))[1].lower() != recipient:
+        raise PermissionError("history_envelope_recipient_mismatch")
+    return store.ingest(raw.encode("utf-8"), transport_authenticated=True)
+
+
+def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
+                 history_db_path: str | None = None,
+                 history_key: bytes | None = None,
+                 history_external_enabled: bool = False,
+                 history_synthetic_enabled: bool = False):
     """Build the localhost HTTP receiver used behind the TLS reverse proxy."""
 
     class Handler(BaseHTTPRequestHandler):
+        def _history_store(self) -> HistoryImportStore:
+            if not history_db_path or not history_key:
+                raise RuntimeError("history_not_configured")
+            return HistoryImportStore(
+                history_db_path, provider_secret=signing_key.encode(),
+                encryption_key=history_key,
+                external_ingestion_enabled=history_external_enabled,
+            )
+
+        def _history_user(self, fields: Mapping[str, object]) -> str:
+            email = str(fields.get("email", ""))
+            authorization = self.headers.get("Authorization", "")
+            token = authorization[7:] if authorization.startswith("Bearer ") else ""
+            inbound = InboundStore(db_path)
+            try:
+                return inbound.authenticate(email, token)
+            finally:
+                inbound.close()
+
         def _reply(self, status: int, payload: Mapping[str, object]) -> None:
             body = json.dumps(payload, sort_keys=True).encode()
             self.send_response(status)
@@ -129,6 +176,27 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None):
             parsed = urlparse(self.path)
             if parsed.path == "/healthz":
                 self._reply(200, {"status": "ok", "mode": "DEMO"})
+                return
+            if parsed.path == "/history/state":
+                fields = {key: values[-1] for key, values in parse_qs(parsed.query).items() if values}
+                history = None
+                try:
+                    user_id = self._history_user(fields)
+                    history = self._history_store()
+                    self._reply(200, {
+                        "onboarding": history.onboarding_state(user_id),
+                        "support": history.onboarding_state(user_id, purpose="support"),
+                        "imports": history.imports_for(user_id),
+                        "external_enabled": history_external_enabled,
+                        "synthetic_enabled": history_synthetic_enabled,
+                    })
+                except PermissionError:
+                    self._reply(401, {"error": "enrollment_authentication_invalid"})
+                except RuntimeError:
+                    self._reply(503, {"error": "history_not_configured"})
+                finally:
+                    if history is not None:
+                        history.close()
                 return
             if parsed.path != "/receipts":
                 self._reply(404, {"error": "not_found"})
@@ -148,7 +216,9 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None):
                 store.close()
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path != "/mailgun/mime":
+            path = urlparse(self.path).path
+            if path not in {"/mailgun/mime", "/history/mailgun/mime",
+                            "/history/request", "/history/action"}:
                 self._reply(404, {"error": "not_found"})
                 return
             try:
@@ -156,15 +226,91 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None):
             except ValueError:
                 self._reply(400, {"error": "content_length_invalid"})
                 return
-            if length <= 0 or length > MAX_REQUEST_BYTES:
+            limit = 16_384 if path in {"/history/request", "/history/action"} else MAX_REQUEST_BYTES
+            if length <= 0 or length > limit:
                 self._reply(413, {"error": "request_size_invalid"})
                 return
             content_type = self.headers.get("Content-Type", "").split(";", 1)[0]
-            if content_type != "application/x-www-form-urlencoded":
+            expected_type = ("application/json" if path in {"/history/request", "/history/action"}
+                             else "application/x-www-form-urlencoded")
+            if content_type != expected_type:
                 self._reply(415, {"error": "content_type_unsupported"})
                 return
-            raw = self.rfile.read(length).decode("utf-8")
-            fields = {key: values[-1] for key, values in parse_qs(raw).items() if values}
+            try:
+                raw = self.rfile.read(length).decode("utf-8")
+                fields = (json.loads(raw) if expected_type == "application/json" else
+                          {key: values[-1] for key, values in parse_qs(raw).items() if values})
+                if not isinstance(fields, dict):
+                    raise ValueError
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+                self._reply(400, {"error": "request_body_invalid"})
+                return
+            if path in {"/history/request", "/history/action"}:
+                history = None
+                try:
+                    user_id = self._history_user(fields)
+                    history = self._history_store()
+                    if path == "/history/request":
+                        if fields.get("consent") is not True:
+                            raise ValueError("history_explicit_consent_required")
+                        days = fields.get("lookback_days")
+                        if days not in {7, 30, 90}:
+                            raise ValueError("history_lookback_invalid")
+                        purpose = fields.get("purpose", "onboarding")
+                        synthetic = fields.get("synthetic") is True
+                        if synthetic and not history_synthetic_enabled:
+                            raise PermissionError("history_synthetic_disabled")
+                        inbound = InboundStore(db_path)
+                        try:
+                            agent_sender = inbound.agent_recipient_for(user_id)
+                        finally:
+                            inbound.close()
+                        address = history.issue_address(
+                            user_id, purpose=purpose, synthetic=synthetic,
+                            scope={"lookback_days": days, "categories": ["task_records"],
+                                   "sender_email": agent_sender},
+                        )
+                        self._reply(200, {"address": address.address,
+                                          "expires_at": address.expires_at,
+                                          "purpose": purpose, "synthetic": synthetic,
+                                          "sender_email": agent_sender})
+                    else:
+                        action = str(fields.get("action", ""))
+                        preview_id = str(fields.get("preview_id", ""))
+                        if action == "correct_field":
+                            history.correct_field(
+                                user_id, preview_id, int(fields.get("row_index", -1)),
+                                str(fields.get("field", "")), str(fields.get("value", "")),
+                            )
+                        else:
+                            history.act(user_id, preview_id, action)
+                        self._reply(200, {"accepted": True})
+                except PermissionError as exc:
+                    self._reply(403, {"error": str(exc)})
+                except (ValueError, KeyError) as exc:
+                    self._reply(400, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(503, {"error": "history_not_configured"})
+                finally:
+                    if history is not None:
+                        history.close()
+                return
+            if path == "/history/mailgun/mime":
+                history = None
+                try:
+                    history = self._history_store()
+                    preview_id = ingest_history_route(history, fields, signing_key)
+                    self._reply(200, {"accepted": True, "preview_id": preview_id})
+                except PermissionError as exc:
+                    self._reply(401, {"error": str(exc)})
+                except ValueError as exc:
+                    self._reply(406, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(503, {"error": "history_not_configured"})
+                finally:
+                    if history is not None:
+                        history.close()
+                return
             store = InboundStore(db_path)
             try:
                 receipt = ingest_route(store, fields, signing_key)
@@ -205,7 +351,14 @@ def main() -> None:
     api_key = os.environ.get("BACKBOND_MAILGUN_API_KEY", "")
     from_address = os.environ.get("BACKBOND_MAILGUN_FROM", "")
     sender = MailgunCancellationReminderSender(api_url, api_key, from_address) if all((api_url, api_key, from_address)) else None
-    ThreadingHTTPServer((args.host, args.port), make_handler(args.db, signing_key, sender)).serve_forever()
+    history_key_hex = os.environ.get("BB_HISTORY_ENCRYPTION_KEY_HEX", "")
+    history_key = bytes.fromhex(history_key_hex) if history_key_hex else None
+    ThreadingHTTPServer((args.host, args.port), make_handler(
+        args.db, signing_key, sender,
+        history_db_path=os.environ.get("BB_HISTORY_DB"), history_key=history_key,
+        history_external_enabled=os.environ.get("BB_HISTORY_EXTERNAL_ENABLED") == "1",
+        history_synthetic_enabled=os.environ.get("BB_HISTORY_SYNTHETIC_ENABLED") == "1",
+    )).serve_forever()
 
 
 if __name__ == "__main__":

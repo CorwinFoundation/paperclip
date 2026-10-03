@@ -239,6 +239,16 @@ class InboundStore:
         self.connection.commit()
         return agent_recipient
 
+    def agent_recipient_for(self, user_id: str) -> str:
+        """Return the confirmed account's operator-bound agent address."""
+        row = self.connection.execute(
+            "SELECT agent_recipient FROM inbound_users WHERE user_id=? AND confirmed_at IS NOT NULL",
+            (user_id,),
+        ).fetchone()
+        if row is None or not row["agent_recipient"]:
+            raise ValueError("agent_recipient_not_configured")
+        return str(row["agent_recipient"])
+
     def ingest(self, raw_message: bytes) -> InboundReceipt:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
         sender = _address(message.get("From", ""))

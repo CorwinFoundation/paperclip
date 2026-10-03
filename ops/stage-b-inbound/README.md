@@ -4,6 +4,8 @@ This is a separate service on the existing BackBond development host. It does
 not modify the scanner container or its release configuration.
 
 - Public receiver: `https://scanner.backbond.ai/stage-b-demo/mailgun/mime`
+- History receiver: `https://scanner.backbond.ai/stage-b-demo/history/mailgun/mime`
+- Private history and support page: `https://scanner.backbond.ai/stage-b-demo/history`
 - Public health: `https://scanner.backbond.ai/stage-b-demo/healthz`
 - Private receipts: `https://scanner.backbond.ai/stage-b-demo/receipts?email=<enrolled-email>`
 - Loopback service: `127.0.0.1:8788`
@@ -44,6 +46,33 @@ match_recipient("^check@inbound\\.backbond\\.ai$")
 forward("https://scanner.backbond.ai/stage-b-demo/mailgun/mime")
 stop()
 ```
+
+The Instinct history route is separate from the check receipt route. Add a
+Mailgun route for `history+<one-time-token>@inbound.backbond.ai`:
+
+```text
+match_recipient("^history\\+[^@]+@inbound\\.backbond\\.ai$")
+forward("https://scanner.backbond.ai/stage-b-demo/history/mailgun/mime")
+stop()
+```
+
+The same signed Mailgun webhook authenticates transport. It does not establish
+that Instinct authored a report. Each imported value starts agent-reported.
+The one-time address is bound to the authenticated BackBond account, its
+selected lookback, and its purpose: initial onboarding or a later support
+update. The private page shows the received report, separate user corrections,
+confirmation, and deletion. The continuing check and confirmation receipts
+remain on `/stage-b-demo/receipts`; no BackBond approval answer is collected on
+that page.
+
+The installer generates `BB_HISTORY_ENCRYPTION_KEY_HEX` once and creates a
+separate history database. `BB_HISTORY_EXTERNAL_ENABLED=0` keeps real-user
+intake off. `BB_HISTORY_SYNTHETIC_ENABLED=1` permits only labeled synthetic
+fixtures for acceptance testing. External intake must remain off until the
+first jurisdiction, notice, permitted data origin, retention and deletion
+settings have been reviewed and configured. A successful scanner image deploy
+does not update these separately managed Stage B services; rerun this installer
+from the approved checkout and verify its runtime receipt.
 
 Mailgun webhook authentication proves that Mailgun delivered the POST. It does
 not prove that an arbitrary `From` address belongs to the sender. The receiver

@@ -26,9 +26,10 @@ def test_installer_restarts_changed_services_and_records_version_evidence():
 
 
 def test_loopback_readiness_waits_for_restarted_services() -> None:
-    assert INSTALLER.count("--retry 10 --retry-delay 1 --retry-connrefused") == 2
+    assert INSTALLER.count("--retry 10 --retry-delay 1 --retry-connrefused") == 3
     assert "http://127.0.0.1:8788/healthz" in INSTALLER
     assert "http://127.0.0.1:8789/stage-b-demo/receipts" in INSTALLER
+    assert "http://127.0.0.1:8789/stage-b-demo/history" in INSTALLER
     assert "stage_b_candidate=" in INSTALLER
     assert "inbound_main_pid=" in INSTALLER
     assert "receipts_main_pid=" in INSTALLER

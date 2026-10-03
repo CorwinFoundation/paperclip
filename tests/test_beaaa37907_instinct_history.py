@@ -8,7 +8,7 @@ from email.message import EmailMessage
 import pytest
 
 from stage_b_pilot.history_import import (
-    EXPECTED_ROWS,
+    MAX_ROWS,
     HISTORY_DOMAIN,
     HistoryImportStore,
     REPORT_VERSION,
@@ -20,15 +20,16 @@ from stage_b_pilot.history_import import (
 
 SECRET = b"provider-secret-for-focused-tests"
 KEY = b"history-encryption-key-32-bytes!!"
+ROWS = 51
 
 
-def report():
+def report(count=ROWS):
     rows = []
-    for index in range(EXPECTED_ROWS):
+    for index in range(count):
         row = {key: "unknown" for key in ROW_KEYS}
         row.update(task_id=f"task-{index:02d}", evidence_origin="agent_reported", synthetic=True)
         rows.append(row)
-    return {"schema_version": REPORT_VERSION, "row_count": EXPECTED_ROWS,
+    return {"schema_version": REPORT_VERSION, "row_count": count,
             "rows": rows, "end_marker": "END INSTINCT HISTORY"}
 
 
@@ -76,6 +77,18 @@ def test_51_row_report_imports_once_for_bound_user_and_confirms(store):
     state = store.onboarding_state("user-a")
     assert state["history_informed_underwriting_review"] == "ready"
     assert state["insurance_or_coverage_activation"] is False
+    assert store.preview("user-a", preview_id)["provenance"] == "agent_reported"
+
+
+@pytest.mark.parametrize("count", [1, 3, 51, MAX_ROWS])
+def test_report_size_is_not_tied_to_founder_history(store, count):
+    issued = issue(store, f"user-{count}", scope={"lookback_days": 30})
+    payload = report(count)
+    payload["rows"][0]["task_id"] = "unknown"
+    if count > 1:
+        payload["rows"][1]["task_id"] = "unknown"
+    preview_id = store.ingest(message(issued.address, payload))
+    assert len(store.preview(f"user-{count}", preview_id)["report"]["rows"]) == count
 
 
 @pytest.mark.parametrize("mutation,error", [
@@ -138,3 +151,15 @@ def test_decline_preview_correction_discard_delete_and_private_access(store):
         "SELECT event_type FROM history_events ORDER BY rowid DESC LIMIT 1"
     ).fetchone()[0] == "content_deleted"
     assert store.onboarding_state("user-a")["history_informed_underwriting_review"] == "held"
+
+
+def test_scope_and_extra_content_are_rejected(store):
+    issued = issue(store, "user-a", scope={"lookback_days": 7})
+    outside = report(1)
+    outside["rows"][0]["occurred_at"] = "2020-01-01"
+    with pytest.raises(ValueError, match="outside_selected_lookback"):
+        store.ingest(message(issued.address, outside))
+    extra = report(1)
+    extra["rows"][0]["raw_chat"] = "unrelated private content"
+    with pytest.raises(ValueError, match="row_keys_missing"):
+        store.ingest(message(issued.address, extra))
