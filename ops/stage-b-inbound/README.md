@@ -16,7 +16,14 @@ not modify the scanner container or its release configuration.
 - Unit: `backbond-stage-b-inbound.service`
 
 The required secret is the Mailgun **HTTP Webhook Signing Key**, not an API key,
-SMTP password, or domain-management credential. From a trusted checkout, run:
+SMTP password, or domain-management credential. Before handing the checkout to
+root, write and verify its physical candidate identity file:
+
+```sh
+ops/stage-b-inbound/prepare-candidate.sh
+```
+
+Then run:
 
 Outbound answers use `BACKBOND_MAILGUN_MESSAGES_URL`,
 `BACKBOND_MAILGUN_API_KEY`, and `BACKBOND_MAILGUN_FROM`. Without all three, the

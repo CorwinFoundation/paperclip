@@ -47,14 +47,20 @@ rollback() {
 trap rollback EXIT INT TERM
 
 [ "$(id -u)" -eq 0 ] || { echo 'ERROR root_required' >&2; exit 1; }
-candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
-if [ -z "$candidate_commit" ] && [ -f "$repo_root/SOURCE_COMMIT" ]; then
-    candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")
-fi
+[ -f "$repo_root/SOURCE_COMMIT" ] || {
+    echo 'ERROR source_commit_file_missing' >&2
+    exit 2
+}
+candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")
 printf '%s\n' "$candidate_commit" | grep -Eq '^[0-9a-f]{40}$' || {
     echo 'ERROR candidate_commit_missing_or_invalid' >&2
     exit 2
 }
+checkout_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
+if [ -n "$checkout_commit" ] && [ "$checkout_commit" != "$candidate_commit" ]; then
+    echo 'ERROR source_commit_does_not_match_checkout' >&2
+    exit 2
+fi
 id backbond-stage-b >/dev/null 2>&1 || useradd --system --home-dir "$state_dir" --shell /usr/sbin/nologin backbond-stage-b
 install -d -o root -g root -m 0755 "$app_dir" "$config_dir"
 install -d -o backbond-stage-b -g backbond-stage-b -m 0700 "$state_dir"

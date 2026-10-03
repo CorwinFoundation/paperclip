@@ -23,7 +23,16 @@ def test_installer_restarts_changed_services_and_records_version_evidence():
     assert "DEPLOYED_COMMIT" in INSTALLER
     assert "SOURCE_COMMIT" in INSTALLER
     assert "candidate_commit_missing_or_invalid" in INSTALLER
-    assert INSTALLER.index("candidate_commit=$(git") < INSTALLER.index("systemctl stop")
+    assert INSTALLER.index('candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")') < INSTALLER.index("systemctl stop")
+    assert "ERROR source_commit_file_missing" in INSTALLER
+    assert "ERROR source_commit_does_not_match_checkout" in INSTALLER
+
+
+def test_candidate_preparer_writes_and_checks_source_commit():
+    preparer = (ROOT / "ops/stage-b-inbound/prepare-candidate.sh").read_text()
+    assert 'git -C "$repo_root" rev-parse HEAD' in preparer
+    assert 'printf \'%s\\n\' "$candidate_commit" >"$repo_root/SOURCE_COMMIT"' in preparer
+    assert 'test "$(cat "$repo_root/SOURCE_COMMIT")" = "$candidate_commit"' in preparer
 
 
 def test_loopback_readiness_waits_for_restarted_services() -> None:
