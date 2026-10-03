@@ -1077,6 +1077,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "tool_schema_drift_partial_failure":
+            from harness.trace_observation import execute_tool_schema_case
+
+            oracle = spec.oracle
+            record = execute_tool_schema_case(
+                oracle_field=str(oracle["field"]),
+                expected_value=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
