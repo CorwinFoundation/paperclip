@@ -437,7 +437,8 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 cookie = f"bb_demo_session={signed_session(session_id)}; Max-Age={session_ttl}; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"
             try:
                 payload = history_api(upstream_host, upstream_port, email, token)
-                content = render_history(payload, email, csrf_for(signed_session(session_id))) if cookie else render_receipts(project_receipts(rows))
+                standing = optional_instinct_reports(upstream_host, upstream_port, email, token) if cookie else None
+                content = render_history(payload, email, csrf_for(signed_session(session_id)), standing=standing) if cookie else render_receipts(project_receipts(rows))
             except (ValueError, OSError, json.JSONDecodeError):
                 content = render_receipts(project_receipts(rows))
             self._reply(200, content, cookie)

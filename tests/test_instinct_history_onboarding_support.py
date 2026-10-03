@@ -101,6 +101,7 @@ def services(tmp_path):
     inbound = ThreadingHTTPServer(("127.0.0.1", 0), inbound_handler(
         str(inbound_db), SIGNING_KEY, history_db_path=str(history_db),
         history_key=ENCRYPTION_KEY, history_synthetic_enabled=True,
+        standing_db_path=str(tmp_path / "standing.sqlite3"), standing_synthetic_enabled=True,
     ))
     page = ThreadingHTTPServer(("127.0.0.1", 0), page_handler(
         "127.0.0.1", inbound.server_port, "session-secret-at-least-32-characters",
@@ -134,6 +135,8 @@ def test_new_user_then_support_history_flow(services):
         cookie = response.headers["Set-Cookie"].split(";", 1)[0]
     assert "Instinct history" in html
     assert "Ongoing task support" in html
+    assert "Only the enrolled agent sender, instinct@example.com" in html
+    assert "Not enrolled" not in html
     csrf = re.search(r'name="csrf" value="([a-f0-9]+)"', html).group(1)
     request = urlencode({"csrf": csrf, "consent": "yes", "purpose": "onboarding",
                          "lookback_days": "30", "synthetic": "yes"}).encode()

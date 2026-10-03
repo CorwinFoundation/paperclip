@@ -58,3 +58,10 @@ def test_public_receipt_and_logout_routes_reach_isolated_service_without_answer_
     assert "location = /stage-b-demo/logout" in NGINX
     assert "http://127.0.0.1:8789/stage-b-demo/logout" in NGINX
     assert "stage-b-demo/answer" not in NGINX
+
+
+def test_instinct_private_forms_reach_authenticated_page_service():
+    for action in ("grant", "revoke"):
+        block = NGINX.split(f"location = /stage-b-demo/instinct/{action} {{", 1)[1].split("}", 1)[0]
+        assert "proxy_pass http://127.0.0.1:8789;" in block
+        assert "client_max_body_size 8k;" in block
