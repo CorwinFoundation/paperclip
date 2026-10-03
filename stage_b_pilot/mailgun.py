@@ -190,7 +190,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         "external_enabled": history_external_enabled,
                         "synthetic_enabled": history_synthetic_enabled,
                     })
-                except PermissionError:
+                except (PermissionError, ValueError):
                     self._reply(401, {"error": "enrollment_authentication_invalid"})
                 except RuntimeError:
                     self._reply(503, {"error": "history_not_configured"})

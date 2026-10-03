@@ -123,6 +123,9 @@ def services(tmp_path):
 
 def test_new_user_then_support_history_flow(services):
     inbound, page, token = services
+    with pytest.raises(HTTPError) as missing_identity:
+        _json_request(inbound, "/history/state", token)
+    assert missing_identity.value.code == 401
     # Authentication lands on the history step before the ongoing receipts.
     login = urlencode({"email": "user@example.com",
                        "passphrase": "correct horse battery"}).encode()

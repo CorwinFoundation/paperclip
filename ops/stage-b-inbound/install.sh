@@ -47,6 +47,14 @@ rollback() {
 trap rollback EXIT INT TERM
 
 [ "$(id -u)" -eq 0 ] || { echo 'ERROR root_required' >&2; exit 1; }
+candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
+if [ -z "$candidate_commit" ] && [ -f "$repo_root/SOURCE_COMMIT" ]; then
+    candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")
+fi
+printf '%s\n' "$candidate_commit" | grep -Eq '^[0-9a-f]{40}$' || {
+    echo 'ERROR candidate_commit_missing_or_invalid' >&2
+    exit 2
+}
 id backbond-stage-b >/dev/null 2>&1 || useradd --system --home-dir "$state_dir" --shell /usr/sbin/nologin backbond-stage-b
 install -d -o root -g root -m 0755 "$app_dir" "$config_dir"
 install -d -o backbond-stage-b -g backbond-stage-b -m 0700 "$state_dir"
@@ -63,14 +71,6 @@ installed=1
 rm -rf "$app_dir/stage_b_pilot"
 cp -a "$repo_root/stage_b_pilot" "$app_dir/stage_b_pilot"
 runtime_version=$(find "$repo_root/stage_b_pilot" -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
-candidate_commit=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || true)
-if [ -z "$candidate_commit" ] && [ -f "$repo_root/SOURCE_COMMIT" ]; then
-    candidate_commit=$(cat "$repo_root/SOURCE_COMMIT")
-fi
-printf '%s\n' "$candidate_commit" | grep -Eq '^[0-9a-f]{40}$' || {
-    echo 'ERROR candidate_commit_missing_or_invalid' >&2
-    exit 2
-}
 printf '%s\n' "$runtime_version" >"$app_dir/.backbond-stage-b-version"
 printf '%s\n' "$candidate_commit" >"$app_dir/DEPLOYED_COMMIT"
 chown -R root:root "$app_dir/stage_b_pilot"
