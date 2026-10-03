@@ -146,11 +146,16 @@ def test_new_user_then_support_history_flow(services):
     with pytest.raises(HTTPError) as wrong_sender:
         _deliver(inbound, address, _report(2), sender="user@example.com")
     assert wrong_sender.value.code == 401
-    with _deliver(inbound, address, _report(2)) as response:
+    report = _report(2)
+    report["rows"][0]["task_id"] = "todo-invented-placeholder"
+    with _deliver(inbound, address, report) as response:
         preview_id = json.loads(response.read())["preview_id"]
     state = _json_request(inbound, "/history/state?email=user%40example.com", token)
     assert state["onboarding"]["history_informed_underwriting_review"] == "held"
     assert len(state["imports"][0]["report"]["rows"]) == 2
+    with urlopen(Request(page + "/stage-b-demo/history",
+                         headers={"Cookie": cookie})) as response:
+        assert '<option value="task_id">Task Id</option>' in response.read().decode()
     with pytest.raises(HTTPError) as replay:
         _deliver(inbound, address, _report(2))
     assert replay.value.code == 401
@@ -159,12 +164,18 @@ def test_new_user_then_support_history_flow(services):
         "row_index": 0, "field": "outcome", "value": "User reports no booking",
     })
     _json_request(inbound, "/history/action", token, {
+        "email": "user@example.com", "preview_id": preview_id, "action": "correct_field",
+        "row_index": 0, "field": "task_id", "value": "unknown",
+    })
+    _json_request(inbound, "/history/action", token, {
         "email": "user@example.com", "preview_id": preview_id, "action": "confirm",
     })
     state = _json_request(inbound, "/history/state?email=user%40example.com", token)
     assert state["onboarding"]["history_informed_underwriting_review"] == "ready"
     assert state["imports"][0]["provenance"] == "agent_reported"
     assert state["imports"][0]["report"]["rows"][0]["user_corrections"]["outcome"] == "User reports no booking"
+    assert state["imports"][0]["report"]["rows"][0]["task_id"] == "todo-invented-placeholder"
+    assert state["imports"][0]["report"]["rows"][0]["user_corrections"]["task_id"] == "unknown"
     # A later support update is separate from the confirmed onboarding history.
     support = _json_request(inbound, "/history/request", token, {
         "email": "user@example.com", "consent": True, "lookback_days": 7,

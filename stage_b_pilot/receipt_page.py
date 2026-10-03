@@ -242,7 +242,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
             if imported["state"] == "pending_confirmation":
                 options = "".join(
                     f'<option value="{escape(key)}">{escape(key.replace("_", " ").title())}</option>'
-                    for key in ("approval_status", "approval_source", "action_taken", "outcome", "amount", "currency", "gaps")
+                    for key in ("task_id", "approval_status", "approval_source", "action_taken", "outcome", "amount", "currency", "gaps")
                 )
                 correction_form = f'''<form method="post" action="/stage-b-demo/history/action">
 <input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="action" value="correct_field">

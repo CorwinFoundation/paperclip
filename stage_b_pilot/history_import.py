@@ -33,7 +33,7 @@ ROW_KEYS = frozenset({
     "synthetic",
 })
 PROVENANCE = {"agent_reported", "user_confirmed", "independently_evidenced"}
-CORRECTABLE_FIELDS = {"occurred_at", "timezone", "category", "proposed_action",
+CORRECTABLE_FIELDS = {"occurred_at", "timezone", "task_id", "category", "proposed_action",
                       "external_action", "approval_status", "approval_source",
                       "action_taken", "outcome", "amount", "currency", "recovery",
                       "gaps"}
