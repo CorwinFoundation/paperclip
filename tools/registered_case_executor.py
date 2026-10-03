@@ -1087,6 +1087,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "voice_turn_taking_interruption_recovery":
+            from harness.trace_observation import execute_voice_turn_case
+
+            oracle = spec.oracle
+            record = execute_voice_turn_case(
+                oracle_field=str(oracle["field"]),
+                expected_value=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case

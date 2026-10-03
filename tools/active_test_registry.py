@@ -1351,6 +1351,7 @@ def _merge_content_candidate_inventory(
                 "tenant_account_boundary",
                 "code_agent_supply_chain",
                 "tool_schema_drift_partial_failure",
+                "voice_turn_taking_interruption_recovery",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
