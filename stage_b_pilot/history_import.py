@@ -97,6 +97,9 @@ class HistoryImportStore:
 
     def __init__(self, path: str | Path, *, provider_secret: bytes, encryption_key: bytes,
                  external_ingestion_enabled: bool = False,
+                 unconfirmed_retention: timedelta = timedelta(hours=24),
+                 confirmed_retention: timedelta = timedelta(days=30),
+                 event_retention: timedelta = timedelta(days=90),
                  now: Callable[[], datetime] = _utcnow) -> None:
         if len(provider_secret) < 16 or len(encryption_key) < 32:
             raise ValueError("history_secret_too_short")
@@ -105,6 +108,9 @@ class HistoryImportStore:
         self.provider_secret = provider_secret
         self.encryption_key = encryption_key
         self.external_ingestion_enabled = external_ingestion_enabled
+        self.unconfirmed_retention = unconfirmed_retention
+        self.confirmed_retention = confirmed_retention
+        self.event_retention = event_retention
         self.now = now
         self.connection.executescript(
             """
@@ -115,7 +121,8 @@ class HistoryImportStore:
               scope_json TEXT NOT NULL, expires_at TEXT NOT NULL,
               consumed_at TEXT, state TEXT NOT NULL,
               failure_reason TEXT, consented_at TEXT NOT NULL,
-              synthetic_only INTEGER NOT NULL,
+              synthetic_only INTEGER NOT NULL, tenant_id TEXT NOT NULL DEFAULT '',
+              account_id TEXT NOT NULL DEFAULT '', agent_id TEXT NOT NULL DEFAULT '',
               purpose TEXT NOT NULL DEFAULT 'onboarding'
             );
             CREATE TABLE IF NOT EXISTS history_previews (
@@ -123,12 +130,13 @@ class HistoryImportStore:
               token_digest TEXT NOT NULL UNIQUE REFERENCES history_requests(token_digest),
               report_json TEXT NOT NULL, raw_encrypted BLOB NOT NULL,
               provenance TEXT NOT NULL, state TEXT NOT NULL,
-              created_at TEXT NOT NULL, confirmed_at TEXT
+              created_at TEXT NOT NULL, confirmed_at TEXT,
+              retention_expires_at TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS history_events (
               event_id TEXT PRIMARY KEY, import_id TEXT NOT NULL,
               user_id TEXT NOT NULL, event_type TEXT NOT NULL,
-              occurred_at TEXT NOT NULL
+              occurred_at TEXT NOT NULL, retention_expires_at TEXT NOT NULL DEFAULT ''
             );
             """
         )
@@ -137,13 +145,33 @@ class HistoryImportStore:
             self.connection.execute(
                 "ALTER TABLE history_requests ADD COLUMN purpose TEXT NOT NULL DEFAULT 'onboarding'"
             )
+        for name in ("tenant_id", "account_id", "agent_id"):
+            if name not in columns:
+                self.connection.execute(
+                    f"ALTER TABLE history_requests ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
+                )
+        preview_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(history_previews)")}
+        if "retention_expires_at" not in preview_columns:
+            self.connection.execute(
+                "ALTER TABLE history_previews ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
+            )
+        event_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(history_events)")}
+        if "retention_expires_at" not in event_columns:
+            self.connection.execute(
+                "ALTER TABLE history_events ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
+            )
         self.connection.commit()
 
-    def issue_address(self, user_id: str, *, scope: dict, synthetic: bool = False,
+    def issue_address(self, user_id: str, *, scope: dict, tenant_id: str | None = None,
+                      account_id: str | None = None, agent_id: str | None = None,
+                      synthetic: bool = False,
                       purpose: str = "onboarding",
                       ttl: timedelta = timedelta(hours=1)) -> HistoryAddress:
         if not user_id or not scope:
             raise ValueError("history_consent_scope_required")
+        tenant_id = tenant_id or user_id
+        account_id = account_id or user_id
+        agent_id = agent_id or str(scope.get("agent_id", user_id))
         if purpose not in {"onboarding", "support"}:
             raise ValueError("history_purpose_invalid")
         if not synthetic and not self.external_ingestion_enabled:
@@ -156,10 +184,10 @@ class HistoryImportStore:
         self.connection.execute(
             "INSERT INTO history_requests "
             "(token_digest,user_id,import_id,notice_version,scope_json,expires_at,"
-            "consumed_at,state,failure_reason,consented_at,synthetic_only,purpose) "
-            "VALUES(?,?,?,?,?,?,NULL,'awaiting_report',NULL,?,?,?)",
+            "consumed_at,state,failure_reason,consented_at,synthetic_only,tenant_id,account_id,agent_id,purpose) "
+            "VALUES(?,?,?,?,?,?,NULL,'awaiting_report',NULL,?,?,?,?,?,?)",
             (digest, user_id, import_id, NOTICE_VERSION, json.dumps(scope, sort_keys=True),
-             _iso(expires), _iso(now), int(synthetic), purpose),
+             _iso(expires), _iso(now), int(synthetic), tenant_id, account_id, agent_id, purpose),
         )
         self._event(import_id, user_id, "consent_recorded")
         self.connection.commit()
@@ -244,6 +272,8 @@ class HistoryImportStore:
         return json.loads(_open(self.encryption_key, stored))
 
     def ingest(self, raw_message: bytes, *, expected_user_id: str | None = None,
+               expected_tenant_id: str | None = None, expected_account_id: str | None = None,
+               expected_agent_id: str | None = None,
                transport_authenticated: bool = False) -> str:
         if len(raw_message) > MAX_MESSAGE_BYTES:
             raise ValueError("history_payload_too_large")
@@ -261,6 +291,11 @@ class HistoryImportStore:
             raise PermissionError("history_token_invalid")
         if expected_user_id is not None and request["user_id"] != expected_user_id:
             raise PermissionError("history_account_mismatch")
+        for expected, key in ((expected_tenant_id, "tenant_id"),
+                              (expected_account_id, "account_id"),
+                              (expected_agent_id, "agent_id")):
+            if expected is not None and request[key] != expected:
+                raise PermissionError("history_account_mismatch")
         if request["state"] == "revoked":
             raise PermissionError("history_token_revoked")
         if _parse_time(request["expires_at"]) <= self.now():
@@ -321,10 +356,12 @@ class HistoryImportStore:
         state = "received" if request["notice_version"] == NOTICE_VERSION else "pending_confirmation"
         raw = b"" if state == "received" else _seal(self.encryption_key, body.encode())
         self.connection.execute(
-            "INSERT INTO history_previews VALUES(?,?,?,?,?,'agent_reported',?,?,NULL)",
+            "INSERT INTO history_previews "
+            "(preview_id,user_id,token_digest,report_json,raw_encrypted,provenance,state,created_at,confirmed_at,retention_expires_at) "
+            "VALUES(?,?,?,?,?,'agent_reported',?,?,NULL,?)",
             (preview_id, request["user_id"], digest,
              _seal(self.encryption_key, _canonical_report_bytes(report)),
-             raw, state, now),
+             raw, state, now, _iso(self.now() + self.unconfirmed_retention)),
         )
         self.connection.execute(
             "UPDATE history_requests SET consumed_at=?,state=?,failure_reason=NULL WHERE token_digest=?",
@@ -380,21 +417,24 @@ class HistoryImportStore:
             if not earliest <= occurred <= latest:
                 raise ValueError("history_outside_selected_lookback")
 
-    def preview(self, user_id: str, preview_id: str) -> dict:
-        row = self._owned_preview(user_id, preview_id)
+    def preview(self, user_id: str, preview_id: str, *, tenant_id: str | None = None,
+                account_id: str | None = None, agent_id: str | None = None) -> dict:
+        row = self._owned_preview(user_id, preview_id, tenant_id, account_id, agent_id)
         return {"preview_id": preview_id, "state": row["state"], "provenance": row["provenance"],
                 "connected_source": "Instinct",
                 "report": self._decode_report(row["report_json"])}
 
-    def act(self, user_id: str, preview_id: str, action: str, *, corrected_report: dict | None = None) -> None:
-        row = self._owned_preview(user_id, preview_id)
+    def act(self, user_id: str, preview_id: str, action: str, *, corrected_report: dict | None = None,
+            tenant_id: str | None = None, account_id: str | None = None,
+            agent_id: str | None = None) -> None:
+        row = self._owned_preview(user_id, preview_id, tenant_id, account_id, agent_id)
         if action in {"confirm", "correct", "discard"} and row["state"] != "pending_confirmation":
             raise ValueError("history_preview_not_editable")
         digest = row["token_digest"]
         if action == "confirm":
             self.connection.execute(
-                "UPDATE history_previews SET state='confirmed',raw_encrypted=x'',confirmed_at=? WHERE preview_id=?",
-                (_iso(self.now()), preview_id),
+                "UPDATE history_previews SET state='confirmed',raw_encrypted=x'',confirmed_at=?,retention_expires_at=? WHERE preview_id=?",
+                (_iso(self.now()), _iso(self.now() + self.confirmed_retention), preview_id),
             )
             self.connection.execute("UPDATE history_requests SET state='confirmed' WHERE token_digest=?", (digest,))
         elif action == "correct":
@@ -438,11 +478,37 @@ class HistoryImportStore:
         )
         self.connection.commit()
 
-    def _owned_preview(self, user_id: str, preview_id: str) -> sqlite3.Row:
-        row = self.connection.execute("SELECT * FROM history_previews WHERE preview_id=?", (preview_id,)).fetchone()
+    def _owned_preview(self, user_id: str, preview_id: str, tenant_id: str | None = None,
+                       account_id: str | None = None, agent_id: str | None = None) -> sqlite3.Row:
+        row = self.connection.execute(
+            "SELECT p.*,r.tenant_id,r.account_id,r.agent_id FROM history_previews p "
+            "JOIN history_requests r ON r.token_digest=p.token_digest WHERE p.preview_id=?",
+            (preview_id,),
+        ).fetchone()
         if row is None or row["user_id"] != user_id:
             raise PermissionError("history_preview_not_found")
+        for expected, key in ((tenant_id, "tenant_id"), (account_id, "account_id"), (agent_id, "agent_id")):
+            if expected is not None and row[key] != expected:
+                raise PermissionError("history_preview_not_found")
         return row
+
+    def purge_expired(self) -> dict[str, int]:
+        now = _iso(self.now())
+        expired = self.connection.execute(
+            "SELECT token_digest FROM history_previews WHERE retention_expires_at!='' AND retention_expires_at<=?",
+            (now,),
+        ).fetchall()
+        for row in expired:
+            self.connection.execute("DELETE FROM history_previews WHERE token_digest=?", (row["token_digest"],))
+            self.connection.execute(
+                "UPDATE history_requests SET state='history_not_supplied' WHERE token_digest=?",
+                (row["token_digest"],),
+            )
+        events = self.connection.execute(
+            "DELETE FROM history_events WHERE retention_expires_at!='' AND retention_expires_at<=?", (now,)
+        ).rowcount
+        self.connection.commit()
+        return {"content_deleted": len(expired), "events_deleted": events}
 
     def _fail(self, digest: str, reason: str) -> None:
         self.connection.execute(
@@ -453,6 +519,8 @@ class HistoryImportStore:
     def _event(self, import_id: str, user_id: str, event_type: str) -> None:
         """Retain only non-content consent/security lifecycle evidence."""
         self.connection.execute(
-            "INSERT INTO history_events VALUES(?,?,?,?,?)",
-            ("he_" + secrets.token_hex(12), import_id, user_id, event_type, _iso(self.now())),
+            "INSERT INTO history_events "
+            "(event_id,import_id,user_id,event_type,occurred_at,retention_expires_at) VALUES(?,?,?,?,?,?)",
+            ("he_" + secrets.token_hex(12), import_id, user_id, event_type, _iso(self.now()),
+             _iso(self.now() + self.event_retention)),
         )

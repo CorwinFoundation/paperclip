@@ -167,6 +167,30 @@ def test_decline_preview_correction_discard_delete_and_private_access(store):
     assert store.onboarding_state("user-a")["history_informed_underwriting_review"] == "held"
 
 
+def test_tenant_account_agent_binding_and_configured_retention(tmp_path):
+    current = datetime(2026, 10, 3, tzinfo=timezone.utc)
+    store = HistoryImportStore(tmp_path / "bound.sqlite3", provider_secret=SECRET,
+                               encryption_key=KEY, now=lambda: current,
+                               unconfirmed_retention=timedelta(seconds=-1),
+                               event_retention=timedelta(seconds=-1))
+    issued = store.issue_address("user-a", tenant_id="tenant-a", account_id="account-a",
+                                 agent_id="agent-a", scope={"lookback_days": 7}, synthetic=True)
+    with pytest.raises(PermissionError, match="account_mismatch"):
+        store.ingest(message(issued.address), expected_user_id="user-a",
+                     expected_tenant_id="tenant-b", expected_account_id="account-a",
+                     expected_agent_id="agent-a")
+    preview_id = store.ingest(message(issued.address), expected_user_id="user-a",
+                              expected_tenant_id="tenant-a", expected_account_id="account-a",
+                              expected_agent_id="agent-a")
+    with pytest.raises(PermissionError, match="preview_not_found"):
+        store.preview("user-a", preview_id, tenant_id="tenant-a",
+                      account_id="account-a", agent_id="agent-b")
+    assert store.purge_expired() == {"content_deleted": 1, "events_deleted": 1}
+    with pytest.raises(PermissionError, match="preview_not_found"):
+        store.preview("user-a", preview_id, tenant_id="tenant-a",
+                      account_id="account-a", agent_id="agent-a")
+
+
 def test_scope_and_extra_content_are_rejected(store):
     issued = issue(store, "user-a", scope={"lookback_days": 7})
     outside = report(1)
