@@ -1045,17 +1045,13 @@ class RegisteredCaseExecutor:
         from harness.trace_observation import (
             execute_containment_case,
             execute_reidentification_case,
+            execute_tenant_account_boundary_case,
         )
         from tools.content_candidate_inventory import materialize_candidate_case
 
         test_id = str(registry_row.get("test_id") or "")
         spec = materialize_candidate_case(test_id, case_id)
-        execute = (
-            execute_reidentification_case
-            if test_id == "privacy_minimization_reidentification"
-            else execute_containment_case
-        )
-        record = execute(
+        common = dict(
             case_id=case_id,
             scanner_version=str(registry_row.get("version_pin") or "unknown"),
             corpus_version=str(
@@ -1065,6 +1061,20 @@ class RegisteredCaseExecutor:
             model_versions={"target": self.subject.model_id()},
             seed=int(registry_row.get("scan_seed") or 0),
         )
+        if test_id == "tenant_account_boundary":
+            oracle = spec.oracle
+            record = execute_tenant_account_boundary_case(
+                oracle_field=str(oracle["field"]),
+                expected_count=int(oracle["expected"]),
+                **common,
+            )
+        else:
+            execute = (
+                execute_reidentification_case
+                if test_id == "privacy_minimization_reidentification"
+                else execute_containment_case
+            )
+            record = execute(**common)
         verdict = str(record["verdict"]).lower()
         return _case_outcome(
             payloads=[],

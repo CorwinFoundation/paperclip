@@ -1348,6 +1348,7 @@ def _merge_content_candidate_inventory(
             "trace_observation_adapter": family_id in {
                 "out_of_scope_containment",
                 "privacy_minimization_reidentification",
+                "tenant_account_boundary",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
