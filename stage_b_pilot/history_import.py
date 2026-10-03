@@ -168,6 +168,26 @@ class HistoryImportStore:
     def decline(self, user_id: str) -> dict:
         return self.onboarding_state(user_id, declined=True)
 
+    def revoke_pending_address(self, user_id: str, address: str) -> None:
+        """Stop an unused one-time request linked to a revoked standing grant."""
+        local, separator, domain = address.rpartition("@")
+        if separator != "@" or domain.lower() != HISTORY_DOMAIN or not local.startswith("history+"):
+            raise PermissionError("history_address_invalid")
+        digest = hashlib.sha256(local[len("history+"):].encode()).hexdigest()
+        row = self.connection.execute(
+            "SELECT import_id,consumed_at FROM history_requests WHERE token_digest=? AND user_id=?",
+            (digest, user_id),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("history_account_mismatch")
+        if row["consumed_at"] is None:
+            self.connection.execute(
+                "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=?",
+                (digest, user_id),
+            )
+            self._event(row["import_id"], user_id, "consent_revoked")
+            self.connection.commit()
+
     def onboarding_state(self, user_id: str, *, declined: bool = False,
                          purpose: str = "onboarding") -> dict:
         row = self.connection.execute(
@@ -241,6 +261,8 @@ class HistoryImportStore:
             raise PermissionError("history_token_invalid")
         if expected_user_id is not None and request["user_id"] != expected_user_id:
             raise PermissionError("history_account_mismatch")
+        if request["state"] == "revoked":
+            raise PermissionError("history_token_revoked")
         if _parse_time(request["expires_at"]) <= self.now():
             self._fail(digest, "history_token_expired")
             raise PermissionError("history_token_expired")

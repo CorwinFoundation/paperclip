@@ -101,6 +101,12 @@ grep -q '^BB_HISTORY_EXTERNAL_ENABLED=' "$secret_file" || \
     printf 'BB_HISTORY_EXTERNAL_ENABLED=0\n' >>"$secret_file"
 grep -q '^BB_HISTORY_SYNTHETIC_ENABLED=' "$secret_file" || \
     printf 'BB_HISTORY_SYNTHETIC_ENABLED=1\n' >>"$secret_file"
+grep -q '^BB_INSTINCT_STANDING_DB=' "$secret_file" || \
+    printf 'BB_INSTINCT_STANDING_DB=%s/instinct-standing.sqlite3\n' "$state_dir" >>"$secret_file"
+grep -q '^BB_INSTINCT_STANDING_SYNTHETIC_ENABLED=' "$secret_file" || \
+    printf 'BB_INSTINCT_STANDING_SYNTHETIC_ENABLED=1\n' >>"$secret_file"
+grep -q '^BB_STAGE_B_PUBLIC_BASE=' "$secret_file" || \
+    printf 'BB_STAGE_B_PUBLIC_BASE=https://scanner.backbond.ai/stage-b-demo\n' >>"$secret_file"
 chown root:root "$secret_file"
 chmod 0600 "$secret_file"
 

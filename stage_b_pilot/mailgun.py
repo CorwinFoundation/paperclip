@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 
 from .inbound import InboundReceipt, InboundStore
 from .history_import import HistoryImportStore, MAX_MESSAGE_BYTES
+from .instinct_standing import STANDING_PREFIX, StandingReportStore, render_instruction
 
 
 RECIPIENT = "check@inbound.backbond.ai"
@@ -141,7 +142,10 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                  history_db_path: str | None = None,
                  history_key: bytes | None = None,
                  history_external_enabled: bool = False,
-                 history_synthetic_enabled: bool = False):
+                 history_synthetic_enabled: bool = False,
+                 standing_db_path: str | None = None,
+                 standing_synthetic_enabled: bool = False,
+                 public_base: str = "https://scanner.backbond.ai/stage-b-demo"):
     """Build the localhost HTTP receiver used behind the TLS reverse proxy."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -153,6 +157,11 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 encryption_key=history_key,
                 external_ingestion_enabled=history_external_enabled,
             )
+
+        def _standing_store(self) -> StandingReportStore:
+            if not standing_db_path or not standing_synthetic_enabled:
+                raise RuntimeError("standing_not_configured")
+            return StandingReportStore(standing_db_path)
 
         def _history_user(self, fields: Mapping[str, object]) -> str:
             email = str(fields.get("email", ""))
@@ -171,6 +180,19 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _html(self, status: int, body: str) -> None:
+            encoded = body.encode()
+            self.send_response(status)
+            for name, value in (("Content-Type", "text/html; charset=utf-8"),
+                                ("Content-Length", str(len(encoded))),
+                                ("Cache-Control", "no-store"),
+                                ("X-Robots-Tag", "noindex, nofollow, noarchive"),
+                                ("Referrer-Policy", "no-referrer"),
+                                ("X-Content-Type-Options", "nosniff")):
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(encoded)
 
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
@@ -198,6 +220,24 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                     if history is not None:
                         history.close()
                 return
+            if parsed.path.startswith("/instinct/instruction/"):
+                token = parsed.path.rsplit("/", 1)[-1]
+                standing = None
+                try:
+                    standing = self._standing_store()
+                    grant = standing.grant(token)
+                    self._html(200, render_instruction(token, grant["expires_at"],
+                                                       grant["sender_email"], public_base,
+                                                       grant["history_address"],
+                                                       grant["history_expires_at"]))
+                except PermissionError as exc:
+                    self._reply(410, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(404, {"error": "standing_not_configured"})
+                finally:
+                    if standing is not None:
+                        standing.close()
+                return
             if parsed.path != "/receipts":
                 self._reply(404, {"error": "not_found"})
                 return
@@ -217,8 +257,11 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            standing_post = path.startswith("/instinct/report/")
             if path not in {"/mailgun/mime", "/history/mailgun/mime",
-                            "/history/request", "/history/action"}:
+                            "/history/request", "/history/action",
+                            "/instinct/grant", "/instinct/revoke",
+                            "/instinct/reports"} and not standing_post:
                 self._reply(404, {"error": "not_found"})
                 return
             try:
@@ -226,12 +269,14 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             except ValueError:
                 self._reply(400, {"error": "content_length_invalid"})
                 return
-            limit = 16_384 if path in {"/history/request", "/history/action"} else MAX_REQUEST_BYTES
+            json_paths = {"/history/request", "/history/action", "/instinct/grant",
+                          "/instinct/revoke", "/instinct/reports"}
+            limit = 64_000 if standing_post else 16_384 if path in json_paths else MAX_REQUEST_BYTES
             if length <= 0 or length > limit:
                 self._reply(413, {"error": "request_size_invalid"})
                 return
             content_type = self.headers.get("Content-Type", "").split(";", 1)[0]
-            expected_type = ("application/json" if path in {"/history/request", "/history/action"}
+            expected_type = ("application/json" if path in json_paths or standing_post
                              else "application/x-www-form-urlencoded")
             if content_type != expected_type:
                 self._reply(415, {"error": "content_type_unsupported"})
@@ -244,6 +289,81 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                     raise ValueError
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
                 self._reply(400, {"error": "request_body_invalid"})
+                return
+            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/reports"}:
+                standing = None
+                try:
+                    user_id = self._history_user(fields)
+                    standing = self._standing_store()
+                    if path == "/instinct/grant":
+                        if fields.get("consent") is not True or fields.get("synthetic") is not True:
+                            raise ValueError("standing_synthetic_consent_required")
+                        inbound = InboundStore(db_path)
+                        try:
+                            sender = inbound.agent_recipient_for(user_id)
+                        finally:
+                            inbound.close()
+                        history = self._history_store()
+                        try:
+                            onboarding = history.issue_address(
+                                user_id, scope={"lookback_days": 90}, synthetic=True,
+                                purpose="onboarding")
+                        finally:
+                            history.close()
+                        issued = standing.issue(
+                            user_id, sender, history_address=onboarding.address,
+                            history_expires_at=onboarding.expires_at)
+                        self._reply(200, {**issued, "instruction_url":
+                                          f"{public_base.rstrip('/')}/instinct/instruction/{issued['token']}",
+                                          "history_address": onboarding.address,
+                                          "history_expires_at": onboarding.expires_at,
+                                          "synthetic": True})
+                    elif path == "/instinct/revoke":
+                        grant_id = str(fields.get("grant_id", ""))
+                        history_address = standing.pending_history_address(user_id, grant_id)
+                        if history_address:
+                            history = self._history_store()
+                            try:
+                                history.revoke_pending_address(user_id, history_address)
+                            finally:
+                                history.close()
+                        standing.revoke(user_id, grant_id)
+                        self._reply(200, {"state": "revoked"})
+                    else:
+                        inbound = InboundStore(db_path)
+                        try:
+                            sender = inbound.agent_recipient_for(user_id)
+                        finally:
+                            inbound.close()
+                        self._reply(200, {"reports": standing.reports_for(user_id),
+                                          "grants": standing.grants_for(user_id),
+                                          "enrolled_sender": sender})
+                except PermissionError as exc:
+                    self._reply(403, {"error": str(exc)})
+                except ValueError as exc:
+                    self._reply(400, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(503, {"error": "standing_not_configured"})
+                finally:
+                    if standing is not None:
+                        standing.close()
+                return
+            if standing_post:
+                standing = None
+                try:
+                    standing = self._standing_store()
+                    token = path.rsplit("/", 1)[-1]
+                    sender = self.headers.get("X-Instinct-Sender", "")
+                    self._reply(200, standing.ingest(token, sender, fields))
+                except PermissionError as exc:
+                    self._reply(410, {"error": str(exc)})
+                except ValueError as exc:
+                    self._reply(400, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(404, {"error": "standing_not_configured"})
+                finally:
+                    if standing is not None:
+                        standing.close()
                 return
             if path in {"/history/request", "/history/action"}:
                 history = None
@@ -296,6 +416,28 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         history.close()
                 return
             if path == "/history/mailgun/mime":
+                recipient = str(fields.get("recipient", "")).strip()
+                local_part, separator, domain = recipient.rpartition("@")
+                if (separator == "@" and domain.lower() == "inbound.backbond.ai"
+                        and local_part.startswith(STANDING_PREFIX)):
+                    standing = None
+                    try:
+                        verify_signature(fields, signing_key)
+                        raw_message = str(fields.get("body-mime", "")).encode()
+                        standing = self._standing_store()
+                        self._reply(200, standing.ingest_email(
+                            raw_message, envelope_recipient=recipient
+                        ))
+                    except PermissionError as exc:
+                        self._reply(401, {"error": str(exc)})
+                    except ValueError as exc:
+                        self._reply(406, {"error": str(exc)})
+                    except RuntimeError:
+                        self._reply(503, {"error": "standing_not_configured"})
+                    finally:
+                        if standing is not None:
+                            standing.close()
+                    return
                 history = None
                 try:
                     history = self._history_store()
@@ -358,6 +500,9 @@ def main() -> None:
         history_db_path=os.environ.get("BB_HISTORY_DB"), history_key=history_key,
         history_external_enabled=os.environ.get("BB_HISTORY_EXTERNAL_ENABLED") == "1",
         history_synthetic_enabled=os.environ.get("BB_HISTORY_SYNTHETIC_ENABLED") == "1",
+        standing_db_path=os.environ.get("BB_INSTINCT_STANDING_DB"),
+        standing_synthetic_enabled=os.environ.get("BB_INSTINCT_STANDING_SYNTHETIC_ENABLED") == "1",
+        public_base=os.environ.get("BB_STAGE_B_PUBLIC_BASE", "https://scanner.backbond.ai/stage-b-demo"),
     )).serve_forever()
 
 
