@@ -261,9 +261,33 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
     else:
         standing_section += '<p class="muted" role="status">No active one-link instruction.</p>'
     if standing_reports:
-        standing_section += "<h2>Per-request report status</h2>" + "".join(
-            f"<p role='status'>{escape(row['report_id'])}: received; {escape(row['review'])}; source {escape(row['provenance'])}.</p>"
-            for row in standing_reports)
+        standing_section += "<h2>Per-request report status</h2>"
+        for row in standing_reports:
+            report = row.get("report", {})
+            event = report.get("event", {})
+            details = "".join(
+                f"<dt>{escape(label)}</dt><dd>{escape(value)}</dd>"
+                for label, value in (
+                    ("Received", row.get("received_at", "unknown")),
+                    ("Request reference", report.get("deduplication_key", "unknown")),
+                    ("Report reason", report.get("trigger", "unknown")),
+                    ("Occurred at", event.get("occurred_at", "unknown")),
+                    ("Category", event.get("category", "unknown")),
+                    ("Proposed external action", event.get("proposed_external_action", "unknown")),
+                    ("Actual external action", event.get("actual_external_action", "unknown")),
+                    ("Approval source", event.get("approval_source", "unknown")),
+                    ("Approval status", event.get("approval_status", "unknown")),
+                    ("Money at risk", event.get("money_at_risk", "unknown")),
+                    ("Outcome", event.get("outcome", "unknown")),
+                    ("Gaps", event.get("gaps", "unknown")),
+                )
+            )
+            standing_section += (
+                f"<p role='status'>{escape(row['report_id'])}: received; {escape(row['review'])}; source {escape(row['provenance'])}.</p>"
+                f"<details><summary>View report details: {escape(row['report_id'])}</summary>"
+                "<p>Agent-reported information. Receipt does not verify a charge, loss, or approval. No action is required from you.</p>"
+                f"<dl>{details}</dl></details>"
+            )
     else:
         standing_section += '<p class="muted" role="status">No per-request report has been received for this account yet.</p>'
     standing_section += "</section>"
