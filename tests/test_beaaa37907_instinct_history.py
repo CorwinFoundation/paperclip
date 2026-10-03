@@ -12,6 +12,7 @@ from stage_b_pilot.history_import import (
     HISTORY_DOMAIN,
     HistoryImportStore,
     REPORT_VERSION,
+    NOTICE_VERSION,
     ROW_KEYS,
     _canonical_report_bytes,
 )
@@ -53,12 +54,22 @@ def store(tmp_path):
     return HistoryImportStore(tmp_path / "history.sqlite3", provider_secret=SECRET, encryption_key=KEY)
 
 
+def issue(store, user_id, *, scope, ttl=timedelta(hours=1)):
+    return store.issue_address(user_id, scope=scope, synthetic=True, ttl=ttl)
+
+
 def test_51_row_report_imports_once_for_bound_user_and_confirms(store):
-    issued = store.issue_address("user-a", scope={"lookback_days": 90, "categories": ["purchases"]})
+    with pytest.raises(PermissionError, match="external_ingestion_disabled"):
+        store.issue_address("real-user", scope={"lookback_days": 90})
+    issued = issue(store, "user-a", scope={"lookback_days": 90, "categories": ["purchases"]})
     assert issued.address.endswith("@" + HISTORY_DOMAIN)
     assert "check@inbound.backbond.ai" not in issued.address
     preview_id = store.ingest(message(issued.address, html=True), expected_user_id="user-a")
     assert len(store.preview("user-a", preview_id)["report"]["rows"]) == 51
+    assert store.preview("user-a", preview_id)["connected_source"] == "Instinct"
+    consent = store.connection.execute("SELECT * FROM history_requests").fetchone()
+    assert consent["notice_version"] == NOTICE_VERSION
+    assert consent["import_id"].startswith("hi_") and consent["synthetic_only"] == 1
     with pytest.raises(PermissionError, match="replayed"):
         store.ingest(message(issued.address), expected_user_id="user-a")
     store.act("user-a", preview_id, "confirm")
@@ -74,7 +85,7 @@ def test_51_row_report_imports_once_for_bound_user_and_confirms(store):
     (lambda p: p["rows"].__setitem__(1, copy.deepcopy(p["rows"][0])), "duplicate_row"),
 ])
 def test_full_key_schema_failures_hold_review(store, mutation, error):
-    issued = store.issue_address("user-a", scope={"lookback_days": 30})
+    issued = issue(store, "user-a", scope={"lookback_days": 30})
     payload = report()
     mutation(payload)
     with pytest.raises(ValueError, match=error):
@@ -83,17 +94,17 @@ def test_full_key_schema_failures_hold_review(store, mutation, error):
 
 
 def test_signature_expiry_attachment_size_binding_and_cross_user_fail(store):
-    issued = store.issue_address("user-a", scope={"lookback_days": 30})
+    issued = issue(store, "user-a", scope={"lookback_days": 30})
     with pytest.raises(PermissionError, match="account_mismatch"):
         store.ingest(message(issued.address), expected_user_id="user-b")
     with pytest.raises(PermissionError, match="signature_invalid"):
         store.ingest(message(issued.address, secret=b"wrong-provider-secret-value"))
-    issued2 = store.issue_address("user-a", scope={"lookback_days": 30})
+    issued2 = issue(store, "user-a", scope={"lookback_days": 30})
     with pytest.raises(ValueError, match="attachments_rejected"):
         store.ingest(message(issued2.address, attachment=True))
     with pytest.raises(ValueError, match="payload_too_large"):
         store.ingest(b"x" * 256_001)
-    expired = store.issue_address("user-a", scope={"lookback_days": 30}, ttl=timedelta(seconds=-1))
+    expired = issue(store, "user-a", scope={"lookback_days": 30}, ttl=timedelta(seconds=-1))
     with pytest.raises(PermissionError, match="expired"):
         store.ingest(message(expired.address))
 
@@ -105,7 +116,7 @@ def test_decline_preview_correction_discard_delete_and_private_access(store):
     assert declined["account_creation"] == declined["observation_demo"] == "available"
     assert "does not activate insurance or coverage" in declined["notice"]
 
-    first = store.issue_address("user-a", scope={"lookback_days": 30})
+    first = issue(store, "user-a", scope={"lookback_days": 30})
     preview_id = store.ingest(message(first.address))
     with pytest.raises(PermissionError, match="preview_not_found"):
         store.preview("user-b", preview_id)
@@ -114,10 +125,16 @@ def test_decline_preview_correction_discard_delete_and_private_access(store):
     store.act("user-a", preview_id, "correct", corrected_report=corrected)
     assert store.preview("user-a", preview_id)["provenance"] == "user_confirmed"
     store.act("user-a", preview_id, "discard")
+    assert store.connection.execute(
+        "SELECT event_type FROM history_events ORDER BY occurred_at DESC LIMIT 1"
+    ).fetchone()[0] == "consent_withdrawn"
     with pytest.raises(PermissionError, match="preview_not_found"):
         store.preview("user-a", preview_id)
 
-    second = store.issue_address("user-a", scope={"lookback_days": 30})
+    second = issue(store, "user-a", scope={"lookback_days": 30})
     second_id = store.ingest(message(second.address))
     store.act("user-a", second_id, "delete")
+    assert store.connection.execute(
+        "SELECT event_type FROM history_events ORDER BY rowid DESC LIMIT 1"
+    ).fetchone()[0] == "content_deleted"
     assert store.onboarding_state("user-a")["history_informed_underwriting_review"] == "held"

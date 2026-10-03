@@ -22,6 +22,7 @@ from typing import Callable
 
 HISTORY_DOMAIN = "history.inbound.backbond.ai"
 REPORT_VERSION = "instinct-history/v1"
+NOTICE_VERSION = "instinct-history-notice/v1"
 EXPECTED_ROWS = 51
 MAX_MESSAGE_BYTES = 256_000
 ROW_KEYS = frozenset({
@@ -75,6 +76,7 @@ class HistoryImportStore:
     """Private history previews and the onboarding evidence state machine."""
 
     def __init__(self, path: str | Path, *, provider_secret: bytes, encryption_key: bytes,
+                 external_ingestion_enabled: bool = False,
                  now: Callable[[], datetime] = _utcnow) -> None:
         if len(provider_secret) < 16 or len(encryption_key) < 32:
             raise ValueError("history_secret_too_short")
@@ -82,15 +84,18 @@ class HistoryImportStore:
         self.connection.row_factory = sqlite3.Row
         self.provider_secret = provider_secret
         self.encryption_key = encryption_key
+        self.external_ingestion_enabled = external_ingestion_enabled
         self.now = now
         self.connection.executescript(
             """
             PRAGMA journal_mode=WAL;
             CREATE TABLE IF NOT EXISTS history_requests (
               token_digest TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+              import_id TEXT NOT NULL UNIQUE, notice_version TEXT NOT NULL,
               scope_json TEXT NOT NULL, expires_at TEXT NOT NULL,
               consumed_at TEXT, state TEXT NOT NULL,
-              failure_reason TEXT, consented_at TEXT NOT NULL
+              failure_reason TEXT, consented_at TEXT NOT NULL,
+              synthetic_only INTEGER NOT NULL
             );
             CREATE TABLE IF NOT EXISTS history_previews (
               preview_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
@@ -99,20 +104,31 @@ class HistoryImportStore:
               provenance TEXT NOT NULL, state TEXT NOT NULL,
               created_at TEXT NOT NULL, confirmed_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS history_events (
+              event_id TEXT PRIMARY KEY, import_id TEXT NOT NULL,
+              user_id TEXT NOT NULL, event_type TEXT NOT NULL,
+              occurred_at TEXT NOT NULL
+            );
             """
         )
 
-    def issue_address(self, user_id: str, *, scope: dict, ttl: timedelta = timedelta(hours=1)) -> HistoryAddress:
+    def issue_address(self, user_id: str, *, scope: dict, synthetic: bool = False,
+                      ttl: timedelta = timedelta(hours=1)) -> HistoryAddress:
         if not user_id or not scope:
             raise ValueError("history_consent_scope_required")
+        if not synthetic and not self.external_ingestion_enabled:
+            raise PermissionError("history_external_ingestion_disabled")
         token = secrets.token_urlsafe(24)
         digest = hashlib.sha256(token.encode()).hexdigest()
+        import_id = "hi_" + secrets.token_hex(12)
         now = self.now()
         expires = now + ttl
         self.connection.execute(
-            "INSERT INTO history_requests VALUES(?,?,?,?,NULL,'awaiting_report',NULL,?)",
-            (digest, user_id, json.dumps(scope, sort_keys=True), _iso(expires), _iso(now)),
+            "INSERT INTO history_requests VALUES(?,?,?,?,?,?,NULL,'awaiting_report',NULL,?,?)",
+            (digest, user_id, import_id, NOTICE_VERSION, json.dumps(scope, sort_keys=True),
+             _iso(expires), _iso(now), int(synthetic)),
         )
+        self._event(import_id, user_id, "consent_recorded")
         self.connection.commit()
         return HistoryAddress(f"history+{token}@{HISTORY_DOMAIN}", _iso(expires))
 
@@ -222,6 +238,7 @@ class HistoryImportStore:
     def preview(self, user_id: str, preview_id: str) -> dict:
         row = self._owned_preview(user_id, preview_id)
         return {"preview_id": preview_id, "state": row["state"], "provenance": row["provenance"],
+                "connected_source": "Instinct",
                 "report": json.loads(row["report_json"])}
 
     def act(self, user_id: str, preview_id: str, action: str, *, corrected_report: dict | None = None) -> None:
@@ -246,6 +263,11 @@ class HistoryImportStore:
             self.connection.execute(
                 "UPDATE history_requests SET state='history_not_supplied',failure_reason=NULL WHERE token_digest=?", (digest,)
             )
+            request = self.connection.execute(
+                "SELECT import_id,user_id FROM history_requests WHERE token_digest=?", (digest,)
+            ).fetchone()
+            self._event(request["import_id"], request["user_id"],
+                        "consent_withdrawn" if action == "discard" else "content_deleted")
         else:
             raise ValueError("history_preview_action_invalid")
         self.connection.commit()
@@ -261,3 +283,10 @@ class HistoryImportStore:
             "UPDATE history_requests SET state='validation_failed',failure_reason=? WHERE token_digest=?", (reason, digest)
         )
         self.connection.commit()
+
+    def _event(self, import_id: str, user_id: str, event_type: str) -> None:
+        """Retain only non-content consent/security lifecycle evidence."""
+        self.connection.execute(
+            "INSERT INTO history_events VALUES(?,?,?,?,?)",
+            ("he_" + secrets.token_hex(12), import_id, user_id, event_type, _iso(self.now())),
+        )
