@@ -55,11 +55,18 @@ def store(tmp_path):
     return HistoryImportStore(tmp_path / "history.sqlite3", provider_secret=SECRET, encryption_key=KEY)
 
 
-def issue(store, user_id, *, scope, ttl=timedelta(hours=1)):
-    return store.issue_address(user_id, scope=scope, synthetic=True, ttl=ttl)
+def issue(store, user_id, *, scope, ttl=timedelta(hours=1), legacy=False):
+    issued = store.issue_address(user_id, scope=scope, synthetic=True, ttl=ttl)
+    if legacy:
+        store.connection.execute(
+            "UPDATE history_requests SET notice_version='instinct-history-notice/v1' WHERE user_id=?",
+            (user_id,),
+        )
+        store.connection.commit()
+    return issued
 
 
-def test_51_row_report_imports_once_for_bound_user_and_confirms(store):
+def test_51_row_report_imports_once_for_bound_user_without_second_confirmation(store):
     with pytest.raises(PermissionError, match="external_ingestion_disabled"):
         store.issue_address("real-user", scope={"lookback_days": 90})
     issued = issue(store, "user-a", scope={"lookback_days": 90, "categories": ["purchases"]})
@@ -73,11 +80,17 @@ def test_51_row_report_imports_once_for_bound_user_and_confirms(store):
     assert consent["import_id"].startswith("hi_") and consent["synthetic_only"] == 1
     with pytest.raises(PermissionError, match="replayed"):
         store.ingest(message(issued.address), expected_user_id="user-a")
-    store.act("user-a", preview_id, "confirm")
     state = store.onboarding_state("user-a")
+    assert state["history_state"] == "received"
+    assert state["underwriting_evidence"] == "agent_reported_received"
     assert state["history_informed_underwriting_review"] == "ready"
     assert state["insurance_or_coverage_activation"] is False
     assert store.preview("user-a", preview_id)["provenance"] == "agent_reported"
+    assert store.connection.execute(
+        "SELECT raw_encrypted FROM history_previews WHERE preview_id=?", (preview_id,)
+    ).fetchone()[0] == b""
+    with pytest.raises(ValueError, match="preview_not_editable"):
+        store.act("user-a", preview_id, "confirm")
 
 
 @pytest.mark.parametrize("count", [1, 3, 51, MAX_ROWS])
@@ -129,7 +142,8 @@ def test_decline_preview_correction_discard_delete_and_private_access(store):
     assert declined["account_creation"] == declined["observation_demo"] == "available"
     assert "does not activate insurance or coverage" in declined["notice"]
 
-    first = issue(store, "user-a", scope={"lookback_days": 30})
+    # Requests issued under the old notice still honor its promised review step.
+    first = issue(store, "user-a", scope={"lookback_days": 30}, legacy=True)
     preview_id = store.ingest(message(first.address))
     with pytest.raises(PermissionError, match="preview_not_found"):
         store.preview("user-b", preview_id)

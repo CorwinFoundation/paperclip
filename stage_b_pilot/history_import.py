@@ -23,7 +23,7 @@ from typing import Callable
 
 HISTORY_DOMAIN = "inbound.backbond.ai"
 REPORT_VERSION = "instinct-history/v1"
-NOTICE_VERSION = "instinct-history-notice/v1"
+NOTICE_VERSION = "instinct-history-notice/v2"
 MAX_ROWS = 500
 MAX_MESSAGE_BYTES = 256_000
 ROW_KEYS = frozenset({
@@ -176,13 +176,17 @@ class HistoryImportStore:
             (user_id, purpose),
         ).fetchone()
         state = "history_not_supplied" if declined or row is None else row["state"]
-        held = state != "confirmed"
+        held = state not in {"received", "confirmed"}
         next_step = None
         if held:
-            next_step = "Supply a scoped Instinct history report. Correct it and resend if validation failed."
+            next_step = "Ask Instinct to send the scoped report or resend it if validation failed."
+        elif state == "received":
+            next_step = "Underwriting or support staff should review agent-reported facts before relying on them."
         return {
             "history_state": state,
-            "underwriting_evidence": "incomplete" if held else "history_confirmed",
+            "underwriting_evidence": ("incomplete" if held else
+                                      "agent_reported_received" if state == "received" else
+                                      "history_confirmed"),
             "history_informed_underwriting_review": "held" if held else "ready",
             "account_creation": "available",
             "observation_demo": "available",
@@ -290,15 +294,19 @@ class HistoryImportStore:
             raise ValueError(reason) from exc
         preview_id = "hp_" + secrets.token_hex(12)
         now = _iso(self.now())
+        # The v2 notice authorizes scoped receipt without a second user action.
+        # Older requests retain their promised review/confirmation step.
+        state = "received" if request["notice_version"] == NOTICE_VERSION else "pending_confirmation"
+        raw = b"" if state == "received" else _seal(self.encryption_key, body.encode())
         self.connection.execute(
-            "INSERT INTO history_previews VALUES(?,?,?,?,?,'agent_reported','pending_confirmation',?,NULL)",
+            "INSERT INTO history_previews VALUES(?,?,?,?,?,'agent_reported',?,?,NULL)",
             (preview_id, request["user_id"], digest,
              _seal(self.encryption_key, _canonical_report_bytes(report)),
-             _seal(self.encryption_key, body.encode()), now),
+             raw, state, now),
         )
         self.connection.execute(
-            "UPDATE history_requests SET consumed_at=?,state='pending_confirmation',failure_reason=NULL WHERE token_digest=?",
-            (now, digest),
+            "UPDATE history_requests SET consumed_at=?,state=?,failure_reason=NULL WHERE token_digest=?",
+            (now, state, digest),
         )
         self.connection.commit()
         return preview_id

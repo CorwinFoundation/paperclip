@@ -151,32 +151,28 @@ def test_new_user_then_support_history_flow(services):
     with _deliver(inbound, address, report) as response:
         preview_id = json.loads(response.read())["preview_id"]
     state = _json_request(inbound, "/history/state?email=user%40example.com", token)
-    assert state["onboarding"]["history_informed_underwriting_review"] == "held"
+    assert state["onboarding"]["history_informed_underwriting_review"] == "ready"
+    assert state["onboarding"]["underwriting_evidence"] == "agent_reported_received"
+    assert state["imports"][0]["state"] == "received"
     assert len(state["imports"][0]["report"]["rows"]) == 2
     with urlopen(Request(page + "/stage-b-demo/history",
                          headers={"Cookie": cookie})) as response:
-        assert '<option value="task_id">Task Id</option>' in response.read().decode()
+        history_html = response.read().decode()
+    assert "2 rows; received" in history_html
+    assert "Confirm selected history" not in history_html
     with pytest.raises(HTTPError) as replay:
         _deliver(inbound, address, _report(2))
     assert replay.value.code == 401
-    _json_request(inbound, "/history/action", token, {
-        "email": "user@example.com", "preview_id": preview_id, "action": "correct_field",
-        "row_index": 0, "field": "outcome", "value": "User reports no booking",
-    })
-    _json_request(inbound, "/history/action", token, {
-        "email": "user@example.com", "preview_id": preview_id, "action": "correct_field",
-        "row_index": 0, "field": "task_id", "value": "unknown",
-    })
-    _json_request(inbound, "/history/action", token, {
-        "email": "user@example.com", "preview_id": preview_id, "action": "confirm",
-    })
     state = _json_request(inbound, "/history/state?email=user%40example.com", token)
     assert state["onboarding"]["history_informed_underwriting_review"] == "ready"
     assert state["imports"][0]["provenance"] == "agent_reported"
-    assert state["imports"][0]["report"]["rows"][0]["user_corrections"]["outcome"] == "User reports no booking"
     assert state["imports"][0]["report"]["rows"][0]["task_id"] == "todo-invented-placeholder"
-    assert state["imports"][0]["report"]["rows"][0]["user_corrections"]["task_id"] == "unknown"
-    # A later support update is separate from the confirmed onboarding history.
+    with pytest.raises(HTTPError) as confirm_not_required:
+        _json_request(inbound, "/history/action", token, {
+            "email": "user@example.com", "preview_id": preview_id, "action": "confirm",
+        })
+    assert confirm_not_required.value.code == 400
+    # A later support update is separate from the received onboarding history.
     support = _json_request(inbound, "/history/request", token, {
         "email": "user@example.com", "consent": True, "lookback_days": 7,
         "purpose": "support", "synthetic": True,
@@ -185,7 +181,8 @@ def test_new_user_then_support_history_flow(services):
         assert json.loads(response.read())["accepted"] is True
     state = _json_request(inbound, "/history/state?email=user%40example.com", token)
     assert state["onboarding"]["history_informed_underwriting_review"] == "ready"
-    assert state["support"]["history_informed_underwriting_review"] == "held"
+    assert state["support"]["history_informed_underwriting_review"] == "ready"
+    assert state["support"]["underwriting_evidence"] == "agent_reported_received"
     assert {item["purpose"] for item in state["imports"]} == {"onboarding", "support"}
     # The continuing support receiver still handles individual task checks.
     with _deliver_check(inbound) as response:

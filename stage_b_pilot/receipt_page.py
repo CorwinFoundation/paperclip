@@ -212,7 +212,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
 <input type="hidden" name="csrf" value="{escape(csrf)}">{synthetic_field}
 <label for="purpose">Use</label><select id="purpose" name="purpose"><option value="onboarding">New user onboarding</option><option value="support">Ongoing support update</option></select>
 <label for="lookback">Lookback</label><select id="lookback" name="lookback_days"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
-<label><input type="checkbox" name="consent" value="yes" required> I ask BackBond to receive this selected Instinct task history for a private review. I can correct or delete it. This does not start insurance or coverage.</label>
+<label><input type="checkbox" name="consent" value="yes" required> I authorize BackBond to receive this selected Instinct task history for the purpose chosen above and make it available for underwriting review or ongoing support, as applicable. Instinct's report is agent-reported, not proof of a charge, loss, or approval. I can view or delete it. This does not start insurance or coverage.</label>
 <button type="submit">{label}</button></form>'''
     else:
         form = '<p class="muted">History requests are not enabled for this account yet.</p>'
@@ -222,7 +222,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
         instruction_text = history_instruction(str(issued["address"]), str(issued["sender_email"]), days,
                                                synthetic=bool(issued.get("synthetic")))
         instruction = f'''<section class="receipt"><h2>Give Instinct this instruction</h2>
-<p>The one-time address expires at {escape(issued['expires_at'])}. Review the received report here before confirming it.</p>
+<p>The one-time address expires at {escape(issued['expires_at'])}. A valid report is received without another step from you. You can view or delete it here.</p>
 <textarea readonly rows="11">{escape(instruction_text)}</textarea></section>'''
     blocks = []
     for imported in imports:
@@ -255,10 +255,10 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
                 actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="{action}"><button type="submit">{label}</button></form>'''
         actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="delete"><button type="submit">Delete import</button></form>'''
         blocks.append(f'''<section class="receipt"><h2>{escape(imported['purpose'].title())} report</h2>
-<p>Received {escape(imported['created_at'])}; {len(rows)} rows; {escape(imported['state'])}. Source: Instinct, agent-reported. User corrections appear separately. No charge, loss, approval, or coverage is verified by this report alone.</p>
+<p>Received {escape(imported['created_at'])}; {len(rows)} rows; {escape(imported['state'])}. Source: Instinct, agent-reported. Any earlier user corrections appear separately. No charge, loss, approval, or coverage is verified by this report alone.</p>
 {''.join(entries)}{actions}</section>''')
     return _page(f'''<nav><a href="/stage-b-demo/history">Onboarding history</a> | <a href="/stage-b-demo/receipts">Ongoing task support</a></nav>
-<div class="intro"><h1>Instinct history</h1><p class="privacy">Select a period, ask Instinct once, then review what arrived.</p></div>
+<div class="intro"><h1>Instinct history</h1><p class="privacy">Select a period and send the instruction to Instinct. BackBond receives a valid report without another step from you.</p></div>
 {notice}<p>Onboarding evidence: {escape(onboarding.get('underwriting_evidence', 'incomplete'))}. Support update: {escape(support.get('history_state', 'history_not_supplied'))}.</p>
 {form}{instruction}{''.join(blocks)}<form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>''')
 
