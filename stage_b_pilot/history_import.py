@@ -160,7 +160,34 @@ class HistoryImportStore:
             self.connection.execute(
                 "ALTER TABLE history_events ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
             )
+        # Rows created before retention was configurable must not become immortal.
+        preview_cutoff = _iso(self.now() + self.unconfirmed_retention)
+        event_cutoff = _iso(self.now() + self.event_retention)
+        self.connection.execute(
+            "UPDATE history_previews SET retention_expires_at=? "
+            "WHERE retention_expires_at=''",
+            (preview_cutoff,),
+        )
+        self.connection.execute(
+            "UPDATE history_events SET retention_expires_at=? "
+            "WHERE retention_expires_at=''",
+            (event_cutoff,),
+        )
         self.connection.commit()
+
+    def binding_for_address(self, address: str) -> dict[str, str]:
+        """Resolve the immutable request binding for authenticated transport use."""
+        local, separator, domain = address.strip().rpartition("@")
+        if separator != "@" or domain.lower() != HISTORY_DOMAIN or not local.startswith("history+"):
+            raise PermissionError("history_address_invalid")
+        digest = hashlib.sha256(local[len("history+"):].encode()).hexdigest()
+        row = self.connection.execute(
+            "SELECT user_id,tenant_id,account_id,agent_id FROM history_requests "
+            "WHERE token_digest=?", (digest,),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("history_token_invalid")
+        return dict(row)
 
     def issue_address(self, user_id: str, *, scope: dict, tenant_id: str | None = None,
                       account_id: str | None = None, agent_id: str | None = None,
@@ -217,11 +244,19 @@ class HistoryImportStore:
             self.connection.commit()
 
     def onboarding_state(self, user_id: str, *, declined: bool = False,
-                         purpose: str = "onboarding") -> dict:
+                         purpose: str = "onboarding", tenant_id: str | None = None,
+                         account_id: str | None = None, agent_id: str | None = None) -> dict:
+        binding_supplied = any(value is not None for value in (tenant_id, account_id, agent_id))
+        tenant_id, account_id, agent_id = self._binding_defaults(
+            user_id, tenant_id, account_id, agent_id)
+        binding_clause = " AND tenant_id=? AND account_id=? AND agent_id=?" if binding_supplied else ""
+        parameters = ((user_id, purpose, tenant_id, account_id, agent_id) if binding_supplied
+                      else (user_id, purpose))
         row = self.connection.execute(
             "SELECT state,failure_reason FROM history_requests WHERE user_id=? AND purpose=? "
+            + binding_clause + " "
             "ORDER BY rowid DESC LIMIT 1",
-            (user_id, purpose),
+            parameters,
         ).fetchone()
         state = "history_not_supplied" if declined or row is None else row["state"]
         held = state not in {"received", "confirmed"}
@@ -244,14 +279,22 @@ class HistoryImportStore:
             "notice": "Information gathering only. This does not activate insurance or coverage.",
         }
 
-    def imports_for(self, user_id: str, *, purpose: str | None = None) -> list[dict]:
+    def imports_for(self, user_id: str, *, purpose: str | None = None,
+                    tenant_id: str | None = None, account_id: str | None = None,
+                    agent_id: str | None = None) -> list[dict]:
         """Return only this user's preview metadata and report for private review."""
+        binding_supplied = any(value is not None for value in (tenant_id, account_id, agent_id))
         query = (
             "SELECT p.preview_id,p.state,p.provenance,p.created_at,p.confirmed_at,"
             "p.report_json,r.purpose FROM history_previews p "
             "JOIN history_requests r ON p.token_digest=r.token_digest WHERE p.user_id=?"
         )
+        tenant_id, account_id, agent_id = self._binding_defaults(
+            user_id, tenant_id, account_id, agent_id)
         parameters: tuple[str, ...] = (user_id,)
+        if binding_supplied:
+            query += " AND r.tenant_id=? AND r.account_id=? AND r.agent_id=?"
+            parameters += (tenant_id, account_id, agent_id)
         if purpose is not None:
             query += " AND r.purpose=?"
             parameters += (purpose,)
@@ -460,9 +503,10 @@ class HistoryImportStore:
         self.connection.commit()
 
     def correct_field(self, user_id: str, preview_id: str, row_index: int,
-                      field: str, value: str) -> None:
+                      field: str, value: str, *, tenant_id: str | None = None,
+                      account_id: str | None = None, agent_id: str | None = None) -> None:
         """Keep the agent's value and attribute a separate correction to the user."""
-        preview = self._owned_preview(user_id, preview_id)
+        preview = self._owned_preview(user_id, preview_id, tenant_id, account_id, agent_id)
         if preview["state"] != "pending_confirmation":
             raise ValueError("history_preview_not_editable")
         if field not in CORRECTABLE_FIELDS or len(value) > 500:
@@ -491,6 +535,11 @@ class HistoryImportStore:
             if expected is not None and row[key] != expected:
                 raise PermissionError("history_preview_not_found")
         return row
+
+    @staticmethod
+    def _binding_defaults(user_id: str, tenant_id: str | None,
+                          account_id: str | None, agent_id: str | None) -> tuple[str, str, str]:
+        return tenant_id or user_id, account_id or user_id, agent_id or user_id
 
     def purge_expired(self) -> dict[str, int]:
         now = _iso(self.now())

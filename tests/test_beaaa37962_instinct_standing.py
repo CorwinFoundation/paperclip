@@ -265,7 +265,7 @@ def test_email_followup_scope_expiry_conflicts_and_retained_private_history(tmp_
     assert next(row for row in records if row["request_id"] == pending["request_id"])["state"] == "revoked"
     page = render_history({}, "a@example.com", "csrf", standing={
         "grants": store.grants_for("a"), "followups": records})
-    assert "Fictional answer" in page and question["request_id"] in page
+    assert "Fictional answer" not in page and question["request_id"] in page
 
     grant = store.issue("a", "agent@example.com", followup_enabled=True, ttl=timedelta(minutes=1))
     question = store.issue_followup("a", grant["grant_id"], "Expiring question")

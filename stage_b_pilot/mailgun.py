@@ -125,7 +125,7 @@ def ingest_history_route(
     Instinct has no documented report-signing key for user-directed email.
     """
     verify_signature(fields, signing_key, now=now)
-    recipient = fields.get("recipient", "").strip().lower()
+    recipient = fields.get("recipient", "").strip()
     raw = fields.get("body-mime", "")
     if not raw or len(raw.encode("utf-8")) > MAX_MESSAGE_BYTES:
         raise ValueError("history_mime_missing_or_too_large")
@@ -133,9 +133,16 @@ def ingest_history_route(
     from email.parser import BytesParser
     from email.utils import parseaddr
     message = BytesParser(policy=policy.default).parsebytes(raw.encode("utf-8"))
-    if parseaddr(str(message.get("To", "")))[1].lower() != recipient:
+    if parseaddr(str(message.get("To", "")))[1] != recipient:
         raise PermissionError("history_envelope_recipient_mismatch")
-    return store.ingest(raw.encode("utf-8"), transport_authenticated=True)
+    binding = store.binding_for_address(recipient)
+    return store.ingest(
+        raw.encode("utf-8"), transport_authenticated=True,
+        expected_user_id=binding["user_id"],
+        expected_tenant_id=binding["tenant_id"],
+        expected_account_id=binding["account_id"],
+        expected_agent_id=binding["agent_id"],
+    )
 
 
 def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
@@ -152,16 +159,28 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
         def _history_store(self) -> HistoryImportStore:
             if not history_db_path or not history_key:
                 raise RuntimeError("history_not_configured")
-            return HistoryImportStore(
+            store = HistoryImportStore(
                 history_db_path, provider_secret=signing_key.encode(),
                 encryption_key=history_key,
                 external_ingestion_enabled=history_external_enabled,
             )
+            store.purge_expired()
+            return store
 
         def _standing_store(self) -> StandingReportStore:
             if not standing_db_path or not standing_synthetic_enabled:
                 raise RuntimeError("standing_not_configured")
-            return StandingReportStore(standing_db_path)
+            store = StandingReportStore(standing_db_path)
+            store.purge_expired()
+            return store
+
+        def _history_binding(self, user_id: str) -> dict[str, str]:
+            inbound = InboundStore(db_path)
+            try:
+                agent_id = inbound.agent_recipient_for(user_id)
+            finally:
+                inbound.close()
+            return {"tenant_id": user_id, "account_id": user_id, "agent_id": agent_id}
 
         def _history_user(self, fields: Mapping[str, object]) -> str:
             email = str(fields.get("email", ""))
@@ -208,11 +227,12 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 history = None
                 try:
                     user_id = self._history_user(fields)
+                    binding = self._history_binding(user_id)
                     history = self._history_store()
                     self._reply(200, {
-                        "onboarding": history.onboarding_state(user_id),
-                        "support": history.onboarding_state(user_id, purpose="support"),
-                        "imports": history.imports_for(user_id),
+                        "onboarding": history.onboarding_state(user_id, **binding),
+                        "support": history.onboarding_state(user_id, purpose="support", **binding),
+                        "imports": history.imports_for(user_id, **binding),
                         "external_enabled": history_external_enabled,
                         "synthetic_enabled": history_synthetic_enabled,
                     })
@@ -324,9 +344,11 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             inbound.close()
                         history = self._history_store()
                         try:
+                            binding = {"tenant_id": user_id, "account_id": user_id,
+                                       "agent_id": sender}
                             onboarding = history.issue_address(
                                 user_id, scope={"lookback_days": 90}, synthetic=True,
-                                purpose="onboarding")
+                                purpose="onboarding", **binding)
                         finally:
                             history.close()
                         issued = standing.issue(
@@ -394,6 +416,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 history = None
                 try:
                     user_id = self._history_user(fields)
+                    binding = self._history_binding(user_id)
                     history = self._history_store()
                     if path == "/history/request":
                         if fields.get("consent") is not True:
@@ -414,6 +437,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             user_id, purpose=purpose, synthetic=synthetic,
                             scope={"lookback_days": days, "categories": ["task_records"],
                                    "sender_email": agent_sender},
+                            **binding,
                         )
                         self._reply(200, {"address": address.address,
                                           "expires_at": address.expires_at,
@@ -426,9 +450,10 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             history.correct_field(
                                 user_id, preview_id, int(fields.get("row_index", -1)),
                                 str(fields.get("field", "")), str(fields.get("value", "")),
+                                **binding,
                             )
                         else:
-                            history.act(user_id, preview_id, action)
+                            history.act(user_id, preview_id, action, **binding)
                         self._reply(200, {"accepted": True})
                 except PermissionError as exc:
                     self._reply(403, {"error": str(exc)})

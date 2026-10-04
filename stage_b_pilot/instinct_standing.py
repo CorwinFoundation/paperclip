@@ -37,10 +37,13 @@ def _iso(value: datetime) -> str:
 class StandingReportStore:
     """Account-bound, revocable consent grants and deduplicated minimal reports."""
 
-    def __init__(self, path: str | Path, *, now: Callable[[], datetime] = _utcnow) -> None:
+    def __init__(self, path: str | Path, *,
+                 content_retention: timedelta = timedelta(days=30),
+                 now: Callable[[], datetime] = _utcnow) -> None:
         self.connection = sqlite3.connect(path)
         self.connection.row_factory = sqlite3.Row
         self.now = now
+        self.content_retention = content_retention
         self.connection.executescript("""
         CREATE TABLE IF NOT EXISTS instinct_standing_grants (
           grant_digest TEXT PRIMARY KEY, user_id TEXT NOT NULL,
@@ -53,12 +56,14 @@ class StandingReportStore:
           report_id TEXT PRIMARY KEY, grant_digest TEXT NOT NULL,
           deduplication_key TEXT NOT NULL, received_at TEXT NOT NULL,
           report_json TEXT NOT NULL, provenance TEXT NOT NULL,
+          retention_expires_at TEXT NOT NULL DEFAULT '',
           UNIQUE(grant_digest, deduplication_key)
         );
         CREATE TABLE IF NOT EXISTS instinct_followup_requests (
           request_id TEXT PRIMARY KEY, grant_digest TEXT NOT NULL,
           question TEXT NOT NULL, created_at TEXT NOT NULL,
           expires_at TEXT NOT NULL, replied_at TEXT, reply_json TEXT,
+          retention_expires_at TEXT NOT NULL DEFAULT '',
           UNIQUE(grant_digest, question, created_at)
         );
         """)
@@ -74,6 +79,29 @@ class StandingReportStore:
             self.connection.execute(
                 "ALTER TABLE instinct_standing_grants ADD COLUMN followup_enabled INTEGER NOT NULL DEFAULT 0"
             )
+        report_columns = {row[1] for row in self.connection.execute(
+            "PRAGMA table_info(instinct_standing_reports)"
+        )}
+        if "retention_expires_at" not in report_columns:
+            self.connection.execute(
+                "ALTER TABLE instinct_standing_reports ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
+            )
+        followup_columns = {row[1] for row in self.connection.execute(
+            "PRAGMA table_info(instinct_followup_requests)"
+        )}
+        if "retention_expires_at" not in followup_columns:
+            self.connection.execute(
+                "ALTER TABLE instinct_followup_requests ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
+            )
+        legacy_cutoff = _iso(self.now() + self.content_retention)
+        self.connection.execute(
+            "UPDATE instinct_standing_reports SET retention_expires_at=? WHERE retention_expires_at=''",
+            (legacy_cutoff,),
+        )
+        self.connection.execute(
+            "UPDATE instinct_followup_requests SET retention_expires_at=? WHERE retention_expires_at=''",
+            (legacy_cutoff,),
+        )
         self.connection.commit()
 
     def issue(self, user_id: str, sender_email: str, *,
@@ -130,9 +158,17 @@ class StandingReportStore:
             "WHERE grant_digest=? AND user_id=? AND revoked_at IS NULL",
             (_iso(self.now()), grant_id, user_id),
         ).rowcount
-        self.connection.commit()
         if changed != 1:
             raise PermissionError("standing_grant_not_found")
+        # Revocation is deletion of imported content, including follow-up answers.
+        self.connection.execute(
+            "DELETE FROM instinct_standing_reports WHERE grant_digest=?", (grant_id,)
+        )
+        self.connection.execute(
+            "UPDATE instinct_followup_requests SET replied_at=NULL,reply_json=NULL "
+            "WHERE grant_digest=?", (grant_id,)
+        )
+        self.connection.commit()
 
     def grant(self, token: str) -> sqlite3.Row:
         digest = hashlib.sha256(token.encode()).hexdigest()
@@ -171,8 +207,11 @@ class StandingReportStore:
         digest = hashlib.sha256(token.encode()).hexdigest()
         try:
             self.connection.execute(
-                "INSERT INTO instinct_standing_reports VALUES(?,?,?,?,?,'agent_reported')",
-                (report_id, digest, key, _iso(self.now()), json.dumps(payload, sort_keys=True)),
+                "INSERT INTO instinct_standing_reports "
+                "(report_id,grant_digest,deduplication_key,received_at,report_json,provenance,retention_expires_at) "
+                "VALUES(?,?,?,?,?,'agent_reported',?)",
+                (report_id, digest, key, _iso(self.now()), json.dumps(payload, sort_keys=True),
+                 _iso(self.now() + self.content_retention)),
             )
             self.connection.commit()
             return {"state": "received", "report_id": report_id, "review": "staff_required"}
@@ -260,8 +299,11 @@ class StandingReportStore:
         expires = min(grant_expiry, self.now() + ttl)
         request_id = "fq_" + secrets.token_hex(12)
         self.connection.execute(
-            "INSERT INTO instinct_followup_requests VALUES(?,?,?,?,?,NULL,NULL)",
-            (request_id, grant_id, question, _iso(self.now()), _iso(expires)),
+            "INSERT INTO instinct_followup_requests "
+            "(request_id,grant_digest,question,created_at,expires_at,replied_at,reply_json,retention_expires_at) "
+            "VALUES(?,?,?,?,?,NULL,NULL,?)",
+            (request_id, grant_id, question, _iso(self.now()), _iso(expires),
+             _iso(self.now() + self.content_retention)),
         )
         self.connection.commit()
         return {"request_id": request_id, "question": question,
@@ -348,7 +390,9 @@ class StandingReportStore:
             "SELECT g.sender_email FROM instinct_followup_requests f JOIN instinct_standing_grants g "
             "ON f.grant_digest=g.grant_digest WHERE f.request_id=?", (request_id,),
         ).fetchone()
-        if row is None or parseaddr(str(message.get("From", "")))[1].lower() != row["sender_email"]:
+        if row is None:
+            raise PermissionError("followup_revoked_or_deleted")
+        if parseaddr(str(message.get("From", "")))[1].lower() != row["sender_email"]:
             raise PermissionError("followup_sender_mismatch")
         plain = [part for part in message.walk() if part.get_content_type() == "text/plain"]
         if len(plain) != 1:
@@ -398,6 +442,18 @@ class StandingReportStore:
         if stored != canonical:
             raise ValueError("followup_reply_conflict")
         return {"state": "duplicate", "request_id": request_id}
+
+    def purge_expired(self) -> dict[str, int]:
+        """Delete retained standing content and follow-up questions/answers on schedule."""
+        now = _iso(self.now())
+        reports = self.connection.execute(
+            "DELETE FROM instinct_standing_reports WHERE retention_expires_at<=?", (now,)
+        ).rowcount
+        followups = self.connection.execute(
+            "DELETE FROM instinct_followup_requests WHERE retention_expires_at<=?", (now,)
+        ).rowcount
+        self.connection.commit()
+        return {"reports_deleted": reports, "followups_deleted": followups}
 
     def close(self) -> None:
         self.connection.close()
