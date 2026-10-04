@@ -1097,6 +1097,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "voice_consent_recording_boundary":
+            from harness.trace_observation import execute_voice_consent_case
+
+            oracle = spec.oracle
+            record = execute_voice_consent_case(
+                oracle_field=str(oracle["field"]),
+                expected_value=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
