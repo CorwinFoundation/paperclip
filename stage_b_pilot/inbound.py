@@ -34,6 +34,8 @@ _FORWARD_PREFIX = re.compile(r"^(?:(?:fwd?|fw):\s*)+", re.IGNORECASE)
 _AGENT_ANSWER_SUBJECT = re.compile(
     r"^BackBond answer\s+([^:]+):\s*(YES|NO)\s*$", re.IGNORECASE
 )
+_BODY_CHECK_ID = re.compile(r"^Check ID:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+_BODY_ANSWER = re.compile(r"^Answer:\s*(OK|STOP|YES|NO)\s*$", re.IGNORECASE | re.MULTILINE)
 _CANCELLATION_ACTION = re.compile(
     r"^proposed action:\s*(?:cancel|cancellation)\b", re.IGNORECASE | re.MULTILINE
 )
@@ -95,7 +97,8 @@ class InboundStore:
               email TEXT NOT NULL UNIQUE,
               confirmation_digest TEXT NOT NULL,
               confirmed_at TEXT,
-              agent_recipient TEXT
+              agent_recipient TEXT,
+              agent_label TEXT NOT NULL DEFAULT 'Instinct'
             );
             CREATE TABLE IF NOT EXISTS inbound_receipts (
               receipt_id TEXT PRIMARY KEY,
@@ -146,6 +149,10 @@ class InboundStore:
             self.connection.execute(
                 "ALTER TABLE inbound_users ADD COLUMN agent_recipient TEXT"
             )
+        if "agent_label" not in user_columns:
+            self.connection.execute(
+                "ALTER TABLE inbound_users ADD COLUMN agent_label TEXT NOT NULL DEFAULT 'Instinct'"
+            )
         if "correlation_key" not in columns:
             self.connection.execute("ALTER TABLE inbound_receipts ADD COLUMN correlation_key TEXT")
         migrations = {
@@ -181,7 +188,7 @@ class InboundStore:
         names = InboundReceipt.__dataclass_fields__
         return InboundReceipt(**{name: row[name] for name in names})
 
-    def begin_signup(self, email: str) -> tuple[str, str]:
+    def begin_signup(self, email: str, *, agent_label: str = "Instinct") -> tuple[str, str]:
         """Create or replace the one-step confirmation challenge.
 
         The returned token belongs in the confirmation email. Only its digest
@@ -191,11 +198,15 @@ class InboundStore:
         user_id = "usr_" + hashlib.sha256(address.encode()).hexdigest()[:20]
         token = secrets.token_urlsafe(24)
         digest = hashlib.sha256(token.encode()).hexdigest()
+        label = agent_label.strip()
+        if not label or len(label) > 80:
+            raise ValueError("agent_label_invalid")
         self.connection.execute(
-            "INSERT INTO inbound_users(user_id,email,confirmation_digest,confirmed_at) "
-            "VALUES(?,?,?,NULL) ON CONFLICT(email) DO UPDATE SET "
-            "confirmation_digest=excluded.confirmation_digest, confirmed_at=NULL",
-            (user_id, address, digest),
+            "INSERT INTO inbound_users(user_id,email,confirmation_digest,confirmed_at,agent_label) "
+            "VALUES(?,?,?,NULL,?) ON CONFLICT(email) DO UPDATE SET "
+            "confirmation_digest=excluded.confirmation_digest, confirmed_at=NULL, "
+            "agent_label=excluded.agent_label",
+            (user_id, address, digest, label),
         )
         self.connection.commit()
         return user_id, token
@@ -253,7 +264,10 @@ class InboundStore:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
         sender = _address(message.get("From", ""))
         subject = str(message.get("Subject", "")).strip()
+        body = _body(message)
         answer_match = _AGENT_ANSWER_SUBJECT.match(subject)
+        body_reference = _BODY_CHECK_ID.search(body) if subject == CHECK_SUBJECT else None
+        body_answer = _BODY_ANSWER.search(body) if subject == CHECK_SUBJECT else None
         row = self.connection.execute(
             "SELECT user_id FROM inbound_users WHERE email=? AND confirmed_at IS NOT NULL", (sender,)
         ).fetchone()
@@ -266,8 +280,12 @@ class InboundStore:
             raise PermissionError("sender_not_confirmed")
         digest = hashlib.sha256(raw_message).hexdigest()
         received_at = _now()
-        if answer_match:
-            reference, answer = answer_match.group(1).strip(), answer_match.group(2).upper()
+        if answer_match or (body_reference and body_answer):
+            if answer_match:
+                reference, answer = answer_match.group(1).strip(), answer_match.group(2).upper()
+            else:
+                reference, answer = body_reference.group(1).strip(), body_answer.group(1).upper()
+            answer = {"OK": "YES", "STOP": "NO"}.get(answer, answer)
             checks = self.connection.execute(
                 "SELECT receipt_id FROM inbound_receipts WHERE user_id=? AND kind='check' "
                 "AND correlation_key=?", (row["user_id"], reference),
@@ -301,7 +319,7 @@ class InboundStore:
             return InboundReceipt(
                 receipt_id=answer_receipt_id, user_id=row["user_id"], sender_address=sender,
                 subject=subject, kind="agent_answer", received_at=received_at,
-                message_sha256=digest, body_text=_body(message), correlation_key=reference,
+                message_sha256=digest, body_text=body, correlation_key=reference,
             )
         is_forward = bool(_FORWARD_PREFIX.match(subject))
         if subject == CHECK_SUBJECT:
@@ -367,7 +385,7 @@ class InboundStore:
             "SELECT r.receipt_id,r.user_id,r.sender_address,r.subject,r.kind,r.received_at,"
             "r.message_sha256,r.body_text,r.correlation_key,r.original_sha256,"
             "r.dkim_signing_domain,r.dkim_result,r.link_state,r.linked_check_receipt_id,"
-            "r.ownership,r.forwarding_code,r.mode "
+            "r.ownership,r.forwarding_code,r.mode,u.agent_label "
             "FROM inbound_receipts r JOIN inbound_users u USING(user_id) "
             "WHERE u.email=? ORDER BY received_at,receipt_id", (_address(email),)
         ).fetchall()

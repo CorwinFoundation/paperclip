@@ -15,6 +15,8 @@ def main() -> None:
     for action in ("begin", "confirm", "set-agent-recipient"):
         command = sub.add_parser(action)
         command.add_argument("--email", required=True)
+        if action == "begin":
+            command.add_argument("--agent-label", default="Instinct")
         if action == "confirm":
             command.add_argument("--token", required=True)
         if action == "set-agent-recipient":
@@ -23,7 +25,7 @@ def main() -> None:
     store = InboundStore(args.db)
     try:
         if args.action == "begin":
-            user_id, token = store.begin_signup(args.email)
+            user_id, token = store.begin_signup(args.email, agent_label=args.agent_label)
             print(f"user_id={user_id}")
             print(f"confirmation_token={token}")
             print("Deliver this token to the named synthetic user through the controlled confirmation step.")
