@@ -67,6 +67,34 @@ def test_minimal_schema_sender_scope_expiry_and_revocation(tmp_path):
         store.ingest(other["token"], "ia5p01@mail.instinct.com", report("request-3"))
 
 
+def test_account_bound_followup_reply_correlation_duplicate_expiry_and_cross_account(tmp_path):
+    clock = [NOW]
+    store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: clock[0])
+    first = store.issue("account-1", "ia5p01@mail.instinct.com", followup_enabled=True)
+    second = store.issue("account-2", "other@mail.instinct.com", followup_enabled=True)
+    followup = store.issue_followup("account-1", first["grant_id"],
+                                    "What evidence supports the fictional hotel outcome?",
+                                    ttl=timedelta(minutes=5))
+    page = store.followup_page(first["token"])
+    assert page["polling_enabled"] is True and page["authorization_required"] is False
+    assert page["requests"][0]["request_id"] == followup["request_id"]
+    reply = {"request_id": followup["request_id"],
+             "answer": "Agent-reported fictional comparison result.",
+             "evidence_origin": "agent_reported", "synthetic": True}
+    with pytest.raises(PermissionError, match="cross_account"):
+        store.reply_followup(second["token"], followup["request_id"], reply)
+    assert store.reply_followup(first["token"], followup["request_id"], reply)["state"] == "received"
+    assert store.reply_followup(first["token"], followup["request_id"], reply)["state"] == "duplicate"
+    conflicting = {**reply, "answer": "Different answer must not overwrite the first."}
+    with pytest.raises(ValueError, match="reply_conflict"):
+        store.reply_followup(first["token"], followup["request_id"], conflicting)
+    expiring = store.issue_followup("account-1", first["grant_id"], "Second question",
+                                    ttl=timedelta(minutes=1))
+    clock[0] += timedelta(minutes=2)
+    with pytest.raises(PermissionError, match="expired"):
+        store.reply_followup(first["token"], expiring["request_id"], reply)
+
+
 def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_path):
     inbound_path = tmp_path / "inbound.sqlite3"
     standing_path = tmp_path / "standing.sqlite3"
@@ -95,7 +123,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
             return json.loads(response.read())
 
     try:
-        issued = authenticated("/instinct/grant", {"consent": True, "synthetic": True})
+        issued = authenticated("/instinct/grant", {"consent": True, "synthetic": True,
+                                                    "followup_consent": True})
         assert issued["synthetic"] is True and "instruction_url" in issued
         assert issued["history_address"].startswith("history+")
         with urlopen(base + "/instinct/instruction/" + issued["token"], timeout=5) as response:
@@ -104,6 +133,42 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert "approval_status" in page and "END INSTINCT HISTORY" in page
         assert "email delivery does not show webhook HTTP responses" in page
         assert "not an observed Instinct capability" in page
+        assert "/instinct/followups/" in page and "no more than hourly" in page
+        assert "request_id, answer, evidence_origin, and synthetic" in page
+
+        followup = authenticated("/instinct/followups", {
+            "grant_id": issued["grant_id"],
+            "question": "What evidence supports the fictional outcome?",
+        })
+        with urlopen(base + "/instinct/followups/" + issued["token"], timeout=5) as response:
+            assert response.headers["Cache-Control"] == "no-store"
+            assert response.headers["Referrer-Policy"] == "no-referrer"
+            queue = json.loads(response.read())
+        assert queue["polling_enabled"] is True
+        assert queue["requests"][0]["request_id"] == followup["request_id"]
+        assert followup["reply_address"] == queue["requests"][0]["reply_address"]
+        assert followup["reply_address"].startswith("history+followup-")
+        reply_message = EmailMessage()
+        reply_message["From"] = "ia5p01@mail.instinct.com"
+        reply_message["To"] = followup["reply_address"]
+        reply_message.set_content(json.dumps({"request_id": followup["request_id"],
+                                               "answer": "Agent-reported fictional evidence.",
+                                               "evidence_origin": "agent_reported", "synthetic": True}))
+        timestamp, webhook_token = str(int(time.time())), "followup-route-test"
+        signature = hmac.new(signing_key.encode(), (timestamp + webhook_token).encode(),
+                             hashlib.sha256).hexdigest()
+        followup_fields = {"timestamp": timestamp, "token": webhook_token, "signature": signature,
+                           "recipient": followup["reply_address"], "body-mime": reply_message.as_string()}
+        reply_request = Request(base + "/history/mailgun/mime",
+                                data=urlencode(followup_fields).encode(),
+                                headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urlopen(reply_request, timeout=5) as response:
+            assert json.loads(response.read())["state"] == "received"
+        unsigned = dict(followup_fields); unsigned["signature"] = "bad"
+        with pytest.raises(HTTPError) as rejected_reply:
+            urlopen(Request(base + "/history/mailgun/mime", data=urlencode(unsigned).encode(),
+                            headers={"Content-Type": "application/x-www-form-urlencoded"}), timeout=5)
+        assert rejected_reply.value.code == 401
 
         message = EmailMessage()
         message["From"] = "ia5p01@mail.instinct.com"
@@ -128,12 +193,16 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert rejected.value.code == 401
         state = authenticated("/instinct/reports", {})
         assert state["reports"][0]["review"] == "staff_required"
+        assert state["followups"][0]["state"] == "replied"
+        assert state["followups"][0]["answer"] == "Agent-reported fictional evidence."
         assert state["grants"][0]["grant_id"] == issued["grant_id"]
         private_page = render_history({"onboarding": {}, "support": {}, "imports": [],
                                        "synthetic_enabled": True}, "user@example.com", "csrf-test",
                                       standing=state)
         assert issued["grant_id"] in private_page and issued["token"] not in private_page
         assert "90 days" in private_page and "24 hours" in private_page
+        assert "followup_consent" in private_page and "/instinct/followups" in private_page
+        assert "Agent-reported answer" in private_page and followup["request_id"] in private_page
         assert authenticated("/instinct/revoke", {"grant_id": issued["grant_id"]}) == {"state": "revoked"}
         assert authenticated("/instinct/reports", {})["grants"][0]["state"] == "revoked"
         history = HistoryImportStore(tmp_path / "history.sqlite3",
@@ -151,3 +220,56 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert missing.value.code == 410
     finally:
         server.shutdown(); server.server_close(); thread.join(timeout=5)
+
+
+def test_email_followup_scope_expiry_conflicts_and_retained_private_history(tmp_path):
+    clock = [NOW]
+    store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: clock[0])
+    ordinary = store.issue("a", "agent@example.com")
+    with pytest.raises(PermissionError, match="not_authorized"):
+        store.followup_page(ordinary["token"])
+    with pytest.raises(PermissionError, match="not_authorized"):
+        store.issue_followup("a", ordinary["grant_id"], "Synthetic question")
+    grant = store.issue("a", "agent@example.com", followup_enabled=True,
+                        ttl=timedelta(hours=2))
+    question = store.issue_followup("a", grant["grant_id"], "Fictional hotel?")
+    assert question["expires_at"] == grant["expires_at"]
+    with pytest.raises(PermissionError, match="cross_account"):
+        store.issue_followup("b", grant["grant_id"], "Other account")
+
+    def email(answer="Fictional answer", sender="agent@example.com"):
+        message = EmailMessage()
+        message["From"] = sender
+        message["To"] = question["reply_address"]
+        message.set_content(json.dumps({"request_id": question["request_id"],
+                                       "answer": answer, "evidence_origin": "agent_reported",
+                                       "synthetic": True}))
+        return message.as_bytes()
+
+    address = question["reply_address"]
+    with pytest.raises(PermissionError, match="sender_mismatch"):
+        store.ingest_followup_email(email(sender="other@example.com"), envelope_recipient=address)
+    with pytest.raises(PermissionError, match="envelope_recipient_mismatch"):
+        store.ingest_followup_email(email(), envelope_recipient="history+followup-wrong@inbound.backbond.ai")
+    assert store.ingest_followup_email(email(), envelope_recipient=address)["state"] == "received"
+    assert store.ingest_followup_email(email(), envelope_recipient=address)["state"] == "duplicate"
+    with pytest.raises(ValueError, match="reply_conflict"):
+        store.ingest_followup_email(email("Changed answer"), envelope_recipient=address)
+    assert store.followups_for("a")[0]["answer"] == "Fictional answer"
+    assert store.followups_for("b") == []
+    pending = store.issue_followup("a", grant["grant_id"], "Second fictional question")
+    store.revoke("a", grant["grant_id"])
+    with pytest.raises(PermissionError, match="revoked"):
+        store.ingest_followup_email(email(), envelope_recipient=address)
+    records = store.followups_for("a")
+    assert next(row for row in records if row["request_id"] == pending["request_id"])["state"] == "revoked"
+    page = render_history({}, "a@example.com", "csrf", standing={
+        "grants": store.grants_for("a"), "followups": records})
+    assert "Fictional answer" in page and question["request_id"] in page
+
+    grant = store.issue("a", "agent@example.com", followup_enabled=True, ttl=timedelta(minutes=1))
+    question = store.issue_followup("a", grant["grant_id"], "Expiring question")
+    clock[0] += timedelta(minutes=2)
+    with pytest.raises(PermissionError, match="expired"):
+        store.ingest_followup_email(email(), envelope_recipient=question["reply_address"])
+    store.close()

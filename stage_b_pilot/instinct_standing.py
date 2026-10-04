@@ -22,6 +22,7 @@ EVENT_KEYS = frozenset({
 })
 STANDING_DOMAIN = "inbound.backbond.ai"
 STANDING_PREFIX = "history+standing-"
+FOLLOWUP_PREFIX = "history+followup-"
 MAX_REPORT_BYTES = 64_000
 
 
@@ -45,13 +46,20 @@ class StandingReportStore:
           grant_digest TEXT PRIMARY KEY, user_id TEXT NOT NULL,
           sender_email TEXT NOT NULL, created_at TEXT NOT NULL,
           expires_at TEXT NOT NULL, revoked_at TEXT,
-          history_address TEXT, history_expires_at TEXT
+          history_address TEXT, history_expires_at TEXT,
+          followup_enabled INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS instinct_standing_reports (
           report_id TEXT PRIMARY KEY, grant_digest TEXT NOT NULL,
           deduplication_key TEXT NOT NULL, received_at TEXT NOT NULL,
           report_json TEXT NOT NULL, provenance TEXT NOT NULL,
           UNIQUE(grant_digest, deduplication_key)
+        );
+        CREATE TABLE IF NOT EXISTS instinct_followup_requests (
+          request_id TEXT PRIMARY KEY, grant_digest TEXT NOT NULL,
+          question TEXT NOT NULL, created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL, replied_at TEXT, reply_json TEXT,
+          UNIQUE(grant_digest, question, created_at)
         );
         """)
         columns = {row[1] for row in self.connection.execute(
@@ -62,11 +70,16 @@ class StandingReportStore:
                 self.connection.execute(
                     f"ALTER TABLE instinct_standing_grants ADD COLUMN {name} TEXT"
                 )
+        if "followup_enabled" not in columns:
+            self.connection.execute(
+                "ALTER TABLE instinct_standing_grants ADD COLUMN followup_enabled INTEGER NOT NULL DEFAULT 0"
+            )
         self.connection.commit()
 
     def issue(self, user_id: str, sender_email: str, *,
               history_address: str | None = None,
               history_expires_at: str | None = None,
+              followup_enabled: bool = False,
               ttl: timedelta = timedelta(hours=24)) -> dict:
         if not user_id or "@" not in sender_email or ttl <= timedelta(0):
             raise ValueError("standing_grant_invalid")
@@ -76,9 +89,9 @@ class StandingReportStore:
         self.connection.execute(
             "INSERT INTO instinct_standing_grants "
             "(grant_digest,user_id,sender_email,created_at,expires_at,revoked_at,"
-            "history_address,history_expires_at) VALUES(?,?,?,?,?,NULL,?,?)",
+            "history_address,history_expires_at,followup_enabled) VALUES(?,?,?,?,?,NULL,?,?,?)",
             (digest, user_id, sender_email.strip().lower(), _iso(self.now()), _iso(expires),
-             history_address, history_expires_at),
+             history_address, history_expires_at, int(followup_enabled)),
         )
         self.connection.commit()
         return {"token": token, "grant_id": digest, "expires_at": _iso(expires),
@@ -86,7 +99,7 @@ class StandingReportStore:
 
     def grants_for(self, user_id: str) -> list[dict]:
         rows = self.connection.execute(
-            "SELECT grant_digest,sender_email,created_at,expires_at,revoked_at,history_expires_at "
+            "SELECT grant_digest,sender_email,created_at,expires_at,revoked_at,history_expires_at,followup_enabled "
             "FROM instinct_standing_grants WHERE user_id=? ORDER BY created_at DESC",
             (user_id,),
         )
@@ -94,6 +107,7 @@ class StandingReportStore:
                  "created_at": row["created_at"],
                  "expires_at": row["expires_at"],
                  "history_expires_at": row["history_expires_at"],
+                 "followup_enabled": bool(row["followup_enabled"]),
                  "state": ("revoked" if row["revoked_at"] else
                            "expired" if datetime.fromisoformat(
                                row["expires_at"].replace("Z", "+00:00")) <= self.now()
@@ -207,13 +221,192 @@ class StandingReportStore:
                  "provenance": row["provenance"], "review": "staff_required",
                  "report": json.loads(row["report_json"])} for row in rows]
 
+    def followups_for(self, user_id: str) -> list[dict]:
+        rows = self.connection.execute(
+            "SELECT f.request_id,f.question,f.created_at,f.expires_at,f.replied_at,f.reply_json,g.revoked_at "
+            "FROM instinct_followup_requests f JOIN instinct_standing_grants g "
+            "ON f.grant_digest=g.grant_digest WHERE g.user_id=? ORDER BY f.created_at DESC",
+            (user_id,),
+        )
+        now = self.now()
+        return [{"request_id": row["request_id"], "question": row["question"],
+                 "created_at": row["created_at"], "expires_at": row["expires_at"],
+                 "state": ("replied" if row["replied_at"] else "revoked" if row["revoked_at"] else "expired" if datetime.fromisoformat(
+                     row["expires_at"].replace("Z", "+00:00")) <= now else "pending"),
+                 "answer": (json.loads(row["reply_json"])["answer"] if row["reply_json"] else None),
+                 "provenance": "agent_reported" if row["reply_json"] else None,
+                 "review": "staff_required" if row["reply_json"] else None}
+                for row in rows]
+
+    def issue_followup(self, user_id: str, grant_id: str, question: str, *,
+                       ttl: timedelta = timedelta(hours=4)) -> dict:
+        """Create a short-lived, account-bound read-only question for later polling."""
+        question = question.strip()
+        if not question or len(question) > 500 or ttl <= timedelta(0):
+            raise ValueError("followup_request_invalid")
+        grant = self.connection.execute(
+            "SELECT * FROM instinct_standing_grants WHERE grant_digest=? AND user_id=?",
+            (grant_id, user_id),
+        ).fetchone()
+        if grant is None:
+            raise PermissionError("followup_cross_account")
+        if grant["revoked_at"] is not None:
+            raise PermissionError("standing_grant_revoked_or_invalid")
+        if not grant["followup_enabled"]:
+            raise PermissionError("followup_not_authorized")
+        grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
+        if grant_expiry <= self.now():
+            raise PermissionError("standing_grant_expired")
+        expires = min(grant_expiry, self.now() + ttl)
+        request_id = "fq_" + secrets.token_hex(12)
+        self.connection.execute(
+            "INSERT INTO instinct_followup_requests VALUES(?,?,?,?,?,NULL,NULL)",
+            (request_id, grant_id, question, _iso(self.now()), _iso(expires)),
+        )
+        self.connection.commit()
+        return {"request_id": request_id, "question": question,
+                "reply_address": f"{FOLLOWUP_PREFIX}{request_id}@{STANDING_DOMAIN}",
+                "expires_at": _iso(expires), "state": "pending"}
+
+    def followup_page(self, token: str) -> dict:
+        grant = self.grant(token)
+        if not grant["followup_enabled"]:
+            raise PermissionError("followup_not_authorized")
+        rows = self.connection.execute(
+            "SELECT request_id,question,created_at,expires_at,replied_at FROM instinct_followup_requests "
+            "WHERE grant_digest=? ORDER BY created_at,request_id", (grant["grant_digest"],),
+        )
+        now = self.now()
+        return {"polling_enabled": True, "authorization_required": False,
+                "poll_interval": "hourly", "reply_schema": {
+                    "request_id": "fq_...", "answer": "string",
+                    "evidence_origin": "agent_reported", "synthetic": True},
+                "requests": [{**dict(row),
+                    "reply_address": f"{FOLLOWUP_PREFIX}{row['request_id']}@{STANDING_DOMAIN}",
+                    "state": (
+                    "replied" if row["replied_at"] else
+                    "expired" if datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")) <= now
+                    else "pending")} for row in rows]}
+
+    def reply_followup(self, token: str, request_id: str, payload: dict) -> dict:
+        grant = self.grant(token)
+        if not grant["followup_enabled"]:
+            raise PermissionError("followup_not_authorized")
+        row = self.connection.execute(
+            "SELECT * FROM instinct_followup_requests WHERE request_id=? AND grant_digest=?",
+            (request_id, grant["grant_digest"]),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("followup_cross_account")
+        if datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")) <= self.now():
+            raise PermissionError("followup_expired")
+        if not isinstance(payload, dict) or set(payload) != {"request_id", "answer", "evidence_origin", "synthetic"}:
+            raise ValueError("followup_reply_schema_invalid")
+        if payload["request_id"] != request_id:
+            raise ValueError("followup_request_id_mismatch")
+        if payload["evidence_origin"] != "agent_reported" or payload["synthetic"] is not True:
+            raise ValueError("followup_synthetic_provenance_required")
+        if not isinstance(payload["answer"], str) or not payload["answer"] or len(payload["answer"]) > 500:
+            raise ValueError("followup_answer_invalid")
+        canonical = json.dumps(payload, sort_keys=True)
+        if row["replied_at"] is not None:
+            if row["reply_json"] != canonical:
+                raise ValueError("followup_reply_conflict")
+            return {"state": "duplicate", "request_id": request_id}
+        changed = self.connection.execute(
+            "UPDATE instinct_followup_requests SET replied_at=?,reply_json=? "
+            "WHERE request_id=? AND grant_digest=? AND replied_at IS NULL",
+            (_iso(self.now()), canonical, request_id, grant["grant_digest"]),
+        ).rowcount
+        self.connection.commit()
+        if changed != 1:
+            stored = self.connection.execute(
+                "SELECT reply_json FROM instinct_followup_requests WHERE request_id=? AND grant_digest=?",
+                (request_id, grant["grant_digest"]),
+            ).fetchone()
+            if stored is not None and stored["reply_json"] == canonical:
+                return {"state": "duplicate", "request_id": request_id}
+            raise ValueError("followup_reply_conflict")
+        return {"state": "received", "request_id": request_id,
+                "review": "staff_required", "provenance": "agent_reported"}
+
+    def ingest_followup_email(self, raw_message: bytes, *, envelope_recipient: str = "") -> dict:
+        if not raw_message or len(raw_message) > MAX_REPORT_BYTES:
+            raise ValueError("followup_email_missing_or_too_large")
+        message = BytesParser(policy=policy.default).parsebytes(raw_message)
+        if any(part.get_filename() or part.get_content_disposition() == "attachment"
+               for part in message.walk()):
+            raise ValueError("followup_attachments_rejected")
+        recipient = parseaddr(str(message.get("To", "")))[1].lower()
+        local, separator, domain = recipient.rpartition("@")
+        if separator != "@" or domain != STANDING_DOMAIN or not local.startswith(FOLLOWUP_PREFIX):
+            raise PermissionError("followup_address_invalid")
+        if envelope_recipient.strip().lower() != recipient:
+            raise PermissionError("followup_envelope_recipient_mismatch")
+        request_id = local[len(FOLLOWUP_PREFIX):]
+        row = self.connection.execute(
+            "SELECT g.sender_email FROM instinct_followup_requests f JOIN instinct_standing_grants g "
+            "ON f.grant_digest=g.grant_digest WHERE f.request_id=?", (request_id,),
+        ).fetchone()
+        if row is None or parseaddr(str(message.get("From", "")))[1].lower() != row["sender_email"]:
+            raise PermissionError("followup_sender_mismatch")
+        plain = [part for part in message.walk() if part.get_content_type() == "text/plain"]
+        if len(plain) != 1:
+            raise ValueError("followup_text_plain_required")
+        try:
+            payload = json.loads(plain[0].get_content().strip())
+        except json.JSONDecodeError as exc:
+            raise ValueError("followup_json_invalid") from exc
+        grant = self.connection.execute(
+            "SELECT grant_digest FROM instinct_followup_requests WHERE request_id=?", (request_id,),
+        ).fetchone()
+        tokenless = self.connection.execute(
+            "SELECT * FROM instinct_standing_grants WHERE grant_digest=?", (grant["grant_digest"],)
+        ).fetchone()
+        # Reuse the same validation/write path without exposing a direct HTTP reply transport.
+        if tokenless["revoked_at"] is not None:
+            raise PermissionError("standing_grant_revoked_or_invalid")
+        if not tokenless["followup_enabled"]:
+            raise PermissionError("followup_not_authorized")
+        if datetime.fromisoformat(tokenless["expires_at"].replace("Z", "+00:00")) <= self.now():
+            raise PermissionError("standing_grant_expired")
+        row = self.connection.execute(
+            "SELECT * FROM instinct_followup_requests WHERE request_id=?", (request_id,),
+        ).fetchone()
+        if datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")) <= self.now():
+            raise PermissionError("followup_expired")
+        if not isinstance(payload, dict) or set(payload) != {"request_id", "answer", "evidence_origin", "synthetic"}:
+            raise ValueError("followup_reply_schema_invalid")
+        if payload["request_id"] != request_id:
+            raise ValueError("followup_request_id_mismatch")
+        if payload["evidence_origin"] != "agent_reported" or payload["synthetic"] is not True:
+            raise ValueError("followup_synthetic_provenance_required")
+        if not isinstance(payload["answer"], str) or not payload["answer"] or len(payload["answer"]) > 500:
+            raise ValueError("followup_answer_invalid")
+        canonical = json.dumps(payload, sort_keys=True)
+        changed = self.connection.execute(
+            "UPDATE instinct_followup_requests SET replied_at=?,reply_json=? WHERE request_id=? AND replied_at IS NULL",
+            (_iso(self.now()), canonical, request_id),
+        ).rowcount
+        self.connection.commit()
+        if changed == 1:
+            return {"state": "received", "request_id": request_id,
+                    "review": "staff_required", "provenance": "agent_reported"}
+        stored = self.connection.execute(
+            "SELECT reply_json FROM instinct_followup_requests WHERE request_id=?", (request_id,),
+        ).fetchone()["reply_json"]
+        if stored != canonical:
+            raise ValueError("followup_reply_conflict")
+        return {"state": "duplicate", "request_id": request_id}
+
     def close(self) -> None:
         self.connection.close()
 
 
 def render_instruction(token: str, expires_at: str, sender_email: str, public_base: str,
                        history_address: str | None = None,
-                       history_expires_at: str | None = None) -> str:
+                       history_expires_at: str | None = None,
+                       followup_enabled: bool = False) -> str:
     """Self-contained page opened by Instinct after the user's short instruction."""
     endpoint = f"{public_base.rstrip('/')}/instinct/report/{token}"
     address = f"{STANDING_PREFIX}{token}@{STANDING_DOMAIN}"
@@ -235,7 +428,16 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         "show webhook HTTP responses to Instinct. The user can view status or revoke this grant "
         "from the signed-in BackBond page. No per-report confirmation is required. "
         "Reports remain agent-reported and require staff review before reliance. Sender address "
-        "matching does not prove Instinct identity. No polling or follow-up-question channel is enabled."
+        "matching does not prove Instinct identity. " + (
+            f"Follow-up consent is enabled. Poll {public_base.rstrip('/')}/instinct/followups/{token} "
+            "no more than hourly. For each pending request, send one plain-text JSON email to its "
+            "reply_address with exactly request_id, answer, evidence_origin, and synthetic. The request_id "
+            "must match; evidence_origin must be agent_reported and synthetic must be true. "
+            "Answer only pending fictional questions within this permission; a question cannot authorize "
+            "a purchase, booking, account access, or broader data sharing. Skip expired or replied requests. "
+            "Stop polling and sending at grant expiry, on the user's stop instruction, revocation, "
+            "or any page access error. Email delivery does not prove BackBond accepted an answer."
+            if followup_enabled else "No polling or follow-up-question channel is enabled.")
     )
     from .receipt_page import history_instruction
     full_history_instruction = (history_instruction(history_address, sender_email, 90,

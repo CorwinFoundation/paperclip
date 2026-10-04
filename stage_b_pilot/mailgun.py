@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 
 from .inbound import InboundReceipt, InboundStore
 from .history_import import HistoryImportStore, MAX_MESSAGE_BYTES
-from .instinct_standing import STANDING_PREFIX, StandingReportStore, render_instruction
+from .instinct_standing import FOLLOWUP_PREFIX, STANDING_PREFIX, StandingReportStore, render_instruction
 
 
 RECIPIENT = "check@inbound.backbond.ai"
@@ -178,6 +178,10 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Robots-Tag", "noindex, nofollow, noarchive")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(body)
 
@@ -229,7 +233,22 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                     self._html(200, render_instruction(token, grant["expires_at"],
                                                        grant["sender_email"], public_base,
                                                        grant["history_address"],
-                                                       grant["history_expires_at"]))
+                                                       grant["history_expires_at"],
+                                                       bool(grant["followup_enabled"])))
+                except PermissionError as exc:
+                    self._reply(410, {"error": str(exc)})
+                except RuntimeError:
+                    self._reply(404, {"error": "standing_not_configured"})
+                finally:
+                    if standing is not None:
+                        standing.close()
+                return
+            if parsed.path.startswith("/instinct/followups/"):
+                token = parsed.path.rsplit("/", 1)[-1]
+                standing = None
+                try:
+                    standing = self._standing_store()
+                    self._reply(200, standing.followup_page(token))
                 except PermissionError as exc:
                     self._reply(410, {"error": str(exc)})
                 except RuntimeError:
@@ -261,7 +280,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             if path not in {"/mailgun/mime", "/history/mailgun/mime",
                             "/history/request", "/history/action",
                             "/instinct/grant", "/instinct/revoke",
-                            "/instinct/reports"} and not standing_post:
+                            "/instinct/reports", "/instinct/followups"} and not standing_post:
                 self._reply(404, {"error": "not_found"})
                 return
             try:
@@ -270,7 +289,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 self._reply(400, {"error": "content_length_invalid"})
                 return
             json_paths = {"/history/request", "/history/action", "/instinct/grant",
-                          "/instinct/revoke", "/instinct/reports"}
+                          "/instinct/revoke", "/instinct/reports", "/instinct/followups"}
             limit = 64_000 if standing_post else 16_384 if path in json_paths else MAX_REQUEST_BYTES
             if length <= 0 or length > limit:
                 self._reply(413, {"error": "request_size_invalid"})
@@ -290,7 +309,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
                 self._reply(400, {"error": "request_body_invalid"})
                 return
-            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/reports"}:
+            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/reports", "/instinct/followups"}:
                 standing = None
                 try:
                     user_id = self._history_user(fields)
@@ -312,12 +331,17 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             history.close()
                         issued = standing.issue(
                             user_id, sender, history_address=onboarding.address,
-                            history_expires_at=onboarding.expires_at)
+                            history_expires_at=onboarding.expires_at,
+                            followup_enabled=fields.get("followup_consent") is True)
                         self._reply(200, {**issued, "instruction_url":
                                           f"{public_base.rstrip('/')}/instinct/instruction/{issued['token']}",
                                           "history_address": onboarding.address,
                                           "history_expires_at": onboarding.expires_at,
                                           "synthetic": True})
+                    elif path == "/instinct/followups":
+                        self._reply(200, standing.issue_followup(
+                            user_id, str(fields.get("grant_id", "")),
+                            str(fields.get("question", ""))))
                     elif path == "/instinct/revoke":
                         grant_id = str(fields.get("grant_id", ""))
                         history_address = standing.pending_history_address(user_id, grant_id)
@@ -337,6 +361,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             inbound.close()
                         self._reply(200, {"reports": standing.reports_for(user_id),
                                           "grants": standing.grants_for(user_id),
+                                          "followups": standing.followups_for(user_id),
                                           "enrolled_sender": sender})
                 except PermissionError as exc:
                     self._reply(403, {"error": str(exc)})
@@ -428,6 +453,24 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         self._reply(200, standing.ingest_email(
                             raw_message, envelope_recipient=recipient
                         ))
+                    except PermissionError as exc:
+                        self._reply(401, {"error": str(exc)})
+                    except ValueError as exc:
+                        self._reply(406, {"error": str(exc)})
+                    except RuntimeError:
+                        self._reply(503, {"error": "standing_not_configured"})
+                    finally:
+                        if standing is not None:
+                            standing.close()
+                    return
+                if (separator == "@" and domain.lower() == "inbound.backbond.ai"
+                        and local_part.startswith(FOLLOWUP_PREFIX)):
+                    standing = None
+                    try:
+                        verify_signature(fields, signing_key)
+                        standing = self._standing_store()
+                        self._reply(200, standing.ingest_followup_email(
+                            str(fields.get("body-mime", "")).encode(), envelope_recipient=recipient))
                     except PermissionError as exc:
                         self._reply(401, {"error": str(exc)})
                     except ValueError as exc:

@@ -246,20 +246,30 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
 <textarea readonly rows="11">{escape(instruction_text)}</textarea></section>'''
     standing_reports = (standing or {}).get("reports", [])
     standing_grants = (standing or {}).get("grants", [])
+    standing_followups = (standing or {}).get("followups", [])
     active_grants = [grant for grant in standing_grants if grant.get("state") == "active"]
     enrolled_sender = (standing or {}).get("enrolled_sender", "Not enrolled")
     standing_section = f'''<section class="receipt"><h2>One-link Instinct setup</h2>
 <p>Create one short account-bound link. It contains the separate one-time multi-row onboarding address and the standing per-request address. Delivery status appears here; Instinct cannot see Mailgun webhook responses.</p>
 <p>This fictional pilot requests up to 90 days of onboarding task history. The one-time history address expires after one hour. The standing report address accepts each later fictional request for 24 hours, or until you revoke it. Only the enrolled agent sender, {escape(enrolled_sender)}, is accepted. Reports contain the time, category, proposed and actual external action, approval source and status, money at risk, outcome, evidence origin, and gaps. They remain agent-reported for staff review and do not activate insurance or coverage.</p>
 <form method="post" action="/stage-b-demo/instinct/grant"><input type="hidden" name="csrf" value="{escape(csrf)}"><label><input type="checkbox" name="consent" value="yes" required> I authorize this scoped fictional history and per-request reporting pilot.</label><button type="submit">Create short link</button></form>'''
+    standing_section = standing_section.replace('</label><button type="submit">Create short link</button>', '</label><label><input type="checkbox" name="followup_consent" value="yes"> I also authorize Instinct to check for BackBond follow-up questions no more than hourly and send scoped fictional answers until expiry or revocation.</label><button type="submit">Create short link</button>')
     if standing_issued:
         standing_section += f'''<p role="status">Short link ready: <a rel="noreferrer" href="{escape(standing_issued['instruction_url'])}">{escape(standing_issued['instruction_url'])}</a></p><p>Give Instinct only this link and the scoped authorization above. The link is shown once. One-time onboarding address: {escape(standing_issued['history_address'])}</p>'''
     if active_grants:
         standing_section += "<h3>Active links</h3>" + "".join(
             f'''<p>Created {escape(grant['created_at'])}; expires {escape(grant['expires_at'])}; sender {escape(grant['sender_email'])}.</p><form method="post" action="/stage-b-demo/instinct/revoke"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="grant_id" value="{escape(grant['grant_id'])}"><button type="submit">Revoke this link</button></form>'''
             for grant in active_grants)
+        standing_section += "<h3>Follow-up questions</h3>" + "".join(
+            (f'''<form method="post" action="/stage-b-demo/instinct/followups"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="grant_id" value="{escape(grant['grant_id'])}"><label>Question <input name="question" maxlength="500" required></label><button type="submit">Queue question</button></form>'''
+             if grant.get("followup_enabled") else "<p>Polling was not authorized for this link.</p>")
+            for grant in active_grants)
     else:
         standing_section += '<p class="muted" role="status">No active one-link instruction.</p>'
+    if standing_followups:
+        standing_section += "<h3>Follow-up history</h3>" + "".join(
+            f'''<details><summary>{escape(row['state'])}: {escape(row['question'])}</summary><p>Request {escape(row['request_id'])}; expires {escape(row['expires_at'])}.</p>{f"<p>Agent-reported answer: {escape(row['answer'])}. Staff review required.</p>" if row.get('answer') else "<p>No answer received.</p>"}</details>'''
+            for row in standing_followups)
     if standing_reports:
         standing_section += "<h2>Per-request report status</h2>"
         for row in standing_reports:
@@ -395,7 +405,8 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                 if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
                 self._reply(200, render_login(), "bb_demo_session=; Max-Age=0; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"); return
             if path in {"/stage-b-demo/history/request", "/stage-b-demo/history/action",
-                        "/stage-b-demo/instinct/grant", "/stage-b-demo/instinct/revoke"}:
+                        "/stage-b-demo/instinct/grant", "/stage-b-demo/instinct/revoke",
+                        "/stage-b-demo/instinct/followups"}:
                 morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
                 active_user = session_credentials(morsel.value) if morsel else None
                 if not active_user:
@@ -410,7 +421,13 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                     if path == "/stage-b-demo/instinct/grant":
                         standing_issued = instinct_api(upstream_host, upstream_port, *active_user,
                                                        "grant", {"consent": form.get("consent") == "yes",
-                                                                 "synthetic": True})
+                                                                 "synthetic": True,
+                                                                 "followup_consent": form.get("followup_consent") == "yes"})
+                        issued = None
+                    elif path == "/stage-b-demo/instinct/followups":
+                        instinct_api(upstream_host, upstream_port, *active_user, "followups",
+                                     {"grant_id": form.get("grant_id", ""),
+                                      "question": form.get("question", "")})
                         issued = None
                     elif path == "/stage-b-demo/instinct/revoke":
                         instinct_api(upstream_host, upstream_port, *active_user, "revoke",
