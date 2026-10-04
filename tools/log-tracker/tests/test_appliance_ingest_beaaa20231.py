@@ -29,7 +29,8 @@ SEALED = REPO / "ops/paperclip/numbat/backbond-appliance-0.1.0/backbond-applianc
 MIGRATION = Path(__file__).parents[1] / "migrations" / "0002_appliance_ingest.sql"
 AGENT_MIGRATION = Path(__file__).parents[1] / "migrations" / "0003_appliance_ingest_agents.sql"
 BINDING_MIGRATION = Path(__file__).parents[1] / "migrations" / "0004_appliance_binding.sql"
-MIGRATIONS = (MIGRATION, AGENT_MIGRATION, BINDING_MIGRATION)
+DIMENSION_MIGRATION = Path(__file__).parents[1] / "migrations" / "0005_dimensional_counts.sql"
+MIGRATIONS = (MIGRATION, AGENT_MIGRATION, BINDING_MIGRATION, DIMENSION_MIGRATION)
 
 verify_batch, CONTENT_FIELDS = load_sealed_contract(SEALED)
 if str(SEALED) not in sys.path:  # load_sealed_contract already inserted it

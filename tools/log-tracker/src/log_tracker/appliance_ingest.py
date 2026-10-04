@@ -117,6 +117,16 @@ def _agent_counts(events: list, determinations: list) -> dict[str, tuple[int, in
     return {agent_id: tuple(values) for agent_id, values in counts.items()}
 
 
+def _dimensional_counts(events: list) -> dict[tuple[str, str, str], int]:
+    """Collapse allowlisted metadata immediately; retain no event record."""
+    counts: dict[tuple[str, str, str], int] = {}
+    for event in events:
+        key = (_agent_id(event), str(event.get("event_type") or "unknown"),
+               str(event.get("outcome") or "unknown"))
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 def _plain_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
@@ -574,6 +584,18 @@ class ApplianceIngestStore:
                         "VALUES (?,?,?,?,?)",
                         (batch_hash, _agent_digest(salt, agent_id), *agent_counts),
                     )
+                window_end = _instant(window.get("end"))
+                if window_end is None or window_end < window_start:
+                    raise IngestRejected("malformed_window")
+                db.execute(
+                    "INSERT INTO appliance_ingest_receipt_windows VALUES (?,?,?)",
+                    (batch_hash, window["start"], window["end"]),
+                )
+                for (agent_id, event_type, outcome), count in _dimensional_counts(events).items():
+                    db.execute(
+                        "INSERT INTO appliance_ingest_receipt_dimensions VALUES (?,?,?,?,?)",
+                        (batch_hash, _agent_digest(salt, agent_id), event_type, outcome, count),
+                    )
                 db.commit()
             except Exception:
                 db.rollback()
@@ -628,3 +650,87 @@ class ApplianceIngestStore:
             **self.counters.snapshot(tenant_hash),
             "chain_tip_batch_seq": self._chain_tips(tenant_hash),
         }
+
+    def dimensional_counts(self, *, token: str, tenant_id: str, query: Mapping) -> dict[str, Any]:
+        """Return authenticated aggregates for one explicitly bounded tenant window."""
+        self.scoped_status(token=token, tenant_id=tenant_id)
+        occurrence = query.get("occurrence") or {}
+        capture = query.get("capture") or {}
+        if not isinstance(occurrence, Mapping) or not isinstance(capture, Mapping):
+            raise IngestRejected("malformed_window")
+        occurrence_bounded = occurrence.get("start") and occurrence.get("end")
+        capture_bounded = capture.get("start") and capture.get("end")
+        if not (occurrence_bounded or capture_bounded):
+            raise IngestRejected("bounded_window_required")
+        for bounds in (occurrence, capture):
+            if bounds and (_instant(bounds.get("start")) is None or
+                           _instant(bounds.get("end")) is None or
+                           _instant(bounds["end"]) < _instant(bounds["start"])):
+                raise IngestRejected("malformed_window")
+
+        tenant_hash = _digest(tenant_id)
+        clauses, params = ["r.tenant_id_hash=?"], [tenant_hash]
+        if occurrence_bounded:
+            clauses += ["w.occurrence_end>=?", "w.occurrence_start<=?"]
+            params += [occurrence["start"], occurrence["end"]]
+        if capture_bounded:
+            clauses += ["r.accepted_at>=?", "r.accepted_at<=?"]
+            params += [capture["start"], capture["end"]]
+        for field in ("event_type", "outcome"):
+            if query.get(field):
+                clauses.append(f"d.{field}=?")
+                params.append(str(query[field]))
+        if query.get("source_id"):
+            clauses.append("r.source_id_hash=?")
+            params.append(_digest(str(query["source_id"])))
+        if query.get("deployment_id"):
+            clauses.append("b.binding_id_hash=?")
+            params.append(_digest(str(query["deployment_id"])))
+
+        with self._connect() as db:
+            if query.get("agent_id"):
+                pairs = [(appliance, _agent_digest(salt, str(query["agent_id"])))
+                         for appliance, salt in db.execute(
+                             "SELECT appliance_id,salt FROM appliance_agent_salts")]
+                if not pairs:
+                    return {"groups": [], "integrity_refs": [],
+                            "counters": self._dimensional_counters(tenant_hash, 0)}
+                clauses.append("(" + " OR ".join(
+                    "(r.appliance_id=? AND d.agent_id_hash=?)" for _ in pairs) + ")")
+                for pair in pairs:
+                    params.extend(pair)
+            where = " AND ".join(clauses)
+            joins = (" FROM appliance_ingest_receipt_dimensions d "
+                     "JOIN appliance_ingest_receipts r USING(batch_hash) "
+                     "JOIN appliance_ingest_receipt_windows w USING(batch_hash) "
+                     "JOIN appliance_ingest_receipt_bindings b USING(batch_hash) WHERE ")
+            rows = db.execute(
+                "SELECT r.source_id_hash,b.binding_id_hash,d.event_type,d.outcome,"
+                "SUM(d.events_count),COUNT(DISTINCT r.batch_hash),MIN(r.batch_seq),MAX(r.batch_seq)" +
+                joins + where +
+                " GROUP BY r.source_id_hash,b.binding_id_hash,d.event_type,d.outcome", params,
+            ).fetchall()
+            refs = db.execute(
+                "SELECT DISTINCT r.batch_hash,r.appliance_id,r.batch_seq" + joins + where +
+                " ORDER BY r.appliance_id,r.batch_seq", params,
+            ).fetchall()
+        missing = sum(row[4] for row in rows if "unknown" in (row[2], row[3]))
+        return {
+            "groups": [{"source_id_hash": source, "deployment_id_hash": deployment,
+                        "event_type": event_type, "outcome": outcome,
+                        "events_count": count, "batches_count": batches,
+                        "first_batch_seq": first_seq, "last_batch_seq": last_seq}
+                       for source, deployment, event_type, outcome, count, batches,
+                       first_seq, last_seq in rows],
+            "integrity_refs": [{"batch_hash": digest, "appliance_id": appliance,
+                                "batch_seq": seq} for digest, appliance, seq in refs],
+            "counters": self._dimensional_counters(tenant_hash, missing),
+        }
+
+    def _dimensional_counters(self, tenant_hash: str, missing: int) -> dict[str, int]:
+        tally = self.counters.snapshot(tenant_hash)
+        rejected = tally["rejected_total"]
+        return {"missing": missing, "duplicate": tally["duplicates_total"],
+                "rejected": sum(rejected.values()),
+                "misattributed": rejected.get("unauthorized_scope", 0),
+                "unavailable": tally["unavailable_total"]}

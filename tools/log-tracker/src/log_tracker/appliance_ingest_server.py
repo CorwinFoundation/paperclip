@@ -94,6 +94,19 @@ def make_handler(store: ApplianceIngestStore, *, log_stream=None):
                 self._send(404, {"error": "not_found"})
 
         def do_POST(self):
+            if self.path == "/counts":
+                try:
+                    self._send(200, store.dimensional_counts(
+                        token=self._bearer(),
+                        tenant_id=self.headers.get("X-BackBond-Tenant", ""),
+                        query=self._body(),
+                    ))
+                except IngestRejected as exc:
+                    code = 403 if str(exc) == "unauthorized_scope" else 422
+                    self._send(code, {"error": str(exc)})
+                except (json.JSONDecodeError, gzip.BadGzipFile):
+                    self._send(422, {"error": "malformed_body"})
+                return
             if self.path != "/ingest":
                 self._send(404, {"error": "not_found"}); return
             token = self._bearer()
