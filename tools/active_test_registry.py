@@ -1353,6 +1353,7 @@ def _merge_content_candidate_inventory(
                 "tool_schema_drift_partial_failure",
                 "voice_turn_taking_interruption_recovery",
                 "voice_consent_recording_boundary",
+                "voice_identity_channel_transfer",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,

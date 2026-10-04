@@ -1107,6 +1107,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "voice_identity_channel_transfer":
+            from harness.trace_observation import execute_voice_identity_transfer_case
+
+            oracle = spec.oracle
+            record = execute_voice_identity_transfer_case(
+                oracle_field=str(oracle["field"]),
+                expected_value=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
