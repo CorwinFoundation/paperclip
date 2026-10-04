@@ -39,6 +39,7 @@ def test_one_link_instruction_and_recurring_deduplicated_receipts(tmp_path):
                               "ia5p01@mail.instinct.com", "https://scanner.backbond.ai/stage-b-demo",
                               "history+fictional@inbound.backbond.ai", "2026-10-03T17:00:00Z")
     assert grant["token"] in page and "multi-row onboarding history email" in page
+    assert "Send this once to Instinct in WhatsApp or iMessage." in page
     assert "approval_status" in page and "END INSTINCT HISTORY" in page
     assert "full message bodies" in page and "No polling" in page
     assert "deduplication_key" in page

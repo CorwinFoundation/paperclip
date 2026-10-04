@@ -14,11 +14,13 @@ from pathlib import Path
 from typing import Callable
 
 
-SCHEMA_VERSION = "instinct-standing-report/v1"
+SCHEMA_VERSION = "instinct-standing-report/v2"
 EVENT_KEYS = frozenset({
     "occurred_at", "category", "proposed_external_action",
     "actual_external_action", "approval_source", "approval_status",
     "money_at_risk", "outcome", "evidence_origin", "gaps", "synthetic",
+    "observed_channel", "history_sources_included", "history_sources_unavailable",
+    "shared_context_status",
 })
 STANDING_DOMAIN = "inbound.backbond.ai"
 STANDING_PREFIX = "history+standing-"
@@ -210,6 +212,9 @@ class StandingReportStore:
         key = payload.get("deduplication_key")
         if not isinstance(key, str) or not 8 <= len(key) <= 128:
             raise ValueError("standing_deduplication_key_invalid")
+        # This is an account-scoped task identifier, never a hash of message text.
+        # The same task reported through another channel must deduplicate; two tasks
+        # with identical text must carry different identifiers and remain distinct.
         if payload.get("trigger") not in {"onboarding_history", "request_completed", "request_failed"}:
             raise ValueError("standing_trigger_invalid")
         event = payload.get("event")
@@ -217,12 +222,23 @@ class StandingReportStore:
             raise ValueError("standing_event_keys_invalid")
         if event["synthetic"] is not True or event["evidence_origin"] != "agent_reported":
             raise ValueError("standing_synthetic_provenance_required")
+        if event["observed_channel"] not in {"whatsapp", "imessage", "unknown"}:
+            raise ValueError("standing_channel_invalid")
+        if event["shared_context_status"] not in {"unverified", "unknown"}:
+            raise ValueError("standing_shared_context_status_invalid")
         for field in EVENT_KEYS - {"synthetic"}:
             if not isinstance(event[field], str) or len(event[field]) > 500:
                 raise ValueError("standing_event_value_invalid")
         report_id = "sr_" + secrets.token_hex(12)
         digest = hashlib.sha256(token.encode()).hexdigest()
+        self.connection.execute("BEGIN IMMEDIATE")
         try:
+            previous_row = self.connection.execute(
+                "SELECT report_json FROM instinct_standing_reports WHERE grant_digest=? "
+                "ORDER BY rowid DESC LIMIT 1", (digest,),
+            ).fetchone()
+            previous_event = (json.loads(previous_row["report_json"])["event"]
+                              if previous_row is not None else None)
             self.connection.execute(
                 "INSERT INTO instinct_standing_reports "
                 "(report_id,grant_digest,deduplication_key,received_at,report_json,provenance,retention_expires_at) "
@@ -230,25 +246,35 @@ class StandingReportStore:
                 (report_id, digest, key, _iso(self.now()), json.dumps(payload, sort_keys=True),
                  _iso(self.now() + self.content_retention)),
             )
-            self.connection.commit()
             triggers = []
-            if event["approval_source"] != "unknown" or event["approval_status"] != "unknown":
+            if previous_event is not None and any(
+                event[field] != previous_event[field]
+                for field in ("approval_source", "approval_status")
+            ):
                 triggers.append("authority_changed")
-            if event["money_at_risk"] != "unknown":
+            if (previous_event is not None
+                    and event["money_at_risk"] != previous_event["money_at_risk"]):
                 triggers.append("amount_changed")
             scheduled = []
             if grant["followup_enabled"]:
                 for trigger in triggers:
-                    scheduled.extend(self.schedule_risk_checks(
+                    scheduled.extend(self._schedule_risk_checks(
                         grant["user_id"], digest, trigger, trigger_key=key))
+            self.connection.commit()
             return {"state": "received", "report_id": report_id, "review": "staff_required",
                     "risk_checks_scheduled": len(scheduled)}
         except sqlite3.IntegrityError:
+            self.connection.rollback()
             row = self.connection.execute(
                 "SELECT report_id FROM instinct_standing_reports WHERE grant_digest=? AND deduplication_key=?",
                 (digest, key),
             ).fetchone()
+            if row is None:
+                raise
             return {"state": "duplicate", "report_id": row["report_id"], "review": "staff_required"}
+        except Exception:
+            self.connection.rollback()
+            raise
 
     def ingest_email(self, raw_message: bytes, *, envelope_recipient: str = "") -> dict:
         if not raw_message or len(raw_message) > MAX_REPORT_BYTES:
@@ -341,6 +367,19 @@ class StandingReportStore:
     def schedule_risk_checks(self, user_id: str, grant_id: str, trigger: str, *,
                              trigger_key: str) -> list[dict]:
         """Schedule the bounded pack once per intake or once per selective event."""
+        self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            scheduled = self._schedule_risk_checks(
+                user_id, grant_id, trigger, trigger_key=trigger_key)
+            self.connection.commit()
+            return scheduled
+        except Exception:
+            self.connection.rollback()
+            raise
+
+    def _schedule_risk_checks(self, user_id: str, grant_id: str, trigger: str, *,
+                              trigger_key: str) -> list[dict]:
+        """Schedule checks inside the caller's open transaction."""
         from .instinct_risk_checks import CASES, MANIFEST_VERSION
 
         if trigger not in {"valid_intake", "authority_changed", "amount_changed"}:
@@ -348,53 +387,47 @@ class StandingReportStore:
         if not trigger_key or len(trigger_key) > 128:
             raise ValueError("risk_check_trigger_key_invalid")
         scheduled = []
-        self.connection.execute("BEGIN IMMEDIATE")
-        try:
-            for case in CASES:
-                if not (case.onboarding if trigger == "valid_intake" else trigger in case.rerun_triggers):
-                    continue
-                exists = self.connection.execute(
+        for case in CASES:
+            if not (case.onboarding if trigger == "valid_intake" else trigger in case.rerun_triggers):
+                continue
+            exists = self.connection.execute(
                     "SELECT 1 FROM instinct_risk_check_schedule WHERE grant_digest=? "
                     "AND manifest_version=? AND case_id=? AND trigger_key=?",
                     (grant_id, MANIFEST_VERSION, case.case_id, trigger_key),
-                ).fetchone()
-                if exists is not None:
-                    continue
-                question = f"[{case.case_id}] {case.prompt}"
-                if len(question) > 500:
-                    raise ValueError("followup_request_invalid")
-                grant = self.connection.execute(
+            ).fetchone()
+            if exists is not None:
+                continue
+            question = f"[{case.case_id}] {case.prompt}"
+            if len(question) > 500:
+                raise ValueError("followup_request_invalid")
+            grant = self.connection.execute(
                     "SELECT * FROM instinct_standing_grants WHERE grant_digest=? AND user_id=?",
                     (grant_id, user_id),
-                ).fetchone()
-                if grant is None or grant["revoked_at"] is not None or not grant["followup_enabled"]:
-                    raise PermissionError("standing_grant_revoked_or_invalid")
-                grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
-                if grant_expiry <= self.now():
-                    raise PermissionError("standing_grant_expired")
-                expires = min(grant_expiry, self.now() + timedelta(hours=4))
-                request_id = "fq_" + secrets.token_hex(12)
-                followup = {"request_id": request_id, "question": question,
-                            "reply_address": f"{FOLLOWUP_PREFIX}{request_id}@{STANDING_DOMAIN}",
-                            "expires_at": _iso(expires), "state": "pending"}
-                self.connection.execute(
+            ).fetchone()
+            if grant is None or grant["revoked_at"] is not None or not grant["followup_enabled"]:
+                raise PermissionError("standing_grant_revoked_or_invalid")
+            grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
+            if grant_expiry <= self.now():
+                raise PermissionError("standing_grant_expired")
+            expires = min(grant_expiry, self.now() + timedelta(hours=4))
+            request_id = "fq_" + secrets.token_hex(12)
+            followup = {"request_id": request_id, "question": question,
+                        "reply_address": f"{FOLLOWUP_PREFIX}{request_id}@{STANDING_DOMAIN}",
+                        "expires_at": _iso(expires), "state": "pending"}
+            self.connection.execute(
                     "INSERT INTO instinct_followup_requests "
                     "(request_id,grant_digest,question,created_at,expires_at,replied_at,reply_json,retention_expires_at) "
                     "VALUES(?,?,?,?,?,NULL,NULL,?)",
                     (request_id, grant_id, question, _iso(self.now()), _iso(expires),
                      _iso(self.now() + self.content_retention)),
-                )
-                self.connection.execute(
+            )
+            self.connection.execute(
                     "INSERT INTO instinct_risk_check_schedule VALUES(?,?,?,?,?,?)",
                     (grant_id, MANIFEST_VERSION, case.case_id, trigger_key,
                      followup["request_id"], _iso(self.now())),
-                )
-                scheduled.append({**followup, "case_id": case.case_id,
-                                  "manifest_version": MANIFEST_VERSION})
-            self.connection.commit()
-        except Exception:
-            self.connection.rollback()
-            raise
+            )
+            scheduled.append({**followup, "case_id": case.case_id,
+                              "manifest_version": MANIFEST_VERSION})
         return scheduled
 
     def followup_page(self, token: str) -> dict:
@@ -562,7 +595,12 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         f"JSON email from {sender_email} to {address}. Do not attach files, CC, or BCC. "
         f"Schema: {SCHEMA_VERSION}. Required top-level fields: schema_version, "
         "deduplication_key, trigger, event. Event fields: " + fields + ". "
-        "The deduplication_key must be stable for the same request and outcome. Use unknown "
+        "The deduplication_key is the stable account-scoped task ID: reuse it when the same "
+        "task/report crosses channels, and use a new ID for each distinct task even when its "
+        "text matches another task. Set observed_channel to whatsapp, imessage, or unknown. "
+        "Record only source identifiers in history_sources_included and "
+        "history_sources_unavailable; do not include message bodies. Until actual cross-channel "
+        "receipts exist, shared_context_status must be unverified or unknown. Use unknown "
         "for unavailable facts. Set evidence_origin to agent_reported and synthetic to true. "
         "Include only a minimal event summary and decision evidence. Never include full message "
         "bodies, attachments, credentials, payment details, or unrelated third-party personal data. "
@@ -593,9 +631,10 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
                "<h3>Complete onboarding history instruction</h3><pre style='white-space:pre-wrap'>" +
                html.escape(full_history_instruction) + "</pre>")
     example_event = {field: "unknown" for field in EVENT_KEYS - {"synthetic"}}
-    example_event.update(evidence_origin="agent_reported", synthetic=True)
+    example_event.update(evidence_origin="agent_reported", synthetic=True,
+                         observed_channel="unknown", shared_context_status="unverified")
     example = json.dumps({"schema_version": SCHEMA_VERSION,
                           "deduplication_key": "fictional-request-001",
                           "trigger": "request_completed", "event": example_event},
                          sort_keys=True, indent=2)
-    return "<!doctype html><html lang=en><head><meta charset=utf-8><meta name=robots content='noindex,nofollow,noarchive'><title>BackBond Instinct pilot</title></head><body><main><h1>BackBond standing report instruction</h1><p id=scope>" + html.escape(content) + "</p>" + history + "<h2>Later per-request reports</h2><code>" + html.escape(address) + "</code><h3>Exact later-report JSON shape</h3><pre>" + html.escape(example) + "</pre><h2>Synthetic test POST transport (not an observed Instinct capability)</h2><code>" + html.escape(endpoint) + "</code><h2>Authorized sender</h2><code>" + html.escape(sender_email) + "</code></main></body></html>"
+    return "<!doctype html><html lang=en><head><meta charset=utf-8><meta name=robots content='noindex,nofollow,noarchive'><title>BackBond Instinct pilot</title></head><body><main><h1>BackBond standing report instruction</h1><p>Send this once to Instinct in WhatsApp or iMessage.</p><p id=scope>" + html.escape(content) + "</p>" + history + "<h2>Later per-request reports</h2><code>" + html.escape(address) + "</code><h3>Exact later-report JSON shape</h3><pre>" + html.escape(example) + "</pre><h2>Synthetic test POST transport (not an observed Instinct capability)</h2><code>" + html.escape(endpoint) + "</code><h2>Authorized sender</h2><code>" + html.escape(sender_email) + "</code></main></body></html>"
