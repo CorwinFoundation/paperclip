@@ -56,7 +56,21 @@ def _body(message) -> str:
     part = message.get_body(preferencelist=("plain",))
     if part is None:
         return ""
-    return part.get_content().strip()
+    content = part.get_content()
+    if str(part.get_param("format", "")).lower() == "flowed":
+        delete_space = str(part.get_param("delsp", "")).lower() == "yes"
+        unfolded = []
+        pending = ""
+        for line in content.splitlines():
+            soft_break = line.endswith(" ")
+            pending += line[:-1] if soft_break and delete_space else line
+            if not soft_break:
+                unfolded.append(pending)
+                pending = ""
+        if pending:
+            unfolded.append(pending)
+        content = "\n".join(unfolded)
+    return content.strip()
 
 
 @dataclass(frozen=True)
@@ -259,6 +273,16 @@ class InboundStore:
         if row is None or not row["agent_recipient"]:
             raise ValueError("agent_recipient_not_configured")
         return str(row["agent_recipient"])
+
+    def agent_label_for(self, user_id: str) -> str:
+        row = self.connection.execute(
+            "SELECT agent_label FROM inbound_users "
+            "WHERE user_id=? AND confirmed_at IS NOT NULL",
+            (user_id,),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("enrollment_not_confirmed")
+        return str(row["agent_label"])
 
     def ingest(self, raw_message: bytes) -> InboundReceipt:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)

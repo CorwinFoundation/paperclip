@@ -182,6 +182,13 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 inbound.close()
             return {"tenant_id": user_id, "account_id": user_id, "agent_id": agent_id}
 
+        def _agent_label(self, user_id: str) -> str:
+            inbound = InboundStore(db_path)
+            try:
+                return inbound.agent_label_for(user_id)
+            finally:
+                inbound.close()
+
         def _history_user(self, fields: Mapping[str, object]) -> str:
             email = str(fields.get("email", ""))
             authorization = self.headers.get("Authorization", "")
@@ -230,6 +237,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                     binding = self._history_binding(user_id)
                     history = self._history_store()
                     self._reply(200, {
+                        "agent_label": self._agent_label(user_id),
                         "onboarding": history.onboarding_state(user_id, **binding),
                         "support": history.onboarding_state(user_id, purpose="support", **binding),
                         "imports": history.imports_for(user_id, **binding),

@@ -61,12 +61,19 @@ class DemoReceipt:
         return action.startswith("cancel ") or action.startswith("cancellation ")
 
 def _structured_body(body: str) -> dict[str, str]:
-    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "window start":"window_start", "window end":"window_end", "task limit":"task_limit", "obligation status":"obligation_status"}
+    allowed = {"check id":"correlation_key", "backbond check id":"correlation_key", "correlation id":"correlation_key", "proposed action":"proposed_action", "terms":"terms", "cancellation terms":"terms", "cancellation terms and deadline":"terms", "deposit":"deposit", "money at risk":"money_at_risk", "money at risk if it goes wrong":"money_at_risk", "your answer":"user_answer", "user answer":"user_answer", "window start":"window_start", "window end":"window_end", "task limit":"task_limit", "obligation status":"obligation_status"}
     values = {}
+    current_field = None
     for line in body.splitlines():
         key, separator, value = line.partition(":")
         field = allowed.get(key.strip().lower())
-        if separator and field and value.strip(): values[field] = value.strip()[:500]
+        if separator and field and value.strip():
+            values[field] = value.strip()[:500]
+            current_field = field
+        elif line.strip() and current_field and not separator:
+            values[current_field] = f"{values[current_field]} {line.strip()}"[:500]
+        elif line.strip():
+            current_field = None
     return values
 
 def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
@@ -221,6 +228,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
                    standing: dict | None = None, standing_issued: dict | None = None,
                    error: str = "") -> str:
     escape = lambda value: html.escape(str(value), quote=True)
+    agent_label = str(payload.get("agent_label") or "Instinct")
     onboarding = payload.get("onboarding", {})
     support = payload.get("support", {})
     imports = payload.get("imports", [])
@@ -236,7 +244,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
 <input type="hidden" name="csrf" value="{escape(csrf)}">{synthetic_field}
 <label for="purpose">Use</label><select id="purpose" name="purpose"><option value="onboarding">New user onboarding</option><option value="support">Ongoing support update</option></select>
 <label for="lookback">Lookback</label><select id="lookback" name="lookback_days"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
-<label><input type="checkbox" name="consent" value="yes" required> I authorize BackBond to receive this selected Instinct task history for the purpose chosen above and make it available for underwriting review or ongoing support, as applicable. Instinct's report is agent-reported, not proof of a charge, loss, or approval. I can view or delete it. This does not start insurance or coverage.</label>
+<label><input type="checkbox" name="consent" value="yes" required> I authorize BackBond to receive this selected {escape(agent_label)} task history for the purpose chosen above and make it available for underwriting review or ongoing support, as applicable. {escape(agent_label)}'s report is agent-reported, not proof of a charge, loss, or approval. I can view or delete it. This does not start insurance or coverage.</label>
 <button type="submit">{label}</button></form>'''
     else:
         form = '<p class="muted">History requests are not enabled for this account yet.</p>'
@@ -245,7 +253,7 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
         days = int(issued.get("lookback_days", 7))
         instruction_text = history_instruction(str(issued["address"]), str(issued["sender_email"]), days,
                                                synthetic=bool(issued.get("synthetic")))
-        instruction = f'''<section class="receipt"><h2>Give Instinct this instruction</h2>
+        instruction = f'''<section class="receipt"><h2>Give {escape(agent_label)} this instruction</h2>
 <p>The one-time address expires at {escape(issued['expires_at'])}. A valid report is received without another step from you. You can view or delete it here.</p>
 <textarea readonly rows="11">{escape(instruction_text)}</textarea></section>'''
     standing_reports = (standing or {}).get("reports", [])
@@ -253,13 +261,13 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
     standing_followups = (standing or {}).get("followups", [])
     active_grants = [grant for grant in standing_grants if grant.get("state") == "active"]
     enrolled_sender = (standing or {}).get("enrolled_sender", "Not enrolled")
-    standing_section = f'''<section class="receipt"><h2>One-link Instinct setup</h2>
-<p>Create one short account-bound link. It contains the separate one-time multi-row onboarding address and the standing per-request address. Delivery status appears here; Instinct cannot see Mailgun webhook responses.</p>
+    standing_section = f'''<section class="receipt"><h2>One-link {escape(agent_label)} setup</h2>
+<p>Create one short account-bound link. It contains the separate one-time multi-row onboarding address and the standing per-request address. Delivery status appears here; {escape(agent_label)} cannot see Mailgun webhook responses.</p>
 <p>This fictional pilot requests up to 90 days of onboarding task history. The one-time history address expires after one hour. The standing report address accepts each later fictional request for 24 hours, or until you revoke it. Only the enrolled agent sender, {escape(enrolled_sender)}, is accepted. Reports contain the time, category, proposed and actual external action, approval source and status, money at risk, outcome, evidence origin, and gaps. They remain agent-reported for staff review and do not activate insurance or coverage.</p>
 <form method="post" action="/stage-b-demo/instinct/grant"><input type="hidden" name="csrf" value="{escape(csrf)}"><label><input type="checkbox" name="consent" value="yes" required> I authorize this scoped fictional history and per-request reporting pilot.</label><button type="submit">Create short link</button></form>'''
-    standing_section = standing_section.replace('</label><button type="submit">Create short link</button>', '</label><label><input type="checkbox" name="followup_consent" value="yes"> I also authorize Instinct to check for BackBond follow-up questions no more than hourly and send scoped fictional answers until expiry or revocation.</label><button type="submit">Create short link</button>')
+    standing_section = standing_section.replace('</label><button type="submit">Create short link</button>', f'</label><label><input type="checkbox" name="followup_consent" value="yes"> I also authorize {escape(agent_label)} to check for BackBond follow-up questions no more than hourly and send scoped fictional answers until expiry or revocation.</label><button type="submit">Create short link</button>')
     if standing_issued:
-        standing_section += f'''<p role="status">Short link ready: <a rel="noreferrer" href="{escape(standing_issued['instruction_url'])}">{escape(standing_issued['instruction_url'])}</a></p><p>Give Instinct only this link and the scoped authorization above. The link is shown once. One-time onboarding address: {escape(standing_issued['history_address'])}</p>'''
+        standing_section += f'''<p role="status">Short link ready: <a rel="noreferrer" href="{escape(standing_issued['instruction_url'])}">{escape(standing_issued['instruction_url'])}</a></p><p>Give {escape(agent_label)} only this link and the scoped authorization above. The link is shown once. One-time onboarding address: {escape(standing_issued['history_address'])}</p>'''
     if active_grants:
         standing_section += "<h3>Active links</h3>" + "".join(
             f'''<p>Created {escape(grant['created_at'])}; expires {escape(grant['expires_at'])}; sender {escape(grant['sender_email'])}.</p><form method="post" action="/stage-b-demo/instinct/revoke"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="grant_id" value="{escape(grant['grant_id'])}"><button type="submit">Revoke this link</button></form>'''
@@ -336,10 +344,10 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
                 actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="{action}"><button type="submit">{label}</button></form>'''
         actions += f'''<form method="post" action="/stage-b-demo/history/action"><input type="hidden" name="csrf" value="{escape(csrf)}"><input type="hidden" name="preview_id" value="{preview_id}"><input type="hidden" name="action" value="delete"><button type="submit">Delete import</button></form>'''
         blocks.append(f'''<section class="receipt"><h2>{escape(imported['purpose'].title())} report</h2>
-<p>Received {escape(imported['created_at'])}; {len(rows)} rows; {escape(imported['state'])}. Source: Instinct, agent-reported. Any earlier user corrections appear separately. No charge, loss, approval, or coverage is verified by this report alone.</p>
+<p>Received {escape(imported['created_at'])}; {len(rows)} rows; {escape(imported['state'])}. Source: {escape(agent_label)}, agent-reported. Any earlier user corrections appear separately. No charge, loss, approval, or coverage is verified by this report alone.</p>
 {''.join(entries)}{actions}</section>''')
     return _page(f'''<nav><a href="/stage-b-demo/history">Onboarding history</a> | <a href="/stage-b-demo/receipts">Ongoing task support</a></nav>
-<div class="intro"><h1>Instinct history</h1><p class="privacy">Select a period and send the instruction to Instinct. BackBond receives a valid report without another step from you.</p></div>
+<div class="intro"><h1>{escape(agent_label)} history</h1><p class="privacy">Select a period and send the instruction to {escape(agent_label)}. BackBond receives a valid report without another step from you.</p></div>
 {notice}<p>Onboarding evidence: {escape(onboarding.get('underwriting_evidence', 'incomplete'))}. Support update: {escape(support.get('history_state', 'history_not_supplied'))}.</p>
 {standing_section}{form}{instruction}{''.join(blocks)}<form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>''')
 
