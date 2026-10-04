@@ -453,8 +453,25 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                                 **binding,
                             )
                         else:
-                            history.act(user_id, preview_id, action, **binding)
-                        self._reply(200, {"accepted": True})
+                            accepted = history.act(user_id, preview_id, action, **binding)
+                        scheduled = []
+                        if action == "confirm" and accepted:
+                            standing = self._standing_store()
+                            try:
+                                try:
+                                    grant_id = standing.grant_for_binding(
+                                        user_id, accepted["agent_id"])
+                                except PermissionError as exc:
+                                    if str(exc) != "standing_grant_not_found":
+                                        raise
+                                else:
+                                    scheduled = standing.schedule_risk_checks(
+                                        user_id, grant_id, "valid_intake",
+                                        trigger_key=accepted["import_id"])
+                            finally:
+                                standing.close()
+                        self._reply(200, {"accepted": True,
+                                          "risk_checks_scheduled": len(scheduled)})
                 except PermissionError as exc:
                     self._reply(403, {"error": str(exc)})
                 except (ValueError, KeyError) as exc:
@@ -510,7 +527,25 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 try:
                     history = self._history_store()
                     preview_id = ingest_history_route(history, fields, signing_key)
-                    self._reply(200, {"accepted": True, "preview_id": preview_id})
+                    accepted = history.accepted_intake(preview_id)
+                    scheduled = []
+                    if accepted:
+                        standing = self._standing_store()
+                        try:
+                            try:
+                                grant_id = standing.grant_for_binding(
+                                    accepted["user_id"], accepted["agent_id"])
+                            except PermissionError as exc:
+                                if str(exc) != "standing_grant_not_found":
+                                    raise
+                            else:
+                                scheduled = standing.schedule_risk_checks(
+                                    accepted["user_id"], grant_id, "valid_intake",
+                                    trigger_key=accepted["import_id"])
+                        finally:
+                            standing.close()
+                    self._reply(200, {"accepted": True, "preview_id": preview_id,
+                                      "risk_checks_scheduled": len(scheduled)})
                 except PermissionError as exc:
                     self._reply(401, {"error": str(exc)})
                 except ValueError as exc:

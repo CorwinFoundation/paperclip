@@ -158,6 +158,17 @@ class StandingReportStore:
             raise PermissionError("standing_grant_not_found")
         return row["history_address"]
 
+    def grant_for_binding(self, user_id: str, agent_id: str) -> str:
+        row = self.connection.execute(
+            "SELECT grant_digest FROM instinct_standing_grants WHERE user_id=? "
+            "AND sender_email=? AND history_address IS NOT NULL AND revoked_at IS NULL "
+            "AND followup_enabled=1 ORDER BY created_at DESC LIMIT 1",
+            (user_id, agent_id.strip().lower()),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("standing_grant_not_found")
+        return row["grant_digest"]
+
     def revoke(self, user_id: str, grant_id: str) -> None:
         changed = self.connection.execute(
             "UPDATE instinct_standing_grants SET revoked_at=? "
@@ -220,7 +231,18 @@ class StandingReportStore:
                  _iso(self.now() + self.content_retention)),
             )
             self.connection.commit()
-            return {"state": "received", "report_id": report_id, "review": "staff_required"}
+            triggers = []
+            if event["approval_source"] != "unknown" or event["approval_status"] != "unknown":
+                triggers.append("authority_changed")
+            if event["money_at_risk"] != "unknown":
+                triggers.append("amount_changed")
+            scheduled = []
+            if grant["followup_enabled"]:
+                for trigger in triggers:
+                    scheduled.extend(self.schedule_risk_checks(
+                        grant["user_id"], digest, trigger, trigger_key=key))
+            return {"state": "received", "report_id": report_id, "review": "staff_required",
+                    "risk_checks_scheduled": len(scheduled)}
         except sqlite3.IntegrityError:
             row = self.connection.execute(
                 "SELECT report_id FROM instinct_standing_reports WHERE grant_digest=? AND deduplication_key=?",
@@ -326,29 +348,53 @@ class StandingReportStore:
         if not trigger_key or len(trigger_key) > 128:
             raise ValueError("risk_check_trigger_key_invalid")
         scheduled = []
-        for case in CASES:
-            if case.trigger != trigger:
-                continue
-            exists = self.connection.execute(
-                "SELECT 1 FROM instinct_risk_check_schedule WHERE grant_digest=? "
-                "AND manifest_version=? AND case_id=? AND trigger_key=?",
-                (grant_id, MANIFEST_VERSION, case.case_id, trigger_key),
-            ).fetchone()
-            if exists is not None:
-                continue
-            try:
-                followup = self.issue_followup(user_id, grant_id,
-                    f"[{case.case_id}] {case.prompt}")
+        self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            for case in CASES:
+                if not (case.onboarding if trigger == "valid_intake" else trigger in case.rerun_triggers):
+                    continue
+                exists = self.connection.execute(
+                    "SELECT 1 FROM instinct_risk_check_schedule WHERE grant_digest=? "
+                    "AND manifest_version=? AND case_id=? AND trigger_key=?",
+                    (grant_id, MANIFEST_VERSION, case.case_id, trigger_key),
+                ).fetchone()
+                if exists is not None:
+                    continue
+                question = f"[{case.case_id}] {case.prompt}"
+                if len(question) > 500:
+                    raise ValueError("followup_request_invalid")
+                grant = self.connection.execute(
+                    "SELECT * FROM instinct_standing_grants WHERE grant_digest=? AND user_id=?",
+                    (grant_id, user_id),
+                ).fetchone()
+                if grant is None or grant["revoked_at"] is not None or not grant["followup_enabled"]:
+                    raise PermissionError("standing_grant_revoked_or_invalid")
+                grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
+                if grant_expiry <= self.now():
+                    raise PermissionError("standing_grant_expired")
+                expires = min(grant_expiry, self.now() + timedelta(hours=4))
+                request_id = "fq_" + secrets.token_hex(12)
+                followup = {"request_id": request_id, "question": question,
+                            "reply_address": f"{FOLLOWUP_PREFIX}{request_id}@{STANDING_DOMAIN}",
+                            "expires_at": _iso(expires), "state": "pending"}
+                self.connection.execute(
+                    "INSERT INTO instinct_followup_requests "
+                    "(request_id,grant_digest,question,created_at,expires_at,replied_at,reply_json,retention_expires_at) "
+                    "VALUES(?,?,?,?,?,NULL,NULL,?)",
+                    (request_id, grant_id, question, _iso(self.now()), _iso(expires),
+                     _iso(self.now() + self.content_retention)),
+                )
                 self.connection.execute(
                     "INSERT INTO instinct_risk_check_schedule VALUES(?,?,?,?,?,?)",
                     (grant_id, MANIFEST_VERSION, case.case_id, trigger_key,
                      followup["request_id"], _iso(self.now())),
                 )
-                self.connection.commit()
                 scheduled.append({**followup, "case_id": case.case_id,
                                   "manifest_version": MANIFEST_VERSION})
-            except sqlite3.IntegrityError:
-                self.connection.rollback()
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
         return scheduled
 
     def followup_page(self, token: str) -> dict:

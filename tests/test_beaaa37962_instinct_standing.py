@@ -14,7 +14,7 @@ import pytest
 
 from stage_b_pilot.instinct_standing import EVENT_KEYS, SCHEMA_VERSION, StandingReportStore, render_instruction
 from stage_b_pilot.inbound import InboundStore
-from stage_b_pilot.history_import import HistoryImportStore
+from stage_b_pilot.history_import import HistoryImportStore, REPORT_VERSION, ROW_KEYS
 from stage_b_pilot.mailgun import make_handler
 from stage_b_pilot.receipt_page import render_history
 
@@ -136,6 +136,30 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert "/instinct/followups/" in page and "no more than hourly" in page
         assert "request_id, answer, evidence_origin, and synthetic" in page
 
+        history_row = {key: "unknown" for key in ROW_KEYS}
+        history_row.update(evidence_origin="agent_reported", synthetic=True)
+        history_message = EmailMessage()
+        history_message["From"] = "ia5p01@mail.instinct.com"
+        history_message["To"] = issued["history_address"]
+        history_message.set_content(json.dumps({
+            "schema_version": REPORT_VERSION, "row_count": 1,
+            "rows": [history_row], "end_marker": "END INSTINCT HISTORY"}))
+        timestamp, webhook_token = str(int(time.time())), "history-route-test"
+        signature = hmac.new(signing_key.encode(), (timestamp + webhook_token).encode(),
+                             hashlib.sha256).hexdigest()
+        history_fields = {"timestamp": timestamp, "token": webhook_token,
+                          "signature": signature, "recipient": issued["history_address"],
+                          "body-mime": history_message.as_string()}
+        history_request = Request(base + "/history/mailgun/mime",
+                                  data=urlencode(history_fields).encode(),
+                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urlopen(history_request, timeout=5) as response:
+            assert json.loads(response.read())["risk_checks_scheduled"] == 6
+        with urlopen(base + "/instinct/followups/" + issued["token"], timeout=5) as response:
+            onboarding = json.loads(response.read())["requests"]
+        assert {item["question"].split("]", 1)[0] + "]" for item in onboarding} >= {
+            "[IH-H1]", "[IH-H2]", "[IH-A1]", "[IH-A2]", "[IH-C1]", "[IH-C2]"}
+
         followup = authenticated("/instinct/followups", {
             "grant_id": issued["grant_id"],
             "question": "What evidence supports the fictional outcome?",
@@ -145,8 +169,9 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
             assert response.headers["Referrer-Policy"] == "no-referrer"
             queue = json.loads(response.read())
         assert queue["polling_enabled"] is True
-        assert queue["requests"][0]["request_id"] == followup["request_id"]
-        assert followup["reply_address"] == queue["requests"][0]["reply_address"]
+        queued_followup = next(item for item in queue["requests"]
+                               if item["request_id"] == followup["request_id"])
+        assert followup["reply_address"] == queued_followup["reply_address"]
         assert followup["reply_address"].startswith("history+followup-")
         reply_message = EmailMessage()
         reply_message["From"] = "ia5p01@mail.instinct.com"
@@ -193,8 +218,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert rejected.value.code == 401
         state = authenticated("/instinct/reports", {})
         assert state["reports"][0]["review"] == "staff_required"
-        assert state["followups"][0]["state"] == "replied"
-        assert state["followups"][0]["answer"] == "Agent-reported fictional evidence."
+        assert any(item["state"] == "replied" for item in state["followups"])
+        assert next(item for item in state["followups"] if item["state"] == "replied")["answer"] == "Agent-reported fictional evidence."
         assert state["grants"][0]["grant_id"] == issued["grant_id"]
         private_page = render_history({"onboarding": {}, "support": {}, "imports": [],
                                        "synthetic_enabled": True}, "user@example.com", "csrf-test",

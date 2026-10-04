@@ -235,13 +235,13 @@ class HistoryImportStore:
         ).fetchone()
         if row is None:
             raise PermissionError("history_account_mismatch")
-        if row["consumed_at"] is None:
-            self.connection.execute(
-                "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=?",
-                (digest, user_id),
-            )
-            self._event(row["import_id"], user_id, "consent_revoked")
-            self.connection.commit()
+        self.connection.execute("DELETE FROM history_previews WHERE token_digest=?", (digest,))
+        self.connection.execute(
+            "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=?",
+            (digest, user_id),
+        )
+        self._event(row["import_id"], user_id, "consent_revoked")
+        self.connection.commit()
 
     def onboarding_state(self, user_id: str, *, declined: bool = False,
                          purpose: str = "onboarding", tenant_id: str | None = None,
@@ -467,9 +467,17 @@ class HistoryImportStore:
                 "connected_source": "Instinct",
                 "report": self._decode_report(row["report_json"])}
 
+    def accepted_intake(self, preview_id: str) -> dict | None:
+        row = self.connection.execute(
+            "SELECT p.state,r.import_id,r.user_id,r.tenant_id,r.account_id,r.agent_id "
+            "FROM history_previews p JOIN history_requests r ON r.token_digest=p.token_digest "
+            "WHERE p.preview_id=?", (preview_id,),
+        ).fetchone()
+        return dict(row) if row is not None and row["state"] in {"received", "confirmed"} else None
+
     def act(self, user_id: str, preview_id: str, action: str, *, corrected_report: dict | None = None,
             tenant_id: str | None = None, account_id: str | None = None,
-            agent_id: str | None = None) -> None:
+            agent_id: str | None = None) -> dict | None:
         row = self._owned_preview(user_id, preview_id, tenant_id, account_id, agent_id)
         if action in {"confirm", "correct", "discard"} and row["state"] != "pending_confirmation":
             raise ValueError("history_preview_not_editable")
@@ -480,6 +488,10 @@ class HistoryImportStore:
                 (_iso(self.now()), _iso(self.now() + self.confirmed_retention), preview_id),
             )
             self.connection.execute("UPDATE history_requests SET state='confirmed' WHERE token_digest=?", (digest,))
+            request = self.connection.execute(
+                "SELECT import_id,user_id,tenant_id,account_id,agent_id FROM history_requests "
+                "WHERE token_digest=?", (digest,),
+            ).fetchone()
         elif action == "correct":
             if corrected_report is None:
                 raise ValueError("history_correction_required")
@@ -501,6 +513,9 @@ class HistoryImportStore:
         else:
             raise ValueError("history_preview_action_invalid")
         self.connection.commit()
+        if action == "confirm":
+            return dict(request)
+        return None
 
     def correct_field(self, user_id: str, preview_id: str, row_index: int,
                       field: str, value: str, *, tenant_id: str | None = None,
