@@ -491,6 +491,20 @@ def _gates(mode: str, changed: list[str], tests: list[str]) -> dict[str, bool]:
     return out
 
 
+def execution_shape(mode: str, tests: list[str]) -> tuple[list[int], str]:
+    """Right-size the pytest matrix and xdist workers for selected files."""
+    if mode != "SOME":
+        return [1, 2, 3, 4, 5, 6], "auto"
+    count = len(tests)
+    if count <= 4:
+        return [1], "1"
+    if count <= 12:
+        return [1], "2"
+    if count <= 48:
+        return [1, 2], "2"
+    return [1, 2, 3, 4, 5, 6], "auto"
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -529,11 +543,14 @@ def _expand() -> list[str]:
 
 
 def _write_outputs(res: dict[str, object], path: str | None, summary: str | None) -> None:
+    shards, workers = execution_shape(str(res["selection_mode"]), list(res["tests"]))
     lines = [
         f"selection_mode={res['selection_mode']}",
         f"tests={json.dumps(res['tests'])}",
         f"code={'true' if res['code'] else 'false'}",
         f"reason={res['reason']}",
+        f"shards={json.dumps(shards)}",
+        f"pytest_workers={workers}",
     ]
     for name, val in res["gates"].items():  # type: ignore[union-attr]
         lines.append(f"{name}={'true' if val else 'false'}")

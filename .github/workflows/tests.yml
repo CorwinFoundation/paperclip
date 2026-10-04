@@ -50,6 +50,10 @@ jobs:
       aiuc1: ${{ steps.select.outputs.aiuc1 }}
       registry: ${{ steps.select.outputs.registry }}
       regression: ${{ steps.select.outputs.regression }}
+      shards: ${{ steps.select.outputs.shards }}
+      pytest_workers: ${{ steps.select.outputs.pytest_workers }}
+      scanner: ${{ steps.solution.outputs.scanner }}
+      instinct: ${{ steps.solution.outputs.instinct }}
       reason: ${{ steps.select.outputs.reason }}
     steps:
       - name: Checkout source
@@ -79,10 +83,24 @@ jobs:
               --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Select affected solutions
+        id: solution
+        env:
+          CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          FULL_RUN: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.full }}
+        run: |
+          if [ "$FULL_RUN" = "true" ]; then
+            printf '[]' | python3 scripts/ci_solution_changes.py --changed-json invalid \
+              --github-output "$GITHUB_OUTPUT"
+          else
+            printf '%s' "$CHANGED_FILES" | python3 scripts/ci_solution_changes.py --changed-json - \
+              --github-output "$GITHUB_OUTPUT"
+          fi
+
   min-python-cli-render:
     name: python 3.11 CLI render smoke
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.scanner == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -146,7 +164,7 @@ jobs:
   # per-file duration (ci/test-durations.json), whole files only.
   # ---------------------------------------------------------------------------
   pytest:
-    name: python pytest (${{ matrix.shard }}/6)
+    name: python pytest (${{ matrix.shard }}/${{ strategy.job-total }})
     needs: changes
     # A skipped job counts as passed for branch protection, so the matrix is
     # only skipped when the selector positively said "no Python test can be
@@ -160,10 +178,11 @@ jobs:
       # Every shard reports. One red shard must not hide the other five.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: ${{ fromJSON(needs.changes.outputs.shards || '[1,2,3,4,5,6]') }}
     env:
       SHARD: ${{ matrix.shard }}
-      SHARDS: "6"
+      SHARDS: ${{ strategy.job-total }}
+      PYTEST_WORKERS: ${{ needs.changes.outputs.pytest_workers || 'auto' }}
       PYTHONHASHSEED: "0"
       TZ: UTC
       SELECTION_MODE: ${{ needs.changes.outputs.selection_mode }}
@@ -269,7 +288,7 @@ jobs:
             exit 0
           fi
           python -m pytest -v -ra "${TARGETS[@]}" \
-            -n auto --dist loadfile \
+            -n "$PYTEST_WORKERS" --dist loadfile \
             --durations=25 \
             --junit-xml="$RUNNER_TEMP/junit-shard-$SHARD.xml" \
             "${IGNORE[@]}"
@@ -300,7 +319,7 @@ jobs:
           echo "python pytest shard matrix: $SHARDS_RESULT"
           case "$SHARDS_RESULT" in
             success)
-              echo "all 6 shards passed" ;;
+              echo "all selected shards passed" ;;
             skipped)
               # The selector positively reported no affected Python test.
               echo "shard matrix skipped: no Python test can be affected" ;;

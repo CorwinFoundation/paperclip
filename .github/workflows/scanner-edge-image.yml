@@ -44,10 +44,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: classify scanner image inputs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      scanner: ${{ steps.classify.outputs.scanner }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 2}
+      - id: changed
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: json
+          filters: |
+            all:
+              - '**'
+      - id: classify
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.all_files }}
+        run: printf '%s' "$CHANGED_FILES" | python3 scripts/ci_solution_changes.py --changed-json - --github-output "$GITHUB_OUTPUT"
+
   image-build:
     name: publish immutable scanner image and governed evidence
     runs-on: ubuntu-latest
-    if: github.repository == 'CorwinFoundation/are-scanner'
+    needs: changes
+    if: ${{ always() && github.repository == 'CorwinFoundation/are-scanner' && (github.event_name == 'workflow_dispatch' || needs.changes.result != 'success' || needs.changes.outputs.scanner == 'true') }}
     timeout-minutes: 35
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
