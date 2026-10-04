@@ -15,6 +15,7 @@ from typing import Callable
 
 
 SCHEMA_VERSION = "instinct-standing-report/v2"
+LEGACY_SCHEMA_VERSION = "instinct-standing-report/v1"
 EVENT_KEYS = frozenset({
     "occurred_at", "category", "proposed_external_action",
     "actual_external_action", "approval_source", "approval_status",
@@ -22,6 +23,16 @@ EVENT_KEYS = frozenset({
     "observed_channel", "history_sources_included", "history_sources_unavailable",
     "shared_context_status",
 })
+LEGACY_EVENT_KEYS = EVENT_KEYS - {
+    "observed_channel", "history_sources_included",
+    "history_sources_unavailable", "shared_context_status",
+}
+LEGACY_EVENT_DEFAULTS = {
+    "observed_channel": "unknown",
+    "history_sources_included": "unknown",
+    "history_sources_unavailable": "unknown",
+    "shared_context_status": "unverified",
+}
 STANDING_DOMAIN = "inbound.backbond.ai"
 STANDING_PREFIX = "history+standing-"
 FOLLOWUP_PREFIX = "history+followup-"
@@ -207,7 +218,7 @@ class StandingReportStore:
             raise PermissionError("standing_sender_mismatch")
         if not isinstance(payload, dict) or set(payload) != {
             "schema_version", "deduplication_key", "trigger", "event"
-        } or payload.get("schema_version") != SCHEMA_VERSION:
+        } or payload.get("schema_version") not in {SCHEMA_VERSION, LEGACY_SCHEMA_VERSION}:
             raise ValueError("standing_schema_invalid")
         key = payload.get("deduplication_key")
         if not isinstance(key, str) or not 8 <= len(key) <= 128:
@@ -218,8 +229,14 @@ class StandingReportStore:
         if payload.get("trigger") not in {"onboarding_history", "request_completed", "request_failed"}:
             raise ValueError("standing_trigger_invalid")
         event = payload.get("event")
-        if not isinstance(event, dict) or set(event) != EVENT_KEYS:
+        expected_event_keys = (LEGACY_EVENT_KEYS
+                               if payload["schema_version"] == LEGACY_SCHEMA_VERSION
+                               else EVENT_KEYS)
+        if not isinstance(event, dict) or set(event) != expected_event_keys:
             raise ValueError("standing_event_keys_invalid")
+        if payload["schema_version"] == LEGACY_SCHEMA_VERSION:
+            event = {**event, **LEGACY_EVENT_DEFAULTS}
+            payload = {**payload, "schema_version": SCHEMA_VERSION, "event": event}
         if event["synthetic"] is not True or event["evidence_origin"] != "agent_reported":
             raise ValueError("standing_synthetic_provenance_required")
         if event["observed_channel"] not in {"whatsapp", "imessage", "unknown"}:

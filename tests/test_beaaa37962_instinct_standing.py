@@ -12,7 +12,10 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from stage_b_pilot.instinct_standing import EVENT_KEYS, SCHEMA_VERSION, StandingReportStore, render_instruction
+from stage_b_pilot.instinct_standing import (
+    EVENT_KEYS, LEGACY_EVENT_KEYS, LEGACY_SCHEMA_VERSION, SCHEMA_VERSION,
+    StandingReportStore, render_instruction,
+)
 from stage_b_pilot.inbound import InboundStore
 from stage_b_pilot.history_import import HistoryImportStore, REPORT_VERSION, ROW_KEYS
 from stage_b_pilot.mailgun import make_handler
@@ -30,6 +33,43 @@ def report(key="fictional-request-001", trigger="request_completed"):
                  synthetic=True)
     return {"schema_version": SCHEMA_VERSION, "deduplication_key": key,
             "trigger": trigger, "event": event}
+
+
+def legacy_report(key="fictional-v1-request-001"):
+    payload = report(key)
+    payload["schema_version"] = LEGACY_SCHEMA_VERSION
+    payload["event"] = {field: payload["event"][field] for field in LEGACY_EVENT_KEYS}
+    return payload
+
+
+def test_authorized_v1_report_is_normalized_to_explicit_unverified_metadata(tmp_path):
+    store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: NOW)
+    grant = store.issue("account-1", "ia5p01@mail.instinct.com")
+
+    assert store.ingest(
+        grant["token"], "ia5p01@mail.instinct.com", legacy_report()
+    )["state"] == "received"
+
+    stored = store.reports_for("account-1")[0]["report"]
+    assert stored["schema_version"] == SCHEMA_VERSION
+    assert stored["event"]["observed_channel"] == "unknown"
+    assert stored["event"]["history_sources_included"] == "unknown"
+    assert stored["event"]["history_sources_unavailable"] == "unknown"
+    assert stored["event"]["shared_context_status"] == "unverified"
+
+
+def test_legacy_report_still_fails_closed_for_extra_or_missing_event_keys(tmp_path):
+    store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: NOW)
+    grant = store.issue("account-1", "ia5p01@mail.instinct.com")
+    extra = legacy_report("fictional-v1-extra")
+    extra["event"]["observed_channel"] = "whatsapp"
+    missing = legacy_report("fictional-v1-missing")
+    del missing["event"]["outcome"]
+
+    with pytest.raises(ValueError, match="standing_event_keys_invalid"):
+        store.ingest(grant["token"], "ia5p01@mail.instinct.com", extra)
+    with pytest.raises(ValueError, match="standing_event_keys_invalid"):
+        store.ingest(grant["token"], "ia5p01@mail.instinct.com", missing)
 
 
 def test_one_link_instruction_and_recurring_deduplicated_receipts(tmp_path):
@@ -200,7 +240,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         message["From"] = "ia5p01@mail.instinct.com"
         message["To"] = issued["address"]
         message["Subject"] = "BackBond fictional request report"
-        message.set_content(json.dumps(report()))
+        # Existing Instinct onboarding instructions still emit v1 reports.
+        message.set_content(json.dumps(legacy_report()))
         timestamp, webhook_token = str(int(time.time())), "route-test"
         signature = hmac.new(signing_key.encode(), (timestamp + webhook_token).encode(),
                              hashlib.sha256).hexdigest()
@@ -219,6 +260,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert rejected.value.code == 401
         state = authenticated("/instinct/reports", {})
         assert state["reports"][0]["review"] == "staff_required"
+        assert state["reports"][0]["report"]["schema_version"] == SCHEMA_VERSION
+        assert state["reports"][0]["report"]["event"]["observed_channel"] == "unknown"
         assert any(item["state"] == "replied" for item in state["followups"])
         assert next(item for item in state["followups"] if item["state"] == "replied")["answer"] == "Agent-reported fictional evidence."
         assert state["grants"][0]["grant_id"] == issued["grant_id"]
