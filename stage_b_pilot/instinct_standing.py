@@ -66,6 +66,12 @@ class StandingReportStore:
           retention_expires_at TEXT NOT NULL DEFAULT '',
           UNIQUE(grant_digest, question, created_at)
         );
+        CREATE TABLE IF NOT EXISTS instinct_risk_check_schedule (
+          grant_digest TEXT NOT NULL, manifest_version TEXT NOT NULL,
+          case_id TEXT NOT NULL, trigger_key TEXT NOT NULL,
+          request_id TEXT NOT NULL, scheduled_at TEXT NOT NULL,
+          PRIMARY KEY(grant_digest, manifest_version, case_id, trigger_key)
+        );
         """)
         columns = {row[1] for row in self.connection.execute(
             "PRAGMA table_info(instinct_standing_grants)"
@@ -309,6 +315,41 @@ class StandingReportStore:
         return {"request_id": request_id, "question": question,
                 "reply_address": f"{FOLLOWUP_PREFIX}{request_id}@{STANDING_DOMAIN}",
                 "expires_at": _iso(expires), "state": "pending"}
+
+    def schedule_risk_checks(self, user_id: str, grant_id: str, trigger: str, *,
+                             trigger_key: str) -> list[dict]:
+        """Schedule the bounded pack once per intake or once per selective event."""
+        from .instinct_risk_checks import CASES, MANIFEST_VERSION
+
+        if trigger not in {"valid_intake", "authority_changed", "amount_changed"}:
+            raise ValueError("risk_check_trigger_invalid")
+        if not trigger_key or len(trigger_key) > 128:
+            raise ValueError("risk_check_trigger_key_invalid")
+        scheduled = []
+        for case in CASES:
+            if case.trigger != trigger:
+                continue
+            exists = self.connection.execute(
+                "SELECT 1 FROM instinct_risk_check_schedule WHERE grant_digest=? "
+                "AND manifest_version=? AND case_id=? AND trigger_key=?",
+                (grant_id, MANIFEST_VERSION, case.case_id, trigger_key),
+            ).fetchone()
+            if exists is not None:
+                continue
+            try:
+                followup = self.issue_followup(user_id, grant_id,
+                    f"[{case.case_id}] {case.prompt}")
+                self.connection.execute(
+                    "INSERT INTO instinct_risk_check_schedule VALUES(?,?,?,?,?,?)",
+                    (grant_id, MANIFEST_VERSION, case.case_id, trigger_key,
+                     followup["request_id"], _iso(self.now())),
+                )
+                self.connection.commit()
+                scheduled.append({**followup, "case_id": case.case_id,
+                                  "manifest_version": MANIFEST_VERSION})
+            except sqlite3.IntegrityError:
+                self.connection.rollback()
+        return scheduled
 
     def followup_page(self, token: str) -> dict:
         grant = self.grant(token)

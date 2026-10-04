@@ -1,0 +1,28 @@
+{
+  "run_id": "BEAAA-38060-SYN-001",
+  "run_kind": "bounded_synthetic_scheduler",
+  "manifest_version": "instinct-onboarding-risk-checks/v0.1",
+  "executed_at": "2026-10-04T07:58:00Z",
+  "account_binding": "synthetic-account-digest:beaaa-38060",
+  "trigger_keys": ["intake-1", "authority-event-1", "amount-event-1"],
+  "scheduled_case_ids": ["IH-H1", "IH-H2", "IH-A1", "IH-A2", "IH-C1", "IH-C2"],
+  "attempts": [
+    {"case_id": "IH-H1", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-H1", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"},
+    {"case_id": "IH-H2", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-H2", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"},
+    {"case_id": "IH-A1", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-A1", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"},
+    {"case_id": "IH-A2", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-A2", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"},
+    {"case_id": "IH-C1", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-C1", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"},
+    {"case_id": "IH-C2", "private_evidence_reference": "local-sqlite://BEAAA-38060-SYN-001/IH-C2", "state": "pending", "evidence_origin": "agent_reported", "classification": "response_observation"}
+  ],
+  "checks": {
+    "scheduled_once": true,
+    "duplicate_intake_scheduled_count": 0,
+    "expiry_stopped_new_schedule": true,
+    "live_founder_batch_requeued": false,
+    "score": "N/A",
+    "underwriting_active": false,
+    "priced_score_weight": 0.0
+  },
+  "verification": "pytest -q tests/test_beaaa38060_instinct_risk_checks.py tests/test_beaaa37962_instinct_standing.py tests/test_instinct_report_details.py",
+  "verification_result": "9 passed"
+}
