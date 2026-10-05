@@ -12,6 +12,7 @@ unit_file=/etc/systemd/system/backbond-stage-b-inbound.service
 receipt_unit_file=/etc/systemd/system/backbond-stage-b-receipts.service
 snippet=/etc/nginx/snippets/backbond-stage-b-inbound.conf
 accept_helper=/usr/local/sbin/backbond-stage-b-accept-v1-report
+acceptance_capture_helper=/usr/local/sbin/backbond-stage-b-capture-instinct-acceptance
 vhost=/etc/nginx/sites-available/scanner.backbond.ai
 include_line='    include /etc/nginx/snippets/backbond-stage-b-inbound.conf;'
 backup=$(mktemp /tmp/backbond-stage-b-nginx.XXXXXX)
@@ -87,6 +88,7 @@ install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/backbond-stage-b
 install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/backbond-stage-b-receipts.service" "$receipt_unit_file"
 install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/nginx-location.conf" "$snippet"
 install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/accept-v1-report.py" "$accept_helper"
+install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/capture-instinct-acceptance.py" "$acceptance_capture_helper"
 
 if [ ! -s "$secret_file" ]; then
     [ -t 0 ] || { echo 'ERROR signing_key_requires_tty' >&2; exit 2; }

@@ -30,3 +30,9 @@ def test_receipt_service_has_its_own_protected_secret_file():
     assert "BB_DEMO_SESSION_SECRET=" in installer
     assert 'chmod 0600 "$receipt_secret_file"' in installer
     assert "stage-b-inbound.env" not in unit
+
+
+def test_installer_places_redacted_instinct_acceptance_capture_helper():
+    installer = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
+    assert "capture-instinct-acceptance.py" in installer
+    assert "/usr/local/sbin/backbond-stage-b-capture-instinct-acceptance" in installer
