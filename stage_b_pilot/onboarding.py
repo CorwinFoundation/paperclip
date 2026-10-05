@@ -24,6 +24,15 @@ class OnboardingStore:
         self.db.execute("""CREATE TABLE IF NOT EXISTS onboarding_links (
           token_digest TEXT PRIMARY KEY, email TEXT NOT NULL, agent_email TEXT NOT NULL,
           created_at TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT)""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS onboarding_sessions (
+          token_digest TEXT PRIMARY KEY, account_email TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+          claimed_at TEXT, sender_email TEXT, revoked_at TEXT,
+          upstream_token TEXT, grant_id TEXT)""")
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(onboarding_sessions)")}
+        for name in ("upstream_token", "grant_id"):
+            if name not in columns:
+                self.db.execute(f"ALTER TABLE onboarding_sessions ADD COLUMN {name} TEXT")
         self.db.commit()
 
     def issue(self, email: str, agent_email: str) -> str:
@@ -49,6 +58,77 @@ class OnboardingStore:
                         (self.now().isoformat(), digest))
         self.db.commit()
         return str(row["email"]), str(row["agent_email"])
+
+    def issue_session(self, *, ttl: timedelta = timedelta(minutes=20)) -> tuple[str, str]:
+        """Create an isolated, short-lived enrollment which Instinct may claim once."""
+        if ttl <= timedelta(0):
+            raise ValueError("session_ttl_invalid")
+        token = secrets.token_urlsafe(32)
+        account_email = f"demo-{secrets.token_hex(12)}@sessions.invalid"
+        created = self.now()
+        self.db.execute(
+            "INSERT INTO onboarding_sessions "
+            "(token_digest,account_email,created_at,expires_at,claimed_at,sender_email,revoked_at) "
+            "VALUES (?,?,?,?,NULL,NULL,NULL)",
+            (hashlib.sha256(token.encode()).hexdigest(), account_email,
+             created.isoformat(), (created + ttl).isoformat()),
+        )
+        self.db.commit()
+        return token, account_email
+
+    def claim_session(self, token: str, sender_email: str) -> str:
+        """Bind the first verified-looking sender; expiry and replay fail closed."""
+        sender_email = sender_email.strip().lower()
+        if "@" not in sender_email:
+            raise ValueError("sender_address_invalid")
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        row = self.db.execute(
+            "SELECT * FROM onboarding_sessions WHERE token_digest=?", (digest,)
+        ).fetchone()
+        if (row is None or row["claimed_at"] or row["revoked_at"] or
+                datetime.fromisoformat(row["expires_at"]) <= self.now()):
+            raise PermissionError("enrollment_session_invalid_or_expired")
+        changed = self.db.execute(
+            "UPDATE onboarding_sessions SET claimed_at=?,sender_email=? "
+            "WHERE token_digest=? AND claimed_at IS NULL AND revoked_at IS NULL",
+            (self.now().isoformat(), sender_email, digest),
+        ).rowcount
+        self.db.commit()
+        if changed != 1:
+            raise PermissionError("enrollment_session_already_claimed")
+        return str(row["account_email"])
+
+    def activate_session(self, token: str, upstream_token: str, grant_id: str) -> None:
+        if not upstream_token or not grant_id:
+            raise ValueError("session_activation_invalid")
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        changed = self.db.execute(
+            "UPDATE onboarding_sessions SET upstream_token=?,grant_id=? "
+            "WHERE token_digest=? AND claimed_at IS NOT NULL AND revoked_at IS NULL",
+            (upstream_token, grant_id, digest),
+        ).rowcount
+        self.db.commit()
+        if changed != 1:
+            raise PermissionError("enrollment_session_invalid_or_expired")
+
+    def stop_credentials(self, token: str) -> tuple[str, str, str, str]:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        row = self.db.execute(
+            "SELECT * FROM onboarding_sessions WHERE token_digest=?", (digest,)
+        ).fetchone()
+        if row is None or not row["claimed_at"] or not row["upstream_token"] or not row["grant_id"]:
+            raise PermissionError("enrollment_session_not_active")
+        return (str(row["account_email"]), str(row["sender_email"]),
+                str(row["upstream_token"]), str(row["grant_id"]))
+
+    def revoke_session(self, token: str) -> bool:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        changed = self.db.execute(
+            "UPDATE onboarding_sessions SET revoked_at=? WHERE token_digest=? AND revoked_at IS NULL",
+            (self.now().isoformat(), digest),
+        ).rowcount
+        self.db.commit()
+        return changed == 1
 
     def close(self) -> None:
         self.db.close()

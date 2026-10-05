@@ -87,6 +87,10 @@ def test_one_link_instruction_and_recurring_deduplicated_receipts(tmp_path):
     duplicate = store.ingest(grant["token"], "ia5p01@mail.instinct.com", report())
     assert first["state"] == "received" and first["review"] == "staff_required"
     assert duplicate == {"state": "duplicate", "report_id": first["report_id"], "review": "staff_required"}
+    conflicting = report()
+    conflicting["event"]["outcome"] = "different fictional outcome"
+    with pytest.raises(ValueError, match="deduplication_conflict"):
+        store.ingest(grant["token"], "ia5p01@mail.instinct.com", conflicting)
 
 
 def test_minimal_schema_sender_scope_expiry_and_revocation(tmp_path):

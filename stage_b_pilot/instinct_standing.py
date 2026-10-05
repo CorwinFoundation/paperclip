@@ -323,11 +323,21 @@ class StandingReportStore:
         except sqlite3.IntegrityError:
             self.connection.rollback()
             row = self.connection.execute(
-                "SELECT report_id FROM instinct_standing_reports WHERE grant_digest=? AND deduplication_key=?",
+                "SELECT report_id,report_json FROM instinct_standing_reports "
+                "WHERE grant_digest=? AND deduplication_key=?",
                 (digest, key),
             ).fetchone()
             if row is None:
                 raise
+            previous_payload = json.loads(row["report_json"])
+            # Delivery-channel metadata may differ when Instinct retries the same
+            # account-scoped task through another chat surface. It is still the
+            # same report; substantive changes under the same task ID fail closed.
+            previous_event = {**previous_payload["event"], "observed_channel": "deduplicated"}
+            current_event = {**payload["event"], "observed_channel": "deduplicated"}
+            if ({**previous_payload, "event": previous_event}
+                    != {**payload, "event": current_event}):
+                raise ValueError("standing_deduplication_conflict")
             return {"state": "duplicate", "report_id": row["report_id"], "review": "staff_required"}
         except Exception:
             self.connection.rollback()

@@ -145,11 +145,24 @@ def render_login(error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
     return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with your private pilot passphrase.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="passphrase">Passphrase</label><input id="passphrase" name="passphrase" type="password" autocomplete="current-password" required><button type="submit">View receipts</button></form>''')
 
-def render_onboarding(error: str = "", sent: bool = False) -> str:
+def enrollment_instruction(token: str, public_base: str) -> str:
+    endpoint = f"{public_base.rstrip('/')}/onboard/enroll/{token}"
+    stop_endpoint = f"{public_base.rstrip('/')}/onboard/stop/{token}"
+    return ("I consent to BackBond's fictional-only Stage B DEMO. Instinct: enroll this "
+            f"conversation once at {endpoint} using your own sender address, then follow the "
+            "returned account-scoped instructions. Send the permitted synthetic history once, "
+            "then send synthetic ongoing reports for my later DEMO requests. Do not buy, book, "
+            "cancel, contact anyone, access a mailbox, move money, share credentials or payment "
+            "details, or claim or activate protection. Reuse each task's stable ID so duplicates "
+            "are deduplicated. When I say STOP BackBond, POST once to "
+            f"{stop_endpoint} using the same sender address, then stop all reporting. Stop on "
+            "expiry, revocation, any access error, or when I say STOP.")
+
+
+def render_onboarding(instruction: str = "", error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
-    if sent:
-        return _page('<div class="intro"><h1>Check your email</h1><p class="privacy">The private link expires in 20 minutes. You can request another from this same page.</p></div>')
-    return _page(f'''<div class="intro"><h1>Connect Instinct to the DEMO</h1><p class="privacy">One shared entry point. Your account and reports stay separate.</p></div>{message}<form method="post" action="/stage-b-demo/onboard/request"><label for="email">Your email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="agent_email">Your Instinct sender email</label><input id="agent_email" name="agent_email" type="email" autocomplete="off" required><label><input type="checkbox" name="consent" value="yes" required> I consent to fictional Instinct history and ongoing DEMO reports.</label><label><input type="checkbox" name="boundaries" value="yes" required> I understand this DEMO cannot buy, book, contact anyone, access a mailbox, move money, or activate protection.</label><button type="submit">Email my private sign-in link</button></form>''')
+    copy = html.escape(instruction)
+    return _page(f'''<div class="intro"><h1>Connect Instinct</h1><p class="privacy">Copy one instruction into your own Instinct chat. That is the whole setup.</p></div>{message}<section class="receipt"><h2>Your DEMO instruction</h2><textarea id="instinct-instruction" rows="12" readonly>{copy}</textarea><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('instinct-instruction').value)">Copy instruction</button></section><p class="muted">Fictional DEMO only. This page never shows histories, reports, or another user's session.</p>''')
 
 def render_receipts(receipts: list[DemoReceipt]) -> str:
     if not receipts: body = '<p class="muted" role="status">No checks have been received for this account yet.</p>'
@@ -375,6 +388,7 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
     if session_ttl < 1: raise ValueError("session TTL must be positive")
     if max_sessions < 1: raise ValueError("max sessions must be positive")
     sessions: dict[str, tuple[int, str, str, int]] = {}; credentials = CredentialStore(credential_file) if credential_file else None
+    onboarding_issuance: dict[str, list[int]] = {}
     def purge_expired():
         now = int(time.time())
         for key in [key for key, value in sessions.items() if value[0] <= now]: sessions.pop(key, None)
@@ -407,14 +421,27 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
     class Handler(BaseHTTPRequestHandler):
         def _reply(self, status: int, body: str, cookie: str | None = None) -> None:
             encoded = body.encode(); self.send_response(status)
-            for name,value in (("Content-Type","text/html; charset=utf-8"),("Content-Length",str(len(encoded))),("Cache-Control","private, no-store"),("X-Robots-Tag","noindex, nofollow,noarchive"),("Referrer-Policy","no-referrer"),("X-Content-Type-Options","nosniff"),("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")): self.send_header(name,value)
+            for name,value in (("Content-Type","text/html; charset=utf-8"),("Content-Length",str(len(encoded))),("Cache-Control","private, no-store"),("X-Robots-Tag","noindex, nofollow,noarchive"),("Referrer-Policy","no-referrer"),("X-Content-Type-Options","nosniff"),("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")): self.send_header(name,value)
             if cookie: self.send_header("Set-Cookie", cookie)
             self.end_headers(); self.wfile.write(encoded)
         def do_GET(self):
             path = urlparse(self.path).path
             if path == "/stage-b-demo/onboard":
-                self._reply(200, render_onboarding()); return
+                try:
+                    now = int(time.time()); client = self.client_address[0]
+                    recent = [stamp for stamp in onboarding_issuance.get(client, []) if stamp > now - 60]
+                    if len(recent) >= 10:
+                        self.send_response(429); self.send_header("Retry-After", "60"); self.end_headers(); return
+                    recent.append(now); onboarding_issuance[client] = recent
+                    onboarding = OnboardingStore(onboarding_db or "")
+                    token, _account = onboarding.issue_session(); onboarding.close()
+                    self._reply(200, render_onboarding(enrollment_instruction(token, public_base))); return
+                except (ValueError, OSError):
+                    self._reply(503, render_onboarding(error="Enrollment is temporarily unavailable.")); return
             if path == "/stage-b-demo/onboard/confirm":
+                self.send_error(404); return
+                # Kept below temporarily for database compatibility with links issued
+                # before the generic-session deployment.
                 try:
                     token = parse_qs(urlparse(self.path).query).get("token", [""])[-1]
                     onboarding = OnboardingStore(onboarding_db or "")
@@ -458,7 +485,55 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             self._reply(200, render_login())
         def do_POST(self):
             path = urlparse(self.path).path
+            if path.startswith("/stage-b-demo/onboard/enroll/"):
+                onboarding = inbound = None
+                try:
+                    if not onboarding_db or not inbound_db:
+                        raise ValueError("onboarding_unavailable")
+                    token = path.rsplit("/", 1)[-1]
+                    sender = self.headers.get("X-Instinct-Sender", "")
+                    onboarding = OnboardingStore(onboarding_db)
+                    email = onboarding.claim_session(token, sender)
+                    inbound = InboundStore(inbound_db)
+                    _uid, enrollment = inbound.begin_signup(email)
+                    inbound.confirm_signup(email, enrollment)
+                    inbound.configure_agent_recipient(email, enrollment, sender)
+                    issued = instinct_api(upstream_host, upstream_port, email, enrollment, "grant",
+                                          {"consent": True, "synthetic": True,
+                                           "followup_consent": True})
+                    onboarding.activate_session(token, enrollment, str(issued["grant_id"]))
+                    body = html.escape(json.dumps({"status": "enrolled", "instruction": issued}, sort_keys=True))
+                    self._reply(201, _page(f"<h1>Instinct DEMO enrolled</h1><pre>{body}</pre>")); return
+                except PermissionError:
+                    self._reply(409, _page("<p role='alert'>This enrollment session is expired, revoked, or already used.</p>")); return
+                except (ValueError, OSError, json.JSONDecodeError):
+                    self._reply(400, _page("<p role='alert'>Enrollment could not be completed.</p>")); return
+                finally:
+                    if onboarding is not None: onboarding.close()
+                    if inbound is not None: inbound.close()
+            if path.startswith("/stage-b-demo/onboard/stop/"):
+                onboarding = None
+                try:
+                    token = path.rsplit("/", 1)[-1]
+                    sender = self.headers.get("X-Instinct-Sender", "").strip().lower()
+                    onboarding = OnboardingStore(onboarding_db or "")
+                    email, bound_sender, upstream_token, grant_id = onboarding.stop_credentials(token)
+                    if not hmac.compare_digest(sender, bound_sender):
+                        raise PermissionError("standing_grant_binding_mismatch")
+                    result = instinct_api(upstream_host, upstream_port, email, upstream_token,
+                                          "chat-stop", {"grant_id": grant_id,
+                                                        "agent_id": sender})
+                    onboarding.revoke_session(token)
+                    self._reply(200, _page(f"<p role='status'>{html.escape(result['state'])}</p>")); return
+                except PermissionError:
+                    self._reply(403, _page("<p role='alert'>STOP was not authorized for this session.</p>")); return
+                except (ValueError, OSError, json.JSONDecodeError):
+                    self._reply(400, _page("<p role='alert'>STOP could not be completed.</p>")); return
+                finally:
+                    if onboarding is not None: onboarding.close()
             if path == "/stage-b-demo/onboard/request":
+                self.send_error(404); return
+                # The superseded email-link journey intentionally has no public handler.
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
                     if not 0 < length <= 4096 or not onboarding_db or not inbound_db or link_sender is None:
