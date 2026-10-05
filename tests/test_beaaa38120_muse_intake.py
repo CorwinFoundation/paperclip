@@ -61,14 +61,15 @@ def test_muse_receipt_aliases_and_continuation_lines(tmp_path):
             "Check ID: MUSE-3",
             "Proposed action: Send a detailed update",
             "with the final figures included",
-            "Cancellation terms and deadline: Cancel by Friday",
+            "Cancellation terms and deadline: Non-refundable within 24 hours;",
+            "deadline 2026-10-04 20:00 IDT",
             "Money at risk if it goes wrong: USD 250",
         )),
         when=when,
     ))
     receipt = project_receipts(store.receipts_for("muse@example.com"))[0]
     assert receipt.proposed_action == "Send a detailed update with the final figures included"
-    assert receipt.terms == "Cancel by Friday"
+    assert receipt.terms == "Non-refundable within 24 hours; deadline 2026-10-04 20:00 IDT"
     assert receipt.money_at_risk == "USD 250"
 
 
@@ -94,3 +95,19 @@ def test_muse_history_uses_enrollment_agent_label():
     page = render_history({"agent_label": "Muse"}, "muse@example.com", "csrf")
     assert "<h1>Muse history</h1>" in page
     assert "Instinct history" not in page
+
+
+def test_muse_receipt_flags_pre_enrollment_reversed_timing():
+    rows = [{
+        "receipt_id": "in_test", "kind": "check", "body_text": "Check ID: MUSE-OLD",
+        "correlation_key": "MUSE-OLD", "received_at": "2026-10-04T18:53:00Z",
+        "enrollment_confirmed_at": "2026-10-04T18:00:00Z", "agent_label": "Muse",
+        "agent_report": {"answer": "YES", "answer_reported_at": "2026-10-04T14:49:00Z"},
+    }]
+    receipt = project_receipts(rows)[0]
+    assert receipt.record_context == (
+        "Pre-enrollment test record; Abnormal order: answer reported before check received"
+    )
+    page = render_receipts([receipt])
+    assert "Pre-enrollment test record" in page
+    assert "Abnormal order: answer reported before check received" in page

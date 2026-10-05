@@ -409,7 +409,8 @@ class InboundStore:
             "SELECT r.receipt_id,r.user_id,r.sender_address,r.subject,r.kind,r.received_at,"
             "r.message_sha256,r.body_text,r.correlation_key,r.original_sha256,"
             "r.dkim_signing_domain,r.dkim_result,r.link_state,r.linked_check_receipt_id,"
-            "r.ownership,r.forwarding_code,r.mode,u.agent_label "
+            "r.ownership,r.forwarding_code,r.mode,u.agent_label,"
+            "u.confirmed_at AS enrollment_confirmed_at "
             "FROM inbound_receipts r JOIN inbound_users u USING(user_id) "
             "WHERE u.email=? ORDER BY received_at,receipt_id", (_address(email),)
         ).fetchall()

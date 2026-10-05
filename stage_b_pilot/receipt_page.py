@@ -54,6 +54,7 @@ class DemoReceipt:
     reported_at: str = "Not provided"
     agent_label: str = "Instinct"
     answer_reported_at: str = "Not provided"
+    record_context: str = "Normal receipt order"
 
     @property
     def is_cancellation_obligation(self) -> bool:
@@ -70,7 +71,7 @@ def _structured_body(body: str) -> dict[str, str]:
         if separator and field and value.strip():
             values[field] = value.strip()[:500]
             current_field = field
-        elif line.strip() and current_field and not separator:
+        elif line.strip() and current_field and not field:
             values[current_field] = f"{values[current_field]} {line.strip()}"[:500]
         elif line.strip():
             current_field = None
@@ -117,13 +118,21 @@ def project_receipts(rows: list[dict[str, object]]) -> list[DemoReceipt]:
                 outcome = "MATCH" if matches else "MISMATCH"
                 detail = "The observed result matched the submitted check." if matches else "The observed result differed from the submitted check."
         agent_report = row.get("agent_report") if isinstance(row.get("agent_report"), dict) else {}
+        answer_reported_at = str(agent_report.get("answer_reported_at") or "")
+        received_at = str(row.get("received_at") or "")
+        enrolled_at = str(row.get("enrollment_confirmed_at") or "")
+        context = []
+        if answer_reported_at and enrolled_at and answer_reported_at < enrolled_at:
+            context.append("Pre-enrollment test record")
+        if answer_reported_at and received_at and answer_reported_at < received_at:
+            context.append("Abnormal order: answer reported before check received")
         answer = ("No response required" if cancellation_check else
                   str(agent_report.get("answer") or fields.get("user_answer", "Not provided")))
         limit = fields.get("task_limit", "limit not set")
         limit_state = "over your limit" if limit.lower() == "over" else "limit not set" if limit.lower() in {"", "not set"} else limit
         obligation = fields.get("obligation_status", "open").lower()
         if obligation not in {"open", "cancelled", "missed"}: obligation = "open"
-        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], proposed_action, fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, str(key) if key else "Reference unavailable", limit_state, obligation, fields.get("window_start", "Not provided"), fields.get("window_end", "Not provided"), str(row.get("received_at") or "Not provided"), str(row.get("agent_label") or "Instinct"), str(agent_report.get("answer_reported_at") or "Not provided")))
+        projected.append(DemoReceipt(str(row.get("receipt_id", "Recorded check"))[:80], proposed_action, fields.get("terms", "Not provided"), fields.get("deposit", "Not provided"), fields.get("money_at_risk", "Not provided"), answer, outcome, detail, str(key) if key else "Reference unavailable", limit_state, obligation, fields.get("window_start", "Not provided"), fields.get("window_end", "Not provided"), received_at or "Not provided", str(row.get("agent_label") or "Instinct"), answer_reported_at or "Not provided", "; ".join(context) or "Normal receipt order"))
     return projected
 
 def _page(content: str) -> str:
@@ -140,7 +149,7 @@ def render_receipts(receipts: list[DemoReceipt]) -> str:
         blocks = []
         for receipt in receipts:
             v = {name:html.escape(str(value)) for name,value in receipt.__dict__.items()}
-            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Agent</dt><dd>{v['agent_label']}</dd><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Reported by your agent</dt><dd>{v['user_answer']}</dd><dt>Agent report received (check received)</dt><dd>{v['reported_at']}</dd><dt>Answer reported</dt><dd>{v['answer_reported_at']}</dd><dt>Agent-reported window start</dt><dd>{v['reported_window_start']}</dd><dt>Agent-reported window end</dt><dd>{v['reported_window_end']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
+            blocks.append(f'''<article class="receipt"><div class="outcome" role="status"><h2>{v['outcome_detail']}</h2><span>{v['outcome']}</span></div><dl><dt>Agent</dt><dd>{v['agent_label']}</dd><dt>Record context</dt><dd>{v['record_context']}</dd><dt>Check ID / email reference</dt><dd>{v['correlation_reference']}</dd><dt>Internal receipt ID</dt><dd>{v['check_id']}</dd><dt>Proposed action</dt><dd>{v['proposed_action']}</dd><dt>Terms</dt><dd>{v['terms']}</dd><dt>Deposit</dt><dd>{v['deposit']}</dd><dt>Money at risk</dt><dd>{v['money_at_risk']}</dd><dt>Per-task limit</dt><dd>{v['limit_state']}</dd><dt>Reported by your agent</dt><dd>{v['user_answer']}</dd><dt>Agent report received (check received)</dt><dd>{v['reported_at']}</dd><dt>Answer reported</dt><dd>{v['answer_reported_at']}</dd><dt>Agent-reported window start</dt><dd>{v['reported_window_start']}</dd><dt>Agent-reported window end</dt><dd>{v['reported_window_end']}</dd><dt>Obligation</dt><dd>{v['obligation_status']}</dd><dt>Later outcome</dt><dd>{v['outcome']}</dd></dl></article>''')
         body = "".join(blocks)
     return _page(f'<nav><a href="/stage-b-demo/history">Onboarding history</a> | <a href="/stage-b-demo/receipts">Ongoing task support</a></nav><div class="intro"><h1>Observation receipts</h1><p class="privacy">Private persisted records for this confirmed pilot account.</p></div><form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>{body}')
 
