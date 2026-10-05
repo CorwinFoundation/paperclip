@@ -32,6 +32,12 @@ def test_receipt_service_has_its_own_protected_secret_file():
     assert "stage-b-inbound.env" not in unit
 
 
+def test_receipt_service_can_persist_isolated_onboarding_sessions():
+    unit = (ROOT / "ops/stage-b-inbound/backbond-stage-b-receipts.service").read_text()
+    assert "ProtectSystem=strict" in unit
+    assert "ReadWritePaths=/var/lib/backbond-stage-b" in unit
+
+
 def test_installer_places_redacted_instinct_acceptance_capture_helper():
     installer = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
     assert "capture-instinct-acceptance.py" in installer
