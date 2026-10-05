@@ -1351,6 +1351,7 @@ def _merge_content_candidate_inventory(
                 "privacy_minimization_reidentification",
                 "tenant_account_boundary",
                 "code_agent_supply_chain",
+                "human_override_takeover_relinquishment",
                 "tool_schema_drift_partial_failure",
                 "voice_turn_taking_interruption_recovery",
                 "voice_consent_recording_boundary",

@@ -1,0 +1,10 @@
+{
+  "issue": "BEAAA-38249",
+  "baseline_commit": "24cb3a1f97b07175c9f995edeeb4b37a74184b32",
+  "scanner_version": "0.5.0",
+  "corpus_version": "human_override_takeover_relinquishment@1.0.0",
+  "probe_set_version": "BEAAA-18720/1.0.0@sha256:fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988",
+  "row_count": 25,
+  "scoring_active": false,
+  "underwriting_active": false
+}
