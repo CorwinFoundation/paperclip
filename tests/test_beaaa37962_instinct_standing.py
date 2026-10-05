@@ -108,6 +108,21 @@ def test_minimal_schema_sender_scope_expiry_and_revocation(tmp_path):
         store.ingest(other["token"], "ia5p01@mail.instinct.com", report("request-3"))
 
 
+def test_chat_stop_revokes_only_matching_active_binding(tmp_path):
+    store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: NOW)
+    older = store.issue("account-1", "ia5p01@mail.instinct.com",
+                        history_address="history+older@example.com", followup_enabled=True)
+    latest = store.issue("account-1", "ia5p01@mail.instinct.com",
+                         history_address="history+latest@example.com", followup_enabled=True)
+    other = store.issue("account-1", "other@mail.instinct.com",
+                        history_address="history+other@example.com", followup_enabled=True)
+
+    assert store.revoke_for_binding("account-1", "IA5P01@mail.instinct.com") == latest["grant_id"]
+    states = {grant["grant_id"]: grant["state"] for grant in store.grants_for("account-1")}
+    assert states == {older["grant_id"]: "active", latest["grant_id"]: "revoked",
+                      other["grant_id"]: "active"}
+
+
 def test_account_bound_followup_reply_correlation_duplicate_expiry_and_cross_account(tmp_path):
     clock = [NOW]
     store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: clock[0])
@@ -272,7 +287,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert "90 days" in private_page and "24 hours" in private_page
         assert "followup_consent" in private_page and "/instinct/followups" in private_page
         assert "Agent-reported answer" in private_page and followup["request_id"] in private_page
-        assert authenticated("/instinct/revoke", {"grant_id": issued["grant_id"]}) == {"state": "revoked"}
+        assert authenticated("/instinct/chat-stop", {}) == {
+            "state": "revoked", "grant_id": issued["grant_id"]}
         assert authenticated("/instinct/reports", {})["grants"][0]["state"] == "revoked"
         history = HistoryImportStore(tmp_path / "history.sqlite3",
                                      provider_secret=signing_key.encode(),

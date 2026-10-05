@@ -175,12 +175,18 @@ class StandingReportStore:
         row = self.connection.execute(
             "SELECT grant_digest FROM instinct_standing_grants WHERE user_id=? "
             "AND sender_email=? AND history_address IS NOT NULL AND revoked_at IS NULL "
-            "AND followup_enabled=1 ORDER BY created_at DESC LIMIT 1",
+            "AND followup_enabled=1 ORDER BY created_at DESC, rowid DESC LIMIT 1",
             (user_id, agent_id.strip().lower()),
         ).fetchone()
         if row is None:
             raise PermissionError("standing_grant_not_found")
         return row["grant_digest"]
+
+    def revoke_for_binding(self, user_id: str, agent_id: str) -> str:
+        """Revoke the active pilot grant bound to an enrolled chat agent."""
+        grant_id = self.grant_for_binding(user_id, agent_id)
+        self.revoke(user_id, grant_id)
+        return grant_id
 
     def revoke(self, user_id: str, grant_id: str) -> None:
         changed = self.connection.execute(

@@ -308,7 +308,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             if path not in {"/mailgun/mime", "/history/mailgun/mime",
                             "/history/request", "/history/action",
                             "/instinct/grant", "/instinct/revoke",
-                            "/instinct/reports", "/instinct/followups"} and not standing_post:
+                            "/instinct/chat-stop", "/instinct/reports",
+                            "/instinct/followups"} and not standing_post:
                 self._reply(404, {"error": "not_found"})
                 return
             try:
@@ -317,7 +318,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 self._reply(400, {"error": "content_length_invalid"})
                 return
             json_paths = {"/history/request", "/history/action", "/instinct/grant",
-                          "/instinct/revoke", "/instinct/reports", "/instinct/followups"}
+                          "/instinct/revoke", "/instinct/chat-stop",
+                          "/instinct/reports", "/instinct/followups"}
             limit = 64_000 if standing_post else 16_384 if path in json_paths else MAX_REQUEST_BYTES
             if length <= 0 or length > limit:
                 self._reply(413, {"error": "request_size_invalid"})
@@ -337,7 +339,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
                 self._reply(400, {"error": "request_body_invalid"})
                 return
-            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/reports", "/instinct/followups"}:
+            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/chat-stop",
+                        "/instinct/reports", "/instinct/followups"}:
                 standing = None
                 try:
                     user_id = self._history_user(fields)
@@ -372,8 +375,16 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         self._reply(200, standing.issue_followup(
                             user_id, str(fields.get("grant_id", "")),
                             str(fields.get("question", ""))))
-                    elif path == "/instinct/revoke":
-                        grant_id = str(fields.get("grant_id", ""))
+                    elif path in {"/instinct/revoke", "/instinct/chat-stop"}:
+                        if path == "/instinct/chat-stop":
+                            inbound = InboundStore(db_path)
+                            try:
+                                sender = inbound.agent_recipient_for(user_id)
+                            finally:
+                                inbound.close()
+                            grant_id = standing.grant_for_binding(user_id, sender)
+                        else:
+                            grant_id = str(fields.get("grant_id", ""))
                         history_address = standing.pending_history_address(user_id, grant_id)
                         if history_address:
                             history = self._history_store()
@@ -382,7 +393,10 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                             finally:
                                 history.close()
                         standing.revoke(user_id, grant_id)
-                        self._reply(200, {"state": "revoked"})
+                        response = {"state": "revoked"}
+                        if path == "/instinct/chat-stop":
+                            response["grant_id"] = grant_id
+                        self._reply(200, response)
                     else:
                         inbound = InboundStore(db_path)
                         try:
