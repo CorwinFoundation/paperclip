@@ -120,9 +120,16 @@ class _CustomerAgentHttpRunner(ModelRunner):
     lifetime. The orchestrator constructs a fresh runner per scan.
     """
 
-    def __init__(self, agent_endpoint: str, secret: str):
+    def __init__(self, agent_endpoint: str, secret: str, endpoint_config: dict[str, Any] | None = None):
         self._agent_endpoint = agent_endpoint
-        self._auth_header = f"Bearer {secret}"
+        self._config = endpoint_config or {}
+        auth = self._config.get("auth") or {"type": "bearer"}
+        auth_type = auth.get("type", "bearer")
+        self._auth_headers: dict[str, str] = {}
+        if auth_type == "bearer":
+            self._auth_headers["Authorization"] = f"Bearer {secret}"
+        elif auth_type == "custom_header":
+            self._auth_headers[str(auth["header_name"])] = secret
         self._allowed_host = _extract_host(agent_endpoint)
         # Derive a stable model_id from the endpoint host; the secret
         # is never embedded in model_id (would leak into eval logs).
@@ -132,6 +139,16 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return self._model_id
 
     def _request_payload(self, prompt: str) -> dict[str, Any]:
+        transport = self._config.get("transport", "rest")
+        if transport == "openai_chat":
+            messages = []
+            system_prompt = self._config.get("system_prompt")
+            if isinstance(system_prompt, str) and system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            return {"model": self._config["model"], "messages": messages}
+        if transport == "json_map":
+            return _replace_prompt(self._config["request_template"], prompt)
         return {"prompt": prompt}
 
     def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
@@ -142,6 +159,24 @@ class _CustomerAgentHttpRunner(ModelRunner):
             parsed: Any = _json.loads(text)
         except _json.JSONDecodeError:
             return text
+        if self._config.get("transport") == "openai_chat":
+            try:
+                return str(parsed["choices"][0]["message"]["content"])
+            except (KeyError, IndexError, TypeError):
+                return text
+        if self._config.get("transport") == "json_map":
+            value: Any = parsed
+            for part in str(self._config["response_path"]).split("."):
+                if isinstance(value, dict) and part in value:
+                    value = value[part]
+                elif isinstance(value, list) and part.isdecimal():
+                    index = int(part)
+                    if index >= len(value):
+                        return text
+                    value = value[index]
+                else:
+                    return text
+            return value if isinstance(value, str) else text
         if isinstance(parsed, dict) and isinstance(parsed.get("response"), str):
             return parsed["response"]
         return text
@@ -167,9 +202,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
         # against a non-compliant endpoint that ignores this header.
         headers = {
             "Content-Type": "application/json",
-            "Authorization": self._auth_header,
             "User-Agent": "BackBond-Scanner/0.5",
             "Accept-Encoding": "identity",
+            **self._auth_headers,
             **transport_headers,
         }
         # BEAAA-5528: stream the response and early-abort the moment
@@ -531,7 +566,8 @@ class _BufferedResponse:
 
 
 def customer_agent_http_runner_factory(
-    agent_endpoint: str, secret: str, agent_id: str | None = None
+    agent_endpoint: str, secret: str, agent_id: str | None = None,
+    endpoint_config: dict[str, Any] | None = None,
 ) -> ModelRunner:
     """Build a :class:`_CustomerAgentHttpRunner` bound to one endpoint + secret.
 
@@ -560,7 +596,16 @@ def customer_agent_http_runner_factory(
             base_url=agent_endpoint,
             label="syllable:apichat",
         )
-    return _CustomerAgentHttpRunner(agent_endpoint, secret)
+    return _CustomerAgentHttpRunner(agent_endpoint, secret, endpoint_config)
+
+
+def _replace_prompt(value: Any, prompt: str) -> Any:
+    """Return a copy of a JSON template with exact ``{{prompt}}`` leaves replaced."""
+    if isinstance(value, dict):
+        return {key: _replace_prompt(item, prompt) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_replace_prompt(item, prompt) for item in value]
+    return prompt if value == "{{prompt}}" else value
 
 
 __all__ = [

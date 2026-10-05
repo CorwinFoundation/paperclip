@@ -43,6 +43,7 @@ from .release_identity import ReleaseIdentityError, read_release_identity
 from .scan_handlers import (
     RESCAN_PURPOSES,
     ScanRuntime,
+    connectivity_check_handler,
     rescan_handler,
     scan_context_report_handler,
     scan_handler,
@@ -455,6 +456,15 @@ def create_app(
         x_tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     ) -> Any:
         return await _post_scan_request(request, x_tenant_id)
+
+    @app.post("/scanner/v1/connectivity-check")
+    async def post_connectivity_check(request: Request) -> Any:
+        body = await request.json()
+        try:
+            status, payload = connectivity_check_handler(body)
+        except HandlerError as exc:
+            raise _http_error(exc.status, exc.message) from exc
+        return JSONResponse(status_code=status, content=payload)
 
     @app.post("/scan", deprecated=True)
     async def post_scan(

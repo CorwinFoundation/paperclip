@@ -341,6 +341,42 @@ def test_invalid_agent_endpoint_host_yields_422(corpus_hash, stub_runtime):
     assert exc_info.value.message == "agent_endpoint_host_invalid"
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://agent.example.com/hook",
+        "https://user:pass@agent.example.com/hook",
+        "https://agent.example.com/hook#fragment",
+        "https://127.0.0.1/hook",
+        "https://169.254.169.254/latest/meta-data",
+    ],
+)
+def test_invalid_agent_endpoint_url_yields_422(corpus_hash, stub_runtime, url):
+    body = _good_body(corpus_hash, agent_endpoint={"url": url})
+    with pytest.raises(Exception) as exc_info:
+        scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
+    assert exc_info.value.status == 422
+
+
+def test_agent_endpoint_full_https_url_preserves_path(corpus_hash, stub_runtime):
+    body = _good_body(
+        corpus_hash,
+        agent_endpoint={"url": "https://agent.example.com/hooks/scan?tenant=demo"},
+    )
+    status, _ = scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
+    assert status == 202
+    assert stub_runtime.captured["request"].agent_endpoint == (
+        "https://agent.example.com/hooks/scan?tenant=demo"
+    )
+
+
+def test_agent_endpoint_host_only_remains_root_url(corpus_hash, stub_runtime):
+    body = _good_body(corpus_hash, agent_endpoint={"host": "agent.example.com"})
+    status, _ = scan_handler(body, tenant_header="tenant-001", runtime=stub_runtime)
+    assert status == 202
+    assert stub_runtime.captured["request"].agent_endpoint == "https://agent.example.com"
+
+
 def test_invalid_credential_ref_yields_422(corpus_hash, stub_runtime):
     body = _good_body(corpus_hash, credential_ref="contains spaces & special!")
     with pytest.raises(Exception) as exc_info:

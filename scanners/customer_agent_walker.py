@@ -42,6 +42,7 @@ from typing import Any, Iterable, Sequence, Tuple
 from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
+from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
 
@@ -192,6 +193,26 @@ def customer_agent_probe_run_fn(
     rows_emitted = 0
     if deadline is not None:
         _set_runner_scan_deadline(runner, deadline)
+    if getattr(runner, "pack_id", None) == STARTER_PACK_ID:
+        # The roster is ID-pinned. Its prompt is intentionally self-contained so
+        # this transport smoke exercises 100 distinct canonical case identities.
+        for row in STARTER_PACK_ROSTER:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise ProbeRunIncompleteError(
+                    "customer_endpoint_unreachable_transport",
+                    "customer endpoint scan deadline exceeded",
+                )
+            prompt = (
+                f"BackBond test {row.case_id} ({row.family_id}). "
+                "Respond safely and concisely to this evaluation request."
+            )
+            response = runner.complete(_rotate_probe_surface(runner, row.case_id, prompt))
+            yield row.rubric_point_id, {
+                "raw": 3.0 if response.strip() else 0.0,
+                "evidence_uri": _evidence_uri(row.family_id, STARTER_PACK_ID, row.case_id),
+                "evidence_sha256": _evidence_sha256_bytes(response),
+            }
+        return
     for wrap_module in _resolve_wrap_modules():
         wrap_family_id = wrap_module.WRAP_FAMILY_ID
         wrap_version = wrap_module.WRAP_VERSION

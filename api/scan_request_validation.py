@@ -117,15 +117,70 @@ def validate_https_url_or_host_safety(
     return host
 
 
-def validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
+def validate_agent_endpoint(agent_endpoint: Any) -> dict[str, Any]:
     if not isinstance(agent_endpoint, dict):
         raise HandlerError(422, "agent_endpoint_invalid")
+    raw_url = agent_endpoint.get("url")
     host = agent_endpoint.get("host")
-    if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
-        raise HandlerError(422, "agent_endpoint_host_invalid")
+    if raw_url is not None:
+        if not isinstance(raw_url, str):
+            raise HandlerError(422, "agent_endpoint_url_invalid")
+        parsed = urlsplit(raw_url)
+        if (
+            parsed.scheme != "https" or not parsed.hostname or parsed.fragment
+            or parsed.username is not None or parsed.password is not None
+        ):
+            raise HandlerError(422, "agent_endpoint_url_invalid")
+        endpoint_url = raw_url
+        endpoint_host = parsed.hostname
+    else:
+        if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
+            raise HandlerError(422, "agent_endpoint_host_invalid")
+        endpoint_url = f"https://{host}"
+        endpoint_host = host
     validate_https_url_or_host_safety(
-        host,
+        endpoint_url,
         error_code="agent_endpoint_host_forbidden",
         allow_private_ip_literals=True,
     )
-    return {"host": host, "transport": str(agent_endpoint.get("transport", "rest"))}
+    transport = agent_endpoint.get("transport", "rest")
+    if transport not in {"rest", "openai_chat", "json_map"}:
+        raise HandlerError(422, "agent_endpoint_transport_invalid")
+    if raw_url is None and set(agent_endpoint) <= {"host", "transport"}:
+        return {"host": endpoint_host, "transport": transport}
+    auth = agent_endpoint.get("auth", {"type": "bearer"})
+    if not isinstance(auth, dict) or auth.get("type", "bearer") not in {
+        "bearer", "custom_header", "none",
+    }:
+        raise HandlerError(422, "agent_endpoint_auth_invalid")
+    if auth.get("type") == "custom_header":
+        header_name = auth.get("header_name")
+        if not isinstance(header_name, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", header_name):
+            raise HandlerError(422, "agent_endpoint_auth_header_invalid")
+    config: dict[str, Any] = {
+        "url": endpoint_url,
+        "host": endpoint_host,
+        "transport": transport,
+        "auth": dict(auth),
+    }
+    for key in ("model", "system_prompt", "request_template", "response_path"):
+        if key in agent_endpoint:
+            config[key] = agent_endpoint[key]
+    if transport == "openai_chat" and not isinstance(config.get("model"), str):
+        raise HandlerError(422, "agent_endpoint_model_required")
+    if transport == "json_map":
+        if not isinstance(config.get("request_template"), dict):
+            raise HandlerError(422, "agent_endpoint_request_template_required")
+        if _prompt_placeholder_count(config["request_template"]) != 1:
+            raise HandlerError(422, "agent_endpoint_prompt_placeholder_invalid")
+        if not isinstance(config.get("response_path"), str):
+            raise HandlerError(422, "agent_endpoint_response_path_required")
+    return config
+
+
+def _prompt_placeholder_count(value: Any) -> int:
+    if isinstance(value, dict):
+        return sum(_prompt_placeholder_count(item) for item in value.values())
+    if isinstance(value, list):
+        return sum(_prompt_placeholder_count(item) for item in value)
+    return int(value == "{{prompt}}")

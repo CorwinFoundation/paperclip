@@ -72,6 +72,7 @@ Anti-pattern guards
 from __future__ import annotations
 
 import functools
+import inspect
 import re
 import time
 import uuid
@@ -251,6 +252,8 @@ class ScanRequest:
     scanner_version: str
     corpus_version: str
     seed: int
+    endpoint_config: dict[str, Any] | None = None
+    pack_id: str | None = None
     requested_pillars: tuple[str, ...] = ()
     scan_mode: str = "live_probe"
     scan_tier: str = "full"
@@ -499,8 +502,14 @@ def run_scan(
                     "run_scan requires either `runner` or `runner_factory`; "
                     "T2 orchestrator is adapter-agnostic by design"
                 )
+            factory_params = inspect.signature(runner_factory).parameters
+            factory_kwargs = (
+                {"endpoint_config": scan_request.endpoint_config}
+                if "endpoint_config" in factory_params else {}
+            )
             active_runner = runner_factory(
                 scan_request.agent_endpoint, secret, scan_request.agent_id,
+                **factory_kwargs,
             )
 
         # BEAAA-11864 / ADR-0046 — carry the per-run probe-surface rotation
@@ -517,6 +526,10 @@ def run_scan(
             pass
         try:
             active_runner.scan_tier = scan_request.scan_tier
+        except AttributeError:
+            pass
+        try:
+            active_runner.pack_id = scan_request.pack_id
         except AttributeError:
             pass
         try:

@@ -84,6 +84,10 @@ from harness.context_envelope import (
     validate_context_envelope,
 )
 from harness.runner import RunnerError
+from harness.customer_runner import (
+    CustomerEndpointHTTPError,
+    customer_agent_http_runner_factory,
+)
 from framework_assessment import (
     build_framework_envelope,
     enabled as framework_envelope_enabled,
@@ -99,8 +103,15 @@ from scanners.live_probe_orchestrator import (
     ScanRequest,
     ScanResult,
 )
+from scanners.starter_pack import (
+    STARTER_PACK_CORPUS_SNAPSHOT_HASH,
+    STARTER_PACK_CORPUS_VERSION,
+    STARTER_PACK_ID,
+    STARTER_PACK_TEST_COUNT,
+)
 
 LOGGER = logging.getLogger(__name__)
+CONNECTIVITY_PROMPT = "Reply with exactly OK."
 
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$", re.IGNORECASE)
@@ -1203,24 +1214,67 @@ def _validate_https_url_or_host_safety(
     return host
 
 
-def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, str]:
+def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, Any]:
     """Validate ``agent_endpoint`` shape: requires ``host`` (string,
     syntactically-valid hostname). Optional ``transport`` field passes through.
     """
     if not isinstance(agent_endpoint, dict):
         raise HandlerError(422, "agent_endpoint_invalid")
+    raw_url = agent_endpoint.get("url")
     host = agent_endpoint.get("host")
-    if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
-        raise HandlerError(422, "agent_endpoint_host_invalid")
+    if raw_url is not None:
+        if not isinstance(raw_url, str):
+            raise HandlerError(422, "agent_endpoint_url_invalid")
+        parsed = urlsplit(raw_url)
+        if (
+            parsed.scheme != "https" or not parsed.hostname or parsed.fragment
+            or parsed.username is not None or parsed.password is not None
+        ):
+            raise HandlerError(422, "agent_endpoint_url_invalid")
+        endpoint_url = raw_url
+        endpoint_host = parsed.hostname
+    else:
+        if not isinstance(host, str) or not _HOSTNAME_RE.match(host):
+            raise HandlerError(422, "agent_endpoint_host_invalid")
+        endpoint_url = f"https://{host}"
+        endpoint_host = host
     _validate_https_url_or_host_safety(
-        host,
+        endpoint_url,
         error_code="agent_endpoint_host_forbidden",
         allow_private_ip_literals=True,
     )
-    return {
-        "host": host,
-        "transport": str(agent_endpoint.get("transport", "rest")),
+    transport = agent_endpoint.get("transport", "rest")
+    if transport not in {"rest", "openai_chat", "json_map"}:
+        raise HandlerError(422, "agent_endpoint_transport_invalid")
+    auth = agent_endpoint.get("auth", {"type": "bearer"})
+    if not isinstance(auth, dict) or auth.get("type", "bearer") not in {
+        "bearer", "custom_header", "none",
+    }:
+        raise HandlerError(422, "agent_endpoint_auth_invalid")
+    if auth.get("type") == "custom_header":
+        header_name = auth.get("header_name")
+        if not isinstance(header_name, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", header_name):
+            raise HandlerError(422, "agent_endpoint_auth_header_invalid")
+    config: dict[str, Any] = {
+        "url": endpoint_url,
+        "host": endpoint_host,
+        "transport": transport,
+        "auth": dict(auth),
     }
+    for key in ("model", "system_prompt", "request_template", "response_path"):
+        if key in agent_endpoint:
+            config[key] = agent_endpoint[key]
+    if transport == "openai_chat" and not isinstance(config.get("model"), str):
+        raise HandlerError(422, "agent_endpoint_model_required")
+    if transport == "json_map":
+        if not isinstance(config.get("request_template"), dict):
+            raise HandlerError(422, "agent_endpoint_request_template_required")
+        from api.scan_request_validation import _prompt_placeholder_count
+        if _prompt_placeholder_count(config["request_template"]) != 1:
+            raise HandlerError(422, "agent_endpoint_prompt_placeholder_invalid")
+        if not isinstance(config.get("response_path"), str):
+            raise HandlerError(422, "agent_endpoint_response_path_required")
+    return config
 
 
 # ---------------------------------------------------------------------------
@@ -1503,6 +1557,37 @@ def _augment_with_chain_envelope(
 # ---------------------------------------------------------------------------
 
 
+def connectivity_check_handler(
+    body: dict[str, Any],
+    *,
+    runner_factory: Callable[..., Any] = customer_agent_http_runner_factory,
+) -> tuple[int, dict[str, Any]]:
+    """Send one bounded probe without retaining the credential or response."""
+    if not isinstance(body, dict):
+        raise HandlerError(422, "body_invalid")
+    endpoint = dict(_validate_agent_endpoint(_require(body, "agent_endpoint")))
+    endpoint.setdefault("url", f"https://{endpoint['host']}")
+    endpoint.setdefault("auth", {"type": "bearer"})
+    no_auth = endpoint["auth"].get("type") == "none"
+    secret = body.get("credential_secret", "") if no_auth else _require(
+        body, "credential_secret"
+    )
+    if not isinstance(secret, str) or (not secret and not no_auth):
+        raise HandlerError(422, "credential_secret_invalid")
+    try:
+        runner = runner_factory(
+            endpoint["url"], secret, body.get("agent_id"), endpoint_config=endpoint
+        )
+        runner.complete(CONNECTIVITY_PROMPT)
+        return 200, {"success": True, "error": None}
+    except CustomerEndpointHTTPError as exc:
+        return 200, {"success": False, "error": f"endpoint_http_{exc.status_code}"}
+    except RunnerError:
+        return 200, {"success": False, "error": "connection_failed"}
+    finally:
+        del secret
+
+
 def _kickoff_live_probe_scan(
     body: dict[str, Any],
     *,
@@ -1538,21 +1623,31 @@ def _kickoff_live_probe_scan(
     tenant_id = _require(body, "tenant_id")
     verify_tenant_isolation(tenant_id, tenant_header)
 
-    agent_endpoint = _validate_agent_endpoint(_require(body, "agent_endpoint"))
+    agent_endpoint = dict(_validate_agent_endpoint(_require(body, "agent_endpoint")))
+    agent_endpoint.setdefault("url", f"https://{agent_endpoint['host']}")
+    agent_endpoint.setdefault("auth", {"type": "bearer"})
     credential_ref = _validate_credential_ref(_require(body, "credential_ref"))
-    credential_secret = _require(body, "credential_secret")
-    if not isinstance(credential_secret, str) or not credential_secret:
+    no_auth = agent_endpoint["auth"].get("type") == "none"
+    credential_secret = body.get("credential_secret", "") if no_auth else _require(
+        body, "credential_secret"
+    )
+    if not isinstance(credential_secret, str) or (not credential_secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
+    pack_id = body.get("pack_id")
+    if pack_id is not None and pack_id != STARTER_PACK_ID:
+        raise HandlerError(422, "pack_id_invalid")
     # BEAAA-11726 item 1 — scan_tier: smoke|full, default full.
     # ARE_SCAN_TIER=off disables smoke tier (Tier-1 rollback).
     _scan_tier_enabled = ApiConfig.from_env().scan_tier_enabled
     raw_scan_tier = body.get("scan_tier") if _scan_tier_enabled else None
     if raw_scan_tier is not None and raw_scan_tier not in ("smoke", "full"):
         raise HandlerError(422, "scan_tier_invalid")
-    scan_tier = raw_scan_tier or "full"
+    scan_tier = "smoke" if pack_id == STARTER_PACK_ID else (raw_scan_tier or "full")
 
     # corpus_snapshot_hash: required for full, can default to pinned for smoke.
-    if "corpus_snapshot_hash" not in body and scan_tier == "smoke":
+    if pack_id == STARTER_PACK_ID:
+        corpus_snapshot_hash = STARTER_PACK_CORPUS_SNAPSHOT_HASH
+    elif "corpus_snapshot_hash" not in body and scan_tier == "smoke":
         _pinned = ApiConfig.from_env().pinned_corpus_snapshot_hash
         if not _pinned:
             raise HandlerError(422, "pinned_corpus_hash_unconfigured")
@@ -1561,7 +1656,11 @@ def _kickoff_live_probe_scan(
         corpus_snapshot_hash = _validate_corpus_snapshot_hash(_require(body, "corpus_snapshot_hash"))
 
     scanner_version = _require(body, "scanner_version")
-    corpus_version = _require(body, "corpus_version")
+    corpus_version = (
+        STARTER_PACK_CORPUS_VERSION
+        if pack_id == STARTER_PACK_ID
+        else _require(body, "corpus_version")
+    )
 
     # seed: required for full, defaults to CANONICAL_SEED (0) for smoke.
     seed_raw = body.get("seed")
@@ -1627,8 +1726,10 @@ def _kickoff_live_probe_scan(
         scan_request = ScanRequest(
             scan_id=scan_id,
             tenant_id=tenant_id,
-            agent_endpoint=f"https://{agent_endpoint['host']}",
+            agent_endpoint=agent_endpoint["url"],
             credential_ref=credential_ref,
+            endpoint_config=agent_endpoint,
+            pack_id=pack_id,
             corpus_snapshot_hash=corpus_snapshot_hash,
             scanner_version=scanner_version,
             corpus_version=corpus_version,
@@ -1700,6 +1801,9 @@ def _kickoff_live_probe_scan(
         response["non_underwriting_reason"] = "smoke_tier_sampled"
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
+        if pack_id == STARTER_PACK_ID:
+            response["pack_id"] = STARTER_PACK_ID
+            response["test_count"] = STARTER_PACK_TEST_COUNT
 
     return 202, response
 
