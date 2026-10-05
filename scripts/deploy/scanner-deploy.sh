@@ -76,6 +76,43 @@ wait_200() {
   return 1
 }
 
+container_env_value() {
+  key=$1
+  "$DOCKER" exec "$CONTAINER" printenv "$key" 2>/dev/null || true
+}
+
+diagnostics_wp_s() {
+  customer_agent="$(container_env_value ARE_WALKER_CUSTOMER_AGENT)"
+  scan_tier="$(container_env_value ARE_SCAN_TIER)"
+  pinned_corpus_hash="$(container_env_value ARE_PINNED_CORPUS_SNAPSHOT_HASH)"
+  scan_webhook="$(container_env_value ARE_SCAN_WEBHOOK)"
+  resi_proxy_url="$(container_env_value BEAAA_RESI_PROXY_URL)"
+  outbound_ip="$(
+    "$DOCKER" exec "$CONTAINER" sh -c \
+      'unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec curl -fsS --max-time 10 https://api.ipify.org'
+  )" || die 'cannot determine direct outbound IP'
+
+  printf 'ARE_WALKER_CUSTOMER_AGENT=%s\n' "$customer_agent"
+  printf 'ARE_SCAN_TIER=%s\n' "$scan_tier"
+  if [ -n "$pinned_corpus_hash" ]; then
+    printf 'ARE_PINNED_CORPUS_SNAPSHOT_HASH=set\n'
+  else
+    printf 'ARE_PINNED_CORPUS_SNAPSHOT_HASH=unset\n'
+  fi
+  printf 'ARE_SCAN_WEBHOOK=%s\n' "$scan_webhook"
+  if [ -n "$resi_proxy_url" ]; then
+    printf 'BEAAA_RESI_PROXY_URL=set\n'
+  else
+    printf 'BEAAA_RESI_PROXY_URL=unset\n'
+  fi
+  printf 'OUTBOUND_IP=%s\n' "$outbound_ip"
+}
+
+if [ "$#" = 2 ] && [ "$1" = diagnostics ] && [ "$2" = wp-s ]; then
+  diagnostics_wp_s
+  exit 0
+fi
+
 remove_stale_image_ref() {
   image_ref=$1
   if removal_output="$("$DOCKER" image rm "$image_ref" 2>&1)"; then

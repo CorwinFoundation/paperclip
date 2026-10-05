@@ -110,6 +110,45 @@ def test_development_helper_takes_identity_from_five_validated_arguments():
     assert "repository@sha256" in text
 
 
+def test_wp_s_diagnostics_reports_only_scoped_values_and_direct_ip(tmp_path):
+    docker = tmp_path / "docker"
+    calls = tmp_path / "calls"
+    _write_exe(
+        docker,
+        f'''#!/bin/sh
+printf '%s\\n' "$*" >>"{calls}"
+case "$*" in
+  *"printenv ARE_WALKER_CUSTOMER_AGENT") printf 'partner-agent\\n';;
+  *"printenv ARE_SCAN_TIER") printf 'production\\n';;
+  *"printenv ARE_PINNED_CORPUS_SNAPSHOT_HASH") printf 'secret-corpus-hash\\n';;
+  *"printenv ARE_SCAN_WEBHOOK") printf 'ops@example.test\\n';;
+  *"printenv BEAAA_RESI_PROXY_URL") printf 'https://secret-proxy.example\\n';;
+  *"sh -c unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec curl -fsS --max-time 10 https://api.ipify.org") printf '203.0.113.10\\n';;
+  *) exit 2;;
+esac
+''',
+    )
+    result = subprocess.run(
+        ["bash", str(HELPER), "diagnostics", "wp-s"],
+        env={**os.environ, "SCANNER_DOCKER": str(docker)},
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        "ARE_WALKER_CUSTOMER_AGENT=partner-agent",
+        "ARE_SCAN_TIER=production",
+        "ARE_PINNED_CORPUS_SNAPSHOT_HASH=set",
+        "ARE_SCAN_WEBHOOK=ops@example.test",
+        "BEAAA_RESI_PROXY_URL=set",
+        "OUTBOUND_IP=203.0.113.10",
+    ]
+    assert "secret-corpus-hash" not in result.stdout
+    assert "secret-proxy.example" not in result.stdout
+    assert "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY" in calls.read_text()
+
+
 def test_c4a58caa_accepts_only_the_canonical_ci_built_repository_digest():
     text = HELPER.read_text()
     assert "CANONICAL_C4_SHA=c4a58caac801d24e7efa2436dbc5c4086b05d5fe" in text
