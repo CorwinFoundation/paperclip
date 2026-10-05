@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import html
 import json
 import secrets
@@ -188,7 +189,34 @@ class StandingReportStore:
         self.revoke(user_id, grant_id)
         return grant_id
 
-    def revoke(self, user_id: str, grant_id: str) -> None:
+    def history_address_for_stop(self, user_id: str, grant_id: str,
+                                 expected_sender: str) -> str | None:
+        row = self.connection.execute(
+            "SELECT sender_email,history_address FROM instinct_standing_grants "
+            "WHERE grant_digest=? AND user_id=?", (grant_id, user_id)
+        ).fetchone()
+        if row is None or not hmac.compare_digest(
+                row["sender_email"], expected_sender.strip().lower()):
+            raise PermissionError("standing_grant_binding_mismatch")
+        return row["history_address"]
+
+    def revoke(self, user_id: str, grant_id: str, *,
+               expected_sender: str | None = None,
+               idempotent: bool = False) -> str:
+        row = self.connection.execute(
+            "SELECT sender_email,revoked_at FROM instinct_standing_grants "
+            "WHERE grant_digest=? AND user_id=?",
+            (grant_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("standing_grant_not_found")
+        if expected_sender is not None and not hmac.compare_digest(
+                row["sender_email"], expected_sender.strip().lower()):
+            raise PermissionError("standing_grant_binding_mismatch")
+        if row["revoked_at"] is not None:
+            if idempotent:
+                return "already_revoked"
+            raise PermissionError("standing_grant_not_found")
         changed = self.connection.execute(
             "UPDATE instinct_standing_grants SET revoked_at=? "
             "WHERE grant_digest=? AND user_id=? AND revoked_at IS NULL",
@@ -205,6 +233,12 @@ class StandingReportStore:
             "WHERE grant_digest=?", (grant_id,)
         )
         self.connection.commit()
+        return "revoked"
+
+    def relay_stop(self, user_id: str, grant_id: str, sender_email: str) -> dict[str, str]:
+        """Commit an account- and agent-bound chat stop without exposing secrets."""
+        state = self.revoke(user_id, grant_id, expected_sender=sender_email, idempotent=True)
+        return {"state": state, "backend_enforcement": "confirmed"}
 
     def grant(self, token: str) -> sqlite3.Row:
         digest = hashlib.sha256(token.encode()).hexdigest()

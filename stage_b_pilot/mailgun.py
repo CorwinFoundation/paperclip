@@ -308,8 +308,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             if path not in {"/mailgun/mime", "/history/mailgun/mime",
                             "/history/request", "/history/action",
                             "/instinct/grant", "/instinct/revoke",
-                            "/instinct/chat-stop", "/instinct/reports",
-                            "/instinct/followups"} and not standing_post:
+                             "/instinct/chat-stop", "/instinct/reports",
+                             "/instinct/followups"} and not standing_post:
                 self._reply(404, {"error": "not_found"})
                 return
             try:
@@ -382,20 +382,26 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                                 sender = inbound.agent_recipient_for(user_id)
                             finally:
                                 inbound.close()
-                            grant_id = standing.grant_for_binding(user_id, sender)
+                            supplied_agent = str(fields.get("agent_id", "")).strip().lower()
+                            if not hmac.compare_digest(sender, supplied_agent):
+                                raise PermissionError("standing_grant_binding_mismatch")
+                            grant_id = str(fields.get("grant_id", "")).strip()
+                            history_address = standing.history_address_for_stop(
+                                user_id, grant_id, supplied_agent)
                         else:
                             grant_id = str(fields.get("grant_id", ""))
-                        history_address = standing.pending_history_address(user_id, grant_id)
+                            history_address = standing.pending_history_address(user_id, grant_id)
                         if history_address:
                             history = self._history_store()
                             try:
                                 history.revoke_pending_address(user_id, history_address)
                             finally:
                                 history.close()
-                        standing.revoke(user_id, grant_id)
-                        response = {"state": "revoked"}
                         if path == "/instinct/chat-stop":
-                            response["grant_id"] = grant_id
+                            response = standing.relay_stop(user_id, grant_id, sender)
+                        else:
+                            standing.revoke(user_id, grant_id)
+                            response = {"state": "revoked"}
                         self._reply(200, response)
                     else:
                         inbound = InboundStore(db_path)

@@ -287,8 +287,10 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert "90 days" in private_page and "24 hours" in private_page
         assert "followup_consent" in private_page and "/instinct/followups" in private_page
         assert "Agent-reported answer" in private_page and followup["request_id"] in private_page
-        assert authenticated("/instinct/chat-stop", {}) == {
-            "state": "revoked", "grant_id": issued["grant_id"]}
+        assert authenticated("/instinct/chat-stop", {
+            "grant_id": issued["grant_id"],
+            "agent_id": "ia5p01@mail.instinct.com",
+        }) == {"state": "revoked", "backend_enforcement": "confirmed"}
         assert authenticated("/instinct/reports", {})["grants"][0]["state"] == "revoked"
         history = HistoryImportStore(tmp_path / "history.sqlite3",
                                      provider_secret=signing_key.encode(),
