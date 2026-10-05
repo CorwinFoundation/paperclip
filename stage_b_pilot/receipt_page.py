@@ -7,6 +7,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, quote, urlparse
 from .correlation import correlation_key
+from .inbound import InboundStore
+from .onboarding import MailgunLinkSender, OnboardingStore
 
 class CredentialStore:
     """Mode-0600 mapping with salted scrypt passphrase hashes."""
@@ -142,6 +144,12 @@ def _page(content: str) -> str:
 def render_login(error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
     return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with your private pilot passphrase.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="passphrase">Passphrase</label><input id="passphrase" name="passphrase" type="password" autocomplete="current-password" required><button type="submit">View receipts</button></form>''')
+
+def render_onboarding(error: str = "", sent: bool = False) -> str:
+    message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
+    if sent:
+        return _page('<div class="intro"><h1>Check your email</h1><p class="privacy">The private link expires in 20 minutes. You can request another from this same page.</p></div>')
+    return _page(f'''<div class="intro"><h1>Connect Instinct to the DEMO</h1><p class="privacy">One shared entry point. Your account and reports stay separate.</p></div>{message}<form method="post" action="/stage-b-demo/onboard/request"><label for="email">Your email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="agent_email">Your Instinct sender email</label><input id="agent_email" name="agent_email" type="email" autocomplete="off" required><label><input type="checkbox" name="consent" value="yes" required> I consent to fictional Instinct history and ongoing DEMO reports.</label><label><input type="checkbox" name="boundaries" value="yes" required> I understand this DEMO cannot buy, book, contact anyone, access a mailbox, move money, or activate protection.</label><button type="submit">Email my private sign-in link</button></form>''')
 
 def render_receipts(receipts: list[DemoReceipt]) -> str:
     if not receipts: body = '<p class="muted" role="status">No checks have been received for this account yet.</p>'
@@ -361,7 +369,9 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
 {standing_section}{form}{instruction}{''.join(blocks)}<form method="post" action="/stage-b-demo/logout"><button type="submit">Log out</button></form>''')
 
 def make_handler(upstream_host: str, upstream_port: int, session_secret: str | None = None,
-                 session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256) -> type[BaseHTTPRequestHandler]:
+                 session_ttl: int = 900, credential_file: str | None = None, max_sessions: int = 256,
+                 onboarding_db: str | None = None, inbound_db: str | None = None,
+                 link_sender=None, public_base: str = "https://scanner.backbond.ai/stage-b-demo") -> type[BaseHTTPRequestHandler]:
     if session_ttl < 1: raise ValueError("session TTL must be positive")
     if max_sessions < 1: raise ValueError("max sessions must be positive")
     sessions: dict[str, tuple[int, str, str, int]] = {}; credentials = CredentialStore(credential_file) if credential_file else None
@@ -402,6 +412,33 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             self.end_headers(); self.wfile.write(encoded)
         def do_GET(self):
             path = urlparse(self.path).path
+            if path == "/stage-b-demo/onboard":
+                self._reply(200, render_onboarding()); return
+            if path == "/stage-b-demo/onboard/confirm":
+                try:
+                    token = parse_qs(urlparse(self.path).query).get("token", [""])[-1]
+                    onboarding = OnboardingStore(onboarding_db or "")
+                    email, agent_email = onboarding.consume(token); onboarding.close()
+                    inbound = InboundStore(inbound_db or "")
+                    _uid, enrollment = inbound.begin_signup(email)
+                    inbound.confirm_signup(email, enrollment)
+                    inbound.configure_agent_recipient(email, enrollment, agent_email)
+                    inbound.close()
+                    passphrase = secrets.token_urlsafe(24)
+                    credentials.provision(email, passphrase, enrollment)
+                    verified = credentials.verify(email, passphrase)
+                    session_id = secrets.token_urlsafe(24); make_room()
+                    sessions[session_id] = (int(time.time()) + session_ttl, email, enrollment, verified[1])
+                    signed = signed_session(session_id)
+                    issued = instinct_api(upstream_host, upstream_port, email, enrollment, "grant",
+                                          {"consent": True, "synthetic": True, "followup_consent": True})
+                    payload = history_api(upstream_host, upstream_port, email, enrollment)
+                    standing = optional_instinct_reports(upstream_host, upstream_port, email, enrollment)
+                    cookie = f"bb_demo_session={signed}; Max-Age={session_ttl}; Path=/stage-b-demo/; HttpOnly; Secure; SameSite=Strict"
+                    self._reply(200, render_history(payload, email, csrf_for(signed), standing=standing,
+                                                    standing_issued=issued), cookie); return
+                except (ValueError, PermissionError, OSError, json.JSONDecodeError):
+                    self._reply(400, render_onboarding("That sign-in link is invalid or expired.")); return
             if path not in {"/stage-b-demo/receipts", "/stage-b-demo/history"}:
                 self.send_error(404); return
             morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
@@ -421,6 +458,21 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             self._reply(200, render_login())
         def do_POST(self):
             path = urlparse(self.path).path
+            if path == "/stage-b-demo/onboard/request":
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 4096 or not onboarding_db or not inbound_db or link_sender is None:
+                        raise ValueError("onboarding_unavailable")
+                    form = {k:v[-1] for k,v in parse_qs(self.rfile.read(length).decode()).items() if v}
+                    if form.get("consent") != "yes" or form.get("boundaries") != "yes":
+                        raise ValueError("consent_required")
+                    onboarding = OnboardingStore(onboarding_db)
+                    token = onboarding.issue(form.get("email", ""), form.get("agent_email", "")); onboarding.close()
+                    link_sender(form.get("email", ""), f"{public_base}/onboard/confirm?token={token}")
+                    self._reply(202, render_onboarding(sent=True))
+                except (ValueError, RuntimeError, OSError):
+                    self._reply(400, render_onboarding("We could not send the sign-in link. Check the details and try again."))
+                return
             if path == "/stage-b-demo/logout":
                 morsel = SimpleCookie(self.headers.get("Cookie", "")).get("bb_demo_session")
                 if morsel: sessions.pop(morsel.value.rsplit(".", 1)[0], None)
@@ -509,8 +561,8 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
 
 def build_server(host: str, port: int, upstream_host: str, upstream_port: int,
                  session_secret: str | None = None, session_ttl: int = 900,
-                 credential_file: str | None = None, max_sessions: int = 256) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port, session_secret, session_ttl, credential_file, max_sessions))
+                 credential_file: str | None = None, max_sessions: int = 256, **kwargs) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(upstream_host, upstream_port, session_secret, session_ttl, credential_file, max_sessions, **kwargs))
 
 def main() -> None:
     parser = argparse.ArgumentParser(); parser.add_argument("--host",default="127.0.0.1"); parser.add_argument("--port",type=int,default=8789); parser.add_argument("--upstream-host",default="127.0.0.1"); parser.add_argument("--upstream-port",type=int,default=8788); parser.add_argument("--session-secret",default=os.environ.get("BB_DEMO_SESSION_SECRET")); parser.add_argument("--session-ttl",type=int,default=900); parser.add_argument("--max-sessions",type=int,default=256); parser.add_argument("--credential-file",default=os.environ.get("BB_DEMO_CREDENTIAL_FILE")); parser.add_argument("--provision",metavar="EMAIL"); parser.add_argument("--revoke",metavar="EMAIL"); args = parser.parse_args()
@@ -525,5 +577,8 @@ def main() -> None:
         parser.error("BB_DEMO_SESSION_SECRET must be at least 32 characters")
     if not args.credential_file:
         parser.error("BB_DEMO_CREDENTIAL_FILE is required")
-    build_server(args.host,args.port,args.upstream_host,args.upstream_port,args.session_secret,args.session_ttl,args.credential_file,args.max_sessions).serve_forever()
+    sender = MailgunLinkSender(os.environ.get("BACKBOND_MAILGUN_MESSAGES_URL", ""), os.environ.get("BACKBOND_MAILGUN_API_KEY", ""), os.environ.get("BACKBOND_MAILGUN_FROM", "")) if all(os.environ.get(k) for k in ("BACKBOND_MAILGUN_MESSAGES_URL","BACKBOND_MAILGUN_API_KEY","BACKBOND_MAILGUN_FROM")) else None
+    build_server(args.host,args.port,args.upstream_host,args.upstream_port,args.session_secret,args.session_ttl,args.credential_file,args.max_sessions,
+                 onboarding_db=os.environ.get("BB_ONBOARDING_DB"), inbound_db=os.environ.get("BB_INBOUND_DB"), link_sender=sender,
+                 public_base=os.environ.get("BB_STAGE_B_PUBLIC_BASE", "https://scanner.backbond.ai/stage-b-demo")).serve_forever()
 if __name__ == "__main__": main()

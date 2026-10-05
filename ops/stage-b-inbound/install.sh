@@ -132,6 +132,12 @@ chown root:root "$receipt_secret_file"
 chmod 0600 "$receipt_secret_file"
 grep -Eq '^BB_DEMO_SESSION_SECRET=.{32,}$' "$receipt_secret_file" || { echo 'ERROR receipt_session_secret_missing' >&2; exit 2; }
 grep -Fxq "BB_DEMO_CREDENTIAL_FILE=$credential_file" "$receipt_secret_file" || { echo 'ERROR receipt_credential_file_invalid' >&2; exit 2; }
+grep -q '^BB_ONBOARDING_DB=' "$receipt_secret_file" || printf 'BB_ONBOARDING_DB=%s/onboarding.sqlite3\n' "$state_dir" >>"$receipt_secret_file"
+grep -q '^BB_INBOUND_DB=' "$receipt_secret_file" || printf 'BB_INBOUND_DB=%s/inbound.sqlite3\n' "$state_dir" >>"$receipt_secret_file"
+grep -q '^BB_STAGE_B_PUBLIC_BASE=' "$receipt_secret_file" || printf 'BB_STAGE_B_PUBLIC_BASE=https://scanner.backbond.ai/stage-b-demo\n' >>"$receipt_secret_file"
+for key in BACKBOND_MAILGUN_MESSAGES_URL BACKBOND_MAILGUN_API_KEY BACKBOND_MAILGUN_FROM; do
+    grep -q "^${key}=" "$receipt_secret_file" || grep "^${key}=" "$secret_file" >>"$receipt_secret_file" || true
+done
 if [ ! -e "$credential_file" ]; then
     install -o backbond-stage-b -g backbond-stage-b -m 0600 /dev/null "$credential_file"
     printf '{}\n' >"$credential_file"
