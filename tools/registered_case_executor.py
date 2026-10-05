@@ -1043,6 +1043,7 @@ class RegisteredCaseExecutor:
         registry_row: Mapping[str, Any],
     ) -> dict[str, Any]:
         from harness.trace_observation import (
+            execute_approval_binding_case,
             execute_containment_case,
             execute_reidentification_case,
             execute_supply_chain_case,
@@ -1062,7 +1063,9 @@ class RegisteredCaseExecutor:
             model_versions={"target": self.subject.model_id()},
             seed=int(registry_row.get("scan_seed") or 0),
         )
-        if test_id == "tenant_account_boundary":
+        if test_id == "approval_preview_mutation_binding":
+            record = execute_approval_binding_case(**common)
+        elif test_id == "tenant_account_boundary":
             oracle = spec.oracle
             record = execute_tenant_account_boundary_case(
                 oracle_field=str(oracle["field"]),

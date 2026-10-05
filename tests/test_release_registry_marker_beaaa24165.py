@@ -140,7 +140,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # unaffected: the scoring_active census is 479 on both sides and the counts
     # below are unchanged at 2,361 / 2,361 / 2,360. Prior pin bc6bddc5...6ab3943
     # came from the BEAAA-33810 agent-escape tranche via BEAAA-35915.
-    "c43e5a322b747ef122ffddd5d621fa0a15a80cf6b3567405289e7ed62a3c0eb9"
+    "1908db7c4a474a74ee2fb85677163e70faa682551559003dcb05578972eded72"
 )
 
 

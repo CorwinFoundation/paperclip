@@ -1346,6 +1346,7 @@ def _merge_content_candidate_inventory(
             # event-derived trace lane. The 38 mapped benchmark rows retain
             # their existing bench_wrapper execution path.
             "trace_observation_adapter": family_id in {
+                "approval_preview_mutation_binding",
                 "out_of_scope_containment",
                 "privacy_minimization_reidentification",
                 "tenant_account_boundary",
