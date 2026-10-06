@@ -117,3 +117,14 @@ sudo -u backbond-stage-b /usr/bin/python3 -m stage_b_pilot.enrollment \
 The answer endpoint ignores any recipient supplied by a browser form or inbound
 message. It reloads the registered agent address and immutable check fields from
 the receipt database before constructing the relay.
+
+## Agent verification (BEAAA-38728)
+
+`install.sh` installs `status.py` root-owned at `/opt/backbond-stage-b/bin/status.py` and writes
+`/etc/sudoers.d/backbond-stage-b-status`, which lets `are-deploy` run exactly that script as
+`backbond-stage-b`. From the agent seat:
+
+    sudo -n -u backbond-stage-b /opt/backbond-stage-b/bin/status.py 2026-10-06T18:30 2026-10-06T19:30
+
+It opens the Stage B sqlite files read-only and prints counts, 10-char sha256 prefixes and
+timestamps. Rollback: revert the commit, delete the sudoers file, re-run `install.sh`.

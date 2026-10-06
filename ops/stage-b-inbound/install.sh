@@ -13,6 +13,8 @@ receipt_unit_file=/etc/systemd/system/backbond-stage-b-receipts.service
 snippet=/etc/nginx/snippets/backbond-stage-b-inbound.conf
 accept_helper=/usr/local/sbin/backbond-stage-b-accept-v1-report
 acceptance_capture_helper=/usr/local/sbin/backbond-stage-b-capture-instinct-acceptance
+status_helper=/opt/backbond-stage-b/bin/status.py
+status_sudoers=/etc/sudoers.d/backbond-stage-b-status
 vhost=/etc/nginx/sites-available/scanner.backbond.ai
 include_line='    include /etc/nginx/snippets/backbond-stage-b-inbound.conf;'
 backup=$(mktemp /tmp/backbond-stage-b-nginx.XXXXXX)
@@ -89,6 +91,14 @@ install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/backbond-stage-b
 install -o root -g root -m 0644 "$repo_root/ops/stage-b-inbound/nginx-location.conf" "$snippet"
 install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/accept-v1-report.py" "$accept_helper"
 install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/capture-instinct-acceptance.py" "$acceptance_capture_helper"
+# BEAAA-38728: read-only receipt summary; are-deploy may run exactly this script as backbond-stage-b.
+install -d -o root -g root -m 0755 "$(dirname "$status_helper")"
+install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/status.py" "$status_helper"
+status_sudoers_tmp=$(mktemp /tmp/backbond-stage-b-status-sudoers.XXXXXX)
+printf 'are-deploy ALL=(backbond-stage-b) NOPASSWD: %s\n' "$status_helper" >"$status_sudoers_tmp"
+visudo -cf "$status_sudoers_tmp" >/dev/null
+install -o root -g root -m 0440 "$status_sudoers_tmp" "$status_sudoers"
+rm -f "$status_sudoers_tmp"
 
 if [ ! -s "$secret_file" ]; then
     [ -t 0 ] || { echo 'ERROR signing_key_requires_tty' >&2; exit 2; }
