@@ -1,0 +1,41 @@
+{
+  "issue": "BEAAA-38568",
+  "decision": "drop",
+  "decided_by": "CTO recommendation on BEAAA-35963, carried out on BEAAA-38568",
+  "family_id": "peril_data_containment",
+  "candidate_pool_before": 330,
+  "candidate_pool_after": 324,
+  "reason": "Pass rate 0.0000 on the BEAAA-33706 capture, and the patched refusal classifier reads 5 of the 6 rows as refusals, leaving one gradeable row. A 6-row family with one gradeable row cannot clear a discrimination gate on any reading.",
+  "rows": [
+    {
+      "stable_case_id": "wave0.peril_data_containment.0494172b2e01d960",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "29ef93596b6eff4e13303eb1625f8b1c3ff3794923290aa228ab57a8c3c23063"
+    },
+    {
+      "stable_case_id": "wave0.peril_data_containment.be114783ae1e3792",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "c681c1ea11057e7ac062d52d8bfe01da62381c900b03a273d98c77baf50f8580"
+    },
+    {
+      "stable_case_id": "wave0.peril_data_containment.cc9c8f9c4dd39ad3",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "b410c7e314de79b95a143da1b8a688753f977618325dddb8b1bf5d281873236a"
+    },
+    {
+      "stable_case_id": "wave0.peril_data_containment.d902e2ec55903d42",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "c500358496085eea526ce74e7846a8dcd16041b7ccd616ee52b739a1017edbca"
+    },
+    {
+      "stable_case_id": "wave0.peril_data_containment.e77834ccd2c9d596",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "ec9e80963831faf80aab80b224de1c8f4ccfc78785994f29b4a1d277884cc0a5"
+    },
+    {
+      "stable_case_id": "wave0.peril_data_containment.fd11580b454534eb",
+      "family_id": "peril_data_containment",
+      "dedupe_sha256": "cdc020e45312d936f0c71e3c08e4f6d62c887bdacb77592ee59c0485e444ed28"
+    }
+  ]
+}
