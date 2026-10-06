@@ -56,11 +56,89 @@ def load_catalogue_by_family(family: str) -> dict[str, Any]:
     return {r["stable_case_id"]: r for r in rows if r["family_id"] == family}
 
 
-def _non_unanimous_share(per_case_labels: list[list[str]]) -> float:
-    if not per_case_labels:
-        return 0.0
-    n_non_unani = sum(1 for labels in per_case_labels if len(set(labels)) > 1)
-    return n_non_unani / len(per_case_labels)
+def cil_f1_label(trace_item: dict[str, Any]) -> str:
+    """One comparable label for a CIL F1 trace record.
+
+    The record carries `citations: [{plausibility, semantic, score, ...}]` and no
+    `judge` key, so the judged labels sit one level down. A seed whose response
+    contained no citation has nothing judged and yields a placeholder.
+    """
+    cites = trace_item.get("citations") or []
+    labels = [str(c.get("plausibility", "?")) for c in cites if isinstance(c, dict)]
+    labels = _real_labels(labels)
+    return "|".join(labels) if labels else "?"
+
+
+def cil_f2_label(trace_item: dict[str, Any]) -> str:
+    """One comparable label for a CIL F2 trace record, from its three axes."""
+    axes = trace_item.get("axes")
+    if not isinstance(axes, dict):
+        return "?"
+    picked = [str(axes.get(k, "?")) for k in ("proposition", "scope", "no_fabricated_content")]
+    return "|".join(picked) if _real_labels(picked) else "?"
+
+
+PLACEHOLDER_LABELS = {"?", "", "None", "none"}
+
+
+def _real_labels(labels: list[str]) -> list[str]:
+    """Drop placeholder labels; see _unanimity for why this matters."""
+    return [x for x in labels if str(x) not in PLACEHOLDER_LABELS]
+
+
+def _unanimity(per_case_labels: list[list[str]]) -> dict[str, Any]:
+    """Judge disagreement across replicates, refusing to score placeholders.
+
+    BEAAA-38594: the first r=5 run reported `non_unanimous_share: 0.0` for
+    citation_integrity_legal, which read as "every judge triple agreed". It was
+    not a reading at all - the extraction had defaulted every label to "?" (the
+    CIL trace carries no `judge` key), so the share was unanimity over a literal
+    question mark. A fabricated 0.0 is worse than a null: it looks like the
+    strongest possible evidence.
+
+    So: a case counts only if it has at least two non-placeholder labels, and
+    with nothing comparable the share is None rather than 0.0.
+    """
+    comparable = [lab for lab in (_real_labels(c) for c in per_case_labels) if len(lab) >= 2]
+    without = len(per_case_labels) - len(comparable)
+    if not comparable:
+        return {
+            "non_unanimous_share": None,
+            "cases_compared": 0,
+            "cases_without_labels": without,
+            "reason": "no case carried two or more real labels; share is unread, not 0.0",
+        }
+    n_non_unani = sum(1 for labels in comparable if len(set(labels)) > 1)
+    out = {
+        "non_unanimous_share": n_non_unani / len(comparable),
+        "cases_compared": len(comparable),
+        "cases_without_labels": without,
+    }
+    if without:
+        out["reason"] = f"{without} case(s) carried no comparable label and are excluded"
+    return out
+
+
+def _live_rates(per_rep: list[dict[str, Any]]) -> tuple[list[float], list[dict[str, Any]]]:
+    """Split replicate records into usable rates and excluded ones.
+
+    BEAAA-38594: CIL replicate 1 came back `f1_status=inconclusive` while 2-5
+    were `live`, and its rate (0.2333 against a 0.60-0.62 cluster) was folded
+    into min/median/max anyway. An arm that did not produce a live reading is
+    not a low measurement of the family; it is not a measurement.
+    """
+    valid: list[float] = []
+    excluded: list[dict[str, Any]] = []
+    for rec in per_rep:
+        statuses = {k: v for k, v in rec.items() if k.endswith("_status")}
+        bad = {k: v for k, v in statuses.items() if v != "live"}
+        if rec.get("rate") is None:
+            excluded.append({**rec, "excluded_because": "no rate"})
+        elif bad:
+            excluded.append({**rec, "excluded_because": "arm not live: " + ", ".join(f"{k}={v}" for k, v in sorted(bad.items()))})
+        else:
+            valid.append(rec["rate"])
+    return valid, excluded
 
 
 def grade_scp(rows_by_rep: dict[int, list[dict]], judge, cap_usd: float, spend: float) -> dict:
@@ -98,16 +176,16 @@ def grade_scp(rows_by_rep: dict[int, list[dict]], judge, cap_usd: float, spend: 
         per_rep_rates.append(agg.get("pass_rate"))
 
     valid = [r for r in per_rep_rates if r is not None]
-    non_unani = _non_unanimous_share(list(per_case_labels.values()))
+    unanimity = _unanimity(list(per_case_labels.values()))
     return {
         "family": "self_contradiction_pairs",
         "per_rep_rates": per_rep_rates,
         "rate_min": min(valid) if valid else None,
         "rate_median": statistics.median(valid) if valid else None,
         "rate_max": max(valid) if valid else None,
-        "non_unanimous_share": non_unani,
         "spend_judge_usd": spend,
         "capped": False,
+        **unanimity,
     }
 
 
@@ -159,30 +237,38 @@ def grade_cil(rows_by_rep: dict[int, list[dict]], judge, cap_usd: float, spend: 
         dim = cil_mod.aggregate_dim(f1_rollup, f2_rollup)
         rate = dim.get("dim_pass_rate")
         per_rep_rates.append(rate)
+        per_rep_records.append({
+            "rep": rep,
+            "rate": rate,
+            "f1_status": f1_rollup.get("status"),
+            "f2_status": f2_rollup.get("status"),
+        })
 
-        # Track per-case verdict labels — use the trace from f1 and f2 rollups
+        # Per-case labels come out of the trace records themselves. The CIL
+        # trace has no `judge` key: F1 keeps its judged labels one level down in
+        # `citations[].plausibility`, and F2 keeps its three axes in `axes`.
         for item in f1_rollup.get("trace", []):
             case_id = item.get("id") or item.get("seed_id", "?")
-            label = item.get("judge", {}).get("plausibility", "?") if isinstance(item.get("judge"), dict) else item.get("label", "?")
-            per_case_labels.setdefault(case_id, []).append(str(label))
+            per_case_labels.setdefault(case_id, []).append(cil_f1_label(item))
         for item in f2_rollup.get("trace", []):
             case_id = item.get("id", "?")
-            label = item.get("judge", {}).get("overall_label", "?") if isinstance(item.get("judge"), dict) else item.get("label", "?")
-            per_case_labels.setdefault(case_id, []).append(str(label))
+            per_case_labels.setdefault(case_id, []).append(cil_f2_label(item))
 
         print(f"  cil r{rep} dim_rate={rate} f1_status={f1_rollup.get('status')} f2_status={f2_rollup.get('status')} spend=USD {spend:.4f}", flush=True)
 
-    valid = [r for r in per_rep_rates if r is not None]
-    non_unani = _non_unanimous_share(list(per_case_labels.values()))
+    valid, excluded = _live_rates(per_rep_records)
+    unanimity = _unanimity(list(per_case_labels.values()))
     return {
         "family": "citation_integrity_legal",
         "per_rep_rates": per_rep_rates,
+        "per_rep_records": per_rep_records,
+        "excluded_replicates": excluded,
         "rate_min": min(valid) if valid else None,
         "rate_median": statistics.median(valid) if valid else None,
         "rate_max": max(valid) if valid else None,
-        "non_unanimous_share": non_unani,
         "spend_judge_usd": spend,
         "capped": False,
+        **unanimity,
     }
 
 
@@ -265,7 +351,7 @@ def grade_hl(rows_by_rep: dict[int, list[dict]], judge, cap_usd: float, spend: f
     valid_f2 = [r for r in per_rep_rates_f2 if r is not None]
     valid_other = [r for r in per_rep_rates_other if r is not None]
     valid_combined = [r for r in per_rep_rates_combined if r is not None]
-    non_unani = _non_unanimous_share(list(per_case_labels.values()))
+    unanimity = _unanimity(list(per_case_labels.values()))
     return {
         "family": "hallucination_legal",
         "per_rep_rates_f2_only": per_rep_rates_f2,
