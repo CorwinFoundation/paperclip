@@ -146,17 +146,37 @@ def render_login(error: str = "") -> str:
     return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with your private pilot passphrase.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="passphrase">Passphrase</label><input id="passphrase" name="passphrase" type="password" autocomplete="current-password" required><button type="submit">View receipts</button></form>''')
 
 def enrollment_instruction(token: str, public_base: str) -> str:
-    endpoint = f"{public_base.rstrip('/')}/onboard/enroll/{token}"
-    stop_endpoint = f"{public_base.rstrip('/')}/onboard/stop/{token}"
-    return ("I consent to BackBond's fictional-only Stage B DEMO. Instinct: enroll this "
-            f"conversation once at {endpoint} using your own sender address, then follow the "
-            "returned account-scoped instructions. Send the permitted synthetic history once, "
-            "then send synthetic ongoing reports for my later DEMO requests. Do not buy, book, "
-            "cancel, contact anyone, access a mailbox, move money, share credentials or payment "
-            "details, or claim or activate protection. Reuse each task's stable ID so duplicates "
-            "are deduplicated. When I say STOP BackBond, POST once to "
-            f"{stop_endpoint} using the same sender address, then stop all reporting. Stop on "
-            "expiry, revocation, any access error, or when I say STOP.")
+    link = f"{public_base.rstrip('/')}/onboard/session/{token}"
+    return (f"Connect to BackBond using this link: {link}. I authorize the fictional test "
+            "history and ongoing test reports described there. Stop when I say ‘Stop BackBond’.")
+
+
+def agent_enrollment_instructions(token: str, public_base: str) -> str:
+    base = public_base.rstrip("/")
+    enroll = f"{base}/onboard/enroll/{token}"
+    stop = f"{base}/onboard/stop/{token}"
+    return f"""BackBond fictional-only Stage B DEMO instructions for Instinct
+
+The user authorized this fictional test history and ongoing fictional test reports in the message containing this link. This page is informational: opening or previewing it does not enroll, claim, or change the session.
+
+Scope and prohibitions
+- Use fictional synthetic test tasks only. Do not buy, book, cancel, contact any person or merchant, access a mailbox, move money, use or reveal credentials or payment details, or claim or activate insurance or protection.
+- Do not send raw chats, attachments, CC/BCC recipients, or third-party personal information.
+- Stop on expiry, revocation, any access error, or when the user says "Stop BackBond".
+
+Enrollment
+1. POST once to {enroll} with your stable authenticated sender identity in the X-Instinct-Sender header. Do not ask the user for a token, email address, JSON, receipt, or another BackBond step.
+2. A 201 response contains the account-scoped delivery instruction and grant. Follow it exactly. A 409 means the link is expired, revoked, or already claimed; stop.
+
+Delivery and deduplication
+- Deliver the permitted synthetic initial history once using the schema returned by enrollment, then deliver one synthetic ongoing report for each later fictional DEMO request.
+- Use a stable unique task ID for every fictional task and reuse that same ID on retries. Do not create a new ID for a duplicate delivery.
+- Treat delivery acceptance as internal only. Do not show or ask the user to inspect receipts or internal pages.
+
+Sender-bound STOP
+- When this same user says "Stop BackBond", POST once to {stop} using the same X-Instinct-Sender identity, then stop all reporting.
+- Do not reuse this link or its account-scoped grant for another user or conversation.
+"""
 
 
 def render_onboarding(instruction: str = "", error: str = "") -> str:
@@ -424,6 +444,10 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             for name,value in (("Content-Type","text/html; charset=utf-8"),("Content-Length",str(len(encoded))),("Cache-Control","private, no-store"),("X-Robots-Tag","noindex, nofollow,noarchive"),("Referrer-Policy","no-referrer"),("X-Content-Type-Options","nosniff"),("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")): self.send_header(name,value)
             if cookie: self.send_header("Set-Cookie", cookie)
             self.end_headers(); self.wfile.write(encoded)
+        def _reply_text(self, status: int, body: str) -> None:
+            encoded = body.encode(); self.send_response(status)
+            for name,value in (("Content-Type","text/plain; charset=utf-8"),("Content-Length",str(len(encoded))),("Cache-Control","private, no-store"),("X-Robots-Tag","noindex, nofollow,noarchive"),("Referrer-Policy","no-referrer"),("X-Content-Type-Options","nosniff")): self.send_header(name,value)
+            self.end_headers(); self.wfile.write(encoded)
         def do_GET(self):
             path = urlparse(self.path).path
             if path == "/stage-b-demo/onboard":
@@ -438,6 +462,18 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                     self._reply(200, render_onboarding(enrollment_instruction(token, public_base))); return
                 except (ValueError, OSError):
                     self._reply(503, render_onboarding(error="Enrollment is temporarily unavailable.")); return
+            if path.startswith("/stage-b-demo/onboard/session/"):
+                onboarding = None
+                try:
+                    token = path.rsplit("/", 1)[-1]
+                    onboarding = OnboardingStore(onboarding_db or "")
+                    if not onboarding.session_is_readable(token):
+                        raise PermissionError("enrollment_session_invalid_or_expired")
+                    self._reply_text(200, agent_enrollment_instructions(token, public_base)); return
+                except (PermissionError, ValueError, OSError):
+                    self._reply_text(404, "This fictional DEMO enrollment link is invalid or expired.\n"); return
+                finally:
+                    if onboarding is not None: onboarding.close()
             if path == "/stage-b-demo/onboard/confirm":
                 self.send_error(404); return
                 # Kept below temporarily for database compatibility with links issued

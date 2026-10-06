@@ -98,6 +98,18 @@ class OnboardingStore:
             raise PermissionError("enrollment_session_already_claimed")
         return str(row["account_email"])
 
+    def session_is_readable(self, token: str) -> bool:
+        """Validate an instruction link without claiming or otherwise mutating it."""
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        row = self.db.execute(
+            "SELECT expires_at,revoked_at FROM onboarding_sessions WHERE token_digest=?", (digest,)
+        ).fetchone()
+        return bool(
+            row is not None
+            and not row["revoked_at"]
+            and datetime.fromisoformat(row["expires_at"]) > self.now()
+        )
+
     def activate_session(self, token: str, upstream_token: str, grant_id: str) -> None:
         if not upstream_token or not grant_id:
             raise ValueError("session_activation_invalid")

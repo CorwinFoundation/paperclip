@@ -1,9 +1,18 @@
 from datetime import datetime, timezone
+from http.server import ThreadingHTTPServer
+import re
+import threading
+from urllib.request import urlopen
 
 import pytest
 
 from stage_b_pilot.onboarding import OnboardingStore
-from stage_b_pilot.receipt_page import enrollment_instruction, render_onboarding
+from stage_b_pilot.receipt_page import (
+    agent_enrollment_instructions,
+    enrollment_instruction,
+    render_onboarding,
+    make_handler,
+)
 
 
 def test_two_users_share_entry_without_sharing_identity(tmp_path):
@@ -24,11 +33,69 @@ def test_shared_entry_is_one_copy_action_without_account_ui():
     page = render_onboarding(instruction)
     assert "Copy instruction" in page
     assert "secret-session" in page
-    assert "I consent" in page and "fictional-only" in page
-    assert "Stop on expiry, revocation" in page
+    assert "Connect to BackBond using this link:" in page
+    assert "I authorize the fictional test history" in page
+    assert "Stop BackBond" in page
+    assert "/onboard/session/secret-session" in page
+    assert "/onboard/enroll/" not in page
+    assert "X-Instinct-Sender" not in page
     for forbidden in ('<form', 'type="email"', "sign-in", "Onboarding history"):
         assert forbidden not in page
     assert "DEMO PRIVATE" in page
+
+
+def test_agent_page_carries_protocol_while_preview_is_read_only(tmp_path):
+    store = OnboardingStore(str(tmp_path / "onboarding.sqlite3"))
+    token, account = store.issue_session()
+
+    assert store.session_is_readable(token)
+    assert store.session_is_readable(token)
+    assert store.claim_session(token, "first@instinct.example") == account
+
+    instructions = agent_enrollment_instructions(
+        token, "https://scanner.backbond.ai/stage-b-demo"
+    )
+    assert f"/onboard/enroll/{token}" in instructions
+    assert f"/onboard/stop/{token}" in instructions
+    assert "X-Instinct-Sender" in instructions
+    assert "opening or previewing it does not enroll" in instructions
+    assert "fictional synthetic test tasks only" in instructions
+    assert "stable unique task ID" in instructions
+    store.close()
+
+
+def test_unique_instruction_get_is_repeatable_and_has_no_claim_side_effect(tmp_path):
+    database = str(tmp_path / "onboarding.sqlite3")
+    handler = make_handler(
+        "127.0.0.1", 1, "x" * 32, onboarding_db=database,
+        inbound_db=str(tmp_path / "inbound.sqlite3"),
+        public_base="http://127.0.0.1:PORT/stage-b-demo",
+    )
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server.RequestHandlerClass = make_handler(
+        "127.0.0.1", 1, "x" * 32, onboarding_db=database,
+        inbound_db=str(tmp_path / "inbound.sqlite3"),
+        public_base=f"http://127.0.0.1:{server.server_port}/stage-b-demo",
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with urlopen(f"http://127.0.0.1:{server.server_port}/stage-b-demo/onboard") as response:
+            page = response.read().decode()
+        link = re.search(r"http://[^\s<]+/onboard/session/[A-Za-z0-9_-]+", page).group(0)
+        for _ in range(2):
+            with urlopen(link) as response:
+                instructions = response.read().decode()
+                assert response.headers.get_content_type() == "text/plain"
+                assert "opening or previewing it does not enroll" in instructions
+        token = link.rsplit("/", 1)[-1]
+        store = OnboardingStore(database)
+        assert store.claim_session(token, "preview-safe@instinct.example")
+        store.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
 
 
 def test_email_link_expiry_is_enforced(tmp_path):
