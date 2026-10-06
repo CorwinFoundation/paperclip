@@ -205,6 +205,7 @@ def grade_cil(rows_by_rep: dict[int, list[dict]], judge, cap_usd: float, spend: 
 
     replicates = sorted(rows_by_rep)
     per_rep_rates: list[float | None] = []
+    per_rep_records: list[dict[str, Any]] = []
     per_case_labels: dict[str, list[str]] = {}
 
     # Probes are per case_id; the catalogue case_id should match a probe id

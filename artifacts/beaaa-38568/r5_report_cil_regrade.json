@@ -1,0 +1,78 @@
+{
+  "issue": "BEAAA-38729",
+  "family": "citation_integrity_legal",
+  "ledger_rows": 400,
+  "judge_model": "openrouter:anthropic/claude-haiku-4.5",
+  "f1_prompts_with_citation_by_rep": {
+    "1": 7,
+    "2": 10,
+    "3": 18,
+    "4": 19,
+    "5": 18
+  },
+  "f1_min_n": 10,
+  "judge_calls": 516,
+  "actual_spend_usd": 0.6336,
+  "cap_usd": 1.5,
+  "metered_estimate_usd": 1.4735999999999996,
+  "grade": {
+    "family": "citation_integrity_legal",
+    "per_rep_rates": [
+      0.23333333333333334,
+      0.6166666666666667,
+      0.6233333333333334,
+      0.6185964912280701,
+      0.6
+    ],
+    "per_rep_records": [
+      {
+        "rep": 1,
+        "rate": 0.23333333333333334,
+        "f1_status": "inconclusive",
+        "f2_status": "live"
+      },
+      {
+        "rep": 2,
+        "rate": 0.6166666666666667,
+        "f1_status": "live",
+        "f2_status": "live"
+      },
+      {
+        "rep": 3,
+        "rate": 0.6233333333333334,
+        "f1_status": "live",
+        "f2_status": "live"
+      },
+      {
+        "rep": 4,
+        "rate": 0.6185964912280701,
+        "f1_status": "live",
+        "f2_status": "live"
+      },
+      {
+        "rep": 5,
+        "rate": 0.6,
+        "f1_status": "live",
+        "f2_status": "live"
+      }
+    ],
+    "excluded_replicates": [
+      {
+        "rep": 1,
+        "rate": 0.23333333333333334,
+        "f1_status": "inconclusive",
+        "f2_status": "live",
+        "excluded_because": "arm not live: f1_status=inconclusive"
+      }
+    ],
+    "rate_min": 0.6,
+    "rate_median": 0.6176315789473684,
+    "rate_max": 0.6233333333333334,
+    "spend_judge_usd": 1.4735999999999996,
+    "capped": false,
+    "non_unanimous_share": 0.5,
+    "cases_compared": 52,
+    "cases_without_labels": 28,
+    "reason": "28 case(s) carried no comparable label and are excluded"
+  }
+}
