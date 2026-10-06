@@ -97,6 +97,6 @@ def test_installer_grants_are_deploy_exactly_the_status_helper():
     text = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
     assert "status_helper=/opt/backbond-stage-b/bin/status.py" in text
     assert 'install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/status.py" "$status_helper"' in text
-    assert "are-deploy ALL=(backbond-stage-b) NOPASSWD: %s" in text
+    assert "are-deploy ALL=(backbond-stage-b : adm) NOPASSWD: %s" in text
     assert 'visudo -cf "$status_sudoers_tmp"' in text
     assert "-m 0440" in text

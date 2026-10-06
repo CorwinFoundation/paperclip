@@ -7,6 +7,8 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import sys
 import time
 import base64
 from email.message import EmailMessage
@@ -200,6 +202,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 inbound.close()
 
         def _reply(self, status: int, payload: Mapping[str, object]) -> None:
+            if status >= 400:
+                _log_rejection(self.command, self.path, status, payload.get("error"))
             body = json.dumps(payload, sort_keys=True).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -609,6 +613,28 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             return
 
     return Handler
+
+
+_REASON_CODE = re.compile(r"^[a-z0-9_.:-]{1,64}$")
+_ROUTE_WORD = re.compile(r"^[a-z][a-z-]{0,23}$")
+
+
+def _log_rejection(method: object, path: object, status: int, error: object) -> None:
+    """One journal line per 4xx/5xx (BEAAA-38775): route words and reason codes only.
+
+    Token-shaped path segments become 10-char sha256 prefixes and the query is
+    dropped, so no token, address or body reaches the journal.
+    """
+    segments = []
+    for part in str(path or "").split("?", 1)[0].split("/"):
+        if part and not _ROUTE_WORD.match(part):
+            part = "h:" + hashlib.sha256(part.encode()).hexdigest()[:10]
+        segments.append(part)
+    code = str(error or "none")
+    if not _REASON_CODE.match(code):
+        code = "unclassified"
+    print(f"stage_b_reject method={method} route={'/'.join(segments)} status={status} reason={code}",
+          file=sys.stderr, flush=True)
 
 
 def main() -> None:

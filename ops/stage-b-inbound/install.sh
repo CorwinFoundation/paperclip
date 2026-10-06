@@ -80,7 +80,8 @@ systemctl stop backbond-stage-b-receipts.service backbond-stage-b-inbound.servic
 installed=1
 rm -rf "$app_dir/stage_b_pilot"
 cp -a "$repo_root/stage_b_pilot" "$app_dir/stage_b_pilot"
-runtime_version=$(find "$repo_root/stage_b_pilot" -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+# BEAAA-38775: hash relative paths so identical code staged anywhere gets one digest.
+runtime_version=$(cd "$repo_root" && find stage_b_pilot -name __pycache__ -prune -o -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
 printf '%s\n' "$runtime_version" >"$app_dir/.backbond-stage-b-version"
 printf '%s\n' "$candidate_commit" >"$app_dir/DEPLOYED_COMMIT"
 chown -R root:root "$app_dir/stage_b_pilot"
@@ -95,7 +96,8 @@ install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/capture-instinct
 install -d -o root -g root -m 0755 "$(dirname "$status_helper")"
 install -o root -g root -m 0755 "$repo_root/ops/stage-b-inbound/status.py" "$status_helper"
 status_sudoers_tmp=$(mktemp /tmp/backbond-stage-b-status-sudoers.XXXXXX)
-printf 'are-deploy ALL=(backbond-stage-b) NOPASSWD: %s\n' "$status_helper" >"$status_sudoers_tmp"
+# BEAAA-38775: group adm (only via sudo -g adm) lets the helper read the nginx access log and journal.
+printf 'are-deploy ALL=(backbond-stage-b : adm) NOPASSWD: %s\n' "$status_helper" >"$status_sudoers_tmp"
 visudo -cf "$status_sudoers_tmp" >/dev/null
 install -o root -g root -m 0440 "$status_sudoers_tmp" "$status_sudoers"
 rm -f "$status_sudoers_tmp"

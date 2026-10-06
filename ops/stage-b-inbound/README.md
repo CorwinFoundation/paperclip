@@ -124,7 +124,12 @@ the receipt database before constructing the relay.
 `/etc/sudoers.d/backbond-stage-b-status`, which lets `are-deploy` run exactly that script as
 `backbond-stage-b`. From the agent seat:
 
-    sudo -n -u backbond-stage-b /opt/backbond-stage-b/bin/status.py 2026-10-06T18:30 2026-10-06T19:30
+    sudo -n -u backbond-stage-b -g adm /opt/backbond-stage-b/bin/status.py 2026-10-06T18:30 2026-10-06T19:30
 
 It opens the Stage B sqlite files read-only and prints counts, 10-char sha256 prefixes and
 timestamps. Rollback: revert the commit, delete the sudoers file, re-run `install.sh`.
+
+BEAAA-38775 adds per-row detail (history event types, request state, follow-up and report
+timestamps with grant hashes) and a request log: nginx `/stage-b-demo/` requests (time, method,
+path with token segments hashed, status, bytes) and the receiver's `stage_b_reject` reason codes
+from the journal. The sudoers grant runs it with group `adm` so it can read both logs.
