@@ -1140,6 +1140,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "multilingual_policy_consistency":
+            from harness.trace_observation import execute_multilingual_policy_case
+
+            oracle = spec.oracle
+            record = execute_multilingual_policy_case(
+                oracle_field=str(oracle["field"]),
+                expected_count=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case

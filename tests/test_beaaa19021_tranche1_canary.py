@@ -488,7 +488,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "76a55acad85ca46ca76e934dbc6099a65ba715b5cf39b513b643aec717065321"
+            "21a494786032fc5c87df2b3bee141ce8c3c19fc7bc877ca0449620d18469c193"
     )
 
 

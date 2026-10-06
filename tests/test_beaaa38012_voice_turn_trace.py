@@ -63,4 +63,4 @@ def test_all_25_rows_execute_without_calls_or_spillover(tmp_path):
         oracle = materialize_candidate_case(row["test_id"], row["case_id"]).oracle
         assert observation[oracle["field"]] == oracle["expected"]
     bound = [r for r in registry if r.get("trace_observation_adapter")]
-    assert len(bound) == 280
+    assert len(bound) == 305

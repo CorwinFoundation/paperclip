@@ -1357,6 +1357,7 @@ def _merge_content_candidate_inventory(
                 "voice_consent_recording_boundary",
                 "voice_identity_channel_transfer",
                 "accessibility_assistive_action_integrity",
+                "multilingual_policy_consistency",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
