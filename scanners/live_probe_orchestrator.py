@@ -254,6 +254,7 @@ class ScanRequest:
     seed: int
     endpoint_config: dict[str, Any] | None = None
     pack_id: str | None = None
+    include_result_rows: bool = False
     requested_pillars: tuple[str, ...] = ()
     scan_mode: str = "live_probe"
     scan_tier: str = "full"
@@ -332,6 +333,7 @@ class ScanResult:
     incomplete_reason: str | None = None
     full_suite_manifest: Mapping[str, Any] | None = None
     evidence_records: tuple[Mapping[str, Any], ...] = ()
+    starter_result_rows: tuple[Mapping[str, Any], ...] = ()
     # BEAAA-11721 / ADR-0041 section 6: Underwriting-review signal only.
     anti_gaming: AntiGamingCanaryResult = field(
         default_factory=AntiGamingCanaryResult
@@ -694,6 +696,9 @@ def run_scan(
                 total_spread=0.0,
                 incomplete=True,
                 incomplete_reason=cap_reason,
+                starter_result_rows=tuple(
+                    getattr(active_runner, "starter_result_rows", lambda: ())()
+                ),
                 anti_gaming=anti_gaming,
             )
 
@@ -742,6 +747,9 @@ def run_scan(
             incomplete_reason=incomplete_reason,
             evidence_records=tuple(
                 getattr(active_runner, "live_probe_evidence", lambda: ())()
+            ),
+            starter_result_rows=tuple(
+                getattr(active_runner, "starter_result_rows", lambda: ())()
             ),
             anti_gaming=anti_gaming,
         )

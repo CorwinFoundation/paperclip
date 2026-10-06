@@ -59,4 +59,7 @@ def customer_payload(result: ScanResult) -> dict[str, Any]:
     }
     if result.incomplete_reason is not None:
         payload["incomplete_reason"] = result.incomplete_reason
+    starter_rows = getattr(result, "starter_result_rows", ())
+    if starter_rows:
+        payload["result_rows"] = [dict(row) for row in starter_rows]
     return payload

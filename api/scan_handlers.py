@@ -1302,6 +1302,9 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
         "incomplete": result.incomplete,
         "incomplete_reason": result.incomplete_reason,
         "full_suite_manifest": result.full_suite_manifest,
+        "result_rows": [
+            dict(row) for row in result.starter_result_rows
+        ],
         "anti_gaming": result.anti_gaming.to_dict(),
         "dim_results": [
             {
@@ -1636,6 +1639,13 @@ def _kickoff_live_probe_scan(
     pack_id = body.get("pack_id")
     if pack_id is not None and pack_id != STARTER_PACK_ID:
         raise HandlerError(422, "pack_id_invalid")
+    include_result_rows = body.get("include_result_rows", False)
+    if not isinstance(include_result_rows, bool):
+        raise HandlerError(422, "include_result_rows_invalid")
+    if include_result_rows and pack_id != STARTER_PACK_ID:
+        raise HandlerError(422, "include_result_rows_requires_starter_pack")
+    if include_result_rows:
+        agent_endpoint["_include_result_rows"] = True
     # BEAAA-11726 item 1 — scan_tier: smoke|full, default full.
     # ARE_SCAN_TIER=off disables smoke tier (Tier-1 rollback).
     _scan_tier_enabled = ApiConfig.from_env().scan_tier_enabled
@@ -1730,6 +1740,7 @@ def _kickoff_live_probe_scan(
             credential_ref=credential_ref,
             endpoint_config=agent_endpoint,
             pack_id=pack_id,
+            include_result_rows=include_result_rows,
             corpus_snapshot_hash=corpus_snapshot_hash,
             scanner_version=scanner_version,
             corpus_version=corpus_version,

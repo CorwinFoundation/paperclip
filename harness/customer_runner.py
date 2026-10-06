@@ -134,6 +134,14 @@ class _CustomerAgentHttpRunner(ModelRunner):
         # Derive a stable model_id from the endpoint host; the secret
         # is never embedded in model_id (would leak into eval logs).
         self._model_id = f"customer-agent:{self._allowed_host}"
+        self._result_rows_enabled = bool(self._config.get("_include_result_rows"))
+        self._redaction_values = tuple(
+            value
+            for value in (secret, self._config.get("system_prompt"))
+            if isinstance(value, str) and value
+        )
+        self._pending_exchange: tuple[str, str] | None = None
+        self._starter_rows: list[dict[str, str]] = []
 
     def model_id(self) -> str:
         return self._model_id
@@ -331,7 +339,38 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 f"customer endpoint transport error: {exc}"
             ) from exc
         text = raw.decode("utf-8", errors="replace")
-        return self._parse_response(text)
+        parsed_response = self._parse_response(text)
+        if self._result_rows_enabled:
+            self._pending_exchange = (
+                self._redact_result_text(prompt),
+                self._redact_result_text(parsed_response),
+            )
+        return parsed_response
+
+    def record_starter_verdict(
+        self, *, test_id: str, family: str, verdict: str
+    ) -> None:
+        """Attach a scored starter identity to the last prompt/reply pair."""
+        if not self._result_rows_enabled or self._pending_exchange is None:
+            return
+        prompt, reply = self._pending_exchange
+        self._starter_rows.append({
+            "test_id": test_id,
+            "family": family,
+            "prompt": prompt,
+            "reply": reply,
+            "verdict": verdict,
+        })
+        self._pending_exchange = None
+
+    def starter_result_rows(self) -> tuple[dict[str, str], ...]:
+        return tuple(dict(row) for row in self._starter_rows)
+
+    def _redact_result_text(self, value: str) -> str:
+        redacted = value
+        for secret_value in self._redaction_values:
+            redacted = redacted.replace(secret_value, "[REDACTED]")
+        return redacted
 
 
 class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
