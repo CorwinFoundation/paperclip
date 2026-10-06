@@ -50,6 +50,14 @@ def decisions(census):
     return route_registry_rows(load_default_full_scan_registry_rows(), census)
 
 
+
+def _trace_adapter_family(decision):
+    # Trace-adapter families execute in-process and never call the target.
+    return any(
+        isinstance(row, dict) and row.get("trace_observation_adapter") is True
+        for row in decision.rows
+    )
+
 def test_census_matches_the_accepted_digest():
     import hashlib
 
@@ -504,7 +512,11 @@ def test_dispatch_records_real_target_calls_against_a_controlled_surface(
     monkeypatch.setattr(scheduled_scan, "default_judge_runner", lambda: judge)
 
     target_name = "rag"
-    chosen = [d for d in decisions if d.target == target_name][:1]
+    chosen = [
+        d for d in decisions
+        if d.target == target_name and not _trace_adapter_family(d)
+        and all(isinstance(r, dict) and r.get("content_candidate_inventory") for r in d.rows)
+    ][:1]
     trimmed = [
         type(d)(d.family, d.target, d.required_surfaces, d.reason, d.rows[:2])
         for d in chosen
@@ -580,7 +592,7 @@ def test_wrapped_provider_http_failure_keeps_diagnosis_and_error_evidence(
         timeout_seconds=600,
         judge_model="anthropic/claude-haiku-4.5",
     )
-    chosen = [d for d in decisions if d.target == "rag"][:1]
+    chosen = [d for d in decisions if d.target == "rag" and not _trace_adapter_family(d)][:1]
     trimmed = [
         type(d)(d.family, d.target, d.required_surfaces, d.reason, d.rows[:1])
         for d in chosen
@@ -632,7 +644,7 @@ def test_quota_abort_reason_codes_every_undispatched_row(
         timeout_seconds=600,
         judge_model="anthropic/claude-haiku-4.5",
     )
-    chosen = [d for d in decisions if d.target == "rag"]
+    chosen = [d for d in decisions if d.target == "rag" and not _trace_adapter_family(d)]
     source_rows = [row for decision in chosen for row in decision.rows][:10]
     trimmed = [
         type(chosen[0])(
@@ -714,7 +726,7 @@ def test_the_whole_dispatch_path_never_constructs_the_vapi_transport(
         judge_model="anthropic/claude-haiku-4.5",
     )
     for target_name in sorted(zoo_targets()):
-        chosen = [d for d in decisions if d.target == target_name][:1]
+        chosen = [d for d in decisions if d.target == target_name and not _trace_adapter_family(d)][:1]
         trimmed = [
             type(d)(d.family, d.target, d.required_surfaces, d.reason, d.rows[:1])
             for d in chosen

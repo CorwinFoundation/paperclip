@@ -1130,6 +1130,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "accessibility_assistive_action_integrity":
+            from harness.trace_observation import execute_accessibility_action_case
+
+            oracle = spec.oracle
+            record = execute_accessibility_action_case(
+                oracle_field=str(oracle["field"]),
+                expected_count=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
