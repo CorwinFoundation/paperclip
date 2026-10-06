@@ -90,6 +90,11 @@ def test_select_rows_returns_registry_rows_for_the_roster() -> None:
 def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
     """BEAAA-35868: the replay unit is the one Vapi path an agent seat can start.
 
+    Since 2026-10-06 the script carries the Founder's written authorization
+    (BEAAA-30934 comment b3c74059) as a default with a fixed expiry, so the
+    refusal is now exercised with an explicitly expired authorization, which the
+    default never overrides.
+
     `install-units-only.sh` drops in a sudoers grant giving `beai-agent`
     `systemctl start` on `backbond-scan-vapi-beaaa30934.service`, so this script
     is reachable without root. It must fail closed on the same written
@@ -102,8 +107,10 @@ def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
     scheduled = importlib.import_module("scripts.scheduled_scan")
     replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
 
-    monkeypatch.delenv(scheduled.VAPI_AUTH_REF_ENV, raising=False)
-    monkeypatch.delenv(scheduled.VAPI_AUTH_EXPIRES_ENV, raising=False)
+    assert replay.FOUNDER_VAPI_AUTH_REF == "BEAAA-30934#comment-b3c74059-1533-4749-a4d3-c1b1ec1017dc"
+    assert replay.FOUNDER_VAPI_AUTH_EXPIRES == "2026-10-13T18:47:34Z"
+    monkeypatch.setenv(scheduled.VAPI_AUTH_REF_ENV, "expired-test-ref")
+    monkeypatch.setenv(scheduled.VAPI_AUTH_EXPIRES_ENV, "2020-01-01T00:00:00Z")
 
     def _credential_tripwire(*args, **kwargs):
         raise AssertionError("credential environment was read after the gate refused")
@@ -112,4 +119,4 @@ def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
 
     with pytest.raises(scheduled.VapiAuthorizationError) as excinfo:
         replay.main()
-    assert scheduled.VAPI_AUTH_REF_ENV in str(excinfo.value)
+    assert "expired" in str(excinfo.value)

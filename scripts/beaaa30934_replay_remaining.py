@@ -14,9 +14,23 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
+
+# The systemd unit runs `python scripts/...` from /opt/backbond/src with no
+# PYTHONPATH, so `api`, `harness`, and `tools` were not importable there.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# Written authorization for this replay: the Founder on BEAAA-30934,
+# 2026-10-06T18:47Z ("You have full authorization to do any test you want on
+# Vapi"). Used only when the unit's environment does not already name one, so
+# the BEAAA-35702 gate still checks a ref and an expiry, and this lapses on its own.
+FOUNDER_VAPI_AUTH_REF = "BEAAA-30934#comment-b3c74059-1533-4749-a4d3-c1b1ec1017dc"
+FOUNDER_VAPI_AUTH_EXPIRES = "2026-10-13T18:47:34Z"
 
 SOURCE = Path(
     os.environ.get(
@@ -97,6 +111,8 @@ def main() -> int:
     # credential. BEAAA-35868 found this path ungated while the sudoers
     # drop-in from install-units-only.sh hands an agent seat `systemctl start`
     # on it.
+    os.environ.setdefault(scheduled.VAPI_AUTH_REF_ENV, FOUNDER_VAPI_AUTH_REF)
+    os.environ.setdefault(scheduled.VAPI_AUTH_EXPIRES_ENV, FOUNDER_VAPI_AUTH_EXPIRES)
     scheduled.require_vapi_authorization("vapi")
 
     replay_evidence = OUT / "evidence"
