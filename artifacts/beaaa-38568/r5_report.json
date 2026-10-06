@@ -1,0 +1,69 @@
+{
+  "phase1_spend_usd": 0.0798,
+  "self_contradiction_pairs": {
+    "family": "self_contradiction_pairs",
+    "per_rep_rates": [
+      0.94,
+      0.803921568627451,
+      0.8823529411764706,
+      0.8775510204081632,
+      0.8958333333333334
+    ],
+    "rate_min": 0.803921568627451,
+    "rate_median": 0.8823529411764706,
+    "rate_max": 0.94,
+    "non_unanimous_share": 0.6166666666666667,
+    "spend_judge_usd": 1.1850000000000047,
+    "capped": false
+  },
+  "citation_integrity_legal": {
+    "family": "citation_integrity_legal",
+    "per_rep_rates": [
+      0.23333333333333334,
+      0.6166666666666667,
+      0.6233333333333334,
+      0.6185964912280701,
+      0.6
+    ],
+    "rate_min": 0.23333333333333334,
+    "rate_median": 0.6166666666666667,
+    "rate_max": 0.6233333333333334,
+    "non_unanimous_share": 0.0,
+    "spend_judge_usd": 2.658600000000005,
+    "capped": false
+  },
+  "hallucination_legal": {
+    "family": "hallucination_legal",
+    "per_rep_rates_f2_only": [
+      0.7,
+      0.5166666666666667,
+      0.5666666666666667,
+      0.6666666666666666,
+      0.6833333333333333
+    ],
+    "per_rep_rates_other": [
+      0.5947368421052631,
+      0.5052631578947369,
+      0.5368421052631579,
+      0.5789473684210527,
+      0.5631578947368421
+    ],
+    "per_rep_rates_combined": [
+      0.62,
+      0.508,
+      0.544,
+      0.6,
+      0.592
+    ],
+    "f2_rate_min": 0.5166666666666667,
+    "f2_rate_median": 0.6666666666666666,
+    "f2_rate_max": 0.7,
+    "rate_min": 0.508,
+    "rate_median": 0.592,
+    "rate_max": 0.62,
+    "non_unanimous_share": 0.336,
+    "spend_judge_usd": 4.96109999999991,
+    "capped": false
+  },
+  "total_actual_spend_usd": 4.96109999999991
+}
