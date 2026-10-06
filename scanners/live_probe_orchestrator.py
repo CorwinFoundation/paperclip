@@ -97,6 +97,7 @@ from scanners.canary_anti_gaming import (
 )
 from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
+from scanners.starter_pack import STARTER_PACK_ID
 
 
 # ---------------------------------------------------------------------------
@@ -584,7 +585,12 @@ def run_scan(
         tokens_used = 0
         scan_started_at = _now()
         probe_cap = _probe_cap_for_request(scan_request)
-        for _replicate_idx in range(scan_request.k_replicates):
+        # BEAAA-38253 — the opt-in starter pack is a fixed roster sent once
+        # per canonical ID (100 requests), not a K-replicated variance run.
+        replicate_count = (
+            1 if scan_request.pack_id == STARTER_PACK_ID else scan_request.k_replicates
+        )
+        for _replicate_idx in range(replicate_count):
             if cap_reason is not None:
                 break
             try:
