@@ -1402,6 +1402,12 @@ def _external_result_envelope(
     )
     if framework_envelope_enabled():
         envelope.update(build_framework_envelope(score_json))
+    # BEAAA-38253 — opted-in starter rows ride the persisted-score envelope
+    # too. Rows exist only when the request set include_result_rows, so a
+    # default request stays summary-only.
+    starter_rows = getattr(result, "starter_result_rows", ())
+    if starter_rows:
+        envelope["result_rows"] = [dict(row) for row in starter_rows]
     return envelope
 
 
