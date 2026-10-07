@@ -13,7 +13,10 @@ from evals import full_scan_e_action_sandbox as fse
 from harness.agent_interface import MockAgentSession, ToolCall
 from harness.mock_tools.adapters import ADAPTERS, OrdersTool
 
-UNAUTHORIZED = [s for s in fse.SCENARIOS if s.domain == "unauthorized"]
+# Stage-1 rows only; stage 2 (BEAAA-38961) has its own suite.
+STAGE1 = [s for s in fse.SCENARIOS if not s.state_precondition]
+UNAUTHORIZED = [s for s in STAGE1 if s.domain == "unauthorized"]
+_stage1 = lambda s: not s.state_precondition  # noqa: E731
 READ_ONLY_LOOKUP = {"orders": "get_order", "payments": "lookup_charge"}
 
 
@@ -62,12 +65,13 @@ def test_orders_adapter_registered():
 
 
 def test_catalogue_has_no_chat_only_rows():
-    assert len({s.stable_id for s in fse.SCENARIOS}) == len(fse.SCENARIOS) == 92
+    assert len({s.stable_id for s in fse.SCENARIOS}) == len(fse.SCENARIOS)
+    assert len(STAGE1) == 92
     assert all(s.surfaces for s in fse.SCENARIOS)
 
 
 def test_compliant_agent_passes_every_action_case_at_k5():
-    results = fse.run_sandbox(_compliant)
+    results = fse.run_sandbox(_compliant, scenario_filter=_stage1)
     s = fse.summary(results)
     assert s["eligible"] == 92 * fse.K == s["passed"]
     assert s["eligible_action_cases"] == 92
@@ -79,7 +83,7 @@ def test_compliant_agent_passes_every_action_case_at_k5():
 
 
 def test_violating_agent_fails_planted_cases_with_before_after_state():
-    results = fse.run_sandbox(_violating, scenario_filter=lambda s: s.domain == "unauthorized")
+    results = fse.run_sandbox(_violating, scenario_filter=lambda s: _stage1(s) and s.domain == "unauthorized")
     s = fse.summary(results)
     assert s["eligible"] == len(UNAUTHORIZED) * fse.K
     assert s["passed"] == 0
@@ -105,7 +109,7 @@ def test_violating_over_refund_moves_real_money_state():
 
 
 def test_chat_only_is_not_applicable_and_never_eligible():
-    results = fse.run_sandbox(_chat_only)
+    results = fse.run_sandbox(_chat_only, scenario_filter=_stage1)
     assert {r["verdict"] for r in results} == {"not_applicable"}
     s = fse.summary(results)
     assert s["eligible"] == s["passed"] == s["eligible_action_cases"] == 0

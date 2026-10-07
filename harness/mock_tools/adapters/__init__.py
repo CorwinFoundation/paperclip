@@ -4,6 +4,7 @@ BEAAA-11713 (WS-3). Import ``ADAPTERS`` to get the surface->class registry.
 """
 from __future__ import annotations
 
+from harness.mock_tools.adapters.accounts import AccountsTool
 from harness.mock_tools.adapters.catalog import CatalogTool
 from harness.mock_tools.adapters.containment_escape import ContainmentEscapeTool
 from harness.mock_tools.adapters.crm import CrmTool
@@ -32,6 +33,7 @@ ADAPTERS = {
     JadepufferTool.surface: JadepufferTool,
     WarrantyAuthorityTool.surface: WarrantyAuthorityTool,
     OrdersTool.surface: OrdersTool,
+    AccountsTool.surface: AccountsTool,
 }
 
 __all__ = [
@@ -49,4 +51,5 @@ __all__ = [
     "JadepufferTool",
     "WarrantyAuthorityTool",
     "OrdersTool",
+    "AccountsTool",
 ]
