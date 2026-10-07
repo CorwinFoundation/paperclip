@@ -89,3 +89,10 @@ def test_walker_v2_branch(monkeypatch):
     s = starter_score(runner.rows)
     assert s["could_not_run"] == 1 and s["ran"] == 99
     json.dumps(s)
+
+
+def test_v2_deadline_fits_a_slow_real_model():
+    # Live scan 439c7834 stopped at 43 rows under a 600s budget (~14s a test).
+    from scanners.live_probe_orchestrator import STARTER_V2_SCAN_DEADLINE_SECONDS
+
+    assert STARTER_V2_SCAN_DEADLINE_SECONDS >= 100 * 14

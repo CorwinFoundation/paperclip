@@ -99,6 +99,9 @@ from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 from scanners.starter_pack import STARTER_PACK_ID
 
+#: BEAAA-38895 — wall-clock budget for one starter-100@2 pass.
+STARTER_V2_SCAN_DEADLINE_SECONDS: float = 1500.0
+
 
 # ---------------------------------------------------------------------------
 # Typed errors. The API edge (T1) maps these to HTTP responses.
@@ -537,8 +540,10 @@ def run_scan(
             pass
         try:
             active_runner.operational_scan_deadline_seconds = (
-                # BEAAA-38895: starter-100@2 makes 100 sends + 100 judge calls.
-                600.0
+                # BEAAA-38895: starter-100@2 makes 100 serial sends + 100 judge
+                # calls. 600s stopped a live real-model scan at 43 rows (~14s a
+                # test); size for ~15s a test so a slow agent finishes.
+                STARTER_V2_SCAN_DEADLINE_SECONDS
                 if scan_request.pack_id == "starter-100@2"
                 else 45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
             )
