@@ -50,13 +50,19 @@ MAX_TARGET_CALLS = 100
 def _verdicts(evidence_root: Path) -> dict[str, str]:
     """Map case_id -> lowercased recorded verdict under an evidence root."""
     verdicts: dict[str, str] = {}
-    for path in sorted(evidence_root.glob("*/*.json")):
+    # rglob, not "*/*.json": the source root is one job (<family>/<case>.json),
+    # but the replay root holds every replay job (<job>/<family>/<case>.json).
+    # The shallow glob never saw the replay's own verdicts, so each run
+    # re-sent the whole roster. A real verdict from any job wins.
+    for path in sorted(evidence_root.rglob("*.json")):
         try:
             record = json.loads(path.read_text())
         except (OSError, ValueError):
             continue
         if isinstance(record, dict):
-            verdicts[path.stem] = str(record.get("verdict", "")).lower()
+            verdict = str(record.get("verdict", "")).lower()
+            if verdicts.get(path.stem, "unresolved") in ("", "unresolved"):
+                verdicts[path.stem] = verdict
     return verdicts
 
 
@@ -101,13 +107,15 @@ def _family_verdicts(evidence_root: Path) -> dict[str, tuple[str, str]]:
     out: dict[str, tuple[str, str]] = {}
     if not evidence_root.exists():
         return out
-    for path in sorted(evidence_root.glob("*/*.json")):
+    for path in sorted(evidence_root.rglob("*.json")):
         try:
             record = json.loads(path.read_text())
         except (OSError, ValueError):
             continue
         if isinstance(record, dict):
-            out[path.stem] = (path.parent.name, str(record.get("verdict", "")).lower())
+            verdict = str(record.get("verdict", "")).lower()
+            if out.get(path.stem, ("", "unresolved"))[1] in ("", "unresolved"):
+                out[path.stem] = (path.parent.name, verdict)
     return out
 
 

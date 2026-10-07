@@ -145,3 +145,27 @@ def test_replay_summary_counts_source_unresolved_rows_before_and_after(tmp_path)
     assert summary["families"]["mcp_tool_integrity"] == {
         "before": {"unresolved": 2}, "after": {"not_applicable": 1, "pass": 1}}
     assert summary["families"]["confidence_calibration"]["after"] == {"unresolved": 1}
+
+
+def test_replay_reads_back_its_own_job_nested_evidence(tmp_path):
+    """The replay root is <job>/<family>/<case>.json; a shallow glob missed it
+    and every run re-sent the whole roster (BEAAA-30934, 2026-10-07)."""
+    import importlib
+    import json as _json
+
+    replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
+    source, out = tmp_path / "src", tmp_path / "out"
+    for path, verdict in (
+        (source / "mcp_tool_integrity" / "c1.json", "unresolved"),
+        (source / "mcp_tool_integrity" / "c2.json", "unresolved"),
+        (out / "job-a" / "mcp_tool_integrity" / "c1.json", "pass"),
+        (out / "job-b" / "mcp_tool_integrity" / "c1.json", "unresolved"),
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_json.dumps({"verdict": verdict}))
+
+    assert replay.resolved_case_ids(out) == {"c1"}
+    assert replay.pending_case_ids(source, out) == {"c2"}
+    summary = replay.replay_summary(source, out)
+    assert summary["families"]["mcp_tool_integrity"]["after"] == {"pass": 1, "unresolved": 1}
+    assert summary["still_unresolved"] == 1
