@@ -120,3 +120,28 @@ def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
     with pytest.raises(scheduled.VapiAuthorizationError) as excinfo:
         replay.main()
     assert "expired" in str(excinfo.value)
+
+
+def test_replay_summary_counts_source_unresolved_rows_before_and_after(tmp_path):
+    import importlib
+    import json as _json
+
+    replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
+    source, out = tmp_path / "src", tmp_path / "out"
+    for root, family, case, verdict in (
+        (source, "mcp_tool_integrity", "c1", "unresolved"),
+        (source, "mcp_tool_integrity", "c2", "unresolved"),
+        (source, "mcp_tool_integrity", "c3", "pass"),
+        (source, "confidence_calibration", "c4", "unresolved"),
+        (out, "mcp_tool_integrity", "c1", "not_applicable"),
+        (out, "mcp_tool_integrity", "c2", "pass"),
+    ):
+        (root / family).mkdir(parents=True, exist_ok=True)
+        (root / family / f"{case}.json").write_text(_json.dumps({"verdict": verdict}))
+
+    summary = replay.replay_summary(source, out)
+    assert summary["considered"] == 3
+    assert summary["still_unresolved"] == 1
+    assert summary["families"]["mcp_tool_integrity"] == {
+        "before": {"unresolved": 2}, "after": {"not_applicable": 1, "pass": 1}}
+    assert summary["families"]["confidence_calibration"]["after"] == {"unresolved": 1}

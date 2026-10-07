@@ -96,6 +96,66 @@ def select_rows(rows, case_ids: set[str]) -> list:
     return selected
 
 
+def _family_verdicts(evidence_root: Path) -> dict[str, tuple[str, str]]:
+    """Map case_id -> (family, lowercased verdict) under ``<root>/<family>/<case>.json``."""
+    out: dict[str, tuple[str, str]] = {}
+    if not evidence_root.exists():
+        return out
+    for path in sorted(evidence_root.glob("*/*.json")):
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(record, dict):
+            out[path.stem] = (path.parent.name, str(record.get("verdict", "")).lower())
+    return out
+
+
+def replay_summary(source_evidence: Path, replay_evidence: Path) -> dict[str, object]:
+    """Per-family verdict counts for the source's unresolved rows, before and after.
+
+    The unit's output under /var/lib/backbond is not readable from the agent
+    seat, so this goes to stdout, where `systemctl status` shows it.
+    """
+    source = _family_verdicts(source_evidence)
+    replay = _family_verdicts(replay_evidence)
+    families: dict[str, dict[str, dict[str, int]]] = {}
+    for case_id, (family, verdict) in source.items():
+        if verdict != "unresolved":
+            continue
+        after = replay.get(case_id, (family, verdict))[1] or "unresolved"
+        entry = families.setdefault(family, {"before": {}, "after": {}})
+        entry["before"][verdict] = entry["before"].get(verdict, 0) + 1
+        entry["after"][after] = entry["after"].get(after, 0) + 1
+    still = sum(f["after"].get("unresolved", 0) for f in families.values())
+    return {"considered": sum(sum(f["before"].values()) for f in families.values()),
+            "still_unresolved": still, "families": families}
+
+
+def hand_sample_agreement(source_evidence: Path) -> dict[str, object]:
+    """The offline 30-row re-judge against the CTO's labels. No network calls."""
+    from scripts import beaaa30934_rejudge_hand_sample as rj
+    from harness.vapi_capability_manifest import declare_for_assistant, load_snapshot
+
+    manifest_path = rj.REPO_ROOT / "artifacts" / "BEAAA-33199" / "capability-manifest.json"
+    snapshot = load_snapshot(manifest_path)
+    manifest = declare_for_assistant(str(snapshot.get("assistant_id") or ""), manifest_path=manifest_path)
+    sample = rj.derive_sample(rj.load_rows(source_evidence.parent))
+    labels = json.loads(rj.LABELS_PATH.read_text(encoding="utf-8"))["labels"]
+    result = rj.agreement(sample, labels, manifest)
+    return {key: result[key] for key in ("sampled", "labelled_by_case_id", "matches_cto", "baseline_judge_agreement")} | {
+        "mismatches": [f"{r['family']}/{r['case_id']}:{r['now']}" for r in result["rows"] if not r["matches_cto"]],
+    }
+
+
+def report(replay_evidence: Path) -> None:
+    print(json.dumps({"replay_summary": replay_summary(SOURCE, replay_evidence)}, sort_keys=True))
+    try:
+        print(json.dumps({"hand_sample": hand_sample_agreement(SOURCE)}, sort_keys=True))
+    except Exception as exc:  # report the gap rather than lose the summary above
+        print(json.dumps({"hand_sample_error": f"{type(exc).__name__}: {exc}"}))
+
+
 def main() -> int:
     from api.full_scan_executor import FullScanJobStore, dispatch_registry_attempt, registry_cases_from_rows
     from api.full_scan_worker import load_default_full_scan_registry_rows
@@ -121,6 +181,7 @@ def main() -> int:
     print(json.dumps({"source": str(SOURCE), "pending": len(case_ids), "selected": len(rows)}))
     if not rows:
         print(json.dumps({"status": "nothing_to_replay"}))
+        report(replay_evidence)
         return 0
 
     config = scheduled.ScheduleConfig.from_environment()
@@ -138,6 +199,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "result.json").write_text(json.dumps(final, indent=2, sort_keys=True) + "\n")
     print(json.dumps({"job_id": job.job_id, "selected": len(rows), "finished_at": time.time()}))
+    report(replay_evidence)
     return 0
 
 
