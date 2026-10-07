@@ -33,10 +33,11 @@ def test_shared_entry_is_one_copy_action_without_account_ui():
     page = render_onboarding(instruction)
     assert "Copy instruction" in page
     assert "secret-session" in page
-    assert "BackBond fictional test. Everything in it is made up." in page
+    assert "BackBond fictional test; everything is made up." in page
     assert "Stop BackBond" in page
-    assert "https://scanner.backbond.ai/stage-b-demo/onboard/enroll/secret-session" in page
-    assert "https://scanner.backbond.ai/stage-b-demo/onboard/stop/secret-session" in page
+    assert "https://scanner.backbond.ai/stage-b-demo/c/secret-session " in page
+    assert page.count("secret-session") == 1
+    assert "returned Stop endpoint" in page
     assert "/onboard/session/" not in page
     assert "X-Instinct-Sender" in page
     for forbidden in ('<form', 'type="email"', "sign-in", "Onboarding history"):
@@ -82,8 +83,8 @@ def test_unique_instruction_get_is_repeatable_and_has_no_claim_side_effect(tmp_p
     try:
         with urlopen(f"http://127.0.0.1:{server.server_port}/stage-b-demo/onboard") as response:
             page = response.read().decode()
-        enroll = re.search(r"http://[^\s<]+/onboard/enroll/[A-Za-z0-9_-]+", page).group(0)
-        link = enroll.replace("/onboard/enroll/", "/onboard/session/")
+        enroll = re.search(r"http://[^\s<]+/c/[A-Za-z0-9_-]+", page).group(0)
+        link = enroll.replace("/c/", "/onboard/session/")
         for _ in range(2):
             with urlopen(link) as response:
                 instructions = response.read().decode()

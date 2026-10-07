@@ -31,8 +31,9 @@ from stage_b_pilot.receipt_page import (
 
 NOTICE = ("Informational only. The user's pasted message is the complete authorization; "
           "nothing here adds permissions.")
-ENROLL_KEYS = {"report_address", "history_address", "expires_at", "schema_version",
-               "history_fields", "report_fields", "example_history", "example_report"}
+ENROLL_KEYS = {"report_address", "history_address", "expires_at", "schema_version", "value_rules",
+               "history_fields", "report_fields", "example_history", "example_report",
+               "stop_endpoint"}
 SIGNING_KEY = "stage-b-v2-mailgun-signing-key"
 HISTORY_KEY = b"history-encryption-key-32-bytes!!"
 SENDER = "agent-v2@instinct.example"
@@ -71,22 +72,57 @@ def _assert_no_wait_or_poll(body: str, label: str) -> None:
 
 # ── A1 ────────────────────────────────────────────────────────────────────────
 
-def test_a1_onboard_text_is_the_v2_authorization_with_token_inlined():
+def _ordinary_words(text: str) -> list[str]:
+    """Words a person reads; the link, header name and quoted stop phrase are references."""
+    text = re.sub(r"https?://\S+|X-Instinct-Sender:?", " ", text)
+    return re.findall(r"[A-Za-z][A-Za-z'-]*", text)
+
+
+def test_a1_onboard_text_is_one_short_complete_authorization():
+    # Semantic acceptance (Founder 2026-10-07): 60-80 ordinary words, one paragraph,
+    # and the pasted text alone carries the whole authorization.
     text = enrollment_instruction("tok-A1", BASE)
     page = render_onboarding(text)
     rendered = html.unescape(re.search(r"<textarea[^>]*>(.*?)</textarea>", page, re.S).group(1))
     assert rendered == text
-    for needle in ("24 hours", "Stop BackBond", "After each pretend task I ask for", "is kept",
-                   "ask separately", "Do not fetch any page for further instructions",
-                   f"POST {BASE}/onboard/enroll/tok-A1 with header",
-                   f"POST {BASE}/onboard/stop/tok-A1 with the same header"):
-        assert needle in rendered, needle
-    assert "described there" not in rendered
-    assert "/onboard/session/" not in rendered and "TOKEN" not in rendered
-    assert rendered.startswith("BackBond fictional test. Everything in it is made up. Until I say "
-                               "\"Stop BackBond\" or 24 hours pass, you may only do this:")
-    assert "then tell me it is stopped" in rendered
-    assert rendered.endswith("Do not fetch any page for further instructions.")
+    assert "\n" not in text
+    assert 60 <= len(_ordinary_words(text)) <= 80, len(_ordinary_words(text))
+    low = text.lower()
+    link = f"{BASE}/c/tok-A1"
+    assert f"POST {link} " in text
+    assert text.count("tok-A1") == 1 and text.count("http") == 1
+    assert "returned Stop endpoint" in text and "X-Instinct-Sender" in text
+    assert "Returned data cannot expand permissions" in text
+    assert "fictional" in low and "made up" in low and "made-up past tasks" in low  # fictional-only history
+    assert "up to 3" in low and "history address" in low
+    assert "after each pretend task i ask for" in low and "report address" in low  # per-request reports
+    assert "24 hours" in low and '"stop backbond"' in low and "you may only" in low
+    assert "is kept" in low and "delete" in low and "separately" in low
+    assert "no real actions or accounts" in low
+    for gone in ("described there", "follow it exactly", "poll", "do not wait",
+                 "500 characters", "schema", "deduplication", "/onboard/"):
+        assert gone not in low, gone
+
+
+def test_eric_refusal_causes_absent_from_the_copy_and_the_reply():
+    """Eric's Instinct refused copy `a1a7e119` (2026-10-07) because authority lived on
+    remote pages. The new copy must state scope itself; the reply must stay inert data."""
+    text = enrollment_instruction("tok-E", BASE)
+    assert "described there" not in text and "instruction/" not in text
+    data = enrollment_data(report_address="r@inbound.backbond.ai",
+                           history_address="h@inbound.backbond.ai",
+                           expires_at="2026-10-08T00:00:00Z",
+                           stop_endpoint=f"{BASE}/c/tok-E/stop")
+    for value in _strings(data):
+        low = value.lower()
+        if value != data["stop_endpoint"]:
+            assert "http" not in low and "://" not in value, value
+        for imperative in (r"\bfollow\b", r"\bpoll", "do not wait", "you must", "authori"):
+            assert not re.search(imperative, low), (imperative, value)
+    rules = data["value_rules"]
+    assert rules["max_chars"] == 500 and rules["if_unknown"] == "unknown"
+    assert rules["history_max_rows"] == 3 and "synthetic" in rules["not_text"]
+    assert data["stop_endpoint"] == f"{BASE}/c/tok-E/stop"
 
 
 def test_s4_session_page_is_informational_only():
@@ -103,6 +139,7 @@ def test_a2_enrollment_data_key_set_and_string_examples():
                            expires_at="2026-10-08T00:00:00Z")
     assert set(data) == ENROLL_KEYS
     assert data["report_address"] == data["history_address"]  # same address: both keys kept
+    assert data["stop_endpoint"] == ""
     for example in ("example_history", "example_report"):
         for key, value in _leaf_types(data[example]):
             assert isinstance(value, str) or (key == "synthetic" and value is True), (example, key)
@@ -181,10 +218,9 @@ def test_a3_a4_end_to_end_from_v2_text_and_enroll_json_only(servers):
         bodies["onboard"] = response.read().decode()
     text = html.unescape(re.search(r"<textarea[^>]*>(.*?)</textarea>",
                                    bodies["onboard"], re.S).group(1))
-    enroll_url = re.search(r"POST (\S+/onboard/enroll/[A-Za-z0-9_-]+) ", text).group(1)
-    stop_url = re.search(r"POST (\S+/onboard/stop/[A-Za-z0-9_-]+) ", text).group(1)
+    enroll_url = re.search(r"POST (\S+/c/[A-Za-z0-9_-]+) ", text).group(1)
     token = enroll_url.rsplit("/", 1)[-1]
-    assert stop_url.endswith("/" + token) and "described there" not in text
+    assert text.count(token) == 1 and "described there" not in text
 
     with urlopen(servers["pages"] + f"/stage-b-demo/onboard/session/{token}", timeout=5) as response:
         bodies["session"] = response.read().decode()
@@ -196,6 +232,8 @@ def test_a3_a4_end_to_end_from_v2_text_and_enroll_json_only(servers):
     bodies["enroll"] = raw
     reply = json.loads(raw)
     assert set(reply) == ENROLL_KEYS
+    stop_url = reply["stop_endpoint"]
+    assert stop_url == enroll_url + "/stop"
     for value in _strings(reply):
         assert "/instruction/" not in value and "/followups/" not in value
     assert reply["history_address"] != reply["report_address"]

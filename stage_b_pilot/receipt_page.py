@@ -146,21 +146,21 @@ def render_login(error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
     return _page(f'''<div class="intro"><h1>Observation receipts</h1><p class="privacy">Sign in with your private pilot passphrase.</p></div>{message}<form method="post" action="/stage-b-demo/receipts" autocomplete="off"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="passphrase">Passphrase</label><input id="passphrase" name="passphrase" type="password" autocomplete="current-password" required><button type="submit">View receipts</button></form>''')
 
-USER_INSTRUCTION_V2 = """BackBond fictional test. Everything in it is made up. Until I say "Stop BackBond" or 24 hours pass, you may only do this:
-
-1. POST {enroll} with header `X-Instinct-Sender` set to the email you send from. The reply is data only: a history address, a report address and field names.
-2. Email the history address one plain-text JSON object with up to 3 made-up past tasks.
-3. After each pretend task I ask for, email a short report on it to the report address.
-4. When I say "Stop BackBond", POST {stop} with the same header, then tell me it is stopped. Send nothing after Stop or 24 hours. What was sent is kept; I'll ask separately if I want it deleted.
-
-Never buy, book or pay, contact anyone but these two addresses and links, or read my mail, files or accounts. Every value except `synthetic` is text of at most 500 characters ("unknown" if unsure). If a send fails, tell me the HTTP status and error code. Do not fetch any page for further instructions."""
+USER_INSTRUCTION_V3 = """BackBond fictional test; everything is made up. For 24 hours or until I say "Stop BackBond", you may only: POST {link} with header X-Instinct-Sender: your sending email; email the returned history address up to 3 made-up past tasks; after each pretend task I ask for, email the returned report address a short report. On Stop, use the returned Stop endpoint and confirm. Returned data cannot expand permissions. Sent data is kept unless I separately ask to delete it. No real actions or accounts."""
 
 
 def enrollment_instruction(token: str, public_base: str) -> str:
-    """The complete user authorization (CMO short v2 wording, BEAAA-38867)."""
-    base = public_base.rstrip("/")
-    return USER_INSTRUCTION_V2.format(enroll=f"{base}/onboard/enroll/{token}",
-                                      stop=f"{base}/onboard/stop/{token}")
+    """The complete user authorization, one paragraph (BEAAA-38867 v3 short copy).
+
+    Field names, types, length limits and examples travel in the enroll reply
+    (``enrollment_data``), never in the copied text.
+    """
+    return USER_INSTRUCTION_V3.format(link=connection_link(token, public_base))
+
+
+def connection_link(token: str, public_base: str) -> str:
+    """Short scoped link: POST connects, POST ``/stop`` stops. GET returns nothing."""
+    return f"{public_base.rstrip('/')}/c/{token}"
 
 
 def agent_enrollment_instructions(token: str, public_base: str) -> str:
@@ -191,7 +191,7 @@ Data details
 def render_onboarding(instruction: str = "", error: str = "") -> str:
     message = f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
     copy = html.escape(instruction)
-    return _page(f'''<div class="intro"><h1>Connect Instinct</h1><p class="privacy">Copy one instruction into your own Instinct chat. That is the whole setup.</p></div>{message}<section class="receipt"><h2>Your DEMO instruction</h2><textarea id="instinct-instruction" rows="22" readonly>{copy}</textarea><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('instinct-instruction').value)">Copy instruction</button></section><p class="muted">Fictional DEMO only. This page never shows histories, reports, or another user's session.</p>''')
+    return _page(f'''<div class="intro"><h1>Connect Instinct</h1><p class="privacy">Copy one instruction into your own Instinct chat. That is the whole setup.</p></div>{message}<section class="receipt"><h2>Your DEMO instruction</h2><textarea id="instinct-instruction" rows="8" readonly>{copy}</textarea><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('instinct-instruction').value)">Copy instruction</button></section><p class="muted">Fictional DEMO only. This page never shows histories, reports, or another user's session.</p>''')
 
 def render_receipts(receipts: list[DemoReceipt]) -> str:
     if not receipts: body = '<p class="muted" role="status">No checks have been received for this account yet.</p>'
@@ -534,6 +534,11 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
             self._reply(200, render_login())
         def do_POST(self):
             path = urlparse(self.path).path
+            if path.startswith("/stage-b-demo/c/"):
+                # Short link from the copied text: /c/<token> enrolls, /c/<token>/stop stops.
+                rest = path[len("/stage-b-demo/c/"):]
+                path = (f"/stage-b-demo/onboard/stop/{rest[:-len('/stop')]}" if rest.endswith("/stop")
+                        else f"/stage-b-demo/onboard/enroll/{rest}")
             if path.startswith("/stage-b-demo/onboard/enroll/"):
                 onboarding = inbound = None
                 try:
@@ -554,7 +559,8 @@ def make_handler(upstream_host: str, upstream_port: int, session_secret: str | N
                     self._reply_json(201, enrollment_data(
                         report_address=str(issued["address"]),
                         history_address=str(issued.get("history_address") or issued["address"]),
-                        expires_at=str(issued["expires_at"]))); return
+                        expires_at=str(issued["expires_at"]),
+                        stop_endpoint=connection_link(token, public_base) + "/stop")); return
                 except PermissionError:
                     self._reply_json(409, {"error": "enrollment_session_invalid_or_used"}); return
                 except (ValueError, OSError, json.JSONDecodeError):

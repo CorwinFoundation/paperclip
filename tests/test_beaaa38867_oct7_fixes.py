@@ -70,7 +70,7 @@ def test_enrollment_instruction_has_no_followup_polling_clause():
     assert "check for questions" not in msg  # v2 has no polling (CMO short text)
     assert "hourly" not in msg
     assert "Stop BackBond" in msg
-    assert "If a send fails, tell me the HTTP status and error code." in msg
+    assert "poll" not in msg.lower()
 
 
 # ── Test 4: status.py row_count output ───────────────────────────────────────

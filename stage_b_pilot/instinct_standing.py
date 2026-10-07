@@ -712,8 +712,9 @@ def example_report() -> dict:
             "trigger": "request_completed", "event": event}
 
 
-def enrollment_data(*, report_address: str, history_address: str, expires_at: str) -> dict:
-    """Data-only enrollment reply: addresses and field names, no URLs or prose.
+def enrollment_data(*, report_address: str, history_address: str, expires_at: str,
+                    stop_endpoint: str = "") -> dict:
+    """Data-only enrollment reply: addresses, Stop transport, and field names.
 
     Both address keys are always present, even when they carry the same value.
     """
@@ -726,6 +727,7 @@ def enrollment_data(*, report_address: str, history_address: str, expires_at: st
         "report_address": report_address,
         "history_address": history_address,
         "expires_at": expires_at,
+        "stop_endpoint": stop_endpoint,
         "schema_version": ENROLLMENT_SCHEMA_VERSION,
         "history_fields": {
             "report": ["schema_version", "row_count", "rows", "end_marker"],
@@ -747,6 +749,9 @@ def enrollment_data(*, report_address: str, history_address: str, expires_at: st
         "example_history": {"schema_version": REPORT_VERSION, "row_count": "1",
                             "rows": [history_row], "end_marker": "END INSTINCT HISTORY"},
         "example_report": example_report(),
+        "value_rules": {"type": "text", "max_chars": 500, "if_unknown": "unknown",
+                        "not_text": ["synthetic", "rows"], "history_max_rows": 3,
+                        "transport": "plain-text email body, one JSON object"},
     }
 
 
