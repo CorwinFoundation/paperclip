@@ -144,9 +144,9 @@ def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tm
         assert evidence["case_id"] == row.probe_id
         assert evidence["tau_result"]["stable_id"] == row.probe_id
 
-    while not scan_log.list_for_agent("agent-tau") and time.monotonic() < deadline:
+    while not scan_log.list_for_agent("agent-tau", tenant_id="tenant-tau") and time.monotonic() < deadline:
         time.sleep(0.01)
-    persisted = scan_log.list_for_agent("agent-tau")[-1]
+    persisted = scan_log.list_for_agent("agent-tau", tenant_id="tenant-tau")[-1]
     persisted_rows = persisted["score_json"]["evidence_refs"]
     assert len(persisted_rows) == 3
     assert {row["case_id"] for row in persisted_rows} == {

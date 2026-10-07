@@ -2,7 +2,9 @@
 `snapshot_hash` (BEAAA-1271 / ADR-0009 §4).
 
 Storage-layer discipline for the chain-of-custody trail. Keyed
-``(agent_id, run_timestamp)``; indexed for the WS3 chain reconstruction
+``(tenant_id, agent_id, run_timestamp)`` (BEAAA-38869: ``agent_id`` is
+caller-supplied, so two tenants may share one; every read is scoped to the
+caller's tenant); indexed for the WS3 chain reconstruction
 lookup; append-only (no row delete; only NULL-field updates permitted on
 non-pinned fields).
 
@@ -39,8 +41,21 @@ from typing import Any, Iterator
 from api.jcs import canonicalize
 
 
-_SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS scan_log (
+#: BEAAA-38869 — tenant every pre-tenant (legacy) row is tagged with when the
+#: live DB is rebuilt with ``tenant_id``. Partner tenants are bound to their own
+#: tenant id by the API edge (bearer token / X-Tenant-Id), so a read scoped to a
+#: partner tenant can never return a row carrying this sentinel. It is also the
+#: default tenant for direct storage-layer calls that do not name one (offline
+#: tooling + unit fixtures); every API-edge read and write passes the caller's
+#: tenant explicitly.
+LEGACY_TENANT_ID: str = "backbond-internal"
+
+
+def _table_ddl(table: str) -> str:
+    """``CREATE TABLE`` body for ``scan_log`` (also used for the rebuild)."""
+    return f"""
+CREATE TABLE IF NOT EXISTS {table} (
+    tenant_id             TEXT     NOT NULL DEFAULT '{LEGACY_TENANT_ID}',
     agent_id              TEXT     NOT NULL,
     run_timestamp         TEXT     NOT NULL,
     scan_id               TEXT     NOT NULL,
@@ -51,12 +66,16 @@ CREATE TABLE IF NOT EXISTS scan_log (
     snapshot_hash         TEXT,
     probe_set_hash        TEXT,
     evidence_receipt      TEXT,
-    PRIMARY KEY (agent_id, run_timestamp)
+    PRIMARY KEY (tenant_id, agent_id, run_timestamp)
 );
+"""
 
--- WS3 chain reconstruction lookup: ordered prior-scan retrieval by agent.
-CREATE INDEX IF NOT EXISTS ix_scan_log_agent_ts
-    ON scan_log (agent_id, run_timestamp);
+
+_SCHEMA_SQL = _table_ddl("scan_log") + """
+-- WS3 chain reconstruction lookup: ordered prior-scan retrieval by agent,
+-- scoped to the owning tenant (BEAAA-38869).
+CREATE INDEX IF NOT EXISTS ix_scan_log_tenant_agent_ts
+    ON scan_log (tenant_id, agent_id, run_timestamp);
 
 -- ADR-0009 §4.1: forensic_bundle_uri is write-once. A second UPDATE on a
 -- non-NULL value raises a CHECK violation that the API edge maps to 409.
@@ -202,19 +221,40 @@ class ScanLog:
         # guard, and so the first append_scan INSERT does not 500. On a fresh
         # DB _migrate is a no-op — the table does not exist yet — and the
         # full column set comes from _SCHEMA_SQL below.
-        self._migrate()
-        self._conn.executescript(_SCHEMA_SQL)
+        #
+        # BEAAA-38869: migration + schema/trigger install run in ONE
+        # ``BEGIN IMMEDIATE`` transaction, so the tenant rebuild below is
+        # atomic (a crash leaves the old table + triggers untouched) and a
+        # concurrent opener blocks until the rebuilt table already carries
+        # its write-once / append-only triggers.
+        with _transaction(self._conn):
+            self._migrate()
+            for statement in _split_sql(_SCHEMA_SQL):
+                self._conn.execute(statement)
 
     def _migrate(self) -> None:
-        """Idempotently add any :data:`_ADDITIVE_COLUMNS` a pre-existing
-        ``scan_log`` table is missing.
+        """Idempotently forward-migrate a pre-existing ``scan_log`` table.
 
         ``CREATE TABLE IF NOT EXISTS`` in :data:`_SCHEMA_SQL` never alters an
         existing table, so a database created before a column was introduced
         silently lacks it (BEAAA-12895 — the live 159-row production DB
         predated ``probe_set_hash`` and every INSERT 500'd). This runs on
-        every connect and is a no-op once the columns are present, so it is
-        safe to leave in permanently.
+        every connect and is a no-op once the schema is current, so it is
+        safe to leave in permanently. Must be called inside a transaction.
+
+        Two steps:
+
+        1. Add any :data:`_ADDITIVE_COLUMNS` that are missing (O(1) ALTER).
+        2. BEAAA-38869: if the table predates ``tenant_id``, rebuild it with
+           primary key ``(tenant_id, agent_id, run_timestamp)`` and tag every
+           existing row with :data:`LEGACY_TENANT_ID`. SQLite cannot alter a
+           PRIMARY KEY, so this is create-new / copy / drop-old / rename. The
+           copy is column-for-column (pinned values are carried verbatim, not
+           recomputed) and the row count is verified before the old table is
+           dropped. ``DROP TABLE`` does not fire the append-only DELETE
+           trigger (SQLite's implicit DELETE skips triggers); the triggers
+           and indexes are re-installed on the rebuilt table by the caller in
+           the same transaction.
         """
         exists = self._conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'scan_log'"
@@ -234,29 +274,74 @@ class ScanLog:
                 self._conn.execute(
                     f"ALTER TABLE scan_log ADD COLUMN {name} {decl}"
                 )
+                present.add(name)
+        if "tenant_id" not in present:
+            self._rebuild_with_tenant(sorted(present))
+
+    def _rebuild_with_tenant(self, columns: list[str]) -> None:
+        """BEAAA-38869 table rebuild; see :meth:`_migrate` step 2."""
+        tmp = "scan_log__beaaa38869_rebuild"
+        self._conn.execute(f"DROP TABLE IF EXISTS {tmp}")
+        self._conn.execute(_table_ddl(tmp))
+        col_list = ", ".join(columns)
+        before = self._conn.execute("SELECT count(*) FROM scan_log").fetchone()[0]
+        self._conn.execute(
+            f"INSERT INTO {tmp} (tenant_id, {col_list}) "
+            f"SELECT ?, {col_list} FROM scan_log",
+            (LEGACY_TENANT_ID,),
+        )
+        after = self._conn.execute(f"SELECT count(*) FROM {tmp}").fetchone()[0]
+        if after != before:
+            raise ScanLogError(
+                f"scan_log tenant rebuild copied {after} of {before} rows"
+            )
+        self._conn.execute("DROP TABLE scan_log")
+        self._conn.execute(f"ALTER TABLE {tmp} RENAME TO scan_log")
 
     # ------------------------------------------------------------------
     # Read path
     # ------------------------------------------------------------------
 
-    def get(self, agent_id: str, run_timestamp: str) -> dict[str, Any] | None:
+    def get(
+        self,
+        agent_id: str,
+        run_timestamp: str,
+        *,
+        tenant_id: str = LEGACY_TENANT_ID,
+    ) -> dict[str, Any] | None:
+        """Return the row at ``(tenant_id, agent_id, run_timestamp)``.
+
+        BEAAA-38869: scoped to ``tenant_id`` — another tenant's row at the
+        same ``(agent_id, run_timestamp)`` is invisible.
+        """
         with self._write_lock:
             cur = self._conn.execute(
-                "SELECT * FROM scan_log WHERE agent_id = ? AND run_timestamp = ?",
-                (agent_id, run_timestamp),
+                "SELECT * FROM scan_log "
+                "WHERE tenant_id = ? AND agent_id = ? AND run_timestamp = ?",
+                (tenant_id, agent_id, run_timestamp),
             )
             row = cur.fetchone()
             return _row_to_dict(row) if row is not None else None
 
-    def list_for_agent(self, agent_id: str) -> list[dict[str, Any]]:
-        """Return all scan_log rows for ``agent_id`` ordered by run_timestamp ASC.
+    def list_for_agent(
+        self,
+        agent_id: str,
+        *,
+        tenant_id: str = LEGACY_TENANT_ID,
+    ) -> list[dict[str, Any]]:
+        """Return ``tenant_id``'s scan_log rows for ``agent_id`` ordered by
+        run_timestamp ASC.
 
         Used by WS3 chain reconstruction to build ``prior_scan_refs[]``.
+        BEAAA-38869: ``agent_id`` is caller-supplied, so the chain is always
+        scoped to the owning tenant — a second tenant reusing the same
+        ``agent_id`` never sees the first tenant's history.
         """
         with self._write_lock:
             cur = self._conn.execute(
-                "SELECT * FROM scan_log WHERE agent_id = ? ORDER BY run_timestamp ASC",
-                (agent_id,),
+                "SELECT * FROM scan_log WHERE tenant_id = ? AND agent_id = ? "
+                "ORDER BY run_timestamp ASC",
+                (tenant_id, agent_id),
             )
             return [_row_to_dict(r) for r in cur.fetchall()]
 
@@ -274,6 +359,7 @@ class ScanLog:
         corpus_version: str | None,
         score_json: dict[str, Any],
         probe_set_hash: str | None = None,
+        tenant_id: str = LEGACY_TENANT_ID,
     ) -> None:
         """Insert a scan_log row with the pinned fields NULL.
 
@@ -288,10 +374,11 @@ class ScanLog:
         with self._write_lock:
             self._conn.execute(
                 "INSERT INTO scan_log "
-                "(agent_id, run_timestamp, scan_id, scanner_version, corpus_version, "
-                "score_json, probe_set_hash) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "(tenant_id, agent_id, run_timestamp, scan_id, scanner_version, "
+                "corpus_version, score_json, probe_set_hash) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
+                    tenant_id,
                     agent_id,
                     run_timestamp,
                     scan_id,
@@ -308,6 +395,7 @@ class ScanLog:
         agent_id: str,
         run_timestamp: str,
         forensic_bundle_uri: str,
+        tenant_id: str = LEGACY_TENANT_ID,
     ) -> str:
         """Pin ``forensic_bundle_uri`` and ``snapshot_hash`` in one transaction.
 
@@ -325,7 +413,7 @@ class ScanLog:
         Returns the persisted ``snapshot_hash`` for the caller's audit log.
         """
         with self._write_lock:
-            row = self.get(agent_id, run_timestamp)
+            row = self.get(agent_id, run_timestamp, tenant_id=tenant_id)
             if row is None:
                 raise ScanRowNotFound(
                     f"scan_log row ({agent_id!r}, {run_timestamp!r}) does not exist"
@@ -345,10 +433,11 @@ class ScanLog:
                 with _transaction(self._conn):
                     self._conn.execute(
                         "UPDATE scan_log SET forensic_bundle_uri = ?, snapshot_hash = ? "
-                        "WHERE agent_id = ? AND run_timestamp = ?",
+                        "WHERE tenant_id = ? AND agent_id = ? AND run_timestamp = ?",
                         (
                             forensic_bundle_uri,
                             snapshot_hash,
+                            tenant_id,
                             agent_id,
                             run_timestamp,
                         ),
@@ -369,6 +458,7 @@ class ScanLog:
         score_json: dict[str, Any],
         forensic_bundle_uri: str,
         probe_set_hash: str | None = None,
+        tenant_id: str = LEGACY_TENANT_ID,
     ) -> str:
         """Insert + pin in one logical write — the common-path API.
 
@@ -385,7 +475,7 @@ class ScanLog:
         # though the underlying sqlite error here would be a UNIQUE PK
         # violation, the contract-facing semantics are identical.
         with self._write_lock:
-            existing = self.get(agent_id, run_timestamp)
+            existing = self.get(agent_id, run_timestamp, tenant_id=tenant_id)
             if existing is not None and existing["forensic_bundle_uri"] is not None:
                 raise ForensicBundleWriteOnce(
                     "forensic_bundle_uri is write-once per ADR-0009 §4.1"
@@ -395,11 +485,12 @@ class ScanLog:
                 with _transaction(self._conn):
                     self._conn.execute(
                         "INSERT INTO scan_log "
-                        "(agent_id, run_timestamp, scan_id, scanner_version, "
-                        "corpus_version, score_json, forensic_bundle_uri, "
-                        "snapshot_hash, probe_set_hash) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "(tenant_id, agent_id, run_timestamp, scan_id, "
+                        "scanner_version, corpus_version, score_json, "
+                        "forensic_bundle_uri, snapshot_hash, probe_set_hash) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
+                            tenant_id,
                             agent_id,
                             run_timestamp,
                             scan_id,
@@ -422,6 +513,7 @@ class ScanLog:
         agent_id: str,
         run_timestamp: str,
         receipt: dict[str, Any],
+        tenant_id: str = LEGACY_TENANT_ID,
     ) -> None:
         """Persist one schema-validated receipt on an existing kickoff row.
 
@@ -434,7 +526,7 @@ class ScanLog:
         if not is_valid_receipt(receipt):
             raise ValueError("evidence_receipt_v1 schema invalid")
         with self._write_lock:
-            row = self.get(agent_id, run_timestamp)
+            row = self.get(agent_id, run_timestamp, tenant_id=tenant_id)
             if row is None:
                 raise ScanRowNotFound(
                     f"scan_log row ({agent_id!r}, {run_timestamp!r}) does not exist"
@@ -444,9 +536,10 @@ class ScanLog:
             try:
                 self._conn.execute(
                     "UPDATE scan_log SET evidence_receipt = ? "
-                    "WHERE agent_id = ? AND run_timestamp = ?",
+                    "WHERE tenant_id = ? AND agent_id = ? AND run_timestamp = ?",
                     (
                         canonicalize(receipt).decode(),
+                        tenant_id,
                         agent_id,
                         run_timestamp,
                     ),
@@ -478,6 +571,24 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     if out.get("evidence_receipt") is not None:
         out["evidence_receipt"] = json.loads(out["evidence_receipt"])
     return out
+
+
+def _split_sql(script: str) -> list[str]:
+    """Split a DDL script into single statements (trigger bodies included)
+    so it can run inside an explicit transaction — ``executescript`` would
+    COMMIT first."""
+    statements: list[str] = []
+    buf = ""
+    for line in script.splitlines(keepends=True):
+        if not buf and (not line.strip() or line.lstrip().startswith("--")):
+            continue
+        buf += line
+        if sqlite3.complete_statement(buf):
+            statements.append(buf.strip())
+            buf = ""
+    if buf.strip():
+        raise ValueError(f"incomplete SQL statement: {buf!r}")
+    return statements
 
 
 @contextmanager
@@ -521,6 +632,7 @@ def _raise_for_trigger(exc: sqlite3.IntegrityError) -> None:
 
 
 __all__ = [
+    "LEGACY_TENANT_ID",
     "ScanLog",
     "compute_snapshot_hash",
     "ScanLogError",

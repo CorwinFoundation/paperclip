@@ -424,9 +424,16 @@ class ScanRuntime:
         # ``prior_agent_ids`` (test bootstrap) AND from every successful
         # ``kickoff`` that names an ``agent_id``, while the scan_log
         # provides the ordered chain for ``prior_scan_refs[]``.
+        #
+        # BEAAA-38869: keyed ``(tenant_id, agent_id)`` — ``agent_id`` is
+        # caller-supplied, so one tenant's scan must not satisfy another
+        # tenant's rescan guard. ``prior_agent_ids`` is a test/bootstrap seed
+        # with no tenant; those entries are stored under tenant ``None`` and
+        # honoured for any tenant (production never seeds it — the live path
+        # registers via ``kickoff`` with the request's tenant).
         prior_seen_at = self._now()
-        self._agent_ids_with_prior_scan: dict[str, float] = {
-            str(agent_id): prior_seen_at for agent_id in prior_agent_ids
+        self._agent_ids_with_prior_scan: dict[tuple[str | None, str], float] = {
+            (None, str(agent_id)): prior_seen_at for agent_id in prior_agent_ids
         }
         # BEAAA-1273 (WS3) — persistence wiring + chain readback.
         self._scan_log = scan_log
@@ -457,10 +464,11 @@ class ScanRuntime:
         self._production_control_ledger = production_control_ledger
         self._production_security_findings_source = production_security_findings_source
         self._context_envelope_store = context_envelope_store
-        # Tracks the (agent_id, run_timestamp) of the current kickoff so the
-        # handler can read the just-persisted row back without a second
-        # scan_log scan (the row is keyed by that pair, not by scan_id).
-        self._kickoff_keys: dict[str, tuple[str, str]] = {}
+        # Tracks the (tenant_id, agent_id, run_timestamp) of the current
+        # kickoff so the handler can read the just-persisted row back without
+        # a second scan_log scan (the row is keyed by that triple, not by
+        # scan_id — BEAAA-38869 added tenant_id).
+        self._kickoff_keys: dict[str, tuple[str, str, str]] = {}
         # BEAAA-2175 (PR-B) — per-scan registries so the
         # ``score_envelope_factory`` closure can recover the originating
         # ``ScanRequest`` (carries ``seed``, version pins, etc.) and the
@@ -677,7 +685,9 @@ class ScanRuntime:
             self._results[scan_request.scan_id] = result
             self._scan_state_created_at[scan_request.scan_id] = self._now()
         if agent_id is not None:
-            self._agent_ids_with_prior_scan[agent_id] = self._now()
+            self._agent_ids_with_prior_scan[
+                (scan_request.tenant_id, agent_id)
+            ] = self._now()
             if (
                 self._scan_log is not None
                 and self._score_envelope_factory is not None
@@ -736,6 +746,7 @@ class ScanRuntime:
                     else None
                 )
                 self._scan_log.append_scan(
+                    tenant_id=scan_request.tenant_id,
                     agent_id=agent_id,
                     run_timestamp=run_timestamp,
                     scan_id=scan_request.scan_id,
@@ -745,7 +756,11 @@ class ScanRuntime:
                     forensic_bundle_uri=forensic_bundle_uri,
                     probe_set_hash=_psh,
                 )
-                self._kickoff_keys[scan_request.scan_id] = (agent_id, run_timestamp)
+                self._kickoff_keys[scan_request.scan_id] = (
+                    scan_request.tenant_id,
+                    agent_id,
+                    run_timestamp,
+                )
                 if self._scanner_run_tracker is not None:
                     self._scanner_run_tracker.emit_scanner_run_completed(
                         agent_id=agent_id,
@@ -1030,22 +1045,37 @@ class ScanRuntime:
         }
 
     # ----- BEAAA-1265 (WS1) agent-scan-log shim -----
-    def register_prior_scan(self, agent_id: str) -> None:
+    def register_prior_scan(
+        self, agent_id: str, *, tenant_id: str | None = None
+    ) -> None:
         """Record that a prior /scans row exists for ``agent_id``.
 
         WS2 added the durable scan_log; WS3 keeps the in-memory set
         co-populated by ``kickoff`` so the 422 ``agent_id_no_prior_scan``
         guard works whether the call site registered the agent
         explicitly (test bootstrap) or implicitly (live scan path).
+
+        BEAAA-38869: pass ``tenant_id`` to scope the registration; omitting it
+        is a tenant-less bootstrap seed honoured for any tenant (tests only).
         """
         self._purge_expired_in_memory_state()
-        self._agent_ids_with_prior_scan[agent_id] = self._now()
+        self._agent_ids_with_prior_scan[(tenant_id, agent_id)] = self._now()
 
-    def has_prior_scan_for_agent(self, agent_id: str) -> bool:
+    def has_prior_scan_for_agent(self, agent_id: str, *, tenant_id: str) -> bool:
+        """Whether ``tenant_id`` has a prior scan of ``agent_id``.
+
+        BEAAA-38869: tenant-scoped — another tenant's scan of the same
+        caller-supplied ``agent_id`` does not count.
+        """
         self._purge_expired_in_memory_state()
-        if self._scan_log is not None and self._scan_log.list_for_agent(agent_id):
+        if self._scan_log is not None and self._scan_log.list_for_agent(
+            agent_id, tenant_id=tenant_id
+        ):
             return True
-        return agent_id in self._agent_ids_with_prior_scan
+        return (
+            (tenant_id, agent_id) in self._agent_ids_with_prior_scan
+            or (None, agent_id) in self._agent_ids_with_prior_scan
+        )
 
     # ----- BEAAA-2175 (PR-B) per-scan registry readback -----
     def current_scan_request(self, scan_id: str) -> ScanRequest | None:
@@ -1079,23 +1109,26 @@ class ScanRuntime:
         self._purge_expired_in_memory_state()
         if self._scan_log is None or scan_id not in self._kickoff_keys:
             return None
-        agent_id, run_timestamp = self._kickoff_keys[scan_id]
-        return self._scan_log.get(agent_id, run_timestamp)
+        tenant_id, agent_id, run_timestamp = self._kickoff_keys[scan_id]
+        return self._scan_log.get(agent_id, run_timestamp, tenant_id=tenant_id)
 
     def prior_scan_rows(
         self,
         agent_id: str,
         *,
+        tenant_id: str,
         exclude_scan_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return scan_log rows for ``agent_id`` ordered asc by
-        ``run_timestamp``, excluding the row whose ``scan_id`` matches
+        """Return ``tenant_id``'s scan_log rows for ``agent_id`` ordered asc
+        by ``run_timestamp``, excluding the row whose ``scan_id`` matches
         ``exclude_scan_id`` (i.e., the current rescan is NOT in its own
         ``prior_scan_refs[]`` — per ADR-0017 §2.1 + AC #4).
+
+        BEAAA-38869: the chain is scoped to the caller's tenant.
         """
         if self._scan_log is None:
             return []
-        rows = self._scan_log.list_for_agent(agent_id)
+        rows = self._scan_log.list_for_agent(agent_id, tenant_id=tenant_id)
         if exclude_scan_id is None:
             return rows
         return [row for row in rows if row["scan_id"] != exclude_scan_id]
@@ -1521,6 +1554,7 @@ def _augment_with_chain_envelope(
     *,
     runtime: ScanRuntime,
     agent_id: str,
+    tenant_id: str,
     scan_id: str,
 ) -> dict[str, Any]:
     """Add the BEAAA-1273 (WS3) additive response fields to a 202 envelope.
@@ -1544,7 +1578,9 @@ def _augment_with_chain_envelope(
       cannot be fabricated without the WS2 storage layer (AC #2: "no
       live re-touch"; per ADR-0017 §2.2/§2.3 they are at-write-time pins).
     """
-    prior_rows = runtime.prior_scan_rows(agent_id, exclude_scan_id=scan_id)
+    prior_rows = runtime.prior_scan_rows(
+        agent_id, tenant_id=tenant_id, exclude_scan_id=scan_id
+    )
     prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
     payload["prior_scan_refs"] = [_chain_entry_from_row(r) for r in prior_capped]
     if truncated:
@@ -1978,7 +2014,12 @@ def rescan_handler(
     agent_id = _require(body, "agent_id")
     if not isinstance(agent_id, str) or not _AGENT_ID_RE.match(agent_id):
         raise HandlerError(422, "agent_id_invalid")
-    if not runtime.has_prior_scan_for_agent(agent_id):
+    # BEAAA-38869: the prior-scan guard and the chain below are scoped to the
+    # caller's tenant, so resolve + isolation-check it before the lookup
+    # (``_kickoff_live_probe_scan`` repeats the same check — idempotent).
+    tenant_id = _require(body, "tenant_id")
+    verify_tenant_isolation(tenant_id, tenant_header)
+    if not runtime.has_prior_scan_for_agent(agent_id, tenant_id=tenant_id):
         raise HandlerError(422, "agent_id_no_prior_scan")
 
     invocation_context = body.get("scanner_invocation_context")
@@ -2039,6 +2080,7 @@ def rescan_handler(
             payload,
             runtime=runtime,
             agent_id=agent_id,
+            tenant_id=tenant_id,
             scan_id=scan_id,
         )
     payload["partial_completion"] = decision.partial_completion

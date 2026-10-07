@@ -798,7 +798,7 @@ def test_registry_only_full_scan_persists_score_envelope_without_dim_results(mon
         time.sleep(0.01)
         completed = runtime.fetch(request.scan_id)
 
-    rows = scan_log.list_for_agent("agent-1")
+    rows = scan_log.list_for_agent("agent-1", tenant_id=request.tenant_id)
     assert len(rows) == 1
     assert rows[0]["scan_id"] == "scan-registry-persist"
     assert rows[0]["score_json"]["evidence_refs"] == [

@@ -308,7 +308,7 @@ class LeaseHeldUntilTerminalHttpTests(unittest.TestCase):
 
     def test_rescan_holds_lease_until_terminal(self) -> None:
         runtime = self._runtime()
-        runtime._agent_ids_with_prior_scan["agent-lease-test"] = runtime._now()
+        runtime._agent_ids_with_prior_scan[(None, "agent-lease-test")] = runtime._now()
         client = self._client(runtime)
         headers = {"Authorization": "Bearer tok"}
         body = self._body(

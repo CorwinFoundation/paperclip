@@ -36,7 +36,7 @@ class _FakeScoreLog:
     def __init__(self, score_json: dict) -> None:
         self._score_json = score_json
 
-    def get(self, _agent_id: str, _run_timestamp: str) -> dict:
+    def get(self, _agent_id: str, _run_timestamp: str, *, tenant_id: str) -> dict:
         return {"score_json": dict(self._score_json)}
 
 
@@ -94,7 +94,7 @@ def _runtime_with_score(
     rt = ScanRuntime(run_scan_fn=run_fn)
     rt._results[scan_id] = result
     rt._scan_requests[scan_id] = types.SimpleNamespace(tenant_id=tenant_id)
-    rt._kickoff_keys[scan_id] = ("agent-x", "2026-07-15T00:00:00Z")
+    rt._kickoff_keys[scan_id] = (tenant_id, "agent-x", "2026-07-15T00:00:00Z")
     score_json: dict = {}
     if band is not None:
         score_json["band"] = band

@@ -182,7 +182,9 @@ def _score_envelope_factory(
         runtime = runtime_ref[0] if runtime_ref else None
         if runtime is not None:
             prior_rows = runtime.prior_scan_rows(
-                agent_id, exclude_scan_id=result.scan_id
+                agent_id,
+                tenant_id=runtime.current_scan_request(result.scan_id).tenant_id,
+                exclude_scan_id=result.scan_id,
             )
             prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
             envelope["prior_scan_refs"] = [
@@ -300,7 +302,7 @@ def test_rescans_envelope_contains_top_level_forensic_pins(corpus_hash):
         f"s3://ifa-forensic-bundles/agent-{AGENT_ID}/scan-rescan-current.json"
     )
     # Persisted hash is sha256:<64-hex>; format check + match against scan_log row.
-    stored = log.get(AGENT_ID, "2026-05-30T12:00:00+00:00")
+    stored = log.get(AGENT_ID, "2026-05-30T12:00:00+00:00", tenant_id=TENANT)
     assert stored is not None
     assert payload["snapshot_hash"] == stored["snapshot_hash"]
     assert payload["snapshot_hash"].startswith("sha256:")
@@ -538,6 +540,7 @@ def test_pagination_cap_100_truncates_head_and_sets_flag(corpus_hash):
     # — this exercises the read-only chain query without running 101 scans.
     for i in range(101):
         log.append_scan(
+            tenant_id=TENANT,
             agent_id=AGENT_ID,
             run_timestamp=f"2026-01-{(i % 30) + 1:02d}T{i:02d}:00:00+00:00".replace(
                 # ensure strictly monotonic timestamps via the iteration index
@@ -584,6 +587,7 @@ def test_pagination_cap_exactly_100_omits_truncated_flag(corpus_hash):
     log = ScanLog()
     for i in range(100):
         log.append_scan(
+            tenant_id=TENANT,
             agent_id=AGENT_ID,
             run_timestamp=f"2026-{(i // 30) + 1:02d}-{(i % 30) + 1:02d}T{i:02d}:00:00+00:00".replace(
                 "T", f".{i:03d}T"

@@ -319,10 +319,11 @@ class ScanLogPersistenceTests(unittest.TestCase):
 
     def test_index_on_agent_id_run_timestamp_exists(self):
         # The WS3 chain lookup depends on this index; absence is a
-        # silent performance bug, so we assert it explicitly.
+        # silent performance bug, so we assert it explicitly. BEAAA-38869
+        # scopes the chain by tenant, so the index leads with tenant_id.
         cur = self.log._conn.execute(
             "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?",
-            ("ix_scan_log_agent_ts",),
+            ("ix_scan_log_tenant_agent_ts",),
         )
         self.assertIsNotNone(cur.fetchone())
 

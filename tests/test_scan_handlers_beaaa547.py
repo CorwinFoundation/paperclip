@@ -219,13 +219,13 @@ def test_scan_runtime_in_memory_state_expires_after_ttl(corpus_hash):
 
     assert runtime.fetch("scan-ttl") is not None
     assert runtime.current_scan_request("scan-ttl") is not None
-    assert runtime.has_prior_scan_for_agent("agent-ttl") is True
+    assert runtime.has_prior_scan_for_agent("agent-ttl", tenant_id="tenant-001") is True
 
     now[0] = 111.0
 
     assert runtime.fetch("scan-ttl") is None
     assert runtime.current_scan_request("scan-ttl") is None
-    assert runtime.has_prior_scan_for_agent("agent-ttl") is False
+    assert runtime.has_prior_scan_for_agent("agent-ttl", tenant_id="tenant-001") is False
 
 
 def test_scan_runtime_ttl_keeps_scan_log_prior_scan(corpus_hash, tmp_path):
@@ -239,6 +239,7 @@ def test_scan_runtime_ttl_keeps_scan_log_prior_scan(corpus_hash, tmp_path):
 
     scan_log = ScanLog(tmp_path / "scan-log.sqlite3")
     scan_log.append_scan(
+        tenant_id="tenant-001",
         agent_id="agent-persisted",
         run_timestamp="2026-07-04T00:00:00Z",
         scan_id="scan-persisted",
@@ -253,12 +254,12 @@ def test_scan_runtime_ttl_keeps_scan_log_prior_scan(corpus_hash, tmp_path):
         in_memory_state_ttl_seconds=10,
         monotonic_clock=lambda: now[0],
     )
-    runtime.register_prior_scan("agent-ephemeral")
+    runtime.register_prior_scan("agent-ephemeral", tenant_id="tenant-001")
 
     now[0] = 111.0
 
-    assert runtime.has_prior_scan_for_agent("agent-ephemeral") is False
-    assert runtime.has_prior_scan_for_agent("agent-persisted") is True
+    assert runtime.has_prior_scan_for_agent("agent-ephemeral", tenant_id="tenant-001") is False
+    assert runtime.has_prior_scan_for_agent("agent-persisted", tenant_id="tenant-001") is True
 
 
 # ---------------------------------------------------------------------------

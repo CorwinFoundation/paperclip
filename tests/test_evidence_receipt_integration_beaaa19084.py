@@ -7,7 +7,7 @@ from api.ci_scan_ext import ci_plugin_result
 from api.evidence_receipt import FEATURE_FLAG
 from api.evidence_receipts import issue_and_persist
 from api.scan_handlers import ScanRuntime, _customer_result_response
-from api.scan_log import ScanLog, ScanLogAppendOnly
+from api.scan_log import LEGACY_TENANT_ID, ScanLog, ScanLogAppendOnly
 from scanners.live_probe_orchestrator import ScanResult
 from tests.test_evidence_receipts_beaaa18819 import service, submission
 
@@ -65,7 +65,7 @@ def test_issued_receipt_persists_and_projects_identically(monkeypatch):
             run_scan_fn=lambda request, secret: result,
             scan_log=scan_log,
         )
-        runtime._kickoff_keys[scan_id] = (agent_id, run_timestamp)
+        runtime._kickoff_keys[scan_id] = (LEGACY_TENANT_ID, agent_id, run_timestamp)
 
         monkeypatch.delenv(FEATURE_FLAG, raising=False)
         webhook_off = _customer_result_response(scan_id, result, runtime)

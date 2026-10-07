@@ -16,6 +16,7 @@ from typing import Any
 
 from api.handlers import HandlerError
 from api.scan_log import (
+    LEGACY_TENANT_ID,
     ForensicBundleWriteOnce,
     ScanLog,
     ScanLogAppendOnly,
@@ -34,6 +35,7 @@ def persist_scan_handler(
     Body shape::
 
         {
+          "tenant_id":           "<string, optional; BEAAA-38869>",
           "agent_id":            "<string>",
           "run_timestamp":       "<ISO-8601>",
           "scan_id":             "<string>",
@@ -66,6 +68,7 @@ def persist_scan_handler(
 
     try:
         snapshot_hash = scan_log.append_scan(
+            tenant_id=body.get("tenant_id") or LEGACY_TENANT_ID,
             agent_id=body["agent_id"],
             run_timestamp=body["run_timestamp"],
             scan_id=body["scan_id"],
@@ -118,6 +121,7 @@ def finalize_pins_handler(
 
     try:
         snapshot_hash = scan_log.finalize_pins(
+            tenant_id=body.get("tenant_id") or LEGACY_TENANT_ID,
             agent_id=body["agent_id"],
             run_timestamp=body["run_timestamp"],
             forensic_bundle_uri=body["forensic_bundle_uri"],

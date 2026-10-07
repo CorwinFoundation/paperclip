@@ -685,9 +685,20 @@ def _production_score_envelope_factory(
         result: ScanResult, agent_id: str, run_timestamp: str
     ) -> dict[str, Any]:
         runtime = runtime_ref[0] if runtime_ref else None
-        prior_rows = (
-            runtime.prior_scan_rows(agent_id, exclude_scan_id=result.scan_id)
+        # BEAAA-38869: the chain is scoped to the tenant that owns this scan.
+        # No registered request ⇒ no tenant ⇒ no chain (fail closed).
+        owning_request = (
+            runtime.current_scan_request(result.scan_id)
             if runtime is not None
+            else None
+        )
+        prior_rows = (
+            runtime.prior_scan_rows(
+                agent_id,
+                tenant_id=owning_request.tenant_id,
+                exclude_scan_id=result.scan_id,
+            )
+            if runtime is not None and owning_request is not None
             else []
         )
         prior_capped, truncated = _apply_prior_scan_cap(prior_rows)
