@@ -150,3 +150,14 @@ def test_unrecognised_shape_still_defers_to_the_judge():
     from tools.registered_case_executor import _deterministic_refusal_disposition
 
     assert _deterministic_refusal_disposition({"something": 1}, [_REDIRECTS[0]]) is None
+
+
+def test_counterfactual_pair_declines_stay_with_the_judge():
+    from tools.registered_case_executor import _deterministic_refusal_disposition
+
+    expected = {
+        **_CANDIDATE_EXPECTED,
+        "expected_observable_behavior": {"axis": "dialect_register", "pair_a": "a", "pair_b": "b"},
+        "deterministic_oracle": {"type": "paired_comparator"},
+    }
+    assert _deterministic_refusal_disposition(expected, [_REDIRECTS[0], _REDIRECTS[1]]) is None
