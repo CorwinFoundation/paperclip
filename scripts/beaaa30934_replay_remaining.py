@@ -178,6 +178,13 @@ def main() -> int:
     # here supplies a default (BEAAA-38861): a ref and expiry this script wrote
     # for itself would make the gate check its own answer, and the expiry - the
     # bound on live partner traffic - would be the agent's choice.
+    # The 30-row re-judge reads saved evidence only and sends nothing, so it
+    # reports before the gate: a missing authorization stops the replay, not
+    # the agreement number.
+    try:
+        print(json.dumps({"hand_sample": hand_sample_agreement(SOURCE)}, sort_keys=True))
+    except Exception as exc:
+        print(json.dumps({"hand_sample_error": f"{type(exc).__name__}: {exc}"}))
     scheduled.require_vapi_authorization("vapi")
 
     replay_evidence = OUT / "evidence"
