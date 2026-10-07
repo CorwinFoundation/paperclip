@@ -63,8 +63,8 @@ def customer_payload(result: ScanResult) -> dict[str, Any]:
     if starter_rows:
         payload["result_rows"] = [dict(row) for row in starter_rows]
         if any("reason" in row for row in payload["result_rows"]):
-            from scanners.starter_judge import starter_score
+            from scanners.starter_judge import starter_pack_id_for_rows, starter_score
 
-            payload["starter_pack_id"] = "starter-100@2"
+            payload["starter_pack_id"] = starter_pack_id_for_rows(payload["result_rows"])
             payload["starter_score"] = starter_score(payload["result_rows"])
     return payload

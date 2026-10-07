@@ -99,8 +99,10 @@ from scanners.replicate_median import _median_of
 from scanners.snapshot_hash import compute_corpus_snapshot_hash
 from scanners.starter_pack import STARTER_PACK_ID
 
-#: BEAAA-38895 — wall-clock budget for one starter-100@2 pass.
+#: BEAAA-38895 — wall-clock budget for one starter-100@2 (or @3) pass.
 STARTER_V2_SCAN_DEADLINE_SECONDS: float = 1500.0
+#: Judged starter packs: one pass of 100 sends + 100 judge calls.
+_JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3")
 
 
 # ---------------------------------------------------------------------------
@@ -544,7 +546,7 @@ def run_scan(
                 # calls. 600s stopped a live real-model scan at 43 rows (~14s a
                 # test); size for ~15s a test so a slow agent finishes.
                 STARTER_V2_SCAN_DEADLINE_SECONDS
-                if scan_request.pack_id == "starter-100@2"
+                if scan_request.pack_id in _JUDGED_STARTER_PACK_IDS
                 else 45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
             )
         except AttributeError:
@@ -596,7 +598,9 @@ def run_scan(
         # BEAAA-38253 — the opt-in starter pack is a fixed roster sent once
         # per canonical ID (100 requests), not a K-replicated variance run.
         replicate_count = (
-            1 if scan_request.pack_id in (STARTER_PACK_ID, "starter-100@2") else scan_request.k_replicates
+            1
+            if scan_request.pack_id in (STARTER_PACK_ID, *_JUDGED_STARTER_PACK_IDS)
+            else scan_request.k_replicates
         )
         for _replicate_idx in range(replicate_count):
             if cap_reason is not None:

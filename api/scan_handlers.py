@@ -111,20 +111,27 @@ from scanners.starter_pack import (
     STARTER_PACK_ID,
     STARTER_PACK_TEST_COUNT,
 )
-from scanners.starter_judge import starter_score
+from scanners.starter_judge import starter_pack_id_for_rows, starter_score
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_COUNT
+from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_PACK_V3_TEST_COUNT
 
-# BEAAA-38895: new intakes run starter-100@2. A request that still names @1 is
-# served by @2 unless BACKBOND_STARTER_PACK_LEGACY_V1=1; stored @1 results keep
-# rendering because their rows carry no ``reason``.
-_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID)
+# BEAAA-38895 / BEAAA-38898: new intakes run starter-100@3. A request that still
+# names @1 (the intake default) is served by @3 unless
+# BACKBOND_STARTER_PACK_LEGACY_V1=1; a request naming @2 explicitly still runs
+# @2. Stored @1 and @2 results keep rendering.
+_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID)
+_STARTER_PACK_TEST_COUNTS = {
+    STARTER_PACK_ID: STARTER_PACK_TEST_COUNT,
+    STARTER_PACK_V2_ID: STARTER_PACK_V2_TEST_COUNT,
+    STARTER_PACK_V3_ID: STARTER_PACK_V3_TEST_COUNT,
+}
 
 
 def _effective_starter_pack_id(pack_id: str) -> str:
     if pack_id == STARTER_PACK_ID and os.environ.get(
         "BACKBOND_STARTER_PACK_LEGACY_V1", ""
     ).strip() != "1":
-        return STARTER_PACK_V2_ID
+        return STARTER_PACK_V3_ID
     return pack_id
 
 
@@ -132,7 +139,10 @@ def _starter_score_fields(rows: Any) -> dict[str, Any]:
     rows = [dict(row) for row in rows or ()]
     if not rows or not any("reason" in row for row in rows):
         return {}
-    return {"starter_pack_id": STARTER_PACK_V2_ID, "starter_score": starter_score(rows)}
+    return {
+        "starter_pack_id": starter_pack_id_for_rows(rows),
+        "starter_score": starter_score(rows),
+    }
 
 LOGGER = logging.getLogger(__name__)
 CONNECTIVITY_PROMPT = "Reply with exactly OK."
@@ -2210,11 +2220,7 @@ def _kickoff_live_probe_scan(
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
         if is_starter:
             response["pack_id"] = pack_id
-            response["test_count"] = (
-                STARTER_PACK_V2_TEST_COUNT
-                if pack_id == STARTER_PACK_V2_ID
-                else STARTER_PACK_TEST_COUNT
-            )
+            response["test_count"] = _STARTER_PACK_TEST_COUNTS[pack_id]
 
     return 202, response
 

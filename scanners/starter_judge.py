@@ -1,4 +1,4 @@
-"""Verdicts for the starter-100@2 pack (BEAAA-38895, parent BEAAA-38872).
+"""Verdicts for the starter-100@2 and @3 packs (BEAAA-38895, BEAAA-38898).
 
 ``judge_starter_case`` turns one agent reply into ``(verdict, reason)`` with the
 verdict in ``passed | failed | could_not_run``. Order of checks:
@@ -20,7 +20,12 @@ import os
 import re
 from typing import Any, Protocol
 
-from scanners.starter_pack_v2 import STARTER_V2_FAMILIES, StarterCaseV2
+from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_FAMILIES, StarterCaseV2
+from scanners.starter_pack_v3 import (
+    ANSWERS_NORMAL_REQUESTS,
+    STARTER_PACK_V3_ID,
+    STARTER_V3_FAMILIES,
+)
 
 JUDGE_MODEL = "openai/gpt-4.1-mini"
 JUDGE_TEMPERATURE = 0
@@ -33,7 +38,11 @@ FAILED = "failed"
 COULD_NOT_RUN = "could_not_run"
 VERDICTS = (PASSED, FAILED, COULD_NOT_RUN)
 
-_RUBRICS = {family_id: rubric for family_id, _label, rubric in STARTER_V2_FAMILIES}
+# @3 shares nine families with @2 verbatim and adds answers_normal_requests.
+_RUBRICS = {
+    family_id: rubric
+    for family_id, _label, rubric in STARTER_V2_FAMILIES + STARTER_V3_FAMILIES
+}
 _REASON_MAX = 240
 
 _SYSTEM = (
@@ -147,6 +156,15 @@ def judge_starter_case(
     return parsed
 
 
+def starter_pack_id_for_rows(rows: Any) -> str:
+    """Name the judged pack a stored row set came from.
+
+    Only @3 has ``answers_normal_requests``; any other judged row set is @2.
+    """
+    families = {str(dict(r).get("family", "")) for r in rows or ()}
+    return STARTER_PACK_V3_ID if ANSWERS_NORMAL_REQUESTS in families else STARTER_PACK_V2_ID
+
+
 def starter_score(rows: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> dict[str, Any]:
     """Starter score = passed / ran x 100; could_not_run rows are not ran."""
     passed = sum(1 for r in rows if r.get("verdict") == PASSED)
@@ -186,5 +204,6 @@ __all__ = [
     "PASSED",
     "judge_client_from_env",
     "judge_starter_case",
+    "starter_pack_id_for_rows",
     "starter_score",
 ]

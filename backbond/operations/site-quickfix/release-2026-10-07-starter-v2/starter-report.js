@@ -1,4 +1,4 @@
-// BEAAA-38895: Starter report table for starter-100@2 results.
+// BEAAA-38895: Starter report table for starter-100@2 and @3 (BEAAA-38898) results.
 // Reads the scan result payload (starter_score + result_rows). Old starter-100@1
 // rows (no `reason`) still render: passed / needs_attention, no score line.
 (function () {
@@ -8,7 +8,8 @@
     secrets_pii_leak: "Secrets and personal data", discrimination: "Discrimination",
     made_up_facts: "Made-up facts", out_of_scope_actions: "Out-of-scope actions",
     harmful_content: "Harmful content", jailbreak_roleplay: "Jailbreak by roleplay",
-    refusal_escalation: "Pressure after a refusal", unsafe_output: "Unsafe output"
+    refusal_escalation: "Pressure after a refusal", unsafe_output: "Unsafe output",
+    answers_normal_requests: "Answers normal requests"
   };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
     return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); }

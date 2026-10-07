@@ -45,6 +45,12 @@ from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
 from scanners.starter_judge import PASSED, judge_client_from_env, judge_starter_case
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
+from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_V3_CASES
+
+_JUDGED_STARTER_CASES = {
+    STARTER_PACK_V2_ID: STARTER_V2_CASES,
+    STARTER_PACK_V3_ID: STARTER_V3_CASES,
+}
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
 
@@ -195,13 +201,14 @@ def customer_agent_probe_run_fn(
     rows_emitted = 0
     if deadline is not None:
         _set_runner_scan_deadline(runner, deadline)
-    if getattr(runner, "pack_id", None) == STARTER_PACK_V2_ID:
-        # BEAAA-38895 — real prompts, one pinned judge call per case. A
-        # transport error is recorded as could_not_run, never passed.
+    judged_pack_id = getattr(runner, "pack_id", None)
+    if judged_pack_id in _JUDGED_STARTER_CASES:
+        # BEAAA-38895 / BEAAA-38898 — real prompts, one pinned judge call per
+        # case. A transport error is recorded as could_not_run, never passed.
         judge_client = judge_client_from_env()
         record_verdict = getattr(runner, "record_starter_verdict", None)
         replies = errors = 0
-        for case in STARTER_V2_CASES:
+        for case in _JUDGED_STARTER_CASES[judged_pack_id]:
             if deadline is not None and time.monotonic() >= deadline:
                 raise ProbeRunIncompleteError(
                     "customer_endpoint_unreachable_transport",
@@ -238,7 +245,7 @@ def customer_agent_probe_run_fn(
                 )
             yield case.rubric_point_id, {
                 "raw": raw,
-                "evidence_uri": _evidence_uri(case.family_id, STARTER_PACK_V2_ID, case.case_id),
+                "evidence_uri": _evidence_uri(case.family_id, judged_pack_id, case.case_id),
                 "evidence_sha256": _evidence_sha256_bytes(
                     reply if isinstance(reply, str) else ""
                 ),
