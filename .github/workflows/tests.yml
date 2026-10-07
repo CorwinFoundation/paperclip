@@ -42,6 +42,10 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
+      # Opt in only after the dedicated runner passes its smoke check. Forks
+      # and dependency bots stay on hosted runners; deploy runner is excluded
+      # by the dedicated backbond-ci label.
+      runner: ${{ vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
       selection_mode: ${{ steps.select.outputs.selection_mode }}
       tests: ${{ steps.select.outputs.tests }}
       code: ${{ steps.select.outputs.code }}
@@ -101,12 +105,25 @@ jobs:
     name: python 3.11 CLI render smoke
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.scanner == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     env:
       PYTHONHASHSEED: "0"
       TZ: UTC
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -114,10 +131,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') && 'pip' || '' }}
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
 
       - name: Install dependencies
         run: |
@@ -170,11 +191,13 @@ jobs:
     # only skipped when the selector positively said "no Python test can be
     # affected"; if the selector itself failed, run everything.
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
-    runs-on: ubuntu-latest
-    # Each shard is budgeted at <= 5 minutes warm; this is the ceiling that
-    # catches a partition that has gone stale, not the expected cost.
-    timeout-minutes: 12
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
+    # Warm shards target <= 5 minutes. The larger ceiling allows cold
+    # dependency installs and the dedicated runner's two-CPU resource cap.
+    timeout-minutes: 30
     strategy:
+      # One shard at a time on the dedicated runner; retain hosted parallelism.
+      max-parallel: ${{ contains(needs.changes.outputs.runner, 'backbond-ci') && 1 || 6 }}
       # Every shard reports. One red shard must not hide the other five.
       fail-fast: false
       matrix:
@@ -182,13 +205,26 @@ jobs:
     env:
       SHARD: ${{ matrix.shard }}
       SHARDS: ${{ strategy.job-total }}
-      PYTEST_WORKERS: ${{ needs.changes.outputs.pytest_workers || 'auto' }}
+      PYTEST_WORKERS: ${{ contains(needs.changes.outputs.runner, 'backbond-ci') && '2' || needs.changes.outputs.pytest_workers || 'auto' }}
       PYTHONHASHSEED: "0"
       TZ: UTC
       SELECTION_MODE: ${{ needs.changes.outputs.selection_mode }}
       SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
       SCORING_CHANGED: ${{ needs.changes.result != 'success' || needs.changes.outputs.scoring == 'true' }}
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -198,23 +234,33 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
+
       # The installed venv is cached, not the wheels: the core lock carries
       # CUDA torch, so installing from a warm pip cache still costs ~3 min per
       # job. A cache hit restores the ready venv and skips pip entirely; the
       # key changes with the exact interpreter build and the two locks, so a
       # lock bump rebuilds once (no pip cache: the wheels are only downloaded
       # on that miss) and every later run reuses it.
+      - name: Prepare local test cache
+        id: local_venv
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-local-cache.sh test "py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}"
+
       - name: Restore test venv
         id: venv
+        if: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') }}
         uses: actions/cache@v4
         with:
           path: .venv
           key: test-venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}
 
       - name: Build strict-resolvable test venv (cache miss only)
-        if: steps.venv.outputs.cache-hit != 'true'
+        if: steps.venv.outputs.cache-hit != 'true' && steps.local_venv.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
+          python -m venv "$(readlink -f .venv)"
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install --require-hashes \
             -r locks/core-py312.lock \
@@ -226,6 +272,10 @@ jobs:
           echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
           .venv/bin/python -m pip check
           .venv/bin/python -c "import sys; print(sys.executable)"
+
+      - name: Mark validated local test environment
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: touch .venv/.ci-ready
 
       - name: Ruff critical scoring module
         if: env.SHARD == '1' && env.SCORING_CHANGED == 'true'
@@ -303,11 +353,51 @@ jobs:
           python scripts/ci_shard_tests.py --emit-marker \
             --from-junit "$RUNNER_TEMP/junit-shard-$SHARD.xml"
 
+  # Docker/nginx edge tests retain their hosted prerequisites. They also remain
+  # in shard discovery; this explicit job prevents local environment skips
+  # from reducing coverage when the dedicated runner is selected.
+  native-integrations:
+    name: Docker and nginx integration coverage
+    needs: changes
+    if: ${{ !cancelled() && contains(needs.changes.outputs.runner, 'backbond-ci') && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require edge integration prerequisites
+        run: |
+          docker info
+          docker pull caddy:2.8-alpine
+          docker pull nginx:1.27-alpine
+          docker pull python:3.12-alpine
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq nginx
+          command -v nginx
+          python -m pip install --require-hashes -r requirements-dev.txt
+      - name: Run edge integration coverage
+        # These standalone modules use only stdlib and pytest, so the unrelated
+        # scoring and customer-egress conftest seams are unnecessary here.
+        run: |
+          python -m pytest --noconftest -v -ra --junitxml="$RUNNER_TEMP/native-integrations.xml" \
+            tests/integration/test_edge_caddy_staging.py \
+            tests/integration/test_edge_nginx_request_id_beaaa16230.py \
+            tests/integration/test_edge_nginx_topology_beaaa16331.py
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          report = ET.parse(os.path.join(os.environ['RUNNER_TEMP'], 'native-integrations.xml'))
+          skipped = report.findall('.//testcase/skipped')
+          assert not skipped, 'Edge integration prerequisites caused skipped tests'
+          PY
+
   # The one required branch-protection context. Passes iff every shard passed,
   # so the protected-branch check names on master are unchanged by the split.
   pytest-aggregate:
     name: python pytest
-    needs: [changes, pytest]
+    needs: [changes, pytest, native-integrations]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -315,7 +405,12 @@ jobs:
       - name: Require every shard to have passed
         env:
           SHARDS_RESULT: ${{ needs.pytest.result }}
+          NATIVE_RESULT: ${{ needs.native-integrations.result }}
         run: |
+          case "$NATIVE_RESULT" in
+            success|skipped) ;;
+            *) echo '::error::Docker/nginx integration coverage did not pass.' >&2; exit 1 ;;
+          esac
           echo "python pytest shard matrix: $SHARDS_RESULT"
           case "$SHARDS_RESULT" in
             success)
@@ -333,9 +428,10 @@ jobs:
     name: eval venv (${{ matrix.framework }})
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.evalvenv == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 40
     strategy:
+      max-parallel: ${{ contains(needs.changes.outputs.runner, 'backbond-ci') && 1 || 4 }}
       fail-fast: false
       matrix:
         include:
@@ -364,21 +460,44 @@ jobs:
       EVAL_DISTRIBUTION_NAME: ${{ matrix.distribution-name }}
       EVAL_EXPECTED_VERSION: ${{ matrix.expected-version }}
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Python
+        id: py
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+          cache: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') && 'pip' || '' }}
           cache-dependency-path: |
             locks/garak-py312.lock
             locks/pyrit-py312.lock
             locks/agentdojo-py312.lock
             locks/inspect-py312.lock
 
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
+
+      - name: Prepare local eval cache
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-local-cache.sh eval "py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/*-py312.lock', 'scripts/build_eval_framework_venvs.sh', 'scanners/eval_framework_venv.py') }}"
+
       - name: Restore eval venv cache
+        if: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') }}
         uses: actions/cache@v4
         with:
           path: ${{ env.ARE_EVAL_VENVS_DIR }}/${{ matrix.framework }}-venv
@@ -477,12 +596,25 @@ jobs:
     name: AIUC-1 production binding and report-only invariants
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.aiuc1 == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     env:
       PYTHONHASHSEED: "0"
       TZ: UTC
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - name: Check out source
         uses: actions/checkout@v4
 
@@ -492,19 +624,29 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
+
       # Same cached venv as the pytest job (same key): whichever job misses
       # first builds and saves it.
+      - name: Prepare local test cache
+        id: local_venv
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-local-cache.sh test "py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}"
+
       - name: Restore test venv
         id: venv
+        if: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') }}
         uses: actions/cache@v4
         with:
           path: .venv
           key: test-venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('locks/core-py312.lock', 'locks/ci-test-py312.lock') }}
 
       - name: Build strict-resolvable test venv (cache miss only)
-        if: steps.venv.outputs.cache-hit != 'true'
+        if: steps.venv.outputs.cache-hit != 'true' && steps.local_venv.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
+          python -m venv "$(readlink -f .venv)"
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install --require-hashes \
             -r locks/core-py312.lock \
@@ -516,6 +658,10 @@ jobs:
           echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
           .venv/bin/python -m pip check
           .venv/bin/python -c "import sys; print(sys.executable)"
+
+      - name: Mark validated local test environment
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: touch .venv/.ci-ready
 
       - name: Verify source-built production binding
         run: python scripts/verify_aiuc1_direct_families_release.py
@@ -546,13 +692,29 @@ jobs:
     name: authoritative probe registry drift
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.registry == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - uses: actions/checkout@v4
         with: {fetch-depth: 1}
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
       - name: Install focused registry-gate dependencies
         run: |
           python -m pip install --require-hashes -r requirements-scanner-regression.txt
@@ -563,12 +725,25 @@ jobs:
     name: golden scanner regression
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.regression == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     env:
       PYTHONHASHSEED: "0"
       TZ: UTC
     steps:
+      - name: Prepare fresh dedicated checkout
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$GITHUB_WORKSPACE" = /home/backbond-ci/runner/_work/are-scanner/are-scanner
+          test ! -L "$GITHUB_WORKSPACE"
+          test ! -L "$GITHUB_WORKSPACE/.git"
+          # Match the fresh shallow repository used by GitHub-hosted jobs.
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            rm -rf -- "$GITHUB_WORKSPACE/.git"
+          fi
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -576,8 +751,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: ${{ !contains(needs.changes.outputs.runner, 'backbond-ci') && 'pip' || '' }}
           cache-dependency-path: requirements-scanner-regression.txt
+
+      - name: Prepare dedicated Python runtime
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        run: bash scripts/ci/prepare-python-runtime.sh
 
       - name: Install pinned scanner-regression dependencies
         run: |

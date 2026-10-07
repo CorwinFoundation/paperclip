@@ -1,8 +1,8 @@
-"""No `pull_request`-triggered job may run on the self-hosted runner (BEAAA-36018).
+"""PR jobs must not reach the production deploy runner (BEAAA-36018).
 
 Every workflow under `.github/workflows/` is parsed, and any job in a workflow
-triggered by `pull_request` or `pull_request_target` must resolve to a
-GitHub-hosted runner. The self-hosted runner is the box where production deploy
+triggered by `pull_request` or `pull_request_target` must resolve to hosted or
+explicitly isolated test capacity. The existing deploy runner is the box where production deploy
 authority physically lives:
 
   * `.github/workflows/scanner-edge-image.yml` job `deploy` reads the pinned SSH
@@ -14,13 +14,15 @@ That job is `push` + `refs/heads/master` gated, so it only ever executes reviewe
 merged code. `pull_request` workflows are different: GitHub executes the workflow
 file as it exists on the *PR head*, so a `pull_request` job on the self-hosted
 runner would run unreviewed contributor code on the same machine as the deploy key.
-Runner isolation (BEAAA-35606, recoverable on branch `beaaa-35606-runner-isolation`
-at `0c9ee60c`) is the mitigation and it is **not landed**.
+The dedicated backbond-ci runner is a separate rootless container on another
+host, without deploy credentials, host mounts, or host loopback access. Its
+verified setup is documented in docs/dedicated-ci-runner.md.
 
 The guard is about the trigger, not about `self-hosted` being forbidden: the
 push-gated `deploy` job stays green here. If you are retargeting the required
 checks at the self-hosted runner for capacity reasons, land runner isolation
-first, then relax this test deliberately.
+first. The exception below recognizes only the owner/same-repository opt-in
+route to that dedicated label; arbitrary self-hosted routes remain forbidden.
 """
 
 from __future__ import annotations
@@ -49,11 +51,45 @@ WHY = (
     "/home/ghrunner/.ssh/scanner_deploy_key and secrets.PAPERCLIP_DEPLOY_AGENT_TOKEN, "
     "and `pull_request` workflows execute the workflow file as it exists on the PR head — "
     "so this would run unreviewed code on the machine that holds production deploy "
-    "authority. Runner isolation (BEAAA-35606, branch beaaa-35606-runner-isolation at "
-    "0c9ee60c) is NOT landed. Land that first, then relax this guard deliberately. "
+    "authority. Only the explicitly guarded route to the isolated backbond-ci "
+    "runner is accepted; unguarded labels and opaque expressions remain forbidden. "
     "A push-gated job (see scanner-edge-image.yml `deploy`) may stay on the "
     "self-hosted runner; this guard is about the trigger."
 )
+
+DEDICATED_OUTPUT = (
+    "${{ vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && "
+    "(github.event_name != 'pull_request' || "
+    "github.event.pull_request.head.repo.full_name == github.repository) && "
+    "'[\"self-hosted\",\"linux\",\"x64\",\"backbond-ci\"]' || '[\"ubuntu-latest\"]' }}"
+)
+DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]') }}"
+DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_OUTPUT[4:-3].replace(
+    "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
+) + ") }}"
+
+
+def is_isolated_route(job: dict, workflow: dict) -> bool:
+    """Accept only the reviewed dedicated route, with no secrets or write token."""
+    if "pull_request_target" in triggers(workflow):
+        return False
+    if "secrets." in yaml.dump(job):
+        return False
+    permissions = job.get("permissions", workflow.get("permissions"))
+    if not isinstance(permissions, dict) or any(v != "read" for v in permissions.values()):
+        return False
+    if job.get("runs-on") == DEDICATED_PREFLIGHT:
+        return True
+    if job.get("runs-on") != DEDICATED_RUNS_ON:
+        return False
+    needs = job.get("needs")
+    if needs != "changes" and (not isinstance(needs, list) or "changes" not in needs):
+        return False
+    selector = workflow.get("jobs", {}).get("changes", {})
+    return (
+        selector.get("runs-on") == "ubuntu-latest"
+        and selector.get("outputs", {}).get("runner") == DEDICATED_OUTPUT
+    )
 
 
 def load_workflow(text: str) -> dict:
@@ -157,7 +193,7 @@ def _expand(token: str, job: dict) -> list[str] | None:
 
 
 def self_hosted_findings(workflow: dict) -> list[str]:
-    """Jobs in a PR-triggered workflow whose runner is not provably GitHub-hosted."""
+    """PR jobs whose runner is neither hosted nor the guarded isolated route."""
     if not is_pr_triggered(workflow):
         return []
     findings: list[str] = []
@@ -169,6 +205,8 @@ def self_hosted_findings(workflow: dict) -> list[str]:
             continue
         if "uses" in job and "runs-on" not in job:
             # Reusable-workflow call: the callee's own file is checked on its own.
+            continue
+        if is_isolated_route(job, workflow):
             continue
         labels, unresolved = resolve_labels(job)
         if unresolved:
@@ -204,7 +242,7 @@ def test_no_pull_request_job_runs_on_self_hosted(path: Path) -> None:
 
 
 def test_deploy_job_is_self_hosted_and_push_gated() -> None:
-    """The one self-hosted job on master, and why the guard does not touch it."""
+    """The production deploy runner must remain push-gated."""
     path = WORKFLOW_DIR / "scanner-edge-image.yml"
     workflow = load_workflow(path.read_text(encoding="utf-8"))
     assert not is_pr_triggered(workflow), (
@@ -306,3 +344,42 @@ def test_detector_flags_pr_triggered_non_hosted_runners(source: str) -> None:
 @pytest.mark.parametrize("source", [_PUSH_SELF_HOSTED, _PR_HOSTED_MATRIX])
 def test_detector_passes_push_gated_and_hosted_runners(source: str) -> None:
     assert self_hosted_findings(load_workflow(source)) == []
+
+
+@pytest.mark.parametrize("mutation", [
+    "owner", "fork", "deploy_label", "opaque", "secret", "write", "pr_target",
+    "selector_runner", "missing_needs",
+])
+def test_dedicated_route_still_rejects_unsafe_changes(mutation: str) -> None:
+    workflow = load_workflow((WORKFLOW_DIR / "tests.yml").read_text(encoding="utf-8"))
+    job = workflow["jobs"]["pytest"]
+    selector = workflow["jobs"]["changes"]
+    if mutation == "owner":
+        selector["outputs"]["runner"] = DEDICATED_OUTPUT.replace("CorwinFoundation", "someone")
+    elif mutation == "fork":
+        selector["outputs"]["runner"] = DEDICATED_OUTPUT.replace(
+            "github.event.pull_request.head.repo.full_name == github.repository", "true"
+        )
+    elif mutation == "deploy_label":
+        selector["outputs"]["runner"] = DEDICATED_OUTPUT.replace("backbond-ci", "ariclaw")
+    elif mutation == "opaque":
+        job["runs-on"] = "${{ vars.RUNNER }}"
+    elif mutation == "secret":
+        job["env"]["DEPLOY_TOKEN"] = "${{ secrets.PAPERCLIP_DEPLOY_AGENT_TOKEN }}"
+    elif mutation == "write":
+        job["permissions"] = {"contents": "write"}
+    elif mutation == "pr_target":
+        workflow["on"]["pull_request_target"] = {}
+    elif mutation == "selector_runner":
+        selector["runs-on"] = "ariclaw"
+    elif mutation == "missing_needs":
+        job.pop("needs")
+    assert self_hosted_findings(workflow), mutation
+
+
+def test_guarded_preflight_route_is_accepted_but_deploy_label_is_rejected() -> None:
+    workflow = {"on": {"pull_request": {}}, "permissions": {"contents": "read"},
+                "jobs": {"preflight": {"runs-on": DEDICATED_PREFLIGHT}}}
+    assert self_hosted_findings(workflow) == []
+    workflow["jobs"]["preflight"]["runs-on"] = DEDICATED_PREFLIGHT.replace("backbond-ci", "ariclaw")
+    assert self_hosted_findings(workflow)

@@ -1,0 +1,44 @@
+name: Dedicated CI runner smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.actor == 'CorwinFoundation'
+    runs-on: [self-hosted, linux, x64, backbond-ci]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check isolation and disk
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -un)" = backbond-ci
+          test "$(id -u)" != 0
+          test ! -r /home/ghrunner/.ssh/scanner_deploy_key
+          test ! -r /root/.ssh/id_ed25519
+          test ! -e /mnt/c
+          test ! -e /run/docker.sock
+          test -w "$RUNNER_TOOL_CACHE"
+          df -h "$GITHUB_WORKSPACE"
+          free -m
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check Python 3.11
+        run: |
+          bash scripts/ci/prepare-python-runtime.sh
+          python -c "import ssl, sqlite3, venv; print(ssl.OPENSSL_VERSION)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check Python 3.12 and CI selectors
+        run: |
+          bash scripts/ci/prepare-python-runtime.sh
+          python -c "import ssl, sqlite3, venv; print(ssl.OPENSSL_VERSION)"
+          python -m pip install pytest==9.0.3
+          python -m pytest --noconftest -q tests/test_ci_select_tests.py tests/test_ci_shard_tests_beaaa35635.py tests/test_ci_solution_changes.py

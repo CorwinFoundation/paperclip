@@ -1,0 +1,26 @@
+FROM docker.io/library/ubuntu:24.04
+
+ARG RUNNER_VERSION=2.337.0
+ARG RUNNER_SHA256=70920811a4f8ad4328818682bca5c6469c1c942fab52448868071d0063816613
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git jq tar unzip zstd patchelf lsb-release fonts-dejavu-core python3 python3-venv build-essential \
+    libssl-dev libffi-dev libsqlite3-dev zlib1g-dev libbz2-dev libreadline-dev \
+    liblzma-dev libgdbm-dev libuuid1 libicu74 libkrb5-3 liblttng-ust1 libunwind8 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1001 --shell /bin/bash backbond-ci \
+    && mkdir -p /home/backbond-ci/runner /home/backbond-ci/toolcache \
+    && curl --fail --location --proto '=https' --tlsv1.2 \
+      "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" \
+      --output /tmp/runner.tar.gz \
+    && echo "${RUNNER_SHA256}  /tmp/runner.tar.gz" | sha256sum --check --status \
+    && tar -xzf /tmp/runner.tar.gz -C /home/backbond-ci/runner \
+    && rm /tmp/runner.tar.gz \
+    && printf 'AGENT_TOOLSDIRECTORY=/home/backbond-ci/toolcache\nRUNNER_TOOL_CACHE=/home/backbond-ci/toolcache\n' > /home/backbond-ci/runner/.env \
+    && chown -R backbond-ci:backbond-ci /home/backbond-ci
+ENV HOME=/home/backbond-ci \
+    AGENT_TOOLSDIRECTORY=/home/backbond-ci/toolcache \
+    RUNNER_TOOL_CACHE=/home/backbond-ci/toolcache
+USER 1001:1001
+WORKDIR /home/backbond-ci/runner
+CMD ["sleep", "infinity"]
