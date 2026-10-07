@@ -216,4 +216,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    from scripts.scheduled_scan import VapiAuthorizationError
+
+    try:
+        raise SystemExit(main())
+    except VapiAuthorizationError as exc:
+        # One line instead of a traceback, so `systemctl status` still shows
+        # the offline re-judge printed just above it.
+        print(json.dumps({"replay_refused": str(exc)}), flush=True)
+        raise SystemExit(3) from None
