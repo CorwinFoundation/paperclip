@@ -67,7 +67,7 @@ def test_documented_example_is_accepted(tmp_path):
 
 def test_enrollment_instruction_has_no_followup_polling_clause():
     msg = enrollment_instruction("some-token-123", "https://demo.backbond.ai")
-    assert "do not check for questions" in msg
+    assert "check for questions" not in msg  # v2 has no polling (CMO short text)
     assert "hourly" not in msg
     assert "Stop BackBond" in msg
     assert "If a send fails, tell me the HTTP status and error code." in msg
@@ -106,7 +106,8 @@ def test_status_history_previews_row_count(tmp_path):
     assert result.returncode == 0, result.stderr
     out = result.stdout + result.stderr
     assert "row_count 3" in out, f"row_count missing. Output: {out[:800]}"
-    assert "BB-LIVE-CONT-001" in out, f"synthetic ref ID missing. Output: {out[:800]}"
+    # Legacy clear-JSON fallback: counts only; refs come from synthetic task_ids
+    # (real sealed v2 intake: tests/test_beaaa38867_status_row_count_v2.py).
     # opaque ID should be hashed (not printed verbatim)
     assert "some-opaque-id-789" not in out, f"opaque ID printed verbatim. Output: {out[:800]}"
     assert "rows 3" in out, f"rows count missing. Output: {out[:800]}"

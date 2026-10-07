@@ -33,7 +33,7 @@ def test_shared_entry_is_one_copy_action_without_account_ui():
     page = render_onboarding(instruction)
     assert "Copy instruction" in page
     assert "secret-session" in page
-    assert "BackBond fictional test (demo)." in page
+    assert "BackBond fictional test. Everything in it is made up." in page
     assert "Stop BackBond" in page
     assert "https://scanner.backbond.ai/stage-b-demo/onboard/enroll/secret-session" in page
     assert "https://scanner.backbond.ai/stage-b-demo/onboard/stop/secret-session" in page

@@ -17,6 +17,7 @@ the request log; without it those sections print "unreadable".
 import glob
 import gzip
 import hashlib
+import json
 import os
 import re
 import sqlite3
@@ -30,6 +31,8 @@ JOURNAL_CMD = os.environ.get("BACKBOND_STAGE_B_JOURNAL_CMD", "journalctl")
 ACCESS_LINE = re.compile(r'\[(?P<t>[^\]]+)\] "(?P<m>[A-Z]+) (?P<p>\S+)[^"]*" (?P<s>\d{3}) (?P<b>\d+|-)')
 ROUTE_WORD = re.compile(r"^[a-z][a-z-]{0,23}$")
 CODE = re.compile(r"^[a-z0-9_.:-]{1,64}$")
+SAFE_TASK = re.compile(r"^[A-Za-z0-9._-]{1,40}$")
+REF = re.compile(r"^(h:[0-9a-f]{10}|[A-Za-z0-9._-]{1,40})$")
 WINDOW_ARG = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}(:\d{2}(:\d{2})?)?)?$")
 
 
@@ -180,26 +183,25 @@ def main(argv):
             rs = rows(db, "history_previews")
             print("history_previews total", len(rs), "in_window", sum(1 for r in rs if stamped(r)))
             for r in (x for x in rs if stamped(x)):
-                try:
-                    import json as _json
-                    rpt = _json.loads(r.get("report_json") or "{}")
-                    rc = rpt.get("row_count", "?")
-                    row_refs = []
-                    for row in rpt.get("rows", [])[:20]:
-                        for fld in ("task_id", "reference_id", "deduplication_key"):
-                            ref = str(row.get(fld) or "")
-                            if ref:
-                                break
-                        if re.match(r"^[A-Z]{2,4}-[A-Z0-9-]{3,32}$", ref):
-                            row_refs.append(ref)
-                        elif ref:
-                            import hashlib as _hl
-                            row_refs.append(_hl.sha256(ref.encode()).hexdigest()[:10])
-                    refs_str = " ".join(row_refs[:10]) if row_refs else "none"
-                    print("  preview", h(r.get("preview_id")), "state", code(r.get("state")),
-                          "row_count", rc, "rows", len(rpt.get("rows", [])), "refs", refs_str)
-                except Exception:
-                    print("  preview", h(r.get("preview_id")), "state", code(r.get("state")), "row_count ?")
+                # report_json is sealed at rest; v2 intake stores row_count and
+                # row_refs (safe synthetic task_ids or hashes) beside it (BEAAA-38867).
+                rc = r.get("row_count")
+                refs = str(r.get("row_refs") or "").split()
+                n = rc
+                if not isinstance(rc, int):
+                    # Rows stored before the column existed: only a clear-JSON
+                    # report can be counted; a sealed one prints "?".
+                    try:
+                        rpt = json.loads(r.get("report_json") or "")
+                        n = len(rpt["rows"])
+                        rc = rpt.get("row_count", n)
+                        refs = [str(x.get("task_id")) if x.get("synthetic") is True and SAFE_TASK.match(str(x.get("task_id") or ""))
+                                else "h:" + h(x.get("task_id")) for x in rpt["rows"][:10] if x.get("task_id")]
+                    except (ValueError, TypeError, KeyError, AttributeError):
+                        rc = n = "?"
+                refs = " ".join(x if REF.match(x) else h(x) for x in refs[:10]) or "none"
+                print("  preview", h(r.get("preview_id")), "state", code(r.get("state")),
+                      "row_count", rc, "rows", n, "refs", refs, "created", ts(r.get("created_at")))
         if "history_events" in tables:
             rs = rows(db, "history_events")
             sel = [r for r in rs if inw(r.get("occurred_at"))]

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import sqlite3
 from dataclasses import dataclass
@@ -62,6 +63,21 @@ def _seal(key: bytes, plaintext: bytes) -> bytes:
     ciphertext = bytes(a ^ b for a, b in zip(plaintext, stream))
     tag = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
     return nonce + tag + ciphertext
+
+
+SAFE_REF = re.compile(r"^[A-Za-z0-9._-]{1,40}$")
+
+
+def row_refs(rows: list) -> str:
+    """Up to 10 task refs: a synthetic row's task_id verbatim if SAFE_REF-shaped, else a 10-char hash."""
+    refs = []
+    for row in rows[:10]:
+        ref = str(row.get("task_id") or "")
+        if not ref:
+            continue
+        refs.append(ref if row.get("synthetic") is True and SAFE_REF.match(ref)
+                    else "h:" + hashlib.sha256(ref.encode()).hexdigest()[:10])
+    return " ".join(refs)
 
 
 def _open(key: bytes, sealed: bytes) -> bytes:
@@ -131,7 +147,8 @@ class HistoryImportStore:
               report_json TEXT NOT NULL, raw_encrypted BLOB NOT NULL,
               provenance TEXT NOT NULL, state TEXT NOT NULL,
               created_at TEXT NOT NULL, confirmed_at TEXT,
-              retention_expires_at TEXT NOT NULL DEFAULT ''
+              retention_expires_at TEXT NOT NULL DEFAULT '',
+              row_count INTEGER, row_refs TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS history_events (
               event_id TEXT PRIMARY KEY, import_id TEXT NOT NULL,
@@ -154,6 +171,14 @@ class HistoryImportStore:
         if "retention_expires_at" not in preview_columns:
             self.connection.execute(
                 "ALTER TABLE history_previews ADD COLUMN retention_expires_at TEXT NOT NULL DEFAULT ''"
+            )
+        # BEAAA-38867: report_json is sealed, so the read-only status helper
+        # cannot count rows; keep the count and safe refs beside it in clear.
+        if "row_count" not in preview_columns:
+            self.connection.execute("ALTER TABLE history_previews ADD COLUMN row_count INTEGER")
+        if "row_refs" not in preview_columns:
+            self.connection.execute(
+                "ALTER TABLE history_previews ADD COLUMN row_refs TEXT NOT NULL DEFAULT ''"
             )
         event_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(history_events)")}
         if "retention_expires_at" not in event_columns:
@@ -424,11 +449,13 @@ class HistoryImportStore:
         raw = b"" if state == "received" else _seal(self.encryption_key, body.encode())
         self.connection.execute(
             "INSERT INTO history_previews "
-            "(preview_id,user_id,token_digest,report_json,raw_encrypted,provenance,state,created_at,confirmed_at,retention_expires_at) "
-            "VALUES(?,?,?,?,?,'agent_reported',?,?,NULL,?)",
+            "(preview_id,user_id,token_digest,report_json,raw_encrypted,provenance,state,created_at,confirmed_at,"
+            "retention_expires_at,row_count,row_refs) "
+            "VALUES(?,?,?,?,?,'agent_reported',?,?,NULL,?,?,?)",
             (preview_id, request["user_id"], digest,
              _seal(self.encryption_key, _canonical_report_bytes(report)),
-             raw, state, now, _iso(self.now() + self.unconfirmed_retention)),
+             raw, state, now, _iso(self.now() + self.unconfirmed_retention),
+             report["row_count"], row_refs(report["rows"])),
         )
         self.connection.execute(
             "UPDATE history_requests SET consumed_at=?,state=?,failure_reason=NULL WHERE token_digest=?",
