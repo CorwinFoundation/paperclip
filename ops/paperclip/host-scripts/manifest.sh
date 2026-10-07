@@ -33,10 +33,13 @@ HOST_SCRIPTS=(
   "prune-workspace-oci-tars.sh|manual"
   "codex-auth-writewatch.sh|manual (superseded by the .py under systemd)"
   "codex-auth-writewatch.py|systemd:codex-auth-writewatch.service"
+  "backbond-uptime-check.py|systemd:backbond-uptime-check.timer"
 )
 
 HOST_USER_UNITS=(
   "codex-auth-writewatch.service"
+  "backbond-uptime-check.service"
+  "backbond-uptime-check.timer"
 )
 
 host_script_names() {

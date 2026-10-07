@@ -43,6 +43,7 @@ behind. The drift check runs where a known-good checkout exists instead.
 | `prune-workspace-oci-tars.sh` | not on cron | — | Deletes delivered `*.oci.tar` build artefacts (~922 MB each) from agent workspaces. Run by hand; supports `--dry-run`. |
 | `codex-auth-writewatch.sh` | not on cron | BEAAA-35987 | inotify loop recording the *shape* — never the value — of writes to the one shared Codex credential. |
 | `codex-auth-writewatch.py` | not on cron | BEAAA-35987 | The Python worker behind the writewatch loop. |
+| `backbond-uptime-check.py` | `backbond-uptime-check.timer` (every 5 min, systemd --user) | BEAAA-38869 | Probes scanner release-identity, the scan intake API and backbond.ai/scan/. Two failures in a row → one Telegram to the founder; one "recovered" when back; silent while healthy. State in `~/.local/state/backbond-uptime/`. Enable once: `systemctl --user daemon-reload && systemctl --user enable --now backbond-uptime-check.timer`. |
 
 `manifest.sh` is the single roster the installer and the drift check both read,
 so they cannot disagree about what is tracked.

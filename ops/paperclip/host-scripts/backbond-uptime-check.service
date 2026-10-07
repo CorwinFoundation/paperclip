@@ -1,0 +1,6 @@
+[Unit]
+Description=BEAAA-38869 public endpoint uptime check (Telegram the founder on down/recovered)
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/beai-agent/.local/bin/backbond-uptime-check.py
+TimeoutStartSec=180
