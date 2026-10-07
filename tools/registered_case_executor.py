@@ -1175,6 +1175,18 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "structured_output_contract_semantics":
+            from harness.trace_observation import execute_structured_output_case
+
+            oracle = spec.oracle
+            # Same three shapes as context_truncation_fail_safe; expected is
+            # passed through unconverted so int(True) cannot mis-score .25.
+            record = execute_structured_output_case(
+                oracle_field=str(oracle["field"]),
+                expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
