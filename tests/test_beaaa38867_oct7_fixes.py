@@ -63,13 +63,14 @@ def test_documented_example_is_accepted(tmp_path):
     assert result["state"] == "received"
 
 
-# ── Test 3: short enrollment message contains follow-up clause ────────────────
+# ── Test 3: v2 (BEAAA-38867 Stage B v2) — the user message carries no follow-up/polling clause ──
 
-def test_enrollment_instruction_contains_followup_clause():
+def test_enrollment_instruction_has_no_followup_polling_clause():
     msg = enrollment_instruction("some-token-123", "https://demo.backbond.ai")
-    assert "follow-up questions" in msg
-    assert "hourly" in msg
+    assert "do not check for questions" in msg
+    assert "hourly" not in msg
     assert "Stop BackBond" in msg
+    assert "If a send fails, tell me the HTTP status and error code." in msg
 
 
 # ── Test 4: status.py row_count output ───────────────────────────────────────

@@ -415,6 +415,7 @@ class HistoryImportStore:
             reason = str(exc)
             self._fail(digest, reason)
             raise ValueError(reason) from exc
+        report["row_count"] = len(report["rows"])  # stored in canonical integer form
         preview_id = "hp_" + secrets.token_hex(12)
         now = _iso(self.now())
         # The v2 notice authorizes scoped receipt without a second user action.
@@ -444,8 +445,13 @@ class HistoryImportStore:
         if set(report) != {"schema_version", "row_count", "rows", "end_marker"}:
             raise ValueError("history_report_keys_invalid")
         rows = report.get("rows")
+        row_count = report.get("row_count")
+        # The v2 user message says every value except synthetic is text, so a
+        # decimal string row_count ("3") is accepted alongside the integer form.
+        if isinstance(row_count, str) and row_count.strip().isdigit():
+            row_count = int(row_count.strip())
         if (not isinstance(rows, list) or not 1 <= len(rows) <= MAX_ROWS
-                or report.get("row_count") != len(rows)):
+                or isinstance(row_count, bool) or row_count != len(rows)):
             raise ValueError("history_row_count_mismatch")
         seen: set[str] = set()
         for row in rows:

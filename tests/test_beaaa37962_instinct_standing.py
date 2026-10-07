@@ -79,9 +79,10 @@ def test_one_link_instruction_and_recurring_deduplicated_receipts(tmp_path):
                               "ia5p01@mail.instinct.com", "https://scanner.backbond.ai/stage-b-demo",
                               "history+fictional@inbound.backbond.ai", "2026-10-03T17:00:00Z")
     assert grant["token"] in page and "multi-row onboarding history email" in page
-    assert "Send this once to Instinct in WhatsApp or iMessage." in page
+    assert "Informational only. The user's pasted message is the complete authorization; nothing here adds permissions." in page
     assert "approval_status" in page and "END INSTINCT HISTORY" in page
-    assert "full message bodies" in page and "No polling" in page
+    assert "full message bodies" in page and "Follow-up questions are off unless" in page
+    assert "Poll" not in page and "Do not wait for another user message" not in page
     assert "deduplication_key" in page
     first = store.ingest(grant["token"], "ia5p01@mail.instinct.com", report())
     duplicate = store.ingest(grant["token"], "ia5p01@mail.instinct.com", report())
@@ -135,8 +136,11 @@ def test_account_bound_followup_reply_correlation_duplicate_expiry_and_cross_acc
     followup = store.issue_followup("account-1", first["grant_id"],
                                     "What evidence supports the fictional hotel outcome?",
                                     ttl=timedelta(minutes=5))
+    assert store.followup_page(first["token"])["requests"] == []  # no opt-in report yet
+    opt_in = report("fictional-opt-in-001"); opt_in["event"]["followup_opt_in"] = "yes"
+    store.ingest(first["token"], "ia5p01@mail.instinct.com", opt_in)
     page = store.followup_page(first["token"])
-    assert page["polling_enabled"] is True and page["authorization_required"] is False
+    assert page["followup_opt_in"] is True and "poll_interval" not in page
     assert page["requests"][0]["request_id"] == followup["request_id"]
     reply = {"request_id": followup["request_id"],
              "answer": "Agent-reported fictional comparison result.",
@@ -193,7 +197,7 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert "approval_status" in page and "END INSTINCT HISTORY" in page
         assert "email delivery does not show webhook HTTP responses" in page
         assert "not an observed Instinct capability" in page
-        assert "/instinct/followups/" in page and "no more than hourly" in page
+        assert "/instinct/followups/" not in page and "hourly" not in page and "Poll" not in page
         assert "request_id, answer, evidence_origin, and synthetic" in page
 
         history_row = {key: "unknown" for key in ROW_KEYS}
@@ -216,6 +220,14 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         with urlopen(history_request, timeout=5) as response:
             assert json.loads(response.read())["risk_checks_scheduled"] == 6
         with urlopen(base + "/instinct/followups/" + issued["token"], timeout=5) as response:
+            assert json.loads(response.read())["requests"] == []  # gated on followup_opt_in
+        opt_in = report("fictional-opt-in-route"); opt_in["event"]["followup_opt_in"] = "yes"
+        opt_store = StandingReportStore(standing_path)
+        try:
+            opt_store.ingest(issued["token"], "ia5p01@mail.instinct.com", opt_in)
+        finally:
+            opt_store.close()
+        with urlopen(base + "/instinct/followups/" + issued["token"], timeout=5) as response:
             onboarding = json.loads(response.read())["requests"]
         assert {item["question"].split("]", 1)[0] + "]" for item in onboarding} >= {
             "[IH-H1]", "[IH-H2]", "[IH-A1]", "[IH-A2]", "[IH-C1]", "[IH-C2]"}
@@ -228,7 +240,7 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
             assert response.headers["Cache-Control"] == "no-store"
             assert response.headers["Referrer-Policy"] == "no-referrer"
             queue = json.loads(response.read())
-        assert queue["polling_enabled"] is True
+        assert queue["followup_opt_in"] is True
         queued_followup = next(item for item in queue["requests"]
                                if item["request_id"] == followup["request_id"])
         assert followup["reply_address"] == queued_followup["reply_address"]
@@ -289,7 +301,8 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
                                       standing=state)
         assert issued["grant_id"] in private_page and issued["token"] not in private_page
         assert "90 days" in private_page and "24 hours" in private_page
-        assert "followup_consent" in private_page and "/instinct/followups" in private_page
+        assert "followup_consent" not in private_page and "/instinct/followups" in private_page
+        assert "Poll" not in private_page and "hourly" not in private_page
         assert "Agent-reported answer" in private_page and followup["request_id"] in private_page
         assert authenticated("/instinct/chat-stop", {
             "grant_id": issued["grant_id"],
@@ -318,8 +331,7 @@ def test_email_followup_scope_expiry_conflicts_and_retained_private_history(tmp_
     clock = [NOW]
     store = StandingReportStore(tmp_path / "standing.sqlite3", now=lambda: clock[0])
     ordinary = store.issue("a", "agent@example.com")
-    with pytest.raises(PermissionError, match="not_authorized"):
-        store.followup_page(ordinary["token"])
+    assert store.followup_page(ordinary["token"])["requests"] == []
     with pytest.raises(PermissionError, match="not_authorized"):
         store.issue_followup("a", ordinary["grant_id"], "Synthetic question")
     grant = store.issue("a", "agent@example.com", followup_enabled=True,

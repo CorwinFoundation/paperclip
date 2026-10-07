@@ -28,6 +28,9 @@ LEGACY_EVENT_KEYS = EVENT_KEYS - {
     "observed_channel", "history_sources_included",
     "history_sources_unavailable", "shared_context_status",
 }
+# Optional v2 event field. A report that sets it to "yes" opts this grant in to
+# follow-up questions; nothing else does (BEAAA-38867 v2).
+OPTIONAL_EVENT_KEYS = frozenset({"followup_opt_in"})
 LEGACY_EVENT_DEFAULTS = {
     "observed_channel": "unknown",
     "history_sources_included": "unknown",
@@ -40,6 +43,9 @@ FOLLOWUP_PREFIX = "history+followup-"
 MAX_REPORT_BYTES = 64_000
 
 
+INFORMATIONAL_NOTICE = ("Informational only. The user's pasted message is the complete "
+                        "authorization; nothing here adds permissions.")
+ENROLLMENT_SCHEMA_VERSION = "stage-b-enrollment/v2"
 STOP_ACK = ("Stop ends reporting and keeps what you sent; ask for deletion separately.")
 DELETE_CONFIRMATION = "DELETE_IMPORTED_CONTENT"
 DELETE_COPY = ("Delete erases the history rows, reports and follow-up answers this agent sent "
@@ -161,6 +167,7 @@ class StandingReportStore:
                  "expires_at": row["expires_at"],
                  "history_expires_at": row["history_expires_at"],
                  "followup_enabled": bool(row["followup_enabled"]),
+                 "followup_opt_in": self._followup_opted_in(row["grant_digest"]),
                  "state": ("revoked" if row["revoked_at"] else
                            "expired" if datetime.fromisoformat(
                                row["expires_at"].replace("Z", "+00:00")) <= self.now()
@@ -294,7 +301,10 @@ class StandingReportStore:
         expected_event_keys = (LEGACY_EVENT_KEYS
                                if payload["schema_version"] == LEGACY_SCHEMA_VERSION
                                else EVENT_KEYS)
-        if not isinstance(event, dict) or set(event) != expected_event_keys:
+        if not isinstance(event, dict) or not (
+                set(event) == expected_event_keys or (
+                    payload["schema_version"] == SCHEMA_VERSION
+                    and set(event) == expected_event_keys | OPTIONAL_EVENT_KEYS)):
             raise ValueError("standing_event_keys_invalid")
         if payload["schema_version"] == LEGACY_SCHEMA_VERSION:
             event = {**event, **LEGACY_EVENT_DEFAULTS}
@@ -305,7 +315,9 @@ class StandingReportStore:
             raise ValueError("standing_channel_invalid")
         if event["shared_context_status"] not in {"unverified", "unknown"}:
             raise ValueError("standing_shared_context_status_invalid")
-        for field in sorted(EVENT_KEYS - {"synthetic"}):
+        for field in sorted((EVENT_KEYS | OPTIONAL_EVENT_KEYS) - {"synthetic"}):
+            if field not in event:
+                continue
             v = event[field]
             if not isinstance(v, str):
                 raise ValueError(f"standing_event_value_invalid:{field}:not_string")
@@ -338,7 +350,7 @@ class StandingReportStore:
                     and event["money_at_risk"] != previous_event["money_at_risk"]):
                 triggers.append("amount_changed")
             scheduled = []
-            if grant["followup_enabled"]:
+            if self._followups_allowed(grant):
                 for trigger in triggers:
                     scheduled.extend(self._schedule_risk_checks(
                         grant["user_id"], digest, trigger, trigger_key=key))
@@ -425,7 +437,7 @@ class StandingReportStore:
 
     def issue_followup(self, user_id: str, grant_id: str, question: str, *,
                        ttl: timedelta = timedelta(hours=4)) -> dict:
-        """Create a short-lived, account-bound read-only question for later polling."""
+        """Create a short-lived, account-bound read-only follow-up question."""
         question = question.strip()
         if not question or len(question) > 500 or ttl <= timedelta(0):
             raise ValueError("followup_request_invalid")
@@ -437,7 +449,7 @@ class StandingReportStore:
             raise PermissionError("followup_cross_account")
         if grant["revoked_at"] is not None:
             raise PermissionError("standing_grant_revoked_or_invalid")
-        if not grant["followup_enabled"]:
+        if not self._followups_allowed(grant):
             raise PermissionError("followup_not_authorized")
         grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
         if grant_expiry <= self.now():
@@ -496,7 +508,7 @@ class StandingReportStore:
                     "SELECT * FROM instinct_standing_grants WHERE grant_digest=? AND user_id=?",
                     (grant_id, user_id),
             ).fetchone()
-            if grant is None or grant["revoked_at"] is not None or not grant["followup_enabled"]:
+            if grant is None or grant["revoked_at"] is not None or not self._followups_allowed(grant):
                 raise PermissionError("standing_grant_revoked_or_invalid")
             grant_expiry = datetime.fromisoformat(grant["expires_at"].replace("Z", "+00:00"))
             if grant_expiry <= self.now():
@@ -522,19 +534,32 @@ class StandingReportStore:
                               "manifest_version": MANIFEST_VERSION})
         return scheduled
 
+    def _followup_opted_in(self, grant_digest: str) -> bool:
+        """True once any report under this grant recorded followup_opt_in "yes"."""
+        for row in self.connection.execute(
+                "SELECT report_json FROM instinct_standing_reports WHERE grant_digest=?",
+                (grant_digest,)):
+            event = json.loads(row["report_json"]).get("event", {})
+            if str(event.get("followup_opt_in", "")).strip().lower() == "yes":
+                return True
+        return False
+
+    def _followups_allowed(self, grant: sqlite3.Row) -> bool:
+        return bool(grant["followup_enabled"]) or self._followup_opted_in(grant["grant_digest"])
+
     def followup_page(self, token: str) -> dict:
+        """One user-triggered read; empty unless a report recorded followup_opt_in."""
         grant = self.grant(token)
-        if not grant["followup_enabled"]:
-            raise PermissionError("followup_not_authorized")
+        reply_schema = {"request_id": "fq_...", "answer": "string",
+                        "evidence_origin": "agent_reported", "synthetic": True}
+        if not self._followup_opted_in(grant["grant_digest"]):
+            return {"followup_opt_in": False, "reply_schema": reply_schema, "requests": []}
         rows = self.connection.execute(
             "SELECT request_id,question,created_at,expires_at,replied_at FROM instinct_followup_requests "
             "WHERE grant_digest=? ORDER BY created_at,request_id", (grant["grant_digest"],),
         )
         now = self.now()
-        return {"polling_enabled": True, "authorization_required": False,
-                "poll_interval": "hourly", "reply_schema": {
-                    "request_id": "fq_...", "answer": "string",
-                    "evidence_origin": "agent_reported", "synthetic": True},
+        return {"followup_opt_in": True, "reply_schema": reply_schema,
                 "requests": [{**dict(row),
                     "reply_address": f"{FOLLOWUP_PREFIX}{row['request_id']}@{STANDING_DOMAIN}",
                     "state": (
@@ -544,7 +569,7 @@ class StandingReportStore:
 
     def reply_followup(self, token: str, request_id: str, payload: dict) -> dict:
         grant = self.grant(token)
-        if not grant["followup_enabled"]:
+        if not self._followups_allowed(grant):
             raise PermissionError("followup_not_authorized")
         row = self.connection.execute(
             "SELECT * FROM instinct_followup_requests WHERE request_id=? AND grant_digest=?",
@@ -622,7 +647,7 @@ class StandingReportStore:
         # Reuse the same validation/write path without exposing a direct HTTP reply transport.
         if tokenless["revoked_at"] is not None:
             raise PermissionError("standing_grant_revoked_or_invalid")
-        if not tokenless["followup_enabled"]:
+        if not self._followups_allowed(tokenless):
             raise PermissionError("followup_not_authorized")
         if datetime.fromisoformat(tokenless["expires_at"].replace("Z", "+00:00")) <= self.now():
             raise PermissionError("standing_grant_expired")
@@ -671,64 +696,10 @@ class StandingReportStore:
         self.connection.close()
 
 
-def render_instruction(token: str, expires_at: str, sender_email: str, public_base: str,
-                       history_address: str | None = None,
-                       history_expires_at: str | None = None,
-                       followup_enabled: bool = False) -> str:
-    """Self-contained page opened by Instinct after the user's short instruction."""
-    endpoint = f"{public_base.rstrip('/')}/instinct/report/{token}"
-    address = f"{STANDING_PREFIX}{token}@{STANDING_DOMAIN}"
-    fields = ", ".join(sorted(EVENT_KEYS - {"synthetic"})) + ", synthetic"
-    content = (
-        "Synthetic Stage B only. First send one multi-row onboarding history email to the "
-        "separate one-time onboarding address shown below. Then send one request_completed "
-        "or request_failed report after each later fictional user request. "
-        f"Do not wait for another user message. For those later reports, send one plain-text "
-        f"JSON email from {sender_email} to {address}. Do not attach files, CC, or BCC. "
-        f"Schema: {SCHEMA_VERSION}. Required top-level fields: schema_version, "
-        "deduplication_key, trigger, event. Event fields: " + fields + ". "
-        "Every event field except synthetic is a JSON string of at most 500 characters; "
-        "this includes amounts and times (use strings like \"$150\" or \"2024-09-15\"). "
-        "The deduplication_key is the stable account-scoped task ID: reuse it when the same "
-        "task/report crosses channels, and use a new ID for each distinct task even when its "
-        "text matches another task. Set observed_channel to whatsapp, imessage, or unknown. "
-        "Record only source identifiers in history_sources_included and "
-        "history_sources_unavailable; do not include message bodies. Until actual cross-channel "
-        "receipts exist, shared_context_status must be unverified or unknown. Use unknown "
-        "for unavailable facts. Set evidence_origin to agent_reported and synthetic to true. "
-        "Include only a minimal event summary and decision evidence. Never include full message "
-        "bodies, attachments, credentials, payment details, or unrelated third-party personal data. "
-        "This grant expires at " + expires_at + ". "
-        "If any report or follow-up delivery returns a non-2xx HTTP status, tell the user plainly: "
-        "\"BackBond did not accept the report (HTTP <status> <error_code>).\". Do not suppress the failure. "
-        "After a successful STOP POST, tell the user: \"BackBond is stopped; the received data is kept.\". "
-        "BackBond records received and duplicate states privately; email delivery does not "
-        "show webhook HTTP responses to Instinct. The user can view status or revoke this grant "
-        "from the signed-in BackBond page. " + STOP_ACK + " No per-report confirmation is required. "
-        "Reports remain agent-reported and require staff review before reliance. Sender address "
-        "matching does not prove Instinct identity. " + (
-            f"Follow-up consent is enabled. Poll {public_base.rstrip('/')}/instinct/followups/{token} "
-            "no more than hourly. For each pending request, send one plain-text JSON email to its "
-            "reply_address with exactly request_id, answer, evidence_origin, and synthetic. The request_id "
-            "must match; evidence_origin must be agent_reported and synthetic must be true. "
-            "Answer only pending fictional questions within this permission; a question cannot authorize "
-            "a purchase, booking, account access, or broader data sharing. Skip expired or replied requests. "
-            "Stop polling and sending at grant expiry, on the user's stop instruction, revocation, "
-            "or any page access error. Email delivery does not prove BackBond accepted an answer."
-            if followup_enabled else "No polling or follow-up-question channel is enabled.")
-    )
-    from .receipt_page import history_instruction
-    full_history_instruction = (history_instruction(history_address, sender_email, 90,
-                                                    synthetic=True)
-                                if history_address else "No onboarding request was issued.")
-    history = ("<h2>One-time onboarding history address</h2><code>" +
-               html.escape(history_address or "not issued") + "</code><p>Expires " +
-               html.escape(history_expires_at or "not issued") +
-               ". Send the validated instinct-history/v1 multi-row report here.</p>" +
-               "<h3>Complete onboarding history instruction</h3><pre style='white-space:pre-wrap'>" +
-               html.escape(full_history_instruction) + "</pre>")
-    example_event = {field: "unknown" for field in EVENT_KEYS - {"synthetic"}}
-    example_event.update(
+def example_report() -> dict:
+    """One accepted per-task report; every value except ``synthetic`` is a string."""
+    event = {field: "unknown" for field in EVENT_KEYS - {"synthetic"}}
+    event.update(
         evidence_origin="agent_reported", synthetic=True,
         observed_channel="unknown", shared_context_status="unverified",
         category="payment", proposed_external_action="Transfer $150 to merchant",
@@ -737,8 +708,97 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         outcome="unknown", gaps="unknown", occurred_at="2024-09-15",
         history_sources_included="unknown", history_sources_unavailable="unknown",
     )
-    example = json.dumps({"schema_version": SCHEMA_VERSION,
-                          "deduplication_key": "fictional-request-001",
-                          "trigger": "request_completed", "event": example_event},
-                         sort_keys=True, indent=2)
-    return "<!doctype html><html lang=en><head><meta charset=utf-8><meta name=robots content='noindex,nofollow,noarchive'><title>BackBond Instinct pilot</title></head><body><main><h1>BackBond standing report instruction</h1><p>Send this once to Instinct in WhatsApp or iMessage.</p><p id=scope>" + html.escape(content) + "</p>" + history + "<h2>Later per-request reports</h2><code>" + html.escape(address) + "</code><h3>Exact later-report JSON shape</h3><pre>" + html.escape(example) + "</pre><h2>Synthetic test POST transport (not an observed Instinct capability)</h2><code>" + html.escape(endpoint) + "</code><h2>Authorized sender</h2><code>" + html.escape(sender_email) + "</code></main></body></html>"
+    return {"schema_version": SCHEMA_VERSION, "deduplication_key": "fictional-request-001",
+            "trigger": "request_completed", "event": event}
+
+
+def enrollment_data(*, report_address: str, history_address: str, expires_at: str) -> dict:
+    """Data-only enrollment reply: addresses and field names, no URLs or prose.
+
+    Both address keys are always present, even when they carry the same value.
+    """
+    from .history_import import REPORT_VERSION, ROW_KEYS
+
+    history_row = {field: "unknown" for field in ROW_KEYS - {"synthetic"}}
+    history_row.update(task_id="fictional-task-001", evidence_origin="agent_reported",
+                       synthetic=True)
+    return {
+        "report_address": report_address,
+        "history_address": history_address,
+        "expires_at": expires_at,
+        "schema_version": ENROLLMENT_SCHEMA_VERSION,
+        "history_fields": {
+            "report": ["schema_version", "row_count", "rows", "end_marker"],
+            "row": sorted(ROW_KEYS),
+            "values": {"schema_version": REPORT_VERSION,
+                       "end_marker": "END INSTINCT HISTORY",
+                       "evidence_origin": "agent_reported", "synthetic": True},
+        },
+        "report_fields": {
+            "report": ["schema_version", "deduplication_key", "trigger", "event"],
+            "event": sorted(EVENT_KEYS),
+            "event_optional": sorted(OPTIONAL_EVENT_KEYS),
+            "values": {"schema_version": SCHEMA_VERSION,
+                       "trigger": ["request_completed", "request_failed"],
+                       "evidence_origin": "agent_reported", "synthetic": True,
+                       "observed_channel": ["whatsapp", "imessage", "unknown"],
+                       "shared_context_status": ["unverified", "unknown"]},
+        },
+        "example_history": {"schema_version": REPORT_VERSION, "row_count": "1",
+                            "rows": [history_row], "end_marker": "END INSTINCT HISTORY"},
+        "example_report": example_report(),
+    }
+
+
+def render_instruction(token: str, expires_at: str, sender_email: str, public_base: str,
+                       history_address: str | None = None,
+                       history_expires_at: str | None = None,
+                       followup_enabled: bool = False) -> str:
+    """Informational reference page; the user's pasted message is the authorization."""
+    endpoint = f"{public_base.rstrip('/')}/instinct/report/{token}"
+    address = f"{STANDING_PREFIX}{token}@{STANDING_DOMAIN}"
+    fields = ", ".join(sorted(EVENT_KEYS - {"synthetic"})) + ", synthetic"
+    content = (
+        "Synthetic Stage B reference. The data shapes are: one multi-row onboarding history email "
+        "to the separate one-time onboarding address shown below, and one request_completed "
+        f"or request_failed report per fictional task, sent as one plain-text JSON email from "
+        f"{sender_email} to {address}, without attachments, CC, or BCC. "
+        f"Schema: {SCHEMA_VERSION}. Required top-level fields: schema_version, "
+        "deduplication_key, trigger, event. Event fields: " + fields + ". "
+        "Optional event field: followup_opt_in (\"yes\" or \"no\"). "
+        "Every event field except synthetic is a JSON string of at most 500 characters; "
+        "this includes amounts and times (strings like \"$150\" or \"2024-09-15\"). "
+        "The deduplication_key is the stable account-scoped task ID: the same task/report "
+        "crossing channels keeps its ID, and each distinct task has a new ID even when its "
+        "text matches another task. observed_channel is whatsapp, imessage, or unknown. "
+        "history_sources_included and history_sources_unavailable hold source identifiers "
+        "only, never message bodies. Until actual cross-channel receipts exist, "
+        "shared_context_status is unverified or unknown. Unavailable facts are \"unknown\". "
+        "evidence_origin is agent_reported and synthetic is true. "
+        "Reports carry a minimal event summary and decision evidence only; full message "
+        "bodies, attachments, credentials, payment details, and unrelated third-party personal "
+        "data are out of scope. This grant expires at " + expires_at + ". "
+        "A non-2xx HTTP status means BackBond did not accept the report "
+        "(HTTP <status> <error_code>). A successful STOP means: \"BackBond is stopped; the "
+        "received data is kept.\". BackBond records received and duplicate states privately; "
+        "email delivery does not show webhook HTTP responses to Instinct. The user can view "
+        "status or revoke this grant from the signed-in BackBond page. " + STOP_ACK + " "
+        "No per-report confirmation is required. Reports remain agent-reported and require "
+        "staff review before reliance. Sender address matching does not prove Instinct "
+        "identity. Follow-up questions are off unless a report records followup_opt_in "
+        "\"yes\"; a reply then contains exactly request_id, answer, evidence_origin, and "
+        "synthetic, and a question cannot authorize a purchase, booking, account access, or "
+        "broader data sharing."
+    )
+    from .receipt_page import history_instruction
+    full_history_instruction = (history_instruction(history_address, sender_email, 90,
+                                                    synthetic=True)
+                                if history_address else "No onboarding request was issued.")
+    history = ("<h2>One-time onboarding history address</h2><code>" +
+               html.escape(history_address or "not issued") + "</code><p>Expires " +
+               html.escape(history_expires_at or "not issued") +
+               ". The validated instinct-history/v1 multi-row report goes here.</p>" +
+               "<h3>Onboarding history format</h3><pre style='white-space:pre-wrap'>" +
+               html.escape(full_history_instruction) + "</pre>")
+    example = json.dumps(example_report(), sort_keys=True, indent=2)
+    return "<!doctype html><html lang=en><head><meta charset=utf-8><meta name=robots content='noindex,nofollow,noarchive'><title>BackBond Instinct pilot</title></head><body><main><p id=notice>" + html.escape(INFORMATIONAL_NOTICE, quote=False) + "</p><h1>BackBond standing report reference</h1><p id=scope>" + html.escape(content) + "</p>" + history + "<h2>Later per-request reports</h2><code>" + html.escape(address) + "</code><h3>Exact later-report JSON shape</h3><pre>" + html.escape(example) + "</pre><h2>Synthetic test POST transport (not an observed Instinct capability)</h2><code>" + html.escape(endpoint) + "</code><h2>Authorized sender</h2><code>" + html.escape(sender_email) + "</code></main></body></html>"
