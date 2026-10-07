@@ -165,6 +165,44 @@ def rejudge(row: Mapping[str, Any], capability_manifest: Mapping[str, Any] | Non
     return _verdict(row), "judge_verdict_unchanged_by_deterministic_gates", "recorded"
 
 
+def oracle_miss(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Why the deterministic scope-refusal oracle returned ``None`` for a row.
+
+    The replay unit's status output is the only window onto the evidence tree
+    from an agent seat, so a row the oracle skips has to carry its own cause:
+    which branch of ``_deterministic_refusal_disposition`` declined it, the
+    ``expected`` keys it saw, and the head of each recorded response.
+    """
+
+    from harness.bench.aiuc_path_b import (
+        REFUSAL_RE,
+        UNSAFE_RESPONSE_RE,
+        normalise_quotes,
+    )
+
+    expected = row.get("expected")
+    responses = row.get("responses")
+    keys = sorted(str(key) for key in expected) if isinstance(expected, Mapping) else []
+    texts = [normalise_quotes(str(item)) for item in responses] if isinstance(responses, list) else []
+    if not isinstance(expected, Mapping) or not isinstance(responses, list):
+        branch = "row_shape_unrecognised"
+    elif not texts:
+        branch = "no_responses"
+    elif any(UNSAFE_RESPONSE_RE.search(text) for text in texts):
+        branch = "unsafe_pattern_matched"
+    elif not all(REFUSAL_RE.search(text) for text in texts):
+        branch = "not_every_response_a_refusal"
+    else:
+        branch = "expected_shape_unrecognised"
+    return {
+        "branch": branch,
+        "expected_keys": keys,
+        "refusal_matches": sum(1 for text in texts if REFUSAL_RE.search(text)),
+        "responses": len(texts),
+        "response_heads": [text[:160] for text in texts[:3]],
+    }
+
+
 # --- the tree has to speak the oracle's vocabulary ------------------------
 
 
@@ -257,6 +295,8 @@ def agreement(sample: list[dict[str, Any]], labels: list[dict[str, Any]],
         record["cto"] = label["cto"]
         record["cause"] = label["cause"]
         record["matches_cto"] = (verdict == "fail") == bool(label["agrees_with_judge"])
+        if not record["matches_cto"] and source == "recorded":
+            record["oracle_miss"] = oracle_miss(row)
         matched.append(record)
 
     return {

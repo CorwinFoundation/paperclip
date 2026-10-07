@@ -146,6 +146,9 @@ def hand_sample_agreement(source_evidence: Path) -> dict[str, object]:
     result = rj.agreement(sample, labels, manifest)
     return {key: result[key] for key in ("sampled", "labelled_by_case_id", "matches_cto", "baseline_judge_agreement")} | {
         "mismatches": [f"{r['family']}/{r['case_id']}:{r['now']}" for r in result["rows"] if not r["matches_cto"]],
+        "oracle_misses": {
+            f"{r['family']}/{r['case_id']}": r["oracle_miss"] for r in result["rows"] if "oracle_miss" in r
+        },
     }
 
 

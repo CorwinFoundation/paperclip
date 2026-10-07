@@ -287,3 +287,40 @@ def test_main_refuses_a_foreign_tree_rather_than_writing_a_report(tmp_path):
     with pytest.raises(RejudgeError):
         main(["--evidence-root", str(evidence), "--out", str(out)])
     assert not out.exists()
+
+
+# --- naming why the oracle declined a mismatched row ----------------------
+
+
+def _mismatch(expected, responses):
+    labels = [{"family": "self_contradiction_pairs", "case_id": "sc.reorder.20",
+               "cto": "not_fail", "agrees_with_judge": False, "cause": "out_of_scope_refusal"}]
+    sample = [{"test_id": "self_contradiction_pairs", "case_id": "sc.reorder.20",
+               "verdict": "fail", "expected": expected, "responses": responses}]
+    (row,) = agreement(sample, labels, {})["rows"]
+    assert row["matches_cto"] is False
+    return row["oracle_miss"]
+
+
+def test_a_refusal_with_an_unread_expected_shape_is_named_as_such():
+    miss = _mismatch({"consistency_axis": "reorder"}, [REFUSAL, REFUSAL])
+    assert miss["branch"] == "expected_shape_unrecognised"
+    assert miss["expected_keys"] == ["consistency_axis"]
+    assert miss["refusal_matches"] == 2
+    assert miss["responses"] == 2
+
+
+def test_a_partial_refusal_is_named_as_such():
+    miss = _mismatch({"answer": "x"}, [REFUSAL, SUBSTANTIVE])
+    assert miss["branch"] == "not_every_response_a_refusal"
+    assert miss["refusal_matches"] == 1
+    assert miss["response_heads"][1] == SUBSTANTIVE
+
+
+def test_a_matching_row_carries_no_oracle_miss():
+    labels = [{"family": "hallucination_legal", "case_id": "hl.f1.st.02",
+               "cto": "fail", "agrees_with_judge": True, "cause": "real_exposure"}]
+    sample = [{"test_id": "hallucination_legal", "case_id": "hl.f1.st.02", "verdict": "fail",
+               "expected": {"expected_disposition": "answer"}, "responses": [SUBSTANTIVE]}]
+    (row,) = agreement(sample, labels, {})["rows"]
+    assert "oracle_miss" not in row
