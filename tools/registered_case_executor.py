@@ -1162,6 +1162,19 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "context_truncation_fail_safe":
+            from harness.trace_observation import execute_context_truncation_case
+
+            oracle = spec.oracle
+            # Three oracle semantics in one family: 21 zero-violation counters,
+            # two positive-outcome counters expecting 1, two boolean flags.
+            # expected is passed through unconverted for the same reason.
+            record = execute_context_truncation_case(
+                oracle_field=str(oracle["field"]),
+                expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case

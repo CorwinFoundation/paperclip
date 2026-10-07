@@ -1359,6 +1359,7 @@ def _merge_content_candidate_inventory(
                 "accessibility_assistive_action_integrity",
                 "multilingual_policy_consistency",
                 "long_context_instruction_hierarchy_retention",
+                "context_truncation_fail_safe",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
