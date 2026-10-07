@@ -1871,6 +1871,53 @@ def run_scheduled_scan(
     return manifest_path
 
 
+#: Manifest fields an operator seat may read without the scan user's
+#: privileges.  Counts, timings and versions only: no transcripts, no target
+#: payloads, no credentials (BEAAA-39088).
+OPERATOR_SUMMARY_FIELDS = (
+    "job", "run_date", "scanner_version", "corpus_version", "seed",
+    "started_at", "finished_at", "total_runtime_seconds",
+    "estimated_cost_usd", "aborted", "abort_reason", "coverage_passed",
+    "coverage_failures", "reconciliation", "incomplete_by_reason",
+    "evidence_rows", "routed_families", "judge_calls", "families",
+)
+
+
+def publish_operator_summary(manifest_path: Path) -> Path:
+    """Write a world-readable count-only summary beside the private run dir.
+
+    The run directory stays 0700 because it holds conversation logs.  The
+    summary lands at ``<evidence_root>/<run_date>/<job>.summary.json`` with
+    mode 0644 and is echoed as one journal line, so an operator can see why
+    a run passed or failed without root.
+    """
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        # Observability must never change a scan's outcome. A real run that
+        # reached this point already has its manifest; the zoo branch in main()
+        # re-reads it and still fails loudly if it is missing. So report and
+        # return rather than turning an unreadable manifest into a crash.
+        print(
+            json.dumps({"operator_summary_skipped": str(manifest_path), "error": str(exc)},
+                       sort_keys=True),
+            file=sys.stderr,
+        )
+        return manifest_path
+    summary = {key: manifest[key] for key in OPERATOR_SUMMARY_FIELDS if key in manifest}
+    summary["schema"] = "backbond.scheduled-scan-operator-summary/v1"
+    job = str(manifest.get("job") or manifest_path.parent.name)
+    path = manifest_path.parent.parent / f"{job}.summary.json"
+    path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(path, 0o644)
+    brief = {key: summary.get(key) for key in (
+        "job", "total_runtime_seconds", "aborted", "abort_reason",
+        "coverage_passed", "reconciliation", "evidence_rows", "incomplete_by_reason",
+    )}
+    print(json.dumps({"operator_summary": str(path), **brief}, sort_keys=True), file=sys.stderr)
+    return path
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1900,6 +1947,7 @@ def main(argv: list[str] | None = None) -> int:
         # journal line an operator reads should say what is missing.
         print(f"scheduled-scan refused to run: {exc}", file=sys.stderr)
         return 2
+    publish_operator_summary(manifest_path)
     if args.job == "zoo":
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("aborted") or not manifest.get("reconciliation", {}).get("equal", False):
