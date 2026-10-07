@@ -25,13 +25,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-# Written authorization for this replay: the Founder on BEAAA-30934,
-# 2026-10-06T18:47Z ("You have full authorization to do any test you want on
-# Vapi"). Used only when the unit's environment does not already name one, so
-# the BEAAA-35702 gate still checks a ref and an expiry, and this lapses on its own.
-FOUNDER_VAPI_AUTH_REF = "BEAAA-30934#comment-b3c74059-1533-4749-a4d3-c1b1ec1017dc"
-FOUNDER_VAPI_AUTH_EXPIRES = "2026-10-13T18:47:34Z"
-
 SOURCE = Path(
     os.environ.get(
         "BEAAA30934_SOURCE_EVIDENCE",
@@ -178,9 +171,10 @@ def main() -> int:
     # the order is the control, and a later check would already have read the
     # credential. BEAAA-35868 found this path ungated while the sudoers
     # drop-in from install-units-only.sh hands an agent seat `systemctl start`
-    # on it.
-    os.environ.setdefault(scheduled.VAPI_AUTH_REF_ENV, FOUNDER_VAPI_AUTH_REF)
-    os.environ.setdefault(scheduled.VAPI_AUTH_EXPIRES_ENV, FOUNDER_VAPI_AUTH_EXPIRES)
+    # on it. Both values come from the operator's environment and nothing
+    # here supplies a default (BEAAA-38861): a ref and expiry this script wrote
+    # for itself would make the gate check its own answer, and the expiry - the
+    # bound on live partner traffic - would be the agent's choice.
     scheduled.require_vapi_authorization("vapi")
 
     replay_evidence = OUT / "evidence"

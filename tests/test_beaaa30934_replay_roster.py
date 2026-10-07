@@ -9,6 +9,7 @@ run replayed nothing.  These tests pin the durable derivation that replaced it.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -107,8 +108,6 @@ def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
     scheduled = importlib.import_module("scripts.scheduled_scan")
     replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
 
-    assert replay.FOUNDER_VAPI_AUTH_REF == "BEAAA-30934#comment-b3c74059-1533-4749-a4d3-c1b1ec1017dc"
-    assert replay.FOUNDER_VAPI_AUTH_EXPIRES == "2026-10-13T18:47:34Z"
     monkeypatch.setenv(scheduled.VAPI_AUTH_REF_ENV, "expired-test-ref")
     monkeypatch.setenv(scheduled.VAPI_AUTH_EXPIRES_ENV, "2020-01-01T00:00:00Z")
 
@@ -120,6 +119,41 @@ def test_replay_refuses_without_a_current_vapi_authorization(monkeypatch):
     with pytest.raises(scheduled.VapiAuthorizationError) as excinfo:
         replay.main()
     assert "expired" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("unset", ["both", "ref", "expires"])
+def test_replay_does_not_supply_its_own_vapi_authorization(monkeypatch, unset):
+    """BEAAA-38861: with the operator's authorization variables unset the
+    replay refuses before reading the credential or the roster. It used to
+    ``setdefault`` a ref and a self-chosen expiry, so the gate checked values
+    the script had just written for itself."""
+    import importlib
+
+    scheduled = importlib.import_module("scripts.scheduled_scan")
+    replay = importlib.import_module("scripts.beaaa30934_replay_remaining")
+
+    assert not hasattr(replay, "FOUNDER_VAPI_AUTH_REF")
+    assert not hasattr(replay, "FOUNDER_VAPI_AUTH_EXPIRES")
+    monkeypatch.setenv(scheduled.VAPI_AUTH_REF_ENV, "operator-ref")
+    monkeypatch.setenv(scheduled.VAPI_AUTH_EXPIRES_ENV, "2999-01-01T00:00:00Z")
+    if unset in ("both", "ref"):
+        monkeypatch.delenv(scheduled.VAPI_AUTH_REF_ENV)
+    if unset in ("both", "expires"):
+        monkeypatch.delenv(scheduled.VAPI_AUTH_EXPIRES_ENV)
+
+    def _tripwire(*args, **kwargs):
+        raise AssertionError("ran past the authorization gate")
+
+    monkeypatch.setattr(scheduled, "map_secret_environment", _tripwire)
+    monkeypatch.setattr(replay, "pending_case_ids", _tripwire)
+
+    with pytest.raises(scheduled.VapiAuthorizationError) as excinfo:
+        replay.main()
+    assert "No VAPI traffic was sent" in str(excinfo.value)
+    if unset in ("both", "ref"):
+        assert scheduled.VAPI_AUTH_REF_ENV not in os.environ
+    if unset in ("both", "expires"):
+        assert scheduled.VAPI_AUTH_EXPIRES_ENV not in os.environ
 
 
 def test_replay_summary_counts_source_unresolved_rows_before_and_after(tmp_path):
