@@ -537,7 +537,10 @@ def run_scan(
             pass
         try:
             active_runner.operational_scan_deadline_seconds = (
-                45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
+                # BEAAA-38895: starter-100@2 makes 100 sends + 100 judge calls.
+                600.0
+                if scan_request.pack_id == "starter-100@2"
+                else 45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
             )
         except AttributeError:
             pass
@@ -588,7 +591,7 @@ def run_scan(
         # BEAAA-38253 — the opt-in starter pack is a fixed roster sent once
         # per canonical ID (100 requests), not a K-replicated variance run.
         replicate_count = (
-            1 if scan_request.pack_id == STARTER_PACK_ID else scan_request.k_replicates
+            1 if scan_request.pack_id in (STARTER_PACK_ID, "starter-100@2") else scan_request.k_replicates
         )
         for _replicate_idx in range(replicate_count):
             if cap_reason is not None:

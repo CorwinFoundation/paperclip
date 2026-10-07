@@ -35,6 +35,7 @@ import hashlib
 import ipaddress
 import logging
 import re
+import os
 import threading
 import time
 import uuid
@@ -110,6 +111,28 @@ from scanners.starter_pack import (
     STARTER_PACK_ID,
     STARTER_PACK_TEST_COUNT,
 )
+from scanners.starter_judge import starter_score
+from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_COUNT
+
+# BEAAA-38895: new intakes run starter-100@2. A request that still names @1 is
+# served by @2 unless BACKBOND_STARTER_PACK_LEGACY_V1=1; stored @1 results keep
+# rendering because their rows carry no ``reason``.
+_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID)
+
+
+def _effective_starter_pack_id(pack_id: str) -> str:
+    if pack_id == STARTER_PACK_ID and os.environ.get(
+        "BACKBOND_STARTER_PACK_LEGACY_V1", ""
+    ).strip() != "1":
+        return STARTER_PACK_V2_ID
+    return pack_id
+
+
+def _starter_score_fields(rows: Any) -> dict[str, Any]:
+    rows = [dict(row) for row in rows or ()]
+    if not rows or not any("reason" in row for row in rows):
+        return {}
+    return {"starter_pack_id": STARTER_PACK_V2_ID, "starter_score": starter_score(rows)}
 
 LOGGER = logging.getLogger(__name__)
 CONNECTIVITY_PROMPT = "Reply with exactly OK."
@@ -1664,6 +1687,7 @@ def _scan_result_to_dict(result: ScanResult) -> dict[str, Any]:
         "result_rows": [
             dict(row) for row in result.starter_result_rows
         ],
+        **_starter_score_fields(result.starter_result_rows),
         "anti_gaming": result.anti_gaming.to_dict(),
         "dim_results": [
             {
@@ -1767,6 +1791,7 @@ def _external_result_envelope(
     starter_rows = getattr(result, "starter_result_rows", ())
     if starter_rows:
         envelope["result_rows"] = [dict(row) for row in starter_rows]
+        envelope.update(_starter_score_fields(starter_rows))
     return envelope
 
 
@@ -2005,12 +2030,15 @@ def _kickoff_live_probe_scan(
     if not isinstance(credential_secret, str) or (not credential_secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
     pack_id = body.get("pack_id")
-    if pack_id is not None and pack_id != STARTER_PACK_ID:
+    if pack_id is not None and pack_id not in _STARTER_PACK_IDS:
         raise HandlerError(422, "pack_id_invalid")
+    if pack_id is not None:
+        pack_id = _effective_starter_pack_id(pack_id)
+    is_starter = pack_id in _STARTER_PACK_IDS
     include_result_rows = body.get("include_result_rows", False)
     if not isinstance(include_result_rows, bool):
         raise HandlerError(422, "include_result_rows_invalid")
-    if include_result_rows and pack_id != STARTER_PACK_ID:
+    if include_result_rows and not is_starter:
         raise HandlerError(422, "include_result_rows_requires_starter_pack")
     if include_result_rows:
         agent_endpoint["_include_result_rows"] = True
@@ -2020,10 +2048,10 @@ def _kickoff_live_probe_scan(
     raw_scan_tier = body.get("scan_tier") if _scan_tier_enabled else None
     if raw_scan_tier is not None and raw_scan_tier not in ("smoke", "full"):
         raise HandlerError(422, "scan_tier_invalid")
-    scan_tier = "smoke" if pack_id == STARTER_PACK_ID else (raw_scan_tier or "full")
+    scan_tier = "smoke" if is_starter else (raw_scan_tier or "full")
 
     # corpus_snapshot_hash: required for full, can default to pinned for smoke.
-    if pack_id == STARTER_PACK_ID:
+    if is_starter:
         corpus_snapshot_hash = STARTER_PACK_CORPUS_SNAPSHOT_HASH
     elif "corpus_snapshot_hash" not in body and scan_tier == "smoke":
         _pinned = ApiConfig.from_env().pinned_corpus_snapshot_hash
@@ -2036,7 +2064,7 @@ def _kickoff_live_probe_scan(
     scanner_version = _require(body, "scanner_version")
     corpus_version = (
         STARTER_PACK_CORPUS_VERSION
-        if pack_id == STARTER_PACK_ID
+        if is_starter
         else _require(body, "corpus_version")
     )
 
@@ -2180,9 +2208,13 @@ def _kickoff_live_probe_scan(
         response["non_underwriting_reason"] = "smoke_tier_sampled"
         response["seed"] = seed
         response["corpus_snapshot_hash"] = corpus_snapshot_hash
-        if pack_id == STARTER_PACK_ID:
-            response["pack_id"] = STARTER_PACK_ID
-            response["test_count"] = STARTER_PACK_TEST_COUNT
+        if is_starter:
+            response["pack_id"] = pack_id
+            response["test_count"] = (
+                STARTER_PACK_V2_TEST_COUNT
+                if pack_id == STARTER_PACK_V2_ID
+                else STARTER_PACK_TEST_COUNT
+            )
 
     return 202, response
 

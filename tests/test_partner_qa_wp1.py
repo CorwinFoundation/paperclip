@@ -199,6 +199,8 @@ def test_connectivity_check_redacts_transport_failure() -> None:
 
 def test_starter_pack_has_fixed_identity_and_exact_count(monkeypatch) -> None:
     monkeypatch.setenv("ARE_SCAN_TIER", "on")
+    # BEAAA-38895: @1 requests run @2 by default; this pins the legacy pack.
+    monkeypatch.setenv("BACKBOND_STARTER_PACK_LEGACY_V1", "1")
     captured = {}
 
     def run_scan(request, secret):

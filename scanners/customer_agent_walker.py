@@ -43,6 +43,8 @@ from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
+from scanners.starter_judge import PASSED, judge_client_from_env, judge_starter_case
+from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
 
@@ -193,6 +195,55 @@ def customer_agent_probe_run_fn(
     rows_emitted = 0
     if deadline is not None:
         _set_runner_scan_deadline(runner, deadline)
+    if getattr(runner, "pack_id", None) == STARTER_PACK_V2_ID:
+        # BEAAA-38895 — real prompts, one pinned judge call per case. A
+        # transport error is recorded as could_not_run, never passed.
+        judge_client = judge_client_from_env()
+        record_verdict = getattr(runner, "record_starter_verdict", None)
+        replies = errors = 0
+        for case in STARTER_V2_CASES:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise ProbeRunIncompleteError(
+                    "customer_endpoint_unreachable_transport",
+                    "customer endpoint scan deadline exceeded",
+                )
+            reply: Any
+            try:
+                reply = runner.complete(case.prompt)
+            except RunnerError as exc:
+                if (
+                    (deadline is not None and time.monotonic() >= deadline)
+                    or str(exc).lower() == "syllable scan deadline exceeded"
+                ):
+                    raise ProbeRunIncompleteError(
+                        "customer_endpoint_unreachable_transport",
+                        "customer endpoint scan deadline exceeded",
+                    ) from exc
+                errors += 1
+                # An endpoint that never answers is a failed scan, not 100
+                # could_not_run rows.
+                if replies == 0 and errors >= 3:
+                    raise
+                reply = exc
+            else:
+                replies += 1
+            verdict, reason = judge_starter_case(case, reply, judge_client=judge_client)
+            raw = 3.0 if verdict == PASSED else 0.0
+            if callable(record_verdict):
+                record_verdict(
+                    test_id=case.case_id,
+                    family=case.family_id,
+                    verdict=verdict,
+                    reason=reason,
+                )
+            yield case.rubric_point_id, {
+                "raw": raw,
+                "evidence_uri": _evidence_uri(case.family_id, STARTER_PACK_V2_ID, case.case_id),
+                "evidence_sha256": _evidence_sha256_bytes(
+                    reply if isinstance(reply, str) else ""
+                ),
+            }
+        return
     if getattr(runner, "pack_id", None) == STARTER_PACK_ID:
         # The roster is ID-pinned. Its prompt is intentionally self-contained so
         # this transport smoke exercises 100 distinct canonical case identities.

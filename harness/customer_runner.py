@@ -378,19 +378,35 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return parsed_response
 
     def record_starter_verdict(
-        self, *, test_id: str, family: str, verdict: str
+        self, *, test_id: str, family: str, verdict: str, reason: str = ""
     ) -> None:
-        """Attach a scored starter identity to the last prompt/reply pair."""
+        """Attach a scored starter identity to the last prompt/reply pair.
+
+        BEAAA-38895: with ``reason`` (starter-100@2) a verdict-only row is kept
+        even when result rows are off, so the Starter score always rides the
+        payload. Prompt/reply text still needs ``include_result_rows``.
+        """
         if not self._result_rows_enabled or self._pending_exchange is None:
+            if reason:
+                self._starter_rows.append({
+                    "test_id": test_id,
+                    "family": family,
+                    "verdict": verdict,
+                    "reason": self._redact_result_text(reason),
+                })
+            self._pending_exchange = None
             return
         prompt, reply = self._pending_exchange
-        self._starter_rows.append({
+        row = {
             "test_id": test_id,
             "family": family,
             "prompt": prompt,
             "reply": reply,
             "verdict": verdict,
-        })
+        }
+        if reason:
+            row["reason"] = self._redact_result_text(reason)
+        self._starter_rows.append(row)
         self._pending_exchange = None
 
     def starter_result_rows(self) -> tuple[dict[str, str], ...]:
