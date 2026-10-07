@@ -235,13 +235,36 @@ class HistoryImportStore:
         ).fetchone()
         if row is None:
             raise PermissionError("history_account_mismatch")
-        self.connection.execute("DELETE FROM history_previews WHERE token_digest=?", (digest,))
+        # STOP cancels an unused request and keeps received previews for verification.
         self.connection.execute(
-            "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=?",
+            "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=? "
+            "AND consumed_at IS NULL",
             (digest, user_id),
         )
         self._event(row["import_id"], user_id, "consent_revoked")
         self.connection.commit()
+
+    def delete_for_address(self, user_id: str, address: str) -> int:
+        """Erase received previews for this address on an explicit delete request."""
+        local, separator, domain = address.rpartition("@")
+        if separator != "@" or domain.lower() != HISTORY_DOMAIN or not local.startswith("history+"):
+            raise PermissionError("history_address_invalid")
+        digest = hashlib.sha256(local[len("history+"):].encode()).hexdigest()
+        row = self.connection.execute(
+            "SELECT import_id FROM history_requests WHERE token_digest=? AND user_id=?",
+            (digest, user_id),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("history_account_mismatch")
+        deleted = self.connection.execute(
+            "DELETE FROM history_previews WHERE token_digest=?", (digest,)).rowcount
+        self.connection.execute(
+            "UPDATE history_requests SET state='revoked' WHERE token_digest=? AND user_id=?",
+            (digest, user_id),
+        )
+        self._event(row["import_id"], user_id, "content_deleted")
+        self.connection.commit()
+        return deleted
 
     def onboarding_state(self, user_id: str, *, declined: bool = False,
                          purpose: str = "onboarding", tenant_id: str | None = None,

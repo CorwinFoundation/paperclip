@@ -28,12 +28,14 @@ def test_authorized_stop_is_idempotent_clears_content_and_isolates_other_grants(
     store.ingest(other["token"], "agent-a@example.com", _report("other-task"))
 
     assert store.relay_stop("user-a", stopped["grant_id"], "agent-a@example.com") == {
-        "state": "revoked", "backend_enforcement": "confirmed"}
+        "state": "revoked", "backend_enforcement": "confirmed",
+        "message": "Stop ends reporting and keeps what you sent; ask for deletion separately."}
     assert store.relay_stop("user-a", stopped["grant_id"], "agent-a@example.com")["state"] == "already_revoked"
     states = {row["grant_id"]: row["state"] for row in store.grants_for("user-a")}
     assert states[stopped["grant_id"]] == "revoked"
-    assert [row["report"]["deduplication_key"] for row in store.reports_for("user-a")] == ["other-task"]
-    assert store.followups_for("user-a")[0]["answer"] is None
+    assert sorted(row["report"]["deduplication_key"] for row in store.reports_for("user-a")) == [
+        "other-task", "stopped-task"]
+    assert store.followups_for("user-a")[0]["answer"] == "private reply"
     with pytest.raises(PermissionError, match="revoked_or_invalid"):
         store.ingest(stopped["token"], "agent-a@example.com", _report("later-task"))
     assert states[other["grant_id"]] == "active"

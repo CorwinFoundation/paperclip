@@ -147,6 +147,10 @@ def main(argv):
                 print("  grant", h(r.get("grant_digest")), "user", h(r.get("user_id")),
                       "sender", h(r.get("sender_email")), "created", ts(r.get("created_at")),
                       "revoked", ts(r.get("revoked_at")), "expires", ts(r.get("expires_at")))
+                if r.get("revoked_at"):
+                    kept = [x for x in rows(db, "instinct_standing_reports") if x.get("grant_digest") == r.get("grant_digest")]
+                    replies = [x for x in rows(db, "instinct_followup_requests") if x.get("grant_digest") == r.get("grant_digest") and x.get("replied_at")]
+                    print("    revoked_grant_retained reports", len(kept), "replies", len(replies))
         if "instinct_standing_reports" in tables:
             rs = rows(db, "instinct_standing_reports")
             sel = [r for r in rs if inw(r.get("received_at"))]

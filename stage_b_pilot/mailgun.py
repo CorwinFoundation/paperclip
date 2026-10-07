@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 
 from .inbound import InboundReceipt, InboundStore
 from .history_import import HistoryImportStore, MAX_MESSAGE_BYTES
-from .instinct_standing import FOLLOWUP_PREFIX, STANDING_PREFIX, StandingReportStore, render_instruction
+from .instinct_standing import FOLLOWUP_PREFIX, STANDING_PREFIX, STOP_ACK, StandingReportStore, render_instruction
 
 
 RECIPIENT = "check@inbound.backbond.ai"
@@ -311,7 +311,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             standing_post = path.startswith("/instinct/report/")
             if path not in {"/mailgun/mime", "/history/mailgun/mime",
                             "/history/request", "/history/action",
-                            "/instinct/grant", "/instinct/revoke",
+                            "/instinct/grant", "/instinct/revoke", "/instinct/delete",
                              "/instinct/chat-stop", "/instinct/reports",
                              "/instinct/followups"} and not standing_post:
                 self._reply(404, {"error": "not_found"})
@@ -322,7 +322,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 self._reply(400, {"error": "content_length_invalid"})
                 return
             json_paths = {"/history/request", "/history/action", "/instinct/grant",
-                          "/instinct/revoke", "/instinct/chat-stop",
+                          "/instinct/revoke", "/instinct/chat-stop", "/instinct/delete",
                           "/instinct/reports", "/instinct/followups"}
             limit = 64_000 if standing_post else 16_384 if path in json_paths else MAX_REQUEST_BYTES
             if length <= 0 or length > limit:
@@ -343,7 +343,7 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
                 self._reply(400, {"error": "request_body_invalid"})
                 return
-            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/chat-stop",
+            if path in {"/instinct/grant", "/instinct/revoke", "/instinct/chat-stop", "/instinct/delete",
                         "/instinct/reports", "/instinct/followups"}:
                 standing = None
                 try:
@@ -379,6 +379,20 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         self._reply(200, standing.issue_followup(
                             user_id, str(fields.get("grant_id", "")),
                             str(fields.get("question", ""))))
+                    elif path == "/instinct/delete":
+                        grant_id = str(fields.get("grant_id", "")).strip()
+                        confirm = str(fields.get("confirm", ""))
+                        history_address = standing.history_address_for_grant(user_id, grant_id)
+                        response = standing.delete_imported(user_id, grant_id, confirm=confirm)
+                        response["history_previews_deleted"] = 0
+                        if history_address:
+                            history = self._history_store()
+                            try:
+                                response["history_previews_deleted"] = history.delete_for_address(
+                                    user_id, history_address)
+                            finally:
+                                history.close()
+                        self._reply(200, response)
                     elif path in {"/instinct/revoke", "/instinct/chat-stop"}:
                         if path == "/instinct/chat-stop":
                             inbound = InboundStore(db_path)
@@ -404,8 +418,8 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         if path == "/instinct/chat-stop":
                             response = standing.relay_stop(user_id, grant_id, sender)
                         else:
-                            standing.revoke(user_id, grant_id)
-                            response = {"state": "revoked"}
+                            response = {"state": standing.revoke(user_id, grant_id, idempotent=True),
+                                        "message": STOP_ACK}
                         self._reply(200, response)
                     else:
                         inbound = InboundStore(db_path)

@@ -127,7 +127,7 @@ def test_cross_binding_rejected_and_standing_revoke_cascades_all_content(tmp_pat
         "trigger": "request_completed", "event": event})
     standing.issue_followup("u", grant["grant_id"], "Synthetic question")
     standing.revoke("u", grant["grant_id"])
-    assert standing.reports_for("u") == []
+    assert len(standing.reports_for("u")) == 1  # STOP retains received reports
     retained = standing.followups_for("u")
     assert retained[0]["state"] == "revoked" and retained[0]["answer"] is None
 

@@ -294,13 +294,14 @@ def test_stage_b_routes_grant_instruction_email_receipt_revoke_and_missing(tmp_p
         assert authenticated("/instinct/chat-stop", {
             "grant_id": issued["grant_id"],
             "agent_id": "ia5p01@mail.instinct.com",
-        }) == {"state": "revoked", "backend_enforcement": "confirmed"}
+        }) == {"state": "revoked", "backend_enforcement": "confirmed",
+                   "message": "Stop ends reporting and keeps what you sent; ask for deletion separately."}
         assert authenticated("/instinct/reports", {})["grants"][0]["state"] == "revoked"
         history = HistoryImportStore(tmp_path / "history.sqlite3",
                                      provider_secret=signing_key.encode(),
                                      encryption_key=b"history-encryption-key-32-bytes!!")
         try:
-            assert history.onboarding_state(user_id)["history_state"] == "revoked"
+            assert history.onboarding_state(user_id)["history_state"] == "received"  # STOP keeps received data
         finally:
             history.close()
         with pytest.raises(HTTPError) as revoked:
@@ -356,7 +357,7 @@ def test_email_followup_scope_expiry_conflicts_and_retained_private_history(tmp_
     assert next(row for row in records if row["request_id"] == pending["request_id"])["state"] == "revoked"
     page = render_history({}, "a@example.com", "csrf", standing={
         "grants": store.grants_for("a"), "followups": records})
-    assert "Fictional answer" not in page and question["request_id"] in page
+    assert "Fictional answer" in page and question["request_id"] in page  # STOP retains follow-up answers
 
     grant = store.issue("a", "agent@example.com", followup_enabled=True, ttl=timedelta(minutes=1))
     question = store.issue_followup("a", grant["grant_id"], "Expiring question")

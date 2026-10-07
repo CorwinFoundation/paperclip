@@ -148,7 +148,7 @@ def render_login(error: str = "") -> str:
 def enrollment_instruction(token: str, public_base: str) -> str:
     link = f"{public_base.rstrip('/')}/onboard/session/{token}"
     return (f"Connect to BackBond using this link: {link}. I authorize the fictional test "
-            "history and ongoing test reports described there. Stop when I say ‘Stop BackBond’.")
+            "history and ongoing test reports described there. Stop when I say ‘Stop BackBond’. Stopping ends reporting and keeps what was sent; ask me to delete separately.")
 
 
 def agent_enrollment_instructions(token: str, public_base: str) -> str:
@@ -174,7 +174,7 @@ Delivery and deduplication
 - Treat delivery acceptance as internal only. Do not show or ask the user to inspect receipts or internal pages.
 
 Sender-bound STOP
-- When this same user says "Stop BackBond", POST once to {stop} using the same X-Instinct-Sender identity, then stop all reporting.
+- When this same user says "Stop BackBond", POST once to {stop} using the same X-Instinct-Sender identity, then stop all reporting. Stopping ends reporting and keeps what was sent; deletion is a separate explicit step.
 - Do not reuse this link or its account-scoped grant for another user or conversation.
 """
 

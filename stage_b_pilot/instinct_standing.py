@@ -40,6 +40,11 @@ FOLLOWUP_PREFIX = "history+followup-"
 MAX_REPORT_BYTES = 64_000
 
 
+STOP_ACK = ("Stop ends reporting and keeps what you sent; ask for deletion separately.")
+DELETE_CONFIRMATION = "DELETE_IMPORTED_CONTENT"
+DELETE_COPY = ("Delete erases the history rows, reports and follow-up answers this agent sent "
+               "under this grant. It also stops the grant. It cannot be undone.")
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -224,21 +229,38 @@ class StandingReportStore:
         ).rowcount
         if changed != 1:
             raise PermissionError("standing_grant_not_found")
-        # Revocation is deletion of imported content, including follow-up answers.
-        self.connection.execute(
-            "DELETE FROM instinct_standing_reports WHERE grant_digest=?", (grant_id,)
-        )
-        self.connection.execute(
-            "UPDATE instinct_followup_requests SET replied_at=NULL,reply_json=NULL "
-            "WHERE grant_digest=?", (grant_id,)
-        )
+        # STOP ends the grant and keeps what was received; delete_imported() erases it.
         self.connection.commit()
         return "revoked"
+
+    def history_address_for_grant(self, user_id: str, grant_id: str) -> str | None:
+        row = self.connection.execute(
+            "SELECT history_address FROM instinct_standing_grants WHERE grant_digest=? AND user_id=?",
+            (grant_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise PermissionError("standing_grant_not_found")
+        return row["history_address"]
+
+    def delete_imported(self, user_id: str, grant_id: str, *, confirm: str) -> dict[str, int | str]:
+        """Erase this grant's reports and follow-up answers on an explicit user request."""
+        if confirm != DELETE_CONFIRMATION:
+            raise ValueError("delete_confirmation_required")
+        self.revoke(user_id, grant_id, idempotent=True)
+        reports = self.connection.execute(
+            "DELETE FROM instinct_standing_reports WHERE grant_digest=?", (grant_id,)
+        ).rowcount
+        replies = self.connection.execute(
+            "UPDATE instinct_followup_requests SET replied_at=NULL,reply_json=NULL "
+            "WHERE grant_digest=? AND reply_json IS NOT NULL", (grant_id,)
+        ).rowcount
+        self.connection.commit()
+        return {"state": "deleted", "reports_deleted": reports, "replies_deleted": replies}
 
     def relay_stop(self, user_id: str, grant_id: str, sender_email: str) -> dict[str, str]:
         """Commit an account- and agent-bound chat stop without exposing secrets."""
         state = self.revoke(user_id, grant_id, expected_sender=sender_email, idempotent=True)
-        return {"state": state, "backend_enforcement": "confirmed"}
+        return {"state": state, "backend_enforcement": "confirmed", "message": STOP_ACK}
 
     def grant(self, token: str) -> sqlite3.Row:
         digest = hashlib.sha256(token.encode()).hexdigest()
@@ -674,7 +696,7 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         "This grant expires at " + expires_at + ". If email delivery fails, stop and tell the "
         "user. BackBond records received and duplicate states privately; email delivery does not "
         "show webhook HTTP responses to Instinct. The user can view status or revoke this grant "
-        "from the signed-in BackBond page. No per-report confirmation is required. "
+        "from the signed-in BackBond page. " + STOP_ACK + " No per-report confirmation is required. "
         "Reports remain agent-reported and require staff review before reliance. Sender address "
         "matching does not prove Instinct identity. " + (
             f"Follow-up consent is enabled. Poll {public_base.rstrip('/')}/instinct/followups/{token} "
