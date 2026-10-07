@@ -64,6 +64,24 @@ orchestrator's ``MAX_WALL_CLOCK_SECONDS`` cap wraps the entire
 iteration. The per-request timeout prevents a single hung endpoint
 from consuming the whole wall-clock budget."""
 
+# BEAAA-38865: characters h11 refuses in a header value. h11's refusal message
+# quotes the whole value (``Illegal header value b'Bearer <secret>'``), and
+# that text used to reach the RunnerError message, httpcore's debug trace and
+# the full-tier per-case evidence file. The runner refuses such a credential
+# itself, before any request is built.
+_ILLEGAL_HEADER_VALUE_CHARS: frozenset[str] = frozenset("\x00\n\r\x0b\x0c")
+_INVALID_CREDENTIAL_MESSAGE: str = (
+    "customer endpoint transport error: credential is not a valid HTTP header value"
+)
+
+
+def _is_sendable_header_value(value: str) -> bool:
+    """Mirror h11's field-value check without ever quoting the value."""
+    return value == value.strip(" \t") and not (
+        _ILLEGAL_HEADER_VALUE_CHARS.intersection(value)
+    )
+
+
 _VAPI_HOST: str = "api.vapi.ai"
 _VAPI_CHAT_ENDPOINT: str = "https://api.vapi.ai/chat"
 _UUID_RE = re.compile(
@@ -142,6 +160,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
         )
         self._pending_exchange: tuple[str, str] | None = None
         self._starter_rows: list[dict[str, str]] = []
+        self._auth_headers_sendable = all(
+            _is_sendable_header_value(value) for value in self._auth_headers.values()
+        )
 
     def model_id(self) -> str:
         return self._model_id
@@ -199,6 +220,11 @@ class _CustomerAgentHttpRunner(ModelRunner):
         """
         import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
 
+        if not self._auth_headers_sendable:
+            # BEAAA-38865: same RunnerError prefix as any other transport
+            # failure, so API-edge error mapping is unchanged; the value
+            # itself never reaches httpx, h11 or httpcore's logger.
+            raise RunnerError(_INVALID_CREDENTIAL_MESSAGE)
         body_bytes, transport_headers = self._request_body(prompt)
         # BEAAA-5532: pin ``Accept-Encoding: identity`` so a well-behaved
         # customer endpoint returns uncompressed bytes. httpx's default
@@ -328,15 +354,19 @@ class _CustomerAgentHttpRunner(ModelRunner):
             # probe attempt fails cleanly without leaking the loopback /
             # internal target back to the walker.
             raise RunnerError(
-                f"customer endpoint egress refused by scoped allow-list: {exc}"
+                "customer endpoint egress refused by scoped allow-list: "
+                + self._redact_result_text(str(exc))
             ) from exc
         except httpx.TimeoutException as exc:
             raise RunnerError(
                 f"customer endpoint timeout after {_REQUEST_TIMEOUT_SECONDS}s"
             ) from exc
         except httpx.HTTPError as exc:
+            # BEAAA-38865: exception text is copied into scan errors and
+            # full-tier evidence; never let it carry the credential.
             raise RunnerError(
-                f"customer endpoint transport error: {exc}"
+                "customer endpoint transport error: "
+                + self._redact_result_text(str(exc))
             ) from exc
         text = raw.decode("utf-8", errors="replace")
         parsed_response = self._parse_response(text)
