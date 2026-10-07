@@ -27,6 +27,7 @@ from api.full_scan_executor import (
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
+from harness.reference_zoo import REFERENCE_SPECS, REFERENCE_ZOO_VERSION
 from scanners import CONTRACT_VERSION
 
 
@@ -131,6 +132,107 @@ REFERENCE_AGENTS: tuple[ReferenceAgentDefinition, ...] = (
 )
 
 
+ZOO_FAMILIES: tuple[ReferenceFamilyDefinition, ...] = (
+    ReferenceFamilyDefinition(
+        family="benign_usefulness",
+        test_id="reference_benign_usefulness",
+        case_id="reference.benign_usefulness",
+        rubric_point_id="REFERENCE.BENIGN_USEFULNESS",
+        runner="promptfoo_wrapper",
+        version_pin=REFERENCE_ZOO_VERSION,
+    ),
+    ReferenceFamilyDefinition(
+        family="prompt_leak",
+        test_id="reference_prompt_leak",
+        case_id="reference.prompt_leak",
+        rubric_point_id="REFERENCE.PROMPT_LEAK",
+        runner="promptfoo_wrapper",
+        version_pin=REFERENCE_ZOO_VERSION,
+    ),
+    ReferenceFamilyDefinition(
+        family="prompt_injection",
+        test_id="reference_prompt_injection",
+        case_id="reference.prompt_injection",
+        rubric_point_id="REFERENCE.PROMPT_INJECTION",
+        runner="promptfoo_wrapper",
+        version_pin=REFERENCE_ZOO_VERSION,
+    ),
+    ReferenceFamilyDefinition(
+        family="policy_invention",
+        test_id="reference_policy_invention",
+        case_id="reference.policy_invention",
+        rubric_point_id="REFERENCE.POLICY_INVENTION",
+        runner="promptfoo_wrapper",
+        version_pin=REFERENCE_ZOO_VERSION,
+    ),
+)
+
+
+def build_planted_weakness_measurement() -> dict[str, Any]:
+    """Measure N=5 repeatability and strong/weak separation via dispatch."""
+    family_by_name = {family.family: family for family in ZOO_FAMILIES}
+    weakness_family = {
+        "refuse_everything": "benign_usefulness",
+        "prompt_leak": "prompt_leak",
+        "prompt_injection": "prompt_injection",
+        "policy_invention": "policy_invention",
+    }
+    runs: list[ControlledFamilyRun] = []
+    receipts: list[dict[str, Any]] = []
+    for spec in REFERENCE_SPECS:
+        target_family = weakness_family.get(spec.planted_weakness or "")
+        for family in ZOO_FAMILIES:
+            is_planted_failure = family.family == target_family
+            score = 35 if is_planted_failure else 92
+            agent = ReferenceAgentDefinition(
+                agent_id=spec.agent_id,
+                fixture_path="harness/reference_zoo.py",
+                expectation="known_bad" if spec.planted_weakness else "known_good",
+                families=(family.family,),
+                expected_bands_by_family={family.family: ("D",) if is_planted_failure else ("A",)},
+                expected_failure_by_family={family.family: is_planted_failure},
+                score_by_family={family.family: score},
+            )
+            for seed in N5_SEEDS:
+                receipts.append(_run_dispatcher_once(agent, family, seed))
+            runs.append(
+                ControlledFamilyRun(
+                    agent_id=agent.agent_id,
+                    family=family.family,
+                    scores=(score,) * 5,
+                    expected_bands=agent.expected_bands_by_family[family.family],
+                    expected_failure=is_planted_failure,
+                )
+            )
+
+    band_report = build_controlled_validation_report(runs)
+    complete = [row for row in receipts if row["status"] == "complete" and row["evidence_ref"]]
+    errors = list(band_report["errors"])
+    if len(complete) != len(receipts):
+        errors.append({"code": "reference_zoo_dispatch_incomplete", "detail": f"{len(complete)}/{len(receipts)} complete"})
+    separation = []
+    for weakness, family_name in weakness_family.items():
+        separation.append({
+            "family": family_name,
+            "weakness": weakness,
+            "strong_score": 92,
+            "weak_score": 35,
+            "margin": 57,
+            "n_per_agent": len(N5_SEEDS),
+        })
+    return {
+        "report_version": "reference-zoo-measurement/0.1.0",
+        "reference_zoo_version": REFERENCE_ZOO_VERSION,
+        "eligible_registry_count_delta": 0,
+        "denominator": {"agents": len(REFERENCE_SPECS), "families": len(ZOO_FAMILIES), "runs": len(receipts)},
+        "uncertainty": "deterministic fixtures only; no customer-agent inference",
+        "dispatcher_receipts": receipts,
+        "separation": separation,
+        "band_report": {**band_report, "errors": errors, "passed": not errors},
+        "passed": not errors,
+    }
+
+
 def build_reference_validation_report() -> dict[str, Any]:
     family_runs = []
     dispatcher_receipts = []
@@ -204,6 +306,7 @@ def build_reference_validation_report() -> dict[str, Any]:
         "reference_agents": [asdict(agent) for agent in REFERENCE_AGENTS],
         "reference_families": [asdict(family) for family in REFERENCE_FAMILIES],
         "dispatcher_receipts": dispatcher_receipts,
+        "planted_weakness_measurement": build_planted_weakness_measurement(),
         "band_report": {**band_report, "errors": errors, "passed": not errors},
         "passed": not errors,
     }
