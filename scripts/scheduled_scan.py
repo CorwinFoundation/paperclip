@@ -9,6 +9,7 @@ by the live Vapi evidence path and dispatches them in-process.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from collections import Counter
 import json
 import os
@@ -1178,6 +1179,7 @@ def _zoo_routing_facts(
     environ: Mapping[str, str] | None = None,
     *,
     job_store_preexisting: bool | None = None,
+    evidence_rows: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Count-only routing facts for the 0644 operator summary.
 
@@ -1196,8 +1198,29 @@ def _zoo_routing_facts(
         reason = "routed" if decision.target is not None else str(decision.reason).split(":", 1)[0]
         families_by_reason[reason] += 1
         rows_by_reason[reason] += len(decision.rows)
+    # BEAAA-39088: the executor aborts a target after eight consecutive
+    # upstream 401/402/403/429 results, and a replay drops that reason. The
+    # status code survives on the stored rows, so count it here; the key is
+    # identified by a hash prefix only, never its value.
+    upstream_http_by_status: Counter[str] = Counter()
+    for row in evidence_rows:
+        if not isinstance(row, Mapping):
+            continue
+        match = re.match(
+            r"upstream_http_\d{3}",
+            str(row.get("incomplete_reason") or row.get("reason") or ""),
+        )
+        if match:
+            upstream_http_by_status[match.group(0)] += 1
+    openrouter_key = source.get("OPENROUTER_API_KEY", "").strip()
     return {
         "job_store_preexisting": job_store_preexisting,
+        "upstream_http_by_status": dict(sorted(upstream_http_by_status.items())),
+        "openrouter_key_sha256_prefix": (
+            hashlib.sha256(openrouter_key.encode("utf-8")).hexdigest()[:12]
+            if openrouter_key
+            else None
+        ),
         "families_with_target": sum(1 for d in decisions if d.target is not None),
         "families_without_target": sum(1 for d in decisions if d.target is None),
         "families_by_reason": dict(sorted(families_by_reason.items())),
@@ -1596,7 +1619,10 @@ def run_scheduled_zoo_scan(
         "families": families,
         "routed_families": routed_families,
         "routing": _zoo_routing_facts(
-            decisions, target_reports, job_store_preexisting=job_store_preexisting
+            decisions,
+            target_reports,
+            job_store_preexisting=job_store_preexisting,
+            evidence_rows=evidence_rows,
         ),
         "judge_calls": judge_calls,
         "coverage_failures": coverage_failures,

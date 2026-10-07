@@ -49,3 +49,26 @@ def test_routing_is_published_in_the_operator_summary() -> None:
 def test_routing_facts_flag_a_same_day_replay() -> None:
     facts = scheduled_scan._zoo_routing_facts([], {}, {}, job_store_preexisting=True)
     assert facts["job_store_preexisting"] is True
+
+
+def test_routing_facts_count_upstream_status_and_fingerprint_key() -> None:
+    """BEAAA-39088: name the aborting HTTP status without leaking the key."""
+    import hashlib
+
+    rows = [
+        {"incomplete_reason": "upstream_http_402: insufficient credits"},
+        {"incomplete_reason": "upstream_http_402"},
+        {"reason": "upstream_http_429"},
+        {"incomplete_reason": "format"},
+        "not-a-row",
+    ]
+    env = {"OPENROUTER_API_KEY": "sk-or-secret"}
+    facts = scheduled_scan._zoo_routing_facts([], {}, env, evidence_rows=rows)
+    assert facts["upstream_http_by_status"] == {
+        "upstream_http_402": 2,
+        "upstream_http_429": 1,
+    }
+    expected = hashlib.sha256(b"sk-or-secret").hexdigest()[:12]
+    assert facts["openrouter_key_sha256_prefix"] == expected
+    assert "sk-or-secret" not in repr(facts)
+    assert scheduled_scan._zoo_routing_facts([], {}, {})["openrouter_key_sha256_prefix"] is None
