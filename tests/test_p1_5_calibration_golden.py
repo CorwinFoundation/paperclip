@@ -184,3 +184,14 @@ class CalibrationGoldenRunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+def test_strip_keeps_bare_numeric_answer_beaaa_30934():
+    # Vapi row P1.5-CAL-019: "56" + confidence line was stripped to "" and judged INCONCLUSIVE.
+    from harness.bench.p1_5_calibration_golden import strip_trailing_confidence
+
+    assert strip_trailing_confidence("56  \n1.0") == "56"
+    assert strip_trailing_confidence("56\nConfidence: 0.9") == "56"
+    assert strip_trailing_confidence("1\n1.0") == "1"
+    assert strip_trailing_confidence("The answer is 56.\n0.8\n0.8") == "The answer is 56."
+    assert strip_trailing_confidence("Paris\nconfidence: 0.95") == "Paris"

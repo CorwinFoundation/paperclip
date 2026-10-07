@@ -113,7 +113,17 @@ def strip_trailing_confidence(response: str) -> str:
         m = _RE_STRIP_CONFIDENCE_TAIL.search(body)
         if not m:
             break
-        body = body[: m.start()].rstrip()
+        # A bare numeric answer ("56") matches the tail pattern too. Only strip a
+        # value that is a valid confidence, and never strip the answer to nothing.
+        tail = re.sub(r"(?i)confidence\s*[:=]", "", body[m.start():]).strip()
+        try:
+            in_range = 0.0 <= float(tail) <= 1.0
+        except ValueError:
+            in_range = False
+        rest = body[: m.start()].rstrip()
+        if not in_range or not rest:
+            break
+        body = rest
     return body
 
 
