@@ -130,6 +130,50 @@ def test_v10_submit_and_worker_use_exact_reserved_payloads(tmp_path):
     assert len(seen) == 704
 
 
+def test_v10_cost_cap_resume_reuses_reserved_form_and_skips_dispatched_payloads(tmp_path):
+    form_store = FormStore(tmp_path / "forms.sqlite3")
+    jobs = FullScanJobStore()
+    job = jobs.submit(
+        agent_id="agent-1", scanner_version="0.0.0", corpus_version="conv-en@1",
+        model_versions={}, seed=0, pack_id="full-scan-conv-en@1.0",
+        max_cost_usd=0.15, form_store=form_store, tenant_id="tenant-a",
+    )
+    form_id = job.form_id
+    form = form_store.get(form_id, scope=SCOPE, product="full")
+    reserved = {item["scenario_id"]: item["payload"] for item in form["cases"]}
+    seen = []
+
+    def worker(row, current_job):
+        seen.append((row["case_id"], {key: row[key] for key in reserved[row["case_id"]]}))
+        return WorkerAttemptResult(
+            status="complete",
+            evidence_ref=f"evidence://{current_job.job_id}/{row['case_id']}.json",
+            estimated_judge_cost_usd=0.10,
+        )
+
+    lease = jobs.lease(job.job_id)
+    first_id = form["cases"][0]["scenario_id"]
+    dispatch_variable_form_attempt(
+        jobs, job.job_id, attempt_id=lease["attempt_id"], form_store=form_store,
+        workers={"promptfoo": worker}, case_ids=(first_id,),
+    )
+    resumed = dispatch_variable_form_attempt(
+        jobs, job.job_id, attempt_id=lease["attempt_id"], form_store=form_store,
+        workers={"promptfoo": worker},
+    )
+    final = jobs.finalize_cost_cap(job.job_id, attempt_id=lease["attempt_id"])
+
+    assert final.status == "incomplete_cost_cap"
+    assert final.form_id == form_id
+    assert form_store.get(form_id, scope=SCOPE, product="full") == form
+    assert [case_id for case_id, _ in seen].count(first_id) == 1
+    assert len(seen) == 2
+    assert all(payload == reserved[case_id] for case_id, payload in seen)
+    capped = [row for row in resumed.evidence_rows if row.incomplete_reason == "cost_cap_reached"]
+    assert len(capped) == len(form["cases"]) - len(seen)
+    assert {row.probe_id for row in capped} == set(reserved) - {case_id for case_id, _ in seen}
+
+
 def test_real_underwriting_registry_submit_is_not_form_filtered():
     from tools.active_test_registry import build_registry
     from api.full_scan_executor import registry_cases_from_rows

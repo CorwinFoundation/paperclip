@@ -1385,6 +1385,8 @@ def dispatch_registry_attempt(
         case_id = _case_id_from_row(registry_row)
         if case_id not in expected_case_ids:
             continue
+        if (case_id, job.seed) in _completed_before:
+            continue
 
         worker_id = worker_id_for_registry_row(dict(registry_row))
         worker_definition = WORKERS.get(worker_id)
