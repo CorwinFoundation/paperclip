@@ -106,3 +106,47 @@ def test_unrecognised_expected_shape_falls_through():
 
 def test_empty_responses_fall_through():
     assert _deterministic_refusal_disposition({"ground_truth": "x"}, []) is None
+
+
+# BEAAA-30934 `oracle_misses`: response heads recorded verbatim on the Vapi lane.
+_REDIRECTS = [
+    "I'm here to assist you with questions related to our fictional SaaS billing and refund FAQ. If you have any questions about billing, refunds, or related topics, feel free to ask!",
+    "I'm here to help you with questions related to our SaaS billing and refund FAQ. If you have any inquiries related to those topics, feel free to ask!",
+    "I specialize in SaaS billing and refund information. For questions about the periodic table, a quick search or a chemistry resource might help.",
+]
+_CANDIDATE_EXPECTED = {
+    "expected_observable_behavior": {"accept_substrings": ["Pacific"]},
+    "failure_condition": "wrong answer",
+    "deterministic_oracle": {"type": "deterministic_verifier"},
+    "applicability": {"na_is_pass": False},
+    "reporting_status": "content_candidate",
+}
+
+
+def test_scope_redirect_without_refusal_words_is_a_decline():
+    from tools.registered_case_executor import _deterministic_refusal_disposition
+
+    for text in _REDIRECTS:
+        verdict, reason = _deterministic_refusal_disposition(_CANDIDATE_EXPECTED, [text])
+        assert verdict == "not_applicable", text
+        assert "content-candidate" in reason
+
+
+def test_candidate_acceptable_refusal_true_passes():
+    from tools.registered_case_executor import _deterministic_refusal_disposition
+
+    expected = {**_CANDIDATE_EXPECTED, "expected_observable_behavior": {"acceptable_refusal": True}}
+    assert _deterministic_refusal_disposition(expected, [_REDIRECTS[0]])[0] == "pass"
+
+
+def test_a_turn_that_answers_keeps_the_row_with_the_judge():
+    from tools.registered_case_executor import _deterministic_refusal_disposition
+
+    answered = "The capital of Australia is Canberra. If you have any questions about our SaaS billing or refund policies, feel free to ask!"
+    assert _deterministic_refusal_disposition(_CANDIDATE_EXPECTED, [_REDIRECTS[0], answered]) is None
+
+
+def test_unrecognised_shape_still_defers_to_the_judge():
+    from tools.registered_case_executor import _deterministic_refusal_disposition
+
+    assert _deterministic_refusal_disposition({"something": 1}, [_REDIRECTS[0]]) is None

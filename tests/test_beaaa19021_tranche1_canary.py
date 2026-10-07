@@ -483,12 +483,16 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # executor. The three tranche1 families remain applicable, so their rows,
     # call budget, and zero-weight invariants are unchanged; only the embedded
     # evaluator pin and this derived digest move.
+    # BEAAA-30934 teaches the shared scope-refusal oracle to read scope
+    # redirects and content-candidate contracts. The tranche1 tool families
+    # never reach that oracle; only the embedded evaluator pin and this derived
+    # digest move.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "21a494786032fc5c87df2b3bee141ce8c3c19fc7bc877ca0449620d18469c193"
+            "7473fb702d19018793a519de57e60246681e92ad5be3cf365c857c930fb12c80"
     )
 
 
