@@ -165,6 +165,47 @@ def rejudge(row: Mapping[str, Any], capability_manifest: Mapping[str, Any] | Non
     return _verdict(row), "judge_verdict_unchanged_by_deterministic_gates", "recorded"
 
 
+def live_rejudger(judge, registry_rows: Iterable[Mapping[str, Any]]):
+    """``rejudge`` with the live judge standing in for the recorded verdict.
+
+    Rows a deterministic gate decides keep that decision and cost nothing.
+    Every other text case is graded again by ``judge`` on the recorded
+    responses, through the executor's own prompt and verdict mapping: one
+    judge call per row and no target traffic.
+    """
+
+    from tools.registered_case_executor import _judge_materialized_text_case
+    from tools.text_case_materializer import is_text_compatible_test, materialize_text_case
+
+    by_case = {str(row.get("case_id")): row for row in registry_rows}
+
+    def _rejudge(row: Mapping[str, Any], capability_manifest: Mapping[str, Any] | None):
+        verdict, reason, source = rejudge(row, capability_manifest)
+        if source != "recorded":
+            return verdict, reason, source
+        test_id, case_id = str(row.get("test_id")), str(row.get("case_id"))
+        responses = row.get("responses")
+        registry_row = by_case.get(case_id)
+        if registry_row is None or not is_text_compatible_test(test_id):
+            return verdict, "live_judge_skipped:not_a_registry_text_case", source
+        if not isinstance(responses, list) or not responses:
+            return verdict, "live_judge_skipped:no_recorded_responses", source
+        spec = materialize_text_case(test_id, case_id, registry_row)
+        try:
+            judged = _judge_materialized_text_case(
+                judge,
+                prompts=list(spec.prompts),
+                responses=[str(item) for item in responses],
+                expected=spec.expected,
+                judge_criteria=spec.judge_criteria,
+            )
+        except Exception as exc:  # name the row, keep the other 29
+            return verdict, f"live_judge_error:{type(exc).__name__}", source
+        return str(judged["verdict"]), "live_judge", "live_judge"
+
+    return _rejudge
+
+
 def oracle_miss(row: Mapping[str, Any]) -> dict[str, Any]:
     """Why the deterministic scope-refusal oracle returned ``None`` for a row.
 
@@ -269,7 +310,8 @@ def _label_index(labels: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def agreement(sample: list[dict[str, Any]], labels: list[dict[str, Any]],
-              capability_manifest: Mapping[str, Any] | None) -> dict[str, Any]:
+              capability_manifest: Mapping[str, Any] | None,
+              verdict_fn=None) -> dict[str, Any]:
     """Re-judged verdicts against the CTO's labels, with the gaps named."""
 
     index = _label_index(labels)
@@ -277,7 +319,7 @@ def agreement(sample: list[dict[str, Any]], labels: list[dict[str, Any]],
     unlabelled: list[dict[str, Any]] = []
     for row in sample:
         case_id = str(row.get("case_id"))
-        verdict, reason, source = rejudge(row, capability_manifest)
+        verdict, reason, source = (verdict_fn or rejudge)(row, capability_manifest)
         record = {
             "family": str(row.get("test_id")),
             "case_id": case_id,
@@ -295,7 +337,7 @@ def agreement(sample: list[dict[str, Any]], labels: list[dict[str, Any]],
         record["cto"] = label["cto"]
         record["cause"] = label["cause"]
         record["matches_cto"] = (verdict == "fail") == bool(label["agrees_with_judge"])
-        if not record["matches_cto"] and source == "recorded":
+        if not record["matches_cto"] and source in ("recorded", "live_judge"):
             record["oracle_miss"] = oracle_miss(row)
         matched.append(record)
 

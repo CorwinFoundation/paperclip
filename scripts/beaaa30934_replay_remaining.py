@@ -13,6 +13,7 @@ so the assertion could only raise and the run produced no rows (BEAAA-30934).
 from __future__ import annotations
 
 import json
+from collections import Counter
 import os
 import sys
 import time
@@ -133,8 +134,12 @@ def replay_summary(source_evidence: Path, replay_evidence: Path) -> dict[str, ob
             "still_unresolved": still, "families": families}
 
 
-def hand_sample_agreement(source_evidence: Path) -> dict[str, object]:
-    """The offline 30-row re-judge against the CTO's labels. No network calls."""
+def hand_sample_agreement(source_evidence: Path, judge=None) -> dict[str, object]:
+    """The 30-row re-judge against the CTO's labels.
+
+    With no ``judge`` it is offline. With one, every row no deterministic gate
+    decides is graded again by that judge (at most 30 judge calls, no target
+    traffic)."""
     from scripts import beaaa30934_rejudge_hand_sample as rj
     from harness.vapi_capability_manifest import declare_for_assistant, load_snapshot
 
@@ -143,8 +148,15 @@ def hand_sample_agreement(source_evidence: Path) -> dict[str, object]:
     manifest = declare_for_assistant(str(snapshot.get("assistant_id") or ""), manifest_path=manifest_path)
     sample = rj.derive_sample(rj.load_rows(source_evidence.parent))
     labels = json.loads(rj.LABELS_PATH.read_text(encoding="utf-8"))["labels"]
-    result = rj.agreement(sample, labels, manifest)
+    verdict_fn = None
+    if judge is not None:
+        from api.full_scan_worker import load_default_full_scan_registry_rows
+
+        verdict_fn = rj.live_rejudger(judge, load_default_full_scan_registry_rows())
+    result = rj.agreement(sample, labels, manifest, verdict_fn=verdict_fn)
     return {key: result[key] for key in ("sampled", "labelled_by_case_id", "matches_cto", "baseline_judge_agreement")} | {
+        "judge": "live" if judge is not None else "offline",
+        "decided_by": dict(Counter(r["decided_by"] for r in result["rows"])),
         "mismatches": [f"{r['family']}/{r['case_id']}:{r['now']}" for r in result["rows"] if not r["matches_cto"]],
         "oracle_misses": {
             f"{r['family']}/{r['case_id']}": r["oracle_miss"] for r in result["rows"] if "oracle_miss" in r
@@ -185,6 +197,12 @@ def main() -> int:
         print(json.dumps({"hand_sample": hand_sample_agreement(SOURCE)}, sort_keys=True))
     except Exception as exc:
         print(json.dumps({"hand_sample_error": f"{type(exc).__name__}: {exc}"}))
+    # The same re-judge with the live judge (BEAAA-30934, CEO 2026-10-07: judge
+    # spend authorized). Judge traffic only, so it also runs before the Vapi gate.
+    try:
+        print(json.dumps({"hand_sample_live": hand_sample_agreement(SOURCE, judge=default_judge_runner())}, sort_keys=True))
+    except Exception as exc:
+        print(json.dumps({"hand_sample_live_error": f"{type(exc).__name__}: {exc}"}))
     scheduled.require_vapi_authorization("vapi")
 
     replay_evidence = OUT / "evidence"
