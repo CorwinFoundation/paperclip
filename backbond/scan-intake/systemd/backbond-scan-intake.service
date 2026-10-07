@@ -1,0 +1,21 @@
+[Unit]
+Description=BackBond scan intake API
+After=network-online.target
+
+[Service]
+User=backbond-qa
+Group=backbond-qa
+WorkingDirectory=/opt/backbond/scan-intake/server
+EnvironmentFile=/etc/backbond/scan-intake.env
+LoadCredential=qa-scanner-tokens.json:/etc/backbond/qa-review-scanner.json
+LoadCredential=scan-mail.json:/etc/backbond/scan-mail.json
+ExecStart=/opt/backbond/scan-venv/bin/uvicorn app:app --host 127.0.0.1 --port 8793 --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/backbond-scan-intake
+
+[Install]
+WantedBy=multi-user.target

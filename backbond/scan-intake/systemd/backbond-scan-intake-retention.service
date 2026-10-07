@@ -1,0 +1,15 @@
+[Unit]
+Description=Delete expired BackBond scan-intake records
+
+[Service]
+Type=oneshot
+User=backbond-qa
+Group=backbond-qa
+WorkingDirectory=/opt/backbond/scan-intake/server
+EnvironmentFile=/etc/backbond/scan-intake.env
+ExecStart=/opt/backbond/scan-venv/bin/python purge_retention.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/backbond-scan-intake
