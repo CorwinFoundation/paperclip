@@ -102,7 +102,7 @@ from scanners.starter_pack import STARTER_PACK_ID
 #: BEAAA-38895 — wall-clock budget for one starter-100@2 (or @3) pass.
 STARTER_V2_SCAN_DEADLINE_SECONDS: float = 1500.0
 #: Judged starter packs: one pass of 100 sends + 100 judge calls.
-_JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3")
+_JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3", "starter-100@4")
 
 
 # ---------------------------------------------------------------------------
@@ -540,6 +540,15 @@ def run_scan(
             active_runner.pack_id = scan_request.pack_id
         except AttributeError:
             pass
+        if scan_request.pack_id == "starter-100@4":
+            from scanners.starter_forms import reserve_starter_cases
+
+            # Required attributes; an incompatible runner fails before dispatch.
+            active_runner.starter_cases, active_runner.starter_form_summary = reserve_starter_cases(
+                scan_id=scan_request.scan_id,
+                tenant_id=scan_request.tenant_id,
+                agent_id=scan_request.agent_id or scan_request.agent_endpoint,
+            )
         try:
             active_runner.operational_scan_deadline_seconds = (
                 # BEAAA-38895: starter-100@2 makes 100 serial sends + 100 judge

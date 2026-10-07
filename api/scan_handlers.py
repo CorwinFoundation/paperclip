@@ -114,24 +114,25 @@ from scanners.starter_pack import (
 from scanners.starter_judge import starter_pack_id_for_rows, starter_score
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_COUNT
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_PACK_V3_TEST_COUNT
+from scanners.starter_pack_v4 import STARTER_PACK_V4_ID, STARTER_PACK_V4_TEST_COUNT
 
-# BEAAA-38895 / BEAAA-38898: new intakes run starter-100@3. A request that still
-# names @1 (the intake default) is served by @3 unless
-# BACKBOND_STARTER_PACK_LEGACY_V1=1; a request naming @2 explicitly still runs
-# @2. Stored @1 and @2 results keep rendering.
-_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID)
+# New Starter intakes use variable @4 forms, including clients naming older
+# packs. Historical results retain their original identities. The existing
+# operator rollback flag can still select an explicitly requested legacy pack.
+_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID, STARTER_PACK_V4_ID)
 _STARTER_PACK_TEST_COUNTS = {
     STARTER_PACK_ID: STARTER_PACK_TEST_COUNT,
     STARTER_PACK_V2_ID: STARTER_PACK_V2_TEST_COUNT,
     STARTER_PACK_V3_ID: STARTER_PACK_V3_TEST_COUNT,
+    STARTER_PACK_V4_ID: STARTER_PACK_V4_TEST_COUNT,
 }
 
 
 def _effective_starter_pack_id(pack_id: str) -> str:
-    if pack_id == STARTER_PACK_ID and os.environ.get(
+    if pack_id in _STARTER_PACK_IDS and os.environ.get(
         "BACKBOND_STARTER_PACK_LEGACY_V1", ""
     ).strip() != "1":
-        return STARTER_PACK_V3_ID
+        return STARTER_PACK_V4_ID
     return pack_id
 
 

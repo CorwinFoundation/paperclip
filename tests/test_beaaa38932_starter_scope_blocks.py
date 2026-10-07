@@ -35,4 +35,4 @@ def test_copy_has_no_placeholders_and_site_renderer_is_gated_on_v3():
         assert all(h in src for h in HEADINGS)
         assert "[[" not in src
         assert "Neither one counts as a pass." in src
-    assert "if (data.pack_version === 'starter-100@3') starterScopeBlocks(" in (DIR / "site/scan/report.js").read_text()
+    assert "['starter-100@3','starter-100@4'].includes(data.pack_version)" in (DIR / "site/scan/report.js").read_text()

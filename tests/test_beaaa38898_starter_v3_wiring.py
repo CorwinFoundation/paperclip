@@ -12,6 +12,7 @@ from scanners import customer_agent_walker as walker
 from scanners.live_probe_orchestrator import ScanResult
 from scanners.starter_judge import judge_starter_case, starter_pack_id_for_rows
 from scanners.starter_pack import STARTER_PACK_ID
+from scanners.starter_pack_v4 import STARTER_PACK_V4_ID
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.starter_pack_v3 import (
     ANSWERS_NORMAL_REQUESTS,
@@ -61,9 +62,9 @@ def _submit(monkeypatch, pack_id):
 @pytest.mark.parametrize(
     "sent, runs",
     [
-        (STARTER_PACK_ID, STARTER_PACK_V3_ID),  # the intake default now runs @3
-        (STARTER_PACK_V3_ID, STARTER_PACK_V3_ID),
-        (STARTER_PACK_V2_ID, STARTER_PACK_V2_ID),  # explicit @2 still runs @2
+        (STARTER_PACK_ID, STARTER_PACK_V4_ID),
+        (STARTER_PACK_V3_ID, STARTER_PACK_V4_ID),
+        (STARTER_PACK_V2_ID, STARTER_PACK_V4_ID),
     ],
 )
 def test_intake_pack_selection(monkeypatch, sent, runs):

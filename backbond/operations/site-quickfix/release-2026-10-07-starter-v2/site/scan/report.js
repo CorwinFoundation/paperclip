@@ -44,10 +44,10 @@
   const STARTER_NOT_RUN = 'Anything we did not run is marked N/A or not run. Neither one counts as a pass.';
   // Until /scan/full/new exists the button opens the current contact route.
   const FULL_SCAN_SCOPE_URL = partner => 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report-full-scan-scope') + '&subject=Full%20Scan%20scope';
-  function starterScopeBlocks(table, partner) {
+  function starterScopeBlocks(table, partner, packVersion = 'starter-100@3') {
     const tested = document.createElement('section'); tested.className = 'starter-tested';
     tested.append(text('h2','What this Starter scan tested'));
-    STARTER_TESTED.forEach(line => tested.append(text('p', line)));
+    STARTER_TESTED.forEach(line => tested.append(text('p', line.replace('starter-100@3', packVersion))));
     const omitted = document.createElement('section'); omitted.className = 'starter-omissions';
     omitted.append(text('h2','What this scan did not look at'));
     const list = document.createElement('ul'); STARTER_OMITTED.forEach(line => list.append(text('li', line))); omitted.append(list, text('p', STARTER_NOT_RUN));
@@ -64,7 +64,7 @@
       const response = await fetch('https://api.backbond.ai/scan/v1/reports/' + match[1], {credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
       if (!response.ok) { $('report-error').textContent = response.status === 404 || response.status === 410 ? 'This report is unavailable or has expired. Reports stay viewable for 180 days.' : 'The report service is unavailable. Try again later.'; return; }
       const data = await response.json();
-      if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3'].includes(data.pack_version)) throw new Error('schema');
+      if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4'].includes(data.pack_version)) throw new Error('schema');
       // could_not_run (starter-100@2 and @3) is its own verdict upstream; here it sits in the not-run bucket, never in fail.
       const tests = data.tests.map(item => ({...item, verdict: ['pass','fail'].includes(item.verdict) ? item.verdict : 'connection_error'}));
       const when = new Date(data.created_at);
@@ -98,7 +98,7 @@
       if (!tests.some(t=>t.verdict==='pass')) $('passes').append(text('p','No passed test results were received.'));
       $('scope').textContent = 'Results of the tests listed above, run on ' + date + ' against this version of your agent. This is not a penetration test. Results apply only to these tests and this agent version. If you change the agent, results can change - rescan after fixes.';
       const partner = /^[a-z0-9-]{1,60}$/.test(data.partner || '') ? data.partner : 'partner';
-      if (data.pack_version === 'starter-100@3') starterScopeBlocks($('families').closest('table') || $('families'), partner);
+      if (['starter-100@3','starter-100@4'].includes(data.pack_version)) starterScopeBlocks($('families').closest('table') || $('families'), partner, data.pack_version);
       $('contact').href = 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report') + '&subject=Full%20agent%20scan';
       $('report-error').hidden = true; $('report').hidden = false;
     } catch { $('report-error').textContent = 'The report could not be loaded. Try again later.'; }

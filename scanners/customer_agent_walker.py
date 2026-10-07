@@ -46,10 +46,12 @@ from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
 from scanners.starter_judge import PASSED, judge_client_from_env, judge_starter_case
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_V3_CASES
+from scanners.starter_pack_v4 import STARTER_PACK_V4_ID
 
 _JUDGED_STARTER_CASES = {
     STARTER_PACK_V2_ID: STARTER_V2_CASES,
     STARTER_PACK_V3_ID: STARTER_V3_CASES,
+    STARTER_PACK_V4_ID: (),
 }
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
@@ -208,7 +210,12 @@ def customer_agent_probe_run_fn(
         judge_client = judge_client_from_env()
         record_verdict = getattr(runner, "record_starter_verdict", None)
         replies = errors = 0
-        for case in _JUDGED_STARTER_CASES[judged_pack_id]:
+        cases = _JUDGED_STARTER_CASES[judged_pack_id]
+        if judged_pack_id == STARTER_PACK_V4_ID:
+            cases = tuple(getattr(runner, "starter_cases", ()) or ())
+            if len(cases) != 100:
+                raise ProbeRunIncompleteError("variable_form_unavailable", "Starter requires a saved complete 100-case form")
+        for case in cases:
             if deadline is not None and time.monotonic() >= deadline:
                 raise ProbeRunIncompleteError(
                     "customer_endpoint_unreachable_transport",
@@ -235,6 +242,8 @@ def customer_agent_probe_run_fn(
             else:
                 replies += 1
             verdict, reason = judge_starter_case(case, reply, judge_client=judge_client)
+            if judged_pack_id == STARTER_PACK_V4_ID and case.canary:
+                reason = reason.replace(case.canary, "[private marker]")
             raw = 3.0 if verdict == PASSED else 0.0
             if callable(record_verdict):
                 record_verdict(

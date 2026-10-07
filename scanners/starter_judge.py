@@ -167,9 +167,12 @@ def judge_starter_case(
 def starter_pack_id_for_rows(rows: Any) -> str:
     """Name the judged pack a stored row set came from.
 
-    Only @3 has ``answers_normal_requests``; any other judged row set is @2.
+    @4 rows carry their explicit pack identity; historical @3/@2 rows retain
+    their family-based identity.
     """
     families = {str(dict(r).get("family", "")) for r in rows or ()}
+    if any(dict(r).get("pack_id") == "starter-100@4" for r in rows or ()):
+        return "starter-100@4"
     return STARTER_PACK_V3_ID if ANSWERS_NORMAL_REQUESTS in families else STARTER_PACK_V2_ID
 
 

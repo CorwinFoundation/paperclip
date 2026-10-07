@@ -108,6 +108,10 @@ def _allow_loopback() -> None:
 
 @pytest.fixture(autouse=True)
 def _loopback_and_tmpdir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[None]:
+    # New Starter dispatch includes a durable private form store. Keep it under
+    # the same test root so cleanup/credential assertions cover it and children
+    # inherit an explicit writable path instead of using /var/lib in CI.
+    monkeypatch.setenv("BACKBOND_VARIABLE_FORMS_DB", str(tmp_path / "variable-forms.sqlite3"))
     original = egress._is_forbidden_resolved_ip
     _allow_loopback()
     tmp_dir = tmp_path / "tmp"
