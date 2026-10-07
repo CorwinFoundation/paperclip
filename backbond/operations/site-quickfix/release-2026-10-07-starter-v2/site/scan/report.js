@@ -38,6 +38,25 @@
     }
     parent.append(article);
   }
+  // BEAAA-38932: board-approved copy from BEAAA-38928 messaging-draft v0.2 (sections 1, 2, 4). starter-100@3 only.
+  const STARTER_TESTED = ['This was a 100-message Starter scan (pack starter-100@3). We sent your agent ten single messages in each of ten areas and graded every reply with a fixed rubric:', 'prompt injection, system prompt leak, secrets and personal data leak, discrimination and bias, made-up facts, out-of-scope actions, harmful content, jailbreak by role-play, refusal under pressure, and answering normal requests.', 'The last area checks the other side: ten ordinary requests (a refund question with the policy pasted in, a seat-price calculation, an email rewrite). An agent that refuses everything fails it.', 'Your Starter score describes these 100 messages only. It is not the Full Scan score and it is not used for underwriting.'];
+  const STARTER_OMITTED = ['Conversations. Every Starter test is one message and one reply. Attacks that build over several turns were not tried.', 'Actions. We read what your agent said, not what it did. Refunds, account changes, emails and other tool calls were not run against a sandbox.', 'Repeat behaviour. Each test ran once, so the Starter cannot tell you how often a failure happens.', 'Your own policy. The rubrics are generic. Your refund rules, escalation rules and product limits were not checked.', 'Voice, other languages, documents, memory and connected tools (MCP) were out of scope.'];
+  const STARTER_NOT_RUN = 'Anything we did not run is marked N/A or not run. Neither one counts as a pass.';
+  // Until /scan/full/new exists the button opens the current contact route.
+  const FULL_SCAN_SCOPE_URL = partner => 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report-full-scan-scope') + '&subject=Full%20Scan%20scope';
+  function starterScopeBlocks(table, partner) {
+    const tested = document.createElement('section'); tested.className = 'starter-tested';
+    tested.append(text('h2','What this Starter scan tested'));
+    STARTER_TESTED.forEach(line => tested.append(text('p', line)));
+    const omitted = document.createElement('section'); omitted.className = 'starter-omissions';
+    omitted.append(text('h2','What this scan did not look at'));
+    const list = document.createElement('ul'); STARTER_OMITTED.forEach(line => list.append(text('li', line))); omitted.append(list, text('p', STARTER_NOT_RUN));
+    const upgrade = document.createElement('section'); upgrade.className = 'starter-upgrade';
+    const lead = text('p',''); lead.append(text('strong','See what your agent does, not only what it says.'));
+    upgrade.append(lead, text('p','A Full Scan is a separate assessment with its own scope, score and report.'));
+    const button = text('a','Review Full Scan scope'); button.className = 'button'; button.href = FULL_SCAN_SCOPE_URL(partner); upgrade.append(button);
+    table.after(tested, omitted, upgrade);
+  }
   async function load() {
     const match = location.pathname.match(/^\/scan\/r\/([a-f0-9]{32})\/?$/i);
     if (!match) { $('report-error').textContent = 'This report link is invalid. Open the complete link from your report email.'; return; }
@@ -79,6 +98,7 @@
       if (!tests.some(t=>t.verdict==='pass')) $('passes').append(text('p','No passed test results were received.'));
       $('scope').textContent = 'Results of the tests listed above, run on ' + date + ' against this version of your agent. This is not a penetration test. Results apply only to these tests and this agent version. If you change the agent, results can change - rescan after fixes.';
       const partner = /^[a-z0-9-]{1,60}$/.test(data.partner || '') ? data.partner : 'partner';
+      if (data.pack_version === 'starter-100@3') starterScopeBlocks($('families').closest('table') || $('families'), partner);
       $('contact').href = 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report') + '&subject=Full%20agent%20scan';
       $('report-error').hidden = true; $('report').hidden = false;
     } catch { $('report-error').textContent = 'The report could not be loaded. Try again later.'; }

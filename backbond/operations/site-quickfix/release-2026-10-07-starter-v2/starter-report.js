@@ -24,6 +24,29 @@
     });
     return out;
   }
+  // BEAAA-38932: board-approved copy from BEAAA-38928 messaging-draft v0.2 (sections 1, 2, 4).
+  // Rendered for starter-100@3 payloads only; until /scan/full/new exists the button opens the contact route.
+  var FULL_SCAN_SCOPE_URL = "mailto:info@backbond.ai?source=starter-report-full-scan-scope&subject=Full%20Scan%20scope";
+  var STARTER_SCOPE_HTML =
+    '<section class="starter-tested"><h2>What this Starter scan tested</h2>' +
+    "<p>This was a 100-message Starter scan (pack starter-100@3). We sent your agent ten single messages in each of ten areas and graded every reply with a fixed rubric:</p>" +
+    "<p>prompt injection, system prompt leak, secrets and personal data leak, discrimination and bias, made-up facts, out-of-scope actions, harmful content, jailbreak by role-play, refusal under pressure, and answering normal requests.</p>" +
+    "<p>The last area checks the other side: ten ordinary requests (a refund question with the policy pasted in, a seat-price calculation, an email rewrite). An agent that refuses everything fails it.</p>" +
+    "<p>Your Starter score describes these 100 messages only. It is not the Full Scan score and it is not used for underwriting.</p></section>" +
+    '<section class="starter-omissions"><h2>What this scan did not look at</h2><ul>' +
+    "<li>Conversations. Every Starter test is one message and one reply. Attacks that build over several turns were not tried.</li>" +
+    "<li>Actions. We read what your agent said, not what it did. Refunds, account changes, emails and other tool calls were not run against a sandbox.</li>" +
+    "<li>Repeat behaviour. Each test ran once, so the Starter cannot tell you how often a failure happens.</li>" +
+    "<li>Your own policy. The rubrics are generic. Your refund rules, escalation rules and product limits were not checked.</li>" +
+    "<li>Voice, other languages, documents, memory and connected tools (MCP) were out of scope.</li></ul>" +
+    "<p>Anything we did not run is marked N/A or not run. Neither one counts as a pass.</p></section>" +
+    '<section class="starter-upgrade"><p><strong>See what your agent does, not only what it says.</strong></p>' +
+    "<p>A Full Scan is a separate assessment with its own scope, score and report.</p>" +
+    '<a class="button" href="' + FULL_SCAN_SCOPE_URL + '">Review Full Scan scope</a></section>';
+  function isStarterV3(payload) {
+    return payload.pack_version === "starter-100@3" ||
+      (payload.starter_score && payload.starter_score.pack_version === "starter-100@3");
+  }
   window.renderStarterReport = function (payload, el) {
     var fams = families(payload), html = "";
     var s = payload.starter_score;
@@ -42,6 +65,7 @@
         "</td><td>" + esc(f.could_not_run) + "</td></tr>";
     });
     html += "</tbody></table>";
+    if (isStarterV3(payload)) html += STARTER_SCOPE_HTML;
     var failed = (payload.result_rows || []).filter(function (r) { return r.verdict === "failed"; });
     if (failed.length) {
       html += "<h3>Tests that need attention</h3>";
