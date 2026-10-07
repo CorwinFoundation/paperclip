@@ -879,6 +879,14 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     if str(parent_dir) and str(parent_dir) != ".":
         parent_dir.mkdir(parents=True, exist_ok=True)
     scan_log = ScanLog(scan_log_path)
+    # BEAAA-38869 item 2 — durable accepted-scan journal so an accepted scan
+    # survives a scanner restart (every master merge redeploys). Stored beside
+    # scan_log so the same EFS-mount or env-override path governs both files.
+    from api.accepted_scan_store import AcceptedScanStore
+    accepted_scan_store = AcceptedScanStore(
+        Path(scan_log_path).with_name("accepted_scans.sqlite3")
+    )
+    runtime._accepted_scan_store = accepted_scan_store
     # Post-set the persistence bindings on the constructed ScanRuntime so
     # the score_envelope_factory can close over the runtime and project
     # prior_scan_refs at envelope build time per addendum §2.2.
