@@ -1,7 +1,7 @@
 {
-  "spec_version": "unique-test-spec/1.0.0",
+  "spec_version": "unique-test-spec/1.1.0",
   "spec_doc": "docs/full-scan/unique-test-spec-v1.md",
-  "registry_commit": "441fe467d6dbbaae8ef0071b093dab4388443234",
+  "registry_commit": "72f3e9cb172a687f777021b09a87b43f0666ec63",
   "registry_source": "api.full_scan_worker.load_default_full_scan_registry_rows() -> tools.active_test_registry.build_registry() filtered by _is_countable_active_executable",
   "eligible_unique_count": 270,
   "eligible_unique_if_metadata_repaired": 836,
@@ -1165,10 +1165,1077 @@
       "metadata_only": 0
     }
   },
+  "by_stratum": {
+    "BIAS_FAIRNESS/counterfactual_stability": {
+      "total": 60,
+      "eligible": 59,
+      "keep": 59,
+      "rewrite": 0,
+      "drop": 1,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/demographic_parity": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 0,
+      "drop": 2,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/equal_opportunity": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 0,
+      "drop": 1,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/eval_representation": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 0,
+      "drop": 1,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/garak_beaaa152": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 2
+    },
+    "BIAS_FAIRNESS/jailbreakbench": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "BIAS_FAIRNESS/p2_1_demographic_parity_gap": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_2_equal_opportunity_gap": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_3_counterfactual_stability": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_4_eval_representation": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_5_sentiment_skew_by_attribute": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_5_sentiment_skew_floor": {
+      "total": 7,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 7,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/p2_5_sentiment_skew_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 9
+    },
+    "BIAS_FAIRNESS/p2_5_sentiment_skew_golden": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 10
+    },
+    "BIAS_FAIRNESS/p2_6_mitigation_evidence": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "BIAS_FAIRNESS/sentiment_skew": {
+      "total": 3,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 0,
+      "drop": 3,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/agent_identity_signed_handoff": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/ai_disclosure": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 11,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/approval_freshness_replay": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/approval_preview_mutation_binding": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/authorization_revocation_race": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/customer_defined_risk_pack": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/data_residency_locality_boundary": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 1,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/human_escalation_flagging": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/human_override_takeover_relinquishment": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/pii_attestation": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "GOVERNANCE/privacy_minimization_reidentification": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/provenance_chain_of_custody": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "GOVERNANCE/tool_authorization_confused_deputy": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "OPS/cbrn_refusal": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 19,
+      "metadata_only": 0
+    },
+    "OPS/citation_integrity_legal": {
+      "total": 84,
+      "eligible": 80,
+      "keep": 80,
+      "rewrite": 0,
+      "drop": 4,
+      "metadata_only": 0
+    },
+    "OPS/confidence_calibration": {
+      "total": 101,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 91,
+      "drop": 10,
+      "metadata_only": 91
+    },
+    "OPS/factscore": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 2
+    },
+    "OPS/garak": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/garak_beaaa152": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/hallucination_legal": {
+      "total": 129,
+      "eligible": 91,
+      "keep": 91,
+      "rewrite": 35,
+      "drop": 3,
+      "metadata_only": 5
+    },
+    "OPS/halueval": {
+      "total": 5,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 5,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "OPS/harmbench": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/harmful_output_golden": {
+      "total": 30,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 29,
+      "metadata_only": 0
+    },
+    "OPS/out_of_scope_containment": {
+      "total": 38,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 9,
+      "drop": 29,
+      "metadata_only": 0
+    },
+    "OPS/p1_1_factuality_golden": {
+      "total": 34,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 34,
+      "drop": 0,
+      "metadata_only": 34
+    },
+    "OPS/p1_2_citation_integrity_floor": {
+      "total": 4,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 4,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "OPS/p1_2_citation_integrity_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 7
+    },
+    "OPS/p1_2_citation_integrity_golden": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 10
+    },
+    "OPS/p1_3_consistency_golden": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "OPS/p1_4_refusal_golden": {
+      "total": 26,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 26,
+      "drop": 0,
+      "metadata_only": 26
+    },
+    "OPS/p1_5_calibration_golden": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 9,
+      "drop": 11,
+      "metadata_only": 9
+    },
+    "OPS/p1_5_confidence_calibration_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 9
+    },
+    "OPS/p1_6_eval_breadth_floor": {
+      "total": 7,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 7,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "OPS/p1_6_eval_breadth_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 9
+    },
+    "OPS/p1_6_eval_coverage_breadth_golden": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 11
+    },
+    "OPS/peril_tool_grounded_factuality": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 13
+    },
+    "OPS/perturbation_seeds": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/privacybench": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/promptbench": {
+      "total": 5,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 5,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "OPS/self_contradiction_pairs": {
+      "total": 60,
+      "eligible": 40,
+      "keep": 40,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "OPS/stop_instruction_v1": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "OPS/tau_support_crm": {
+      "total": 3,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 3,
+      "drop": 0,
+      "metadata_only": 3
+    },
+    "OPS/truthfulqa": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 2
+    },
+    "ROBUSTNESS/accessibility_assistive_action_integrity": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/advbench": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "ROBUSTNESS/agentdojo": {
+      "total": 4,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 4,
+      "drop": 0,
+      "metadata_only": 4
+    },
+    "ROBUSTNESS/ai_disclosure": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 12
+    },
+    "ROBUSTNESS/browser_surface_action_integrity": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/cbrn_refusal": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/checkpoint_restore_integrity": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/code_agent_supply_chain": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/code_patch_scope_preservation": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/code_review_regression_detection": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/concurrent_shared_state_isolation": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/consequential_action_confirmation": {
+      "total": 15,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 15,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/context_truncation_fail_safe": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/credential_secret_output_log_handling": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/cross_customer_data_exposure": {
+      "total": 8,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 8,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/cross_session_data_leak": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/cyber_misuse_refusal": {
+      "total": 40,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 21,
+      "drop": 19,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/data_containment_transformed_exfiltration": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/email_calendar_injection": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/evaluation_awareness_behavior_consistency": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/file_upload_parser_boundary": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/garak": {
+      "total": 6,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 5,
+      "drop": 1,
+      "metadata_only": 4
+    },
+    "ROBUSTNESS/garak_beaaa152": {
+      "total": 8,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 8,
+      "drop": 0,
+      "metadata_only": 7
+    },
+    "ROBUSTNESS/harmbench": {
+      "total": 6,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 6,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "ROBUSTNESS/harmful_output_golden": {
+      "total": 30,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 30,
+      "drop": 0,
+      "metadata_only": 30
+    },
+    "ROBUSTNESS/idempotency_retry_double_execution": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/impersonation_social_engineering": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/indirect_injection": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 10
+    },
+    "ROBUSTNESS/indirect_injection_channels": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/insecure_code_generation": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/jailbreakbench": {
+      "total": 6,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 6,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "ROBUSTNESS/long_context_instruction_hierarchy_retention": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/long_running_cancellation_race": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/mcp_tool_integrity": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/multi_agent_handoff_integrity": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/multilingual_policy_consistency": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/multimodal_hidden_instruction": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/out_of_scope_containment": {
+      "total": 30,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 30,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/p3_2_indirect_injection_floor": {
+      "total": 7,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 7,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/p3_2_indirect_injection_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 8
+    },
+    "ROBUSTNESS/p3_2_indirect_injection_rob": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/p3_3_secret_exfil_floor": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/p3_3_secret_exfil_floor30": {
+      "total": 10,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 10,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "ROBUSTNESS/p3_3_secret_exfiltration_rob": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/p3_5_multiturn_jailbreak": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/p3_6_output_attack": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/peril_data_containment": {
+      "total": 6,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 6,
+      "drop": 0,
+      "metadata_only": 6
+    },
+    "ROBUSTNESS/peril_recipient_integrity": {
+      "total": 5,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 5,
+      "drop": 0,
+      "metadata_only": 4
+    },
+    "ROBUSTNESS/persistent_memory_poisoning": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/pii_scan_time_detection": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/privacybench": {
+      "total": 1,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 1,
+      "drop": 0,
+      "metadata_only": 1
+    },
+    "ROBUSTNESS/promptbench": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 2
+    },
+    "ROBUSTNESS/promptinject": {
+      "total": 2,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 2,
+      "drop": 0,
+      "metadata_only": 2
+    },
+    "ROBUSTNESS/pyrit": {
+      "total": 5,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 5,
+      "drop": 0,
+      "metadata_only": 5
+    },
+    "ROBUSTNESS/rag_grounding_retrieval_integrity": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/recipient_identity_integrity": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/resource_budget_enforcement": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/retrieval_source_trust_poisoning": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 24,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/sandbox_process_network_boundary": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/secret_exfil": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 13
+    },
+    "ROBUSTNESS/stop_resume_memory_boundary": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/structured_output_contract_semantics": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/system_prompt_extraction": {
+      "total": 20,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 20,
+      "drop": 0,
+      "metadata_only": 20
+    },
+    "ROBUSTNESS/tenant_account_boundary": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/time_sensitive_decision_freshness": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/tool_misuse_param_tamper": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/tool_misuse_scope_escape": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/tool_misuse_unauthorized_call": {
+      "total": 12,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 12,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/tool_schema_drift_partial_failure": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/transaction_end_state": {
+      "total": 13,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/voice_adversarial_pack": {
+      "total": 24,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 13,
+      "drop": 11,
+      "metadata_only": 12
+    },
+    "ROBUSTNESS/voice_consent_recording_boundary": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/voice_identity_channel_transfer": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    },
+    "ROBUSTNESS/voice_turn_taking_interruption_recovery": {
+      "total": 25,
+      "eligible": 0,
+      "keep": 0,
+      "rewrite": 25,
+      "drop": 0,
+      "metadata_only": 0
+    }
+  },
   "notes": {
     "metadata_only": "rewrite records whose only reasons are in capability_undeclared, licence_missing, severity_missing, source_missing",
+    "generated_variant": "records carrying parent_unique_test_id; they count as their parent's unique test",
     "near_duplicate": "word 3-shingle Jaccard >= 0.8 on normalized prompt text"
   },
   "csv": "artifacts/beaaa-38921/unique-test-audit.csv",
-  "csv_sha256": "b4e423b3cdc92025eb03b72bbbc60a05fa486ab12105da0e17f9adf741b23123"
+  "csv_sha256": "776dfa1f985aa81fd2c7fb5d34274ac39919fba1d89ff5099bff0d0c2107a3df"
 }

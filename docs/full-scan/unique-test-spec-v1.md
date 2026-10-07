@@ -1,6 +1,6 @@
 # Unique test spec v1
 
-Version: `unique-test-spec/1.0.0` (BEAAA-38921)
+Version: `unique-test-spec/1.1.0` (BEAAA-38921)
 Linter: `python -m tools.unique_test_lint` (module `tools/unique_test_lint.py`)
 Audit output: `artifacts/beaaa-38921/`
 
@@ -98,6 +98,10 @@ Each rule has a reason code. A record that breaks no rule is `keep`.
    - `near_duplicate`: word 3-shingle Jaccard similarity of at least 0.8.
      Slug-only stubs are excluded from near-duplicate matching because they
      differ only in the slug, and the slug is the scenario.
+   - `generated_variant` (1.1.0, BEAAA-38985 fresh forms): a record carrying
+     `parent_unique_test_id` was generated from that unique test by the form
+     assembler. It is never a new unique test, whatever its wording, and counts
+     as its parent even when the parent is not in the registry.
    - `translation_variant`: shares a base id with another record once a language
      marker (`.fr`, `_es`, `lang=de`) or an explicit `variant_base` is removed.
 
@@ -123,9 +127,13 @@ eligible count.
 ## Outputs
 
 - `unique-test-audit.csv` has one row per record with the columns
-  `id,area,family,source,licence,severity,capabilities,grading_rule,disposition,reasons,dup_of`.
+  `id,area,family,source,licence,severity,capabilities,grading_rule,disposition,reasons,dup_of,unique_test_id,stratum_key`.
+  `unique_test_id` is the canonical record a row counts as (itself when kept or
+  unique). `stratum_key` is the record's `stratum` when declared, otherwise
+  `<area>/<family>`; the form assembler budgets strata on it.
 - `unique-test-audit-summary.json` holds overall, per-area and per-family
-  counts (total, eligible, keep, rewrite, drop, metadata_only), reason counts,
+  counts (total, eligible, keep, rewrite, drop, metadata_only), the same counts
+  per `stratum_key` under `by_stratum`, reason counts,
   the eligible-unique count, the spec version and the registry commit SHA.
 
 ## Changing this spec

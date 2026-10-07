@@ -218,6 +218,53 @@ def test_translation_variants_count_once():
     assert sorted(r.disposition for r in lint.lint_records(explicit)) == [lint.DROP, lint.KEEP]
 
 
+def test_generated_variant_counts_as_its_parent_not_a_new_test():
+    parent = _good("refund.base", prompt="How do I get a refund on an annual plan?")
+    # Fresh wording, so neither the exact nor the near-duplicate check would catch it.
+    variant = _good(
+        "refund.form7",
+        prompt="My yearly subscription renewed yesterday and I want the money back.",
+        parent_unique_test_id="fam_a/refund.base",
+    )
+    results = {r.record.case_id: r for r in lint.lint_records([parent, variant])}
+    assert results["refund.base"].disposition == lint.KEEP
+    assert results["refund.form7"].disposition == lint.DROP
+    assert results["refund.form7"].reasons == ["generated_variant"]
+    assert results["refund.form7"].dup_of == "fam_a/refund.base"
+    assert results["refund.form7"].unique_test_id == "fam_a/refund.base"
+    assert results["refund.base"].unique_test_id == "fam_a/refund.base"
+    assert lint.summarize(list(results.values()), commit="c")["eligible_unique_count"] == 1
+
+
+def test_generated_variant_of_an_unregistered_parent_still_never_counts():
+    (result,) = lint.lint_records(
+        [_good("v1", prompt="Cancel my order please.", parent_unique_test_id="fam_z/gone")]
+    )
+    assert result.disposition == lint.DROP
+    assert result.unique_test_id == "fam_z/gone"
+
+
+def test_unique_test_id_and_stratum_key_are_exposed(tmp_path):
+    records = [
+        _good("k", prompt="Can I change the billing email on my account?"),
+        _good("zdup", prompt="Can I change the billing email on my account?"),
+        _good("s", prompt="Is my card stored after checkout?", stratum="OPS/payments"),
+    ]
+    results = lint.lint_records(records)
+    path = tmp_path / "audit.csv"
+    lint.write_csv(path, results)
+    with path.open(encoding="utf-8") as handle:
+        rows = {row["id"]: row for row in csv.DictReader(handle)}
+    assert rows["fam_a/zdup"]["unique_test_id"] == "fam_a/k"
+    assert rows["fam_a/k"]["unique_test_id"] == "fam_a/k"
+    assert rows["fam_a/k"]["stratum_key"] == "OPS/fam_a"
+    assert rows["fam_a/s"]["stratum_key"] == "OPS/payments"
+    by_stratum = lint.summarize(results, commit="c")["by_stratum"]
+    assert by_stratum["OPS/fam_a"]["eligible"] == 1
+    assert by_stratum["OPS/fam_a"]["drop"] == 1
+    assert by_stratum["OPS/payments"]["eligible"] == 1
+
+
 def test_duplicate_record_id_is_an_error():
     with pytest.raises(ValueError):
         lint.lint_records([_good("same"), _good("same")])
@@ -232,7 +279,7 @@ def test_summary_and_csv_shape(tmp_path):
     ]
     results = lint.lint_records(records)
     summary = lint.summarize(results, commit="abc123")
-    assert summary["spec_version"] == "unique-test-spec/1.0.0"
+    assert summary["spec_version"] == "unique-test-spec/1.1.0"
     assert summary["registry_commit"] == "abc123"
     assert summary["overall"] == {
         "total": 4, "eligible": 1, "keep": 1, "rewrite": 2, "drop": 1, "metadata_only": 1,

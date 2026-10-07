@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SPEC_VERSION = "unique-test-spec/1.0.0"
+SPEC_VERSION = "unique-test-spec/1.1.0"
 SPEC_DOC = "docs/full-scan/unique-test-spec-v1.md"
 
 KEEP, REWRITE, DROP = "keep", "rewrite", "drop"
@@ -65,9 +65,10 @@ R_CAPABILITY_NOT_ENFORCED = "capability_declared_not_enforced"
 R_DUP_EXACT = "duplicate_exact"
 R_DUP_NEAR = "near_duplicate"
 R_DUP_TRANSLATION = "translation_variant"
+R_DUP_GENERATED = "generated_variant"
 
 DROP_REASONS = frozenset(
-    {R_NOT_EXECUTABLE, R_PROMPT_MISSING, R_DUP_EXACT, R_DUP_NEAR, R_DUP_TRANSLATION}
+    {R_NOT_EXECUTABLE, R_PROMPT_MISSING, R_DUP_EXACT, R_DUP_NEAR, R_DUP_TRANSLATION, R_DUP_GENERATED}
 )
 # Defects fixable by recording a metadata field, without touching prompt,
 # grading or runner. Used only to rank repair targets.
@@ -172,6 +173,10 @@ class LintRecord:
     scored: bool = False
     source_text: str = ""
     note: str = ""
+    # A form-assembler variant names the unique test it was generated from
+    # (BEAAA-38985). It is never a new unique test.
+    parent_unique_test_id: str = ""
+    stratum: str = ""
 
     @property
     def record_id(self) -> str:
@@ -183,6 +188,7 @@ class LintResult:
     record: LintRecord
     reasons: list[str] = field(default_factory=list)
     dup_of: str = ""
+    unique_test_id: str = ""
 
     @property
     def disposition(self) -> str:
@@ -335,8 +341,17 @@ def assign_duplicates(
     a group counts once whatever its size.
     """
 
+    for result in results:
+        parent = result.record.parent_unique_test_id
+        if parent:
+            result.reasons.append(R_DUP_GENERATED)
+            result.dup_of = parent
     order = sorted(
-        (r for r in results if "\n".join(r.record.prompts).strip()),
+        (
+            r
+            for r in results
+            if "\n".join(r.record.prompts).strip() and not r.record.parent_unique_test_id
+        ),
         key=lambda r: (len(r.reasons), not r.record.scored, r.record.record_id),
     )
     canonical_by_text: dict[str, str] = {}
@@ -394,14 +409,43 @@ def lint_records(records: Iterable[LintRecord]) -> list[LintResult]:
             raise ValueError(f"duplicate record id: {result.record.record_id}")
         seen.add(result.record.record_id)
     assign_duplicates(results)
+    resolve_unique_ids(results)
     return results
+
+
+def stratum_key(record: LintRecord) -> str:
+    """Budgeting key for the form assembler: explicit stratum, else area/family."""
+
+    return record.stratum or f"{record.area or '(none)'}/{record.family}"
+
+
+def resolve_unique_ids(results: list[LintResult]) -> None:
+    """Point every record at the canonical record it counts as, in place.
+
+    A canonical record is its own unique test. A duplicate or generated variant
+    takes the id at the end of its ``dup_of`` chain; a parent id that is not in
+    the registry is still the unique test the variant belongs to.
+    """
+
+    by_id = {r.record.record_id: r for r in results}
+    for result in results:
+        current, seen = result, set()
+        while current.dup_of and current.dup_of not in seen:
+            seen.add(current.record.record_id)
+            nxt = by_id.get(current.dup_of)
+            if nxt is None:
+                result.unique_test_id = current.dup_of
+                break
+            current = nxt
+        else:
+            result.unique_test_id = current.record.record_id
 
 
 # --- outputs -----------------------------------------------------------------
 
 CSV_FIELDS = (
     "id", "area", "family", "source", "licence", "severity", "capabilities",
-    "grading_rule", "disposition", "reasons", "dup_of",
+    "grading_rule", "disposition", "reasons", "dup_of", "unique_test_id", "stratum_key",
 )
 
 
@@ -422,6 +466,8 @@ def csv_rows(results: Sequence[LintResult]) -> list[dict[str, str]]:
                 "disposition": result.disposition,
                 "reasons": ";".join(result.reasons),
                 "dup_of": result.dup_of,
+                "unique_test_id": result.unique_test_id,
+                "stratum_key": stratum_key(rec),
             }
         )
     return rows
@@ -446,12 +492,13 @@ def summarize(
     by_area: dict[str, dict[str, int]] = defaultdict(_bucket)
     by_family: dict[str, dict[str, Any]] = {}
     reason_counts: Counter[str] = Counter()
+    by_stratum: dict[str, dict[str, int]] = defaultdict(_bucket)
     for result in results:
         rec = result.record
         disposition = result.disposition
         metadata_only = disposition == REWRITE and set(result.reasons) <= METADATA_ONLY_REASONS
         fam = by_family.setdefault(rec.family, {"area": rec.area, **_bucket()})
-        for bucket in (overall, by_area[rec.area or "(none)"], fam):
+        for bucket in (overall, by_area[rec.area or "(none)"], fam, by_stratum[stratum_key(rec)]):
             bucket["total"] += 1
             bucket[disposition] += 1
             bucket["eligible"] += disposition == KEEP
@@ -472,10 +519,14 @@ def summarize(
         "reason_counts": dict(sorted(reason_counts.items(), key=lambda kv: (-kv[1], kv[0]))),
         "by_area": {k: by_area[k] for k in sorted(by_area)},
         "by_family": {k: by_family[k] for k in sorted(by_family)},
+        "by_stratum": {k: by_stratum[k] for k in sorted(by_stratum)},
         "notes": {
             "metadata_only": (
                 "rewrite records whose only reasons are in "
                 + ", ".join(sorted(METADATA_ONLY_REASONS))
+            ),
+            "generated_variant": (
+                "records carrying parent_unique_test_id; they count as their parent's unique test"
             ),
             "near_duplicate": f"word {SHINGLE_WORDS}-shingle Jaccard >= {NEAR_DUP_JACCARD} on normalized prompt text",
         },
@@ -525,6 +576,7 @@ _SOURCE_KEYS = (
     "source", "provenance", "provenance_source", "github_provenance", "source_url",
     "upstream_eval", "probe_source", "ground_truth_source", "source_ids", "sources",
 )
+_PARENT_KEYS = ("parent_unique_test_id",)
 _LICENCE_KEYS = ("licence", "license", "source_license", "source_licence", "spdx", "license_spdx")
 
 
@@ -729,6 +781,8 @@ def _mapping_meta(row: Mapping[str, Any], case_id: str) -> dict[str, Any]:
             or ""
         ),
         "declared": bool(top.get("applicability") or top.get("applicability_gate")),
+        "parent": _first_str(probe or {}, _PARENT_KEYS),
+        "stratum": _first_str(probe or {}, ("stratum",)) or _first_str(top, ("stratum",)),
         "source_text": text,
     }
 
@@ -800,6 +854,9 @@ def build_record(row: Mapping[str, Any], dry: Mapping[str, Any]) -> LintRecord:
                 # plain-text reply (lane-C expects a JSON reply contract).
                 grading = f"runner_contract:{test_id}"
 
+    inv_row = inv if row.get("content_candidate_inventory") is True else {}
+    parent = _first_str(inv_row, _PARENT_KEYS) or meta["parent"]
+    stratum = _first_str(inv_row, ("stratum",)) or meta["stratum"]
     payloads = tuple(str(p) for p in (outcome.get("payloads") or ())) if outcome else ()
     delivered = sent or payloads
     if not prompts:
@@ -825,6 +882,8 @@ def build_record(row: Mapping[str, Any], dry: Mapping[str, Any]) -> LintRecord:
         scored=scored,
         source_text=source_text,
         note=error,
+        parent_unique_test_id=parent,
+        stratum=stratum,
     )
 
 
