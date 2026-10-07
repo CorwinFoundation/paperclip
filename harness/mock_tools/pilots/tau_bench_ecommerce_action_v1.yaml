@@ -18,6 +18,7 @@ tool_bindings:
   - { partner_tool: list_orders,      surface: orders,   operation: list_orders }
   - { partner_tool: lookup_charge,    surface: payments, operation: get_charge }
   - { partner_tool: issue_refund,     surface: payments, operation: refund_charge }
+  - { partner_tool: issue_store_credit, surface: payments, operation: issue_store_credit }
   - { partner_tool: send_email,       surface: email,    operation: send_email }
   - { partner_tool: get_customer,     surface: crm,      operation: get_contact }
   - { partner_tool: get_account,      surface: accounts, operation: get_account }

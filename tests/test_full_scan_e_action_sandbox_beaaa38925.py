@@ -41,14 +41,18 @@ def _compliant(scenario, seed):
     def policy(idx, message, history):
         return (text, _calls(specs, seed) if idx == 0 else [])
 
-    return MockAgentSession(name="compliant", policy=policy, session_id=f"ok-{seed}")
+    session = MockAgentSession(name="compliant", policy=policy, session_id=f"ok-{seed}")
+    session.capability_manifest = {surface: True for surface in scenario.surfaces}
+    return session
 
 
 def _violating(scenario, seed):
     def policy(idx, message, history):
         return ("Done.", _calls(scenario.violating_calls, seed) if idx == 0 else [])
 
-    return MockAgentSession(name="violating", policy=policy, session_id=f"bad-{seed}")
+    session = MockAgentSession(name="violating", policy=policy, session_id=f"bad-{seed}")
+    session.capability_manifest = {surface: True for surface in scenario.surfaces}
+    return session
 
 
 def _chat_only(scenario, seed):
@@ -77,7 +81,11 @@ def test_compliant_agent_passes_every_action_case_at_k5():
     assert s["eligible_action_cases"] == 92
     assert s["not_applicable"] == 0
     for r in results:
-        assert r["checks"] == {"database_end_state": True, "tool_call_evidence": True}, r["kind"]
+        assert r["checks"] == {
+            "database_end_state": True,
+            "task_end_state": True,
+            "tool_call_evidence": True,
+        }, r["kind"]
     unauth = [r for r in results if r["domain"] == "unauthorized"]
     assert unauth and all(r["tool_calls"] and not r["mutating_calls"] for r in unauth)
 

@@ -14,13 +14,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
+import sys
 import threading
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from evals import full_scan_e_action_sandbox as fse
+from evals.full_scan_e_connection import bind_capabilities
 from harness.agent_interface import HTTPAgentSession
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -126,7 +130,26 @@ def _trim(env: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _exception_outcome(exc: Exception) -> str:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if "unsupported" in text or isinstance(exc, NotImplementedError):
+        return "unsupported"
+    if "timeout" in text or "timed out" in text or "malformed" in text:
+        return "inconclusive"
+    return "error"
+
+
+def _append_jsonl(path: Path, row: dict[str, Any], lock: threading.Lock) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(row, sort_keys=True, default=str) + "\n"
+    with lock, path.open("a", encoding="utf-8") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def main() -> int:
+    started = time.monotonic()
     ap = argparse.ArgumentParser()
     ap.add_argument("--adapter", choices=["openrouter"], default="openrouter")
     ap.add_argument("--model", default="openai/gpt-4.1-mini")
@@ -148,14 +171,22 @@ def main() -> int:
     stop_margin = 0.25
 
     def factory(scenario, seed):
-        return HTTPAgentSession(url=OPENROUTER_URL, model=args.model, auth=key, tools=TOOLS,
-                                system_prompt=SYSTEM_PROMPT, label=f"openrouter:{args.model}",
-                                poster=meter.poster, timeout_s=60.0)
+        session = HTTPAgentSession(url=OPENROUTER_URL, model=args.model, auth=key, tools=TOOLS,
+                                   system_prompt=SYSTEM_PROMPT, label=f"openrouter:{args.model}",
+                                   poster=meter.poster, timeout_s=60.0)
+        return bind_capabilities(session, {surface: True for surface in fse.CAPABILITY_DOMAINS})
 
     results: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
     skipped: list[str] = []
     lock = threading.Lock()
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    tag = args.model.replace("/", "_")
+    partial_rows = out / f"full_scan_e_live_{tag}_partial_rows.jsonl"
+    partial_errors = out / f"full_scan_e_live_{tag}_partial_outcomes.jsonl"
+    partial_rows.write_text("", encoding="utf-8")
+    partial_errors.write_text("", encoding="utf-8")
 
     def run_case(case):
         if meter.usd >= args.cap_usd - stop_margin:
@@ -166,11 +197,15 @@ def main() -> int:
             try:
                 env = fse.run_scenario(case, factory, seed=seed)
             except Exception as exc:  # network / provider errors are reported, never graded
+                error = {"stable_id": case.stable_id, "seed": seed,
+                         "outcome": _exception_outcome(exc), "error": repr(exc)[:300]}
                 with lock:
-                    errors.append({"stable_id": case.stable_id, "seed": seed, "error": repr(exc)[:300]})
+                    errors.append(error)
+                _append_jsonl(partial_errors, error, lock)
                 continue
             with lock:
                 results.append(env)
+            _append_jsonl(partial_rows, _trim(env), lock)
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         list(pool.map(run_case, cases))
@@ -184,10 +219,12 @@ def main() -> int:
         row[r["verdict"]] += 1
         unique_by_surface[surf].add(r["stable_id"])
 
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    tag = args.model.replace("/", "_")
     fail = next((r for r in results if r["verdict"] == "fail" and r["planted_violation"]), None)
+    unsupported = sum(r["verdict"] == "not_applicable" for r in results)
+    exceptional = {name: sum(e["outcome"] == name for e in errors)
+                   for name in ("unsupported", "error", "inconclusive")}
+    exceptional["unsupported"] += unsupported
+    runtime_seconds = round(time.monotonic() - started, 3)
     summary = {
         "issue": "BEAAA-38961", "parent": "BEAAA-38925", "disposition": fse.DISPOSITION,
         "adapter": args.adapter, "model": args.model, "k": args.k,
@@ -197,7 +234,8 @@ def main() -> int:
         "unique_cases_executed": len({r["stable_id"] for r in results}),
         "stratified_subset": bool(skipped) or bool(args.limit),
         "cases_skipped_for_cap": len(skipped),
-        "envelopes": len(results), "provider_errors": len(errors),
+        "envelopes": len(results), "provider_errors": exceptional["error"],
+        "outcome_counts": exceptional,
         "overall": fse.summary(results),
         "by_surface": by_surface,
         "unique_executed_by_surface": {k: len(v) for k, v in sorted(unique_by_surface.items())},
@@ -205,6 +243,19 @@ def main() -> int:
                   "prompt_tokens": meter.prompt_tokens, "completion_tokens": meter.completion_tokens,
                   "priced_from": sorted(meter.priced_from)},
         "errors_sample": errors[:5],
+        "replay": {
+            "command": shlex.join([sys.executable, *sys.argv]),
+            "seeds": list(range(args.k)),
+            "model": args.model,
+            "runtime_seconds": runtime_seconds,
+            "usd": round(meter.usd, 4),
+        },
+        "state_model": {
+            "seeded_before_state": "before_state",
+            "observed_after_state": "observed_state",
+            "mutating_call_ledger": "mutating_calls",
+        },
+        "capability_connection_contract": "evals.full_scan_e_connection",
         "sandbox_only": True,
     }
     (out / f"full_scan_e_live_{tag}_summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
