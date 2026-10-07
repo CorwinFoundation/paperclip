@@ -68,3 +68,9 @@ def test_legacy_list_finish_still_works(tmp_path):
     store = _store(tmp_path)
     report = store.report(store.finish("s1", qa_service.translate_tests(PAYLOAD)))
     assert report["outcome"] == "complete" and report["pack_version"] == "starter-100@1"
+
+
+def test_tracked_app_keeps_qa_preview_routes_retired():
+    # Live AriClaw retired all nine /qa-preview/ decorators; a reinstall must not bring them back.
+    app = (Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server" / "app.py").read_text()
+    assert '("/qa-preview/' not in app

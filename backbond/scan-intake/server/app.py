@@ -240,7 +240,6 @@ class CodeRequest(BaseModel):
 
 
 @app.post("/scan/v1/check-code")
-@app.post("/qa-preview/v1/check-code", include_in_schema=False)
 async def check_code(body: CodeRequest):
     return store.check_code(body.code)
 
@@ -297,7 +296,6 @@ def _payload(clean: dict) -> dict:
 
 
 @app.get("/scan/v1/config")
-@app.get("/qa-preview/v1/config", include_in_schema=False)
 def config():
     return {"partner_code_required": _flag('QA_PARTNER_CODE_REQUIRED', '1'),
             "terms_version": _terms_version(),
@@ -308,7 +306,6 @@ def config():
 
 
 @app.post("/scan/v1/connection-checks")
-@app.post("/qa-preview/v1/connection-checks", include_in_schema=False)
 def connection_check(body: ConnectionFields, request: Request):
     """Connectivity only: one message, no reservation, no quota, cannot start a scan."""
     if os.environ.get('QA_READY') != '1' and not _private_acceptance(request, body.code, body.email):
@@ -336,7 +333,6 @@ def connection_check(body: ConnectionFields, request: Request):
 
 
 @app.post("/scan/v1/scans")
-@app.post("/qa-preview/v1/scans", include_in_schema=False)
 def start_scan(body: ScanRequest, request: Request):
     if not _flag("QA_TERMS_APPROVED", "0"):
         raise HTTPException(503, "This review preview cannot start scans. Terms and launch approval are pending.")
@@ -412,7 +408,6 @@ def _status(token: str) -> dict:
 
 
 @app.post("/scan/v1/scan-status")
-@app.post("/qa-preview/v1/scan-status", include_in_schema=False)
 def scan_status(body: StatusRequest):
     # POST so the bearer-style token never lands in access-log URLs.
     value = _status(body.status_token)
@@ -421,7 +416,6 @@ def scan_status(body: StatusRequest):
 
 
 @app.post("/scan/v1/scan-cancel")
-@app.post("/qa-preview/v1/scan-cancel", include_in_schema=False)
 def scan_cancel(body: StatusRequest):
     value = _status(body.status_token)
     if value["status"] == "queued" and queue.cancel(value["scan_id"]):
@@ -438,7 +432,6 @@ def scan_cancel(body: StatusRequest):
 
 
 @app.post("/scan/v1/scanner-webhook", status_code=204)
-@app.post("/qa-preview/v1/scanner-webhook", status_code=204, include_in_schema=False)
 async def scanner_webhook(request: Request, x_backbond_signature: str = Header(default="")):
     if int(request.headers.get('content-length', '0')) > 1048576:
         raise HTTPException(413, 'callback too large')
@@ -461,7 +454,6 @@ async def scanner_webhook(request: Request, x_backbond_signature: str = Header(d
 
 
 @app.get("/scan/v1/reports/{token}")
-@app.get("/qa-preview/v1/reports/{token}", include_in_schema=False)
 def report(token: str):
     value = store.report(token)
     # Read sanitized existing reports through the public API without opening its database.
@@ -476,7 +468,6 @@ def report(token: str):
 
 
 @app.post("/scan/v1/delete")
-@app.post("/qa-preview/v1/delete", include_in_schema=False)
 def delete_scan(body: StatusRequest):
     if not store.delete_by_status_token(body.status_token):
         raise HTTPException(404, "scan not found")
