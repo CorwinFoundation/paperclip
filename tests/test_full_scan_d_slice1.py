@@ -26,10 +26,11 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
 )
 from api.full_scan_job_persistence import FullScanJobPersistence
-from api.full_scan_pack_registry import known_pack_ids, resolve_pack
+from api.full_scan_pack_registry import VariablePack, known_pack_ids, resolve_pack
 from api.full_scan_entitlement import FullScanEntitlementStore
 from api.full_scan_worker import FullScanQueueWorker
 from api.full_suite_manifest import FullSuiteCase
+from scanners.variable_test_forms import FormStore
 
 
 # ---------------------------------------------------------------------------
@@ -116,21 +117,31 @@ def test_pack_registry_known_packs():
     packs = known_pack_ids()
     assert "full-scan-conv-en@0.2" in packs
     assert "full-scan-conv-en@0.3" in packs
+    assert "full-scan-conv-en@1.0" in packs
+
+
+def test_pack_registry_v10_is_variable_not_static_tuple():
+    assert isinstance(resolve_pack("full-scan-conv-en@1.0"), VariablePack)
 
 
 def test_pack_registry_resolve_v02():
-    cases = resolve_pack("full-scan-conv-en@0.2")
+    cases = resolve_pack("full-scan-conv-en@0.2", allow_legacy_replay=True)
     assert len(cases) == 108
 
 
 def test_pack_registry_resolve_v03():
-    cases = resolve_pack("full-scan-conv-en@0.3")
+    cases = resolve_pack("full-scan-conv-en@0.3", allow_legacy_replay=True)
     assert len(cases) == 400
 
 
 def test_pack_registry_unknown_raises():
     with pytest.raises(KeyError, match="full-scan-conv-en@99"):
         resolve_pack("full-scan-conv-en@99")
+
+
+def test_legacy_fixed_pack_is_replay_only_for_new_requests():
+    with pytest.raises(KeyError, match="replay-only"):
+        resolve_pack("full-scan-conv-en@0.2")
 
 
 def test_submit_unknown_pack_raises():
@@ -333,7 +344,7 @@ def test_per_target_concurrency_limit_2():
 # ---------------------------------------------------------------------------
 
 
-def test_entitlement_required_for_paid_pack():
+def test_entitlement_required_for_paid_pack(tmp_path):
     """Submitting a paid-pack job without an entitlement raises."""
     ent_store = FullScanEntitlementStore(":memory:")
     store = _make_store()
@@ -345,19 +356,19 @@ def test_entitlement_required_for_paid_pack():
             corpus_version="1.0",
             model_versions={},
             seed=0,
-            registry_cases=_make_cases("C1"),
-            pack_id="full-scan-conv-en@0.2",
+            pack_id="full-scan-conv-en@1.0",
             tenant_id="tenant-A",
             entitlement_store=ent_store,
+            form_store=FormStore(tmp_path / "forms.sqlite3"),
         )
 
 
-def test_entitlement_consumed_on_job_accept():
+def test_entitlement_consumed_on_job_accept(tmp_path):
     """Accepting a paid-pack job consumes the entitlement."""
     ent_store = FullScanEntitlementStore(":memory:")
-    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@0.2", max_cost_usd=5.0)
+    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@1.0", max_cost_usd=5.0)
 
-    assert ent_store.check(tenant="T", pack_id="full-scan-conv-en@0.2")
+    assert ent_store.check(tenant="T", pack_id="full-scan-conv-en@1.0")
 
     store = _make_store()
     store.submit(
@@ -366,14 +377,14 @@ def test_entitlement_consumed_on_job_accept():
         corpus_version="1.0",
         model_versions={},
         seed=0,
-        registry_cases=_make_cases("C1"),
-        pack_id="full-scan-conv-en@0.2",
+        pack_id="full-scan-conv-en@1.0",
         tenant_id="T",
         entitlement_store=ent_store,
+        form_store=FormStore(tmp_path / "forms.sqlite3"),
     )
 
     # After acceptance, entitlement is consumed
-    assert not ent_store.check(tenant="T", pack_id="full-scan-conv-en@0.2")
+    assert not ent_store.check(tenant="T", pack_id="full-scan-conv-en@1.0")
 
 
 def test_entitlement_grant_idempotent():
@@ -392,8 +403,8 @@ def test_entitlement_grant_idempotent():
 def test_entitlement_idempotent_accept(tmp_path):
     """Submitting same idempotency_key twice returns the same job."""
     ent_store = FullScanEntitlementStore(":memory:")
-    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@0.2", max_cost_usd=5.0)
-    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@0.2", max_cost_usd=5.0)
+    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@1.0", max_cost_usd=5.0)
+    ent_store.grant(tenant="T", pack_id="full-scan-conv-en@1.0", max_cost_usd=5.0)
 
     store = _make_store()
     kwargs = dict(
@@ -402,10 +413,10 @@ def test_entitlement_idempotent_accept(tmp_path):
         corpus_version="1.0",
         model_versions={},
         seed=0,
-        registry_cases=_make_cases("C1"),
-        pack_id="full-scan-conv-en@0.2",
+        pack_id="full-scan-conv-en@1.0",
         tenant_id="T",
         entitlement_store=ent_store,
+        form_store=FormStore(tmp_path / "forms.sqlite3"),
         idempotency_key="idem-001",
     )
     j1 = store.submit(**kwargs)

@@ -310,6 +310,9 @@ class FullScanJob:
     # BEAAA-38957 — tenant identifier for per-target concurrency and entitlement
     # checks.  ``None`` keeps the legacy unchecked behaviour.
     tenant_id: str | None = None
+    # BEAAA-38987 — durable variable-form id from FormStore; None for legacy runs
+    # without form-based scenario selection.
+    form_id: str | None = None
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
@@ -369,7 +372,7 @@ class FullScanJobStore:
         corpus_version: str,
         model_versions: Mapping[str, Any],
         seed: int,
-        registry_cases: Iterable[FullSuiteCase],
+        registry_cases: Iterable[FullSuiteCase] = (),
         scan_id: str | None = None,
         idempotency_key: str | None = None,
         approved_blocker_ref: str | None = None,
@@ -384,11 +387,14 @@ class FullScanJobStore:
         entitlement_store: "Any | None" = None,
         max_concurrent_per_target: int = 1,
         target_id: str | None = None,
+        # BEAAA-38987 — optional FormStore for private scenario reservation.
+        form_store: "Any | None" = None,
+        form_bank_version: str | None = None,
+        form_id: str | None = None,
+        form_history_window: int = 1,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
-            if not cases:
-                raise FullScanExecutorError("registry_cases must not be empty")
             if wall_clock_budget_seconds is not None and wall_clock_budget_seconds <= 0:
                 raise FullScanExecutorError("wall_clock_budget_seconds must be positive")
             if rate_limit_per_minute is not None and rate_limit_per_minute <= 0:
@@ -398,11 +404,20 @@ class FullScanJobStore:
 
             # BEAAA-38957: pack_id validation --------------------------------
             if pack_id is not None:
-                from api.full_scan_pack_registry import resolve_pack
+                from api.full_scan_pack_registry import VariablePack, resolve_pack
                 try:
-                    resolve_pack(pack_id)
+                    resolved_pack = resolve_pack(pack_id)
                 except KeyError as exc:
                     raise FullScanExecutorError(str(exc)) from exc
+                if isinstance(resolved_pack, VariablePack):
+                    if form_store is None:
+                        raise FullScanExecutorError(f"variable pack {pack_id!r} requires form_store")
+                    form_bank_version = resolved_pack.bank_version
+                elif not cases:
+                    cases = tuple(FullSuiteCase(c.case_id, c.rubric_point_id) for c in resolved_pack)
+
+            if not cases and form_store is None:
+                raise FullScanExecutorError("registry_cases must not be empty")
 
             # BEAAA-38957: entitlement check (paid packs only) ---------------
             if pack_id is not None and entitlement_store is not None:
@@ -434,6 +449,66 @@ class FullScanJobStore:
                         f"(max={max_concurrent_per_target})"
                     )
 
+            # BEAAA-38987: with a FormStore, reserve a fresh private form
+            # atomically before the job exists, and dispatch only the test
+            # specifications it selected. No static fallback: insufficient
+            # supply fails the submit. Only form_id reaches the job record.
+            resolved_form_id: str | None = None
+            if form_store is not None:
+                from scanners.full_scan_form_adapter import (
+                    assert_form_payloads_current,
+                    create_full_scan_form,
+                    form_test_spec_ids,
+                )
+                from scanners.variable_test_forms import FormError
+                if not tenant_id:
+                    raise FullScanExecutorError(
+                        "variable forms require a trusted tenant_id"
+                    )
+                try:
+                    _scope = (tenant_id, agent_id)
+                    if form_id is not None:
+                        try:
+                            _form = form_store.get(form_id, scope=_scope, product="full")
+                        except FormError as exc:
+                            if str(exc) != "private form not found for this scope and product":
+                                raise
+                            _form = create_full_scan_form(
+                                form_store, scope=_scope,
+                                bank_version=form_bank_version or corpus_version,
+                                history_window=form_history_window, form_id=form_id,
+                            )
+                    else:
+                        _form = create_full_scan_form(
+                            form_store, scope=_scope,
+                            bank_version=form_bank_version or corpus_version,
+                            history_window=form_history_window,
+                        )
+                except FormError as exc:
+                    raise FullScanExecutorError(
+                        f"variable form unavailable: {exc}"
+                    ) from exc
+                resolved_form_id = _form["form_id"]
+                try:
+                    assert_form_payloads_current(_form)
+                except ValueError as exc:
+                    raise FullScanExecutorError(str(exc)) from exc
+                _reserved = form_test_spec_ids(_form)
+                if not cases:
+                    cases = tuple(
+                        FullSuiteCase(
+                            row["test_spec_id"], row["payload"]["rubric_point_id"]
+                        )
+                        for row in _form["cases"]
+                    )
+                cases = tuple(c for c in cases if c.case_id in _reserved)
+                _matched = {c.case_id for c in cases}
+                if _matched != _reserved:
+                    missing = sorted(_reserved - _matched)
+                    raise FullScanExecutorError(
+                        f"form reservation missing registry cases: {missing}"
+                    )
+
             now = self._clock()
             job = FullScanJob(
                 job_id=str(uuid.uuid4()),
@@ -460,6 +535,7 @@ class FullScanJobStore:
                 pack_id=pack_id,
                 max_cost_usd=max_cost_usd,
                 tenant_id=tenant_id,
+                form_id=resolved_form_id,
             )
             self._jobs[job.job_id] = job
             self._job_target_ids[job.job_id] = target_id
@@ -924,6 +1000,9 @@ def build_attempt_manifest(
             "wall_clock_budget_seconds": job.wall_clock_budget_seconds,
             "rate_limit_per_minute": job.rate_limit_per_minute,
         },
+        # BEAAA-38987 — form identity; None for legacy runs without form-based
+        # scenario selection. Public manifest carries only the id, never payloads.
+        "form_id": getattr(job, "form_id", None),
         "bind_eligibility": _bind_eligibility_from_missing(
             incomplete_reasons,
             approved_blocker_ref=job.approved_blocker_ref,
@@ -1570,6 +1649,45 @@ def dispatch_registry_attempt(
     return store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
 
 
+def dispatch_variable_form_attempt(
+    store: FullScanJobStore,
+    job_id: str,
+    *,
+    attempt_id: str,
+    form_store: Any,
+    workers: Mapping[str, FrameworkWorker],
+    case_ids: Iterable[str] | None = None,
+) -> FullScanJob:
+    """Dispatch the exact private payloads reserved for a variable-pack job."""
+    job = store.status(job_id)
+    if job.pack_id != "full-scan-conv-en@1.0" or not job.form_id or not job.tenant_id:
+        raise FullScanExecutorError("job is not a reserved conversation variable pack")
+    from scanners.full_scan_form_adapter import assert_form_payloads_current
+
+    form = form_store.get(job.form_id, scope=(job.tenant_id, job.agent_id), product="full")
+    assert_form_payloads_current(form)
+    selected = set(case_ids) if case_ids is not None else None
+    rows = tuple(
+        {
+            **dict(item["payload"]),
+            # A specification may generate more than one private scenario.
+            # Dispatch identity must therefore follow the reserved scenario,
+            # while test_spec_id remains provenance metadata in the payload.
+            "case_id": item["scenario_id"],
+            "test_id": item["scenario_id"],
+            "risk_or_rubric_id": item["payload"].get("rubric_point_id") or item["stratum_id"].split("|", 2)[1],
+            "rubric_point_id": item["payload"].get("rubric_point_id") or item["stratum_id"].split("|", 2)[1],
+            "status": "active",
+            "production_runner_executable": True,
+        }
+        for item in form["cases"]
+        if selected is None or item["scenario_id"] in selected
+    )
+    return dispatch_registry_attempt(
+        store, job_id, attempt_id=attempt_id, registry_rows=rows, workers=workers
+    )
+
+
 def _bind_eligibility(job: FullScanJob, manifest: Mapping[str, Any]) -> str:
     return _bind_eligibility_from_missing(
         [
@@ -1962,6 +2080,8 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "observed_judge_cost_usd": job.observed_judge_cost_usd,
         "observed_target_cost_usd": job.observed_target_cost_usd,
         "tenant_id": job.tenant_id,
+        # BEAAA-38987 — variable-form identity.
+        "form_id": job.form_id,
     }
 
 
@@ -2013,4 +2133,6 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         observed_judge_cost_usd=float(record.get("observed_judge_cost_usd") or 0.0),
         observed_target_cost_usd=float(record.get("observed_target_cost_usd") or 0.0),
         tenant_id=record.get("tenant_id"),
+        # BEAAA-38987 — variable-form identity (backwards-compatible None default).
+        form_id=record.get("form_id"),
     )

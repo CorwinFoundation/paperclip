@@ -75,6 +75,11 @@ def _wire_inputs(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def target_input_hash(payload: Mapping[str, Any]) -> str:
+    """Hash exactly the target-facing fields used for exposure deduplication."""
+    return _digest(_wire_inputs(dict(payload)))
+
+
 def _validate_bank(
     strata: Sequence[Stratum], scenarios: Sequence[Scenario], *, require_calibrated: bool
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -112,7 +117,7 @@ def _validate_bank(
             _nonempty(prompt, "prompt")
         elif not isinstance(turns, list) or not turns or not all(isinstance(t, str) and t.strip() for t in turns):
             raise FormError("scenario requires a prompt or nonempty text turns")
-        fingerprint = _digest(_wire_inputs(payload))
+        fingerprint = target_input_hash(payload)
         if fingerprint in input_hashes:
             raise FormError("duplicate target-facing content; relabeling does not create a scenario")
         scenario_ids.add(scenario.scenario_id)

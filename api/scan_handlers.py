@@ -61,6 +61,7 @@ from api.full_scan_executor import (
     FrameworkWorker,
     FullScanJobStore,
     dispatch_registry_attempt,
+    dispatch_variable_form_attempt,
     registry_cases_from_rows,
 )
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
@@ -446,6 +447,7 @@ class ScanRuntime:
             Callable[[ScanRequest, str], Mapping[str, FrameworkWorker]] | None
         ) = None,
         full_scan_job_store: FullScanJobStore | None = None,
+        full_scan_form_store: Any | None = None,
         webhook_outbox: "WebhookOutbox | None" = None,
         run_timestamp_factory: Callable[[], str] | None = None,
         forensic_bundle_uri_factory: Callable[[str, str], str] | None = None,
@@ -500,6 +502,7 @@ class ScanRuntime:
         self._full_scan_workers = dict(full_scan_workers or {})
         self._full_scan_workers_factory = full_scan_workers_factory
         self._full_scan_job_store = full_scan_job_store or FullScanJobStore()
+        self._full_scan_form_store = full_scan_form_store
         self._full_scan_job_ids: dict[str, str] = {}
         self._webhook_outbox = webhook_outbox
         self._webhook_cfgs: dict[str, dict[str, str]] = {}
@@ -1077,7 +1080,12 @@ class ScanRuntime:
         }
         if worker_metadata.get("execution_budget"):
             model_versions["execution_budget"] = worker_metadata["execution_budget"]
-        registry_cases = registry_cases_from_rows(self._full_scan_registry_rows)
+        variable_form_pack = scan_request.pack_id == "full-scan-conv-en@1.0"
+        registry_cases = (
+            ()
+            if variable_form_pack
+            else registry_cases_from_rows(self._full_scan_registry_rows)
+        )
         webhook_cfg = self._webhook_cfgs.get(scan_request.scan_id)
         job = self._full_scan_job_store.submit(
             agent_id=agent_id or scan_request.agent_id or scan_request.tenant_id,
@@ -1101,6 +1109,16 @@ class ScanRuntime:
                 if webhook_cfg is not None
                 else None
             ),
+            tenant_id=scan_request.tenant_id,
+            pack_id=(
+                scan_request.pack_id if variable_form_pack else None
+            ),
+            form_store=(
+                self._full_scan_form_store if variable_form_pack else None
+            ),
+            form_bank_version=(
+                "full-scan-conv-en@1.0" if variable_form_pack else None
+            ),
         )
         self._full_scan_job_ids[scan_request.scan_id] = job.job_id
         if self._full_scan_workers_factory is None:
@@ -1121,13 +1139,22 @@ class ScanRuntime:
         if not isinstance(attempt_id, str) or not attempt_id:
             finalized = self._full_scan_job_store.finalize(job.job_id)
         else:
-            dispatch_registry_attempt(
-                self._full_scan_job_store,
-                job.job_id,
-                attempt_id=attempt_id,
-                registry_rows=self._full_scan_registry_rows,
-                workers=workers,
-            )
+            if job.form_id:
+                dispatch_variable_form_attempt(
+                    self._full_scan_job_store,
+                    job.job_id,
+                    attempt_id=attempt_id,
+                    form_store=self._full_scan_form_store,
+                    workers=workers,
+                )
+            else:
+                dispatch_registry_attempt(
+                    self._full_scan_job_store,
+                    job.job_id,
+                    attempt_id=attempt_id,
+                    registry_rows=self._full_scan_registry_rows,
+                    workers=workers,
+                )
             finalized = self._full_scan_job_store.finalize(job.job_id)
         return self._full_scan_job_result(result, finalized, first_worker)
 
@@ -2041,7 +2068,10 @@ def _kickoff_live_probe_scan(
     if not isinstance(credential_secret, str) or (not credential_secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
     pack_id = body.get("pack_id")
-    if pack_id is not None and pack_id not in _STARTER_PACK_IDS:
+    if pack_id is not None and pack_id not in {
+        *_STARTER_PACK_IDS,
+        "full-scan-conv-en@1.0",
+    }:
         raise HandlerError(422, "pack_id_invalid")
     if pack_id is not None:
         pack_id = _effective_starter_pack_id(pack_id)

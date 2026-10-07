@@ -23,6 +23,7 @@ from api.full_scan_executor import (
     FullScanJob,
     FullScanJobStore,
     dispatch_registry_attempt,
+    dispatch_variable_form_attempt,
 )
 
 
@@ -67,6 +68,7 @@ class FullScanQueueWorker:
         *,
         registry_rows: Sequence[Mapping[str, Any]],
         workers: Mapping[str, FrameworkWorker],
+        form_store: Any | None = None,
         lease_ttl_seconds: int = 300,
         max_recovery_attempts: int = DEFAULT_MAX_RECOVERY_ATTEMPTS,
         webhook_secret_resolver: Callable[[str], str | bytes | None] | None = None,
@@ -77,6 +79,7 @@ class FullScanQueueWorker:
         self._store = store
         self._registry_rows = tuple(dict(row) for row in registry_rows)
         self._workers = dict(workers)
+        self._form_store = form_store
         self._lease_ttl_seconds = lease_ttl_seconds
         self._max_recovery_attempts = max_recovery_attempts
         self._webhook_secret_resolver = webhook_secret_resolver
@@ -142,13 +145,26 @@ class FullScanQueueWorker:
                 )
 
             row = pending[0]
-            dispatch_registry_attempt(
-                self._store,
-                job_id,
-                attempt_id=attempt_id,
-                registry_rows=(row,),
-                workers=self._workers,
-            )
+            job_now = self._store.status(job_id)
+            if job_now.form_id:
+                if self._form_store is None:
+                    raise RuntimeError("variable-pack job requires form_store")
+                dispatch_variable_form_attempt(
+                    self._store,
+                    job_id,
+                    attempt_id=attempt_id,
+                    form_store=self._form_store,
+                    workers=self._workers,
+                    case_ids=(str(row["case_id"]),),
+                )
+            else:
+                dispatch_registry_attempt(
+                    self._store,
+                    job_id,
+                    attempt_id=attempt_id,
+                    registry_rows=(row,),
+                    workers=self._workers,
+                )
             processed += 1
 
             # BEAAA-38957: cost cap check — if remaining rows have been marked
@@ -179,6 +195,24 @@ class FullScanQueueWorker:
                 )
 
     def _pending_registry_rows(self, job_id: str) -> list[Mapping[str, Any]]:
+        job = self._store.status(job_id)
+        if job.form_id:
+            if self._form_store is None or not job.tenant_id:
+                raise RuntimeError("variable-pack job requires scoped form_store")
+            form = self._form_store.get(
+                job.form_id, scope=(job.tenant_id, job.agent_id), product="full"
+            )
+            rows = [
+                {
+                    **dict(item["payload"]),
+                    "case_id": item["test_spec_id"],
+                    "status": "active",
+                    "production_runner_executable": True,
+                }
+                for item in form["cases"]
+            ]
+        else:
+            rows = self._registry_rows
         resume = self._store.resume(job_id)
         terminal_case_ids = {
             str(row["probe_id"])
@@ -188,7 +222,7 @@ class FullScanQueueWorker:
         }
         return [
             row
-            for row in self._registry_rows
+            for row in rows
             if row.get("status") == "active"
             and row.get("production_runner_executable") is True
             and str(row.get("case_id") or "") not in terminal_case_ids

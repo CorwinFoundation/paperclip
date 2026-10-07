@@ -58,6 +58,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import tarfile
 import tempfile
 import uuid
@@ -872,6 +873,14 @@ def make_default_production_scan_runtime() -> ScanRuntime:
 
     runtime._full_scan_registry_rows = tuple(build_active_registry())
     runtime._full_scan_workers_factory = build_live_framework_workers
+    from scanners.variable_test_forms import FormStore
+    variable_forms_path = Path(
+        os.environ.get(
+            "BACKBOND_VARIABLE_FORMS_DB",
+            str(Path(scan_log_path).with_name("variable-forms.sqlite3")),
+        )
+    )
+    runtime._full_scan_form_store = FormStore(variable_forms_path)
 
     # Ensure parent dir exists when caller pointed at a non-prod path; the
     # EFS-mount path is created at infra-provision time and exists in prod.

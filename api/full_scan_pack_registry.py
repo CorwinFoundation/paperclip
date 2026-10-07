@@ -8,10 +8,16 @@ module needs to be touched.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 
-def _build_registry() -> dict[str, tuple[Any, ...]]:
+@dataclass(frozen=True)
+class VariablePack:
+    bank_version: str
+
+
+def _build_registry() -> dict[str, tuple[Any, ...] | VariablePack]:
     # Deferred import so that scanners are only loaded when the registry is
     # first accessed (not at module import time).
     from scanners.full_scan_conversation_en import CASES as CASES_V1
@@ -22,28 +28,37 @@ def _build_registry() -> dict[str, tuple[Any, ...]]:
         # Changing a key is a breaking change — add a new key instead.
         "full-scan-conv-en@0.2": tuple(CASES_V1),
         "full-scan-conv-en@0.3": tuple(CASES_V2),
+        "full-scan-conv-en@1.0": VariablePack("full-scan-conv-en@1.0"),
     }
 
 
-_registry_cache: dict[str, tuple[Any, ...]] | None = None
+_registry_cache: dict[str, tuple[Any, ...] | VariablePack] | None = None
 
 
-def _registry() -> dict[str, tuple[Any, ...]]:
+def _registry() -> dict[str, tuple[Any, ...] | VariablePack]:
     global _registry_cache
     if _registry_cache is None:
         _registry_cache = _build_registry()
     return _registry_cache
 
 
-def resolve_pack(pack_id: str) -> tuple[Any, ...]:
-    """Return the case tuple for *pack_id*, or raise ``KeyError`` if unknown."""
+def resolve_pack(
+    pack_id: str, *, allow_legacy_replay: bool = False
+) -> tuple[Any, ...] | VariablePack:
+    """Resolve a current pack, or a legacy fixed pack for recorded-job replay."""
     reg = _registry()
     if pack_id not in reg:
         raise KeyError(
             f"Unknown pack_id {pack_id!r}. "
             f"Known packs: {sorted(reg)}"
         )
-    return reg[pack_id]
+    pack = reg[pack_id]
+    if not isinstance(pack, VariablePack) and not allow_legacy_replay:
+        raise KeyError(
+            f"Legacy fixed pack {pack_id!r} is replay-only; "
+            "new requests must use 'full-scan-conv-en@1.0'"
+        )
+    return pack
 
 
 def known_pack_ids() -> list[str]:
