@@ -1,44 +1,44 @@
 {
   "spec_version": "unique-test-spec/1.0.0",
   "spec_doc": "docs/full-scan/unique-test-spec-v1.md",
-  "registry_commit": "dd08994ea175ae5549e6a8d5022ddc60568b6e7a",
+  "registry_commit": "441fe467d6dbbaae8ef0071b093dab4388443234",
   "registry_source": "api.full_scan_worker.load_default_full_scan_registry_rows() -> tools.active_test_registry.build_registry() filtered by _is_countable_active_executable",
-  "eligible_unique_count": 0,
+  "eligible_unique_count": 270,
   "eligible_unique_if_metadata_repaired": 836,
   "overall": {
     "total": 2361,
-    "eligible": 0,
-    "keep": 0,
-    "rewrite": 2205,
+    "eligible": 270,
+    "keep": 270,
+    "rewrite": 1935,
     "drop": 156,
-    "metadata_only": 836
+    "metadata_only": 566
   },
   "reason_counts": {
-    "licence_missing": 2361,
-    "severity_missing": 1914,
-    "runner_render_scaffolding": 1102,
+    "licence_missing": 2033,
+    "severity_missing": 1630,
+    "runner_render_scaffolding": 1077,
     "scaffolding_eval_framing": 810,
     "capability_declared_not_enforced": 782,
     "prompt_slug_only": 750,
+    "target_not_exercised": 330,
     "capability_undeclared": 316,
-    "target_not_exercised": 305,
     "scaffolding_expected_answer": 187,
     "source_missing": 166,
-    "duplicate_exact": 153,
     "prompt_structured_spec": 152,
+    "duplicate_exact": 147,
     "prompt_template_variation": 124,
     "prompt_third_person_scenario": 31,
-    "near_duplicate": 3,
+    "near_duplicate": 9,
     "prompt_placeholder": 1
   },
   "by_area": {
     "BIAS_FAIRNESS": {
       "total": 169,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 161,
+      "eligible": 59,
+      "keep": 59,
+      "rewrite": 102,
       "drop": 8,
-      "metadata_only": 81
+      "metadata_only": 22
     },
     "GOVERNANCE": {
       "total": 255,
@@ -50,11 +50,11 @@
     },
     "OPS": {
       "total": 662,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 557,
+      "eligible": 211,
+      "keep": 211,
+      "rewrite": 346,
       "drop": 105,
-      "metadata_only": 478
+      "metadata_only": 267
     },
     "ROBUSTNESS": {
       "total": 1275,
@@ -168,11 +168,11 @@
     "citation_integrity_legal": {
       "area": "OPS",
       "total": 84,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 80,
+      "eligible": 80,
+      "keep": 80,
+      "rewrite": 0,
       "drop": 4,
-      "metadata_only": 80
+      "metadata_only": 0
     },
     "code_agent_supply_chain": {
       "area": "ROBUSTNESS",
@@ -240,11 +240,11 @@
     "counterfactual_stability": {
       "area": "BIAS_FAIRNESS",
       "total": 60,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 58,
-      "drop": 2,
-      "metadata_only": 58
+      "eligible": 59,
+      "keep": 59,
+      "rewrite": 0,
+      "drop": 1,
+      "metadata_only": 0
     },
     "credential_secret_output_log_handling": {
       "area": "ROBUSTNESS",
@@ -314,9 +314,9 @@
       "total": 2,
       "eligible": 0,
       "keep": 0,
-      "rewrite": 1,
-      "drop": 1,
-      "metadata_only": 1
+      "rewrite": 0,
+      "drop": 2,
+      "metadata_only": 0
     },
     "email_calendar_injection": {
       "area": "ROBUSTNESS",
@@ -393,11 +393,11 @@
     "hallucination_legal": {
       "area": "OPS",
       "total": 129,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 126,
+      "eligible": 91,
+      "keep": 91,
+      "rewrite": 35,
       "drop": 3,
-      "metadata_only": 96
+      "metadata_only": 5
     },
     "halueval": {
       "area": "OPS",
@@ -987,11 +987,11 @@
     "self_contradiction_pairs": {
       "area": "OPS",
       "total": 60,
-      "eligible": 0,
-      "keep": 0,
-      "rewrite": 60,
+      "eligible": 40,
+      "keep": 40,
+      "rewrite": 20,
       "drop": 0,
-      "metadata_only": 40
+      "metadata_only": 0
     },
     "sentiment_skew": {
       "area": "BIAS_FAIRNESS",
@@ -1170,5 +1170,5 @@
     "near_duplicate": "word 3-shingle Jaccard >= 0.8 on normalized prompt text"
   },
   "csv": "artifacts/beaaa-38921/unique-test-audit.csv",
-  "csv_sha256": "9d4a8ecce66c9348f078860afc023551b64815260a3a945577d36547c04d65c5"
+  "csv_sha256": "b4e423b3cdc92025eb03b72bbbc60a05fa486ab12105da0e17f9adf741b23123"
 }

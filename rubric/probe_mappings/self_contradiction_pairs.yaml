@@ -26,6 +26,10 @@
 #   - H3 (this commit): 20 add-irrelevant pairs + run_add_irrelevant() + UW co-sign packet
 
 benchmark: self_contradiction_pairs
+# BEAAA-38921: licence + audit_severity are audit metadata for the
+# unique-test linter. No adapter reads audit_severity (CTO option B).
+licence: "LicenseRef-BackBond-Proprietary"
+audit_severity: "medium"
 version: "0.1.2"
 status: "H3 — paraphrase (20) + reorder (20) + add-irrelevant (20) corpus live; bench wrapper covers all three families; UW co-sign per BEAAA-21 §1.3 packet posted (4 asks)"
 description: |

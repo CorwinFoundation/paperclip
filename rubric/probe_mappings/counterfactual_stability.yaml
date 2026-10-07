@@ -20,6 +20,10 @@
 #     step 1.
 
 benchmark: counterfactual_stability
+# BEAAA-38921: licence + audit_severity are audit metadata for the
+# unique-test linter. No adapter reads audit_severity (CTO option B).
+licence: "LicenseRef-BackBond-Proprietary"
+audit_severity: "medium"
 version: "0.1.1"
 status: "emit-ready v0.1.1 under BEAAA-203; runner harness/bench/counterfactual_pairs.py (28 unit tests); 60-pair × 5-axis corpus (commit 85d119c); UW co-sign on dim defs per BEAAA-448 cmt 1d73afe6 2026-05-17; Atticus dry-run artifacts/beaaa-203/p2_atticus_dry_run.json"
 description: |

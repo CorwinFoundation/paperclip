@@ -26,6 +26,10 @@
 #     BEAAA-206 citation_index v0.1.0). 120 probes total across 4 families.
 
 benchmark: hallucination_legal
+# BEAAA-38921: licence + audit_severity are audit metadata for the
+# unique-test linter. No adapter reads audit_severity (CTO option B).
+licence: "LicenseRef-BackBond-Proprietary"
+audit_severity: "high"
 version: "0.3.0"
 status: "v0.3.0 H3 — F2 case-citation (30) landed and wired through BEAAA-206 citation_index v0.1.0; UW co-sign v0.2 CONFIRMED (Branch A held: 0.10/0.40) on 5-fixture empirical distribution; Atticus matter-summary dry-run is the next op-seat step on the locked v0.3.0 corpus"
 description: |

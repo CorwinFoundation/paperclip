@@ -718,7 +718,16 @@ def _mapping_meta(row: Mapping[str, Any], case_id: str) -> dict[str, Any]:
     return {
         "source": source,
         "licence": _first_str(probe or {}, _LICENCE_KEYS) or _first_str(top, _LICENCE_KEYS),
-        "severity": str((probe or {}).get("severity") or top.get("severity") or ""),
+        # Runtime ``severity`` wins; ``audit_severity`` is a registry-only
+        # label that no adapter reads (BEAAA-38921, CTO option B), so it can
+        # be filled without changing replicate counts.
+        "severity": str(
+            (probe or {}).get("severity")
+            or top.get("severity")
+            or (probe or {}).get("audit_severity")
+            or top.get("audit_severity")
+            or ""
+        ),
         "declared": bool(top.get("applicability") or top.get("applicability_gate")),
         "source_text": text,
     }
@@ -766,6 +775,10 @@ def build_record(row: Mapping[str, Any], dry: Mapping[str, Any]) -> LintRecord:
         enforced = not required or required in runtime_gate
         grading = _grading_from_oracle(inv.get("deterministic_oracle") or {})
         # A graduated row also lives in a mapping pack; fill gaps from it.
+        # Inventory rows often carry no ``source_pack``; their provenance
+        # path names the family file instead.
+        if not (meta["licence"] and meta["severity"]) and origin.endswith((".yaml", ".yml")):
+            meta = _mapping_meta({"source_pack": origin}, case_id)
         source = source or meta["source"]
         licence = licence or meta["licence"]
         severity = severity or meta["severity"]
