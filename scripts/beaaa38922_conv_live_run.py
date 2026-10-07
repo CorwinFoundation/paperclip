@@ -44,6 +44,7 @@ from scanners.full_scan_conversation_en_s2 import CASES_S2
 from scanners.full_scan_conversation_en_s3 import CASES_S3
 from scanners.full_scan_conversation_en_s4 import CASES_S4
 from scanners.full_scan_conversation_en_s5 import CASES_S5
+from scanners.full_scan_conversation_en_s6 import CASES_S6
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -300,13 +301,16 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--limit", type=int, default=0, help="run only first N cases (smoke)")
     ap.add_argument("--out", default="tools/full-scan-conv-runs/2026-10-07-r2")
+    ap.add_argument("--slice", choices=["s1-s5", "s6"], default="s1-s5",
+                    help="s1-s5 = the 2,008-case r2 catalogue; s6 = the 342 slice-6 cases only")
     args = ap.parse_args()
 
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise SystemExit("OPENROUTER_API_KEY not set")
 
-    cases = list(ALL_CASES)
+    catalogue = list(CASES_S6) if args.slice == "s6" else list(ALL_CASES)
+    cases = list(catalogue)
     if args.limit:
         cases = cases[: args.limit]
 
@@ -375,12 +379,13 @@ def main() -> int:
     summary = {
         "issue": ISSUE,
         "parent": PARENT,
-        "pack_ids": PACK_IDS,
+        "pack_ids": ["full-scan-conv-en@0.6"] if args.slice == "s6" else PACK_IDS,
+        "slice": args.slice,
         "adapter": args.adapter,
         "model": args.model,
         "judge_model": JUDGE_MODEL,
         "seed": args.seed,
-        "total_cases_in_catalogue": len(ALL_CASES),
+        "total_cases_in_catalogue": len(catalogue),
         "cases_run_this_session": len(results),
         "cases_run_total": len(all_rows),
         "cases_passed": sum(1 for r in all_rows if r["pass"]),
