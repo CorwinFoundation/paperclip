@@ -34,7 +34,7 @@ from scanners import CONTRACT_VERSION
 
 ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
 ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
-TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled"}
+TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled", "incomplete_cost_cap"}
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 # Rows flushed per store write during a dispatch. A process killed mid-dispatch
 # loses at most this many paid target/judge attempts.
@@ -299,6 +299,17 @@ class FullScanJob:
     # it from ``harness.structured_output_probe``, never by hand — a declared
     # surface is a promise, a probed one is a demonstration.
     capability_manifest: Mapping[str, Any] | None = None
+    # BEAAA-38957 — versioned paid-pack id (e.g. ``full-scan-conv-en@0.2``).
+    # ``None`` for legacy free-pack jobs.
+    pack_id: str | None = None
+    # BEAAA-38957 — hard cost cap (USD).  ``None`` means no cap.
+    max_cost_usd: float | None = None
+    # BEAAA-38957 — accumulated actual spend (USD), updated at every checkpoint.
+    observed_judge_cost_usd: float = 0.0
+    observed_target_cost_usd: float = 0.0
+    # BEAAA-38957 — tenant identifier for per-target concurrency and entitlement
+    # checks.  ``None`` keeps the legacy unchecked behaviour.
+    tenant_id: str | None = None
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
@@ -328,12 +339,15 @@ class FullScanJobStore:
         self._clock = clock or _utcnow
         self._jobs: dict[str, FullScanJob] = {}
         self._idempotency_index: dict[str, str] = {}
+        # BEAAA-38957: maps job_id -> target_id for per-target concurrency.
+        self._job_target_ids: dict[str, str | None] = {}
         self._lock = RLock()
         self._persistence = persistence
         if persistence is not None:
             for record in persistence.load_jobs():
                 job = _job_from_record(record)
                 self._jobs[job.job_id] = job
+                self._job_target_ids[job.job_id] = record.get("_target_id")
             self._idempotency_index.update(persistence.load_idempotency())
 
     def _persist(self, job: FullScanJob) -> None:
@@ -363,6 +377,13 @@ class FullScanJobStore:
         rate_limit_per_minute: int | None = None,
         terminal_webhook: Mapping[str, Any] | None = None,
         capability_manifest: Mapping[str, Any] | None = None,
+        # BEAAA-38957 new fields -----------------------------------------
+        pack_id: str | None = None,
+        max_cost_usd: float | None = None,
+        tenant_id: str | None = None,
+        entitlement_store: "Any | None" = None,
+        max_concurrent_per_target: int = 1,
+        target_id: str | None = None,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
@@ -374,6 +395,45 @@ class FullScanJobStore:
                 raise FullScanExecutorError("rate_limit_per_minute must be positive")
             if idempotency_key and idempotency_key in self._idempotency_index:
                 return self._jobs[self._idempotency_index[idempotency_key]]
+
+            # BEAAA-38957: pack_id validation --------------------------------
+            if pack_id is not None:
+                from api.full_scan_pack_registry import resolve_pack
+                try:
+                    resolve_pack(pack_id)
+                except KeyError as exc:
+                    raise FullScanExecutorError(str(exc)) from exc
+
+            # BEAAA-38957: entitlement check (paid packs only) ---------------
+            if pack_id is not None and entitlement_store is not None:
+                if not entitlement_store.check(tenant=tenant_id or "", pack_id=pack_id):
+                    raise FullScanExecutorError(
+                        f"No unconsumed entitlement for tenant={tenant_id!r} "
+                        f"pack_id={pack_id!r}"
+                    )
+
+            # BEAAA-38957: per-target concurrency check ----------------------
+            if (
+                tenant_id is not None
+                and target_id is not None
+                and max_concurrent_per_target > 0
+            ):
+                running_count = sum(
+                    1
+                    for jid, j in self._jobs.items()
+                    if (
+                        j.tenant_id == tenant_id
+                        and self._job_target_ids.get(jid) == target_id
+                        and j.status not in TERMINAL_JOB_STATUSES
+                    )
+                )
+                if running_count >= max_concurrent_per_target:
+                    raise FullScanExecutorError(
+                        f"Per-target concurrency limit reached for "
+                        f"tenant={tenant_id!r} target={target_id!r} "
+                        f"(max={max_concurrent_per_target})"
+                    )
+
             now = self._clock()
             job = FullScanJob(
                 job_id=str(uuid.uuid4()),
@@ -397,8 +457,22 @@ class FullScanJobStore:
                 terminal_webhook=(
                     dict(terminal_webhook) if terminal_webhook is not None else None
                 ),
+                pack_id=pack_id,
+                max_cost_usd=max_cost_usd,
+                tenant_id=tenant_id,
             )
             self._jobs[job.job_id] = job
+            self._job_target_ids[job.job_id] = target_id
+
+            # BEAAA-38957: consume entitlement atomically with job creation --
+            if pack_id is not None and entitlement_store is not None:
+                entitlement_store.consume(
+                    tenant=tenant_id or "",
+                    pack_id=pack_id,
+                    job_id=job.job_id,
+                    external_ref=idempotency_key,
+                )
+
             if self._persistence is not None:
                 self._persistence.save_accepted_job(
                     job_id=job.job_id,
@@ -572,6 +646,35 @@ class FullScanJobStore:
                 final_manifest=manifest,
                 final_manifest_hash=manifest_hash,
                 bind_eligibility=bind_eligibility,
+                updated_at=self._clock(),
+            )
+            self._persist(updated)
+            return updated
+
+    def finalize_cost_cap(
+        self, job_id: str, *, attempt_id: str | None = None
+    ) -> FullScanJob:
+        """Finalize a job that hit its ``max_cost_usd`` cap.
+
+        Sets terminal status ``incomplete_cost_cap`` so callers can distinguish
+        a deliberate budget stop from a general incomplete run.
+        """
+        with self._lock:
+            job = self._get(job_id)
+            active_attempt_id = attempt_id or job.active_attempt_id
+            if active_attempt_id is None:
+                raise FullScanExecutorError("job has no active attempt")
+            self._require_active_lease(job, attempt_id=active_attempt_id)
+            manifest = build_attempt_manifest(job, finished_at=self._clock())
+            manifest_hash = manifest_content_hash(manifest)
+            updated = replace(
+                job,
+                status="incomplete_cost_cap",
+                active_attempt_id=None,
+                lease_expires_at=None,
+                final_manifest=manifest,
+                final_manifest_hash=manifest_hash,
+                bind_eligibility="blocked_base_suite_incomplete",
                 updated_at=self._clock(),
             )
             self._persist(updated)
@@ -1172,6 +1275,28 @@ def dispatch_registry_attempt(
     expected_case_ids = {case.case_id for case in job.registry_cases}
     rows_to_checkpoint: list[EvidenceAttemptRow] = []
     _consecutive_quota_errors = 0
+    # BEAAA-38957: accumulated observed judge cost for cost-cap enforcement.
+    _observed_judge_cost: float = sum(
+        float(row.estimated_judge_cost_usd or 0.0) for row in job.evidence_rows
+    )
+
+    # Build the set of all remaining case rows (in order) for cost-cap marking.
+    _all_pending_rows: list[Mapping[str, Any]] = []
+    _completed_before = {
+        (row.probe_id, row.seed): True for row in job.evidence_rows
+        if row.status in TERMINAL_PROBE_STATUSES
+    }
+    for registry_row in registry_rows:
+        if registry_row.get("status") != "active":
+            continue
+        if registry_row.get(execution_flag) is not True:
+            continue
+        case_id = _case_id_from_row(registry_row)
+        if case_id not in expected_case_ids:
+            continue
+        if (case_id, job.seed) in _completed_before:
+            continue
+        _all_pending_rows.append(registry_row)
 
     for registry_row in registry_rows:
         if registry_row.get("status") != "active":
@@ -1378,6 +1503,11 @@ def dispatch_registry_attempt(
             )
         )
 
+        # BEAAA-38957: accumulate observed judge cost for cost-cap check.
+        _observed_judge_cost += float(
+            rows_to_checkpoint[-1].estimated_judge_cost_usd if rows_to_checkpoint else 0.0
+        )
+
         if checkpoint_every > 0 and len(rows_to_checkpoint) % checkpoint_every == 0:
             store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
 
@@ -1395,6 +1525,47 @@ def dispatch_registry_attempt(
                 )
         else:
             _consecutive_quota_errors = 0
+
+        # BEAAA-38957: cost cap enforcement — after running a case, check if
+        # observed spend has exceeded (or will exceed with next case) the cap.
+        job_now = store.status(job_id)
+        if (
+            job_now.max_cost_usd is not None
+            and _observed_judge_cost >= job_now.max_cost_usd
+        ):
+            # Mark all remaining pending rows could_not_run.
+            already_run = {
+                (r.probe_id, r.seed): True for r in rows_to_checkpoint
+            }
+            already_run.update(
+                {(r.probe_id, r.seed): True for r in job_now.evidence_rows}
+            )
+            model_version = _primary_model_version(job_now.model_versions)
+            for remaining_row in _all_pending_rows:
+                r_case_id = _case_id_from_row(remaining_row)
+                if (r_case_id, job_now.seed) in already_run:
+                    continue
+                r_rubric = str(
+                    remaining_row.get("risk_or_rubric_id")
+                    or remaining_row.get("rubric_point_id")
+                    or ""
+                )
+                rows_to_checkpoint.append(
+                    EvidenceAttemptRow(
+                        probe_id=r_case_id,
+                        rubric_point_id=r_rubric,
+                        status="incomplete",
+                        framework="cost_cap",
+                        corpus_version=job_now.corpus_version,
+                        model_version=model_version,
+                        seed=job_now.seed,
+                        evidence_ref=None,
+                        incomplete_reason="cost_cap_reached",
+                    )
+                )
+                already_run[(r_case_id, job_now.seed)] = True
+            store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
+            break
 
     return store.checkpoint(job_id, attempt_id=attempt_id, rows=rows_to_checkpoint)
 
@@ -1785,6 +1956,12 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
             if job.capability_manifest is not None
             else None
         ),
+        # BEAAA-38957 — paid-pack fields.
+        "pack_id": job.pack_id,
+        "max_cost_usd": job.max_cost_usd,
+        "observed_judge_cost_usd": job.observed_judge_cost_usd,
+        "observed_target_cost_usd": job.observed_target_cost_usd,
+        "tenant_id": job.tenant_id,
     }
 
 
@@ -1830,4 +2007,10 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         ),
         recovery_count=record.get("recovery_count", 0),
         capability_manifest=record.get("capability_manifest"),
+        # BEAAA-38957 — paid-pack fields (backwards-compatible defaults).
+        pack_id=record.get("pack_id"),
+        max_cost_usd=record.get("max_cost_usd"),
+        observed_judge_cost_usd=float(record.get("observed_judge_cost_usd") or 0.0),
+        observed_target_cost_usd=float(record.get("observed_target_cost_usd") or 0.0),
+        tenant_id=record.get("tenant_id"),
     )

@@ -20,9 +20,21 @@ from api.config import ApiConfig
 from api.full_scan_executor import (
     DEFAULT_MAX_RECOVERY_ATTEMPTS,
     FrameworkWorker,
+    FullScanJob,
     FullScanJobStore,
     dispatch_registry_attempt,
 )
+
+
+def _job_hit_cost_cap(job: FullScanJob) -> bool:
+    """Return True if any evidence row was stopped by the cost cap."""
+    return any(
+        row.get("incomplete_reason") == "cost_cap_reached"
+        for row in (job.final_manifest or {}).get("evidence_rows", [])
+    ) or any(
+        getattr(row, "incomplete_reason", None) == "cost_cap_reached"
+        for row in job.evidence_rows
+    )
 from api.full_scan_job_persistence import FullScanJobPersistence
 from api.scan_side_effects import fire_webhook
 from tools.framework_workers import build_default_framework_workers
@@ -110,7 +122,15 @@ class FullScanQueueWorker:
         while True:
             pending = self._pending_registry_rows(job_id)
             if not pending:
-                finalized = self._store.finalize(job_id, attempt_id=attempt_id)
+                # BEAAA-38957: if the cost cap was hit, use the dedicated
+                # finalizer so the job gets ``incomplete_cost_cap`` status.
+                job_now = self._store.status(job_id)
+                if _job_hit_cost_cap(job_now):
+                    finalized = self._store.finalize_cost_cap(
+                        job_id, attempt_id=attempt_id
+                    )
+                else:
+                    finalized = self._store.finalize(job_id, attempt_id=attempt_id)
                 self._deliver_terminal_webhook(finalized)
                 return FullScanWorkerResult(
                     status="finalized",
@@ -131,6 +151,25 @@ class FullScanQueueWorker:
             )
             processed += 1
 
+            # BEAAA-38957: cost cap check — if remaining rows have been marked
+            # could_not_run, stop dispatching.
+            job_now = self._store.status(job_id)
+            if _job_hit_cost_cap(job_now):
+                pending2 = self._pending_registry_rows(job_id)
+                if not pending2:
+                    finalized = self._store.finalize_cost_cap(
+                        job_id, attempt_id=attempt_id
+                    )
+                    self._deliver_terminal_webhook(finalized)
+                    return FullScanWorkerResult(
+                        status="finalized",
+                        job_id=job_id,
+                        attempt_id=attempt_id,
+                        processed_cases=processed,
+                        final_status=finalized.status,
+                        final_manifest_hash=finalized.final_manifest_hash,
+                    )
+
             if max_cases is not None and processed >= max_cases:
                 return FullScanWorkerResult(
                     status="interrupted",
@@ -146,6 +185,26 @@ class FullScanQueueWorker:
             for row in resume["evidence_rows"]
             if isinstance(row, Mapping)
             and row.get("status") in {"complete", "incomplete", "failed", "skipped"}
+        }
+        return [
+            row
+            for row in self._registry_rows
+            if row.get("status") == "active"
+            and row.get("production_runner_executable") is True
+            and str(row.get("case_id") or "") not in terminal_case_ids
+        ]
+
+    def _pending_registry_rows_v2(self, job_id: str) -> list[Mapping[str, Any]]:
+        """Like _pending_registry_rows but also excludes cost_cap_reached rows."""
+        resume = self._store.resume(job_id)
+        terminal_case_ids = {
+            str(row["probe_id"])
+            for row in resume["evidence_rows"]
+            if isinstance(row, Mapping)
+            and (
+                row.get("status") in {"complete", "incomplete", "failed", "skipped"}
+                or row.get("incomplete_reason") == "cost_cap_reached"
+            )
         }
         return [
             row
