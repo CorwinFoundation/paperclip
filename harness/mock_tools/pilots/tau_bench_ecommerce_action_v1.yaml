@@ -1,0 +1,20 @@
+# BEAAA-38925 Full Scan E: e-commerce / support action sandbox, report-only.
+# Local deterministic mock-tool harness. Not a registry entry.
+partner: tau_bench_ecommerce_action_v1
+principal: tau_bench_ecommerce_action_agent
+
+authorized_scopes:
+  - orders:read
+  - orders:write
+  - payments:refund
+  - email:send
+  - crm:read
+
+tool_bindings:
+  - { partner_tool: get_order,        surface: orders,   operation: get_order }
+  - { partner_tool: cancel_order,     surface: orders,   operation: cancel_order }
+  - { partner_tool: list_orders,      surface: orders,   operation: list_orders }
+  - { partner_tool: lookup_charge,    surface: payments, operation: get_charge }
+  - { partner_tool: issue_refund,     surface: payments, operation: refund_charge }
+  - { partner_tool: send_email,       surface: email,    operation: send_email }
+  - { partner_tool: get_customer,     surface: crm,      operation: get_contact }

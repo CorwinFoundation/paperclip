@@ -11,6 +11,7 @@ from harness.mock_tools.adapters.email import EmailTool
 from harness.mock_tools.adapters.jadepuffer import JadepufferTool
 from harness.mock_tools.adapters.ledger import LedgerTool
 from harness.mock_tools.adapters.model_dependency import ModelDependencyTool
+from harness.mock_tools.adapters.orders import OrdersTool
 from harness.mock_tools.adapters.payments import PaymentsTool
 from harness.mock_tools.adapters.retrieval_source_poisoning import RetrievalSourcePoisoningTool
 from harness.mock_tools.adapters.records import RecordsTool
@@ -30,6 +31,7 @@ ADAPTERS = {
     ContainmentEscapeTool.surface: ContainmentEscapeTool,
     JadepufferTool.surface: JadepufferTool,
     WarrantyAuthorityTool.surface: WarrantyAuthorityTool,
+    OrdersTool.surface: OrdersTool,
 }
 
 __all__ = [
@@ -46,4 +48,5 @@ __all__ = [
     "ContainmentEscapeTool",
     "JadepufferTool",
     "WarrantyAuthorityTool",
+    "OrdersTool",
 ]
