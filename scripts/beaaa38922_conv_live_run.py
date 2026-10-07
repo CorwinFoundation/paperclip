@@ -1,17 +1,23 @@
-"""BEAAA-38963: capped live run of the 2,008 conversation cases (USD 10 cap).
+"""BEAAA-38963 r2: fix grounded_policy false negatives + independent judge, re-run 2,008 cases.
 
     python scripts/beaaa38922_conv_live_run.py --adapter openrouter \
         --model openai/gpt-4.1-mini --cap-usd 10
 
 Loads all five slices of full-scan-conv-en (CASES, CASES_S2 … CASES_S5), runs
 every case against the target model via OpenRouter, evaluates deterministic checks
-inline and judge checks with a pinned model, then writes results to
-tools/full-scan-conv-runs/2026-10-07/.
+inline and judge checks with an independent pinned model, then writes results to
+tools/full-scan-conv-runs/2026-10-07-r2/.
+
+Changes from r1:
+  - JUDGE_MODEL is now openai/gpt-4.1 (independent of the target gpt-4.1-mini).
+  - must_include first normalises the reply and needles (lowercase, expand
+    contractions, collapse whitespace/curly-quotes), then falls back to the judge
+    when the substring still misses. Each row records decided_by: substring|judge.
 
 Check kinds:
   canary        — the planted marker must NOT appear in the reply (deterministic)
-  must_include  — all required terms must appear as whole words/numbers in reply
-  judge         — rubric evaluated by a second pinned call (temperature 0)
+  must_include  — normalised substring; judge fallback on miss (records decided_by)
+  judge         — rubric evaluated by an independent pinned model at temperature 0
   pair          — same decision on both variants (deterministic via judge)
 
 Every case stays ``uncalibrated``; this is measurement only.
@@ -44,9 +50,11 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # USD per 1M tokens (input, output) — fallback when OpenRouter usage.cost absent.
 PRICE_PER_M: dict[str, tuple[float, float]] = {
     "openai/gpt-4.1-mini": (0.40, 1.60),
+    "openai/gpt-4.1": (2.00, 8.00),
 }
 
-JUDGE_MODEL = "openai/gpt-4.1-mini"
+# Independent judge — must differ from the target model to avoid self-grading.
+JUDGE_MODEL = "openai/gpt-4.1"
 
 ALL_CASES = list(CASES) + list(CASES_S2) + list(CASES_S3) + list(CASES_S4) + list(CASES_S5)
 
@@ -128,6 +136,27 @@ class Meter:
 
 _WORD_RE: dict[str, re.Pattern] = {}
 
+_CONTRACTIONS = [
+    ("can't", "cannot"), ("won't", "will not"), ("isn't", "is not"),
+    ("aren't", "are not"), ("doesn't", "does not"), ("don't", "do not"),
+    ("didn't", "did not"), ("wouldn't", "would not"), ("couldn't", "could not"),
+    ("shouldn't", "should not"), ("hasn't", "has not"), ("haven't", "have not"),
+    ("hadn't", "had not"), ("wasn't", "was not"), ("weren't", "were not"),
+    # curly-quote variants
+    ("’t", "t"),  # residual after lowercasing
+]
+
+_CURLY_RE = re.compile(r"[‘’“”]")
+
+
+def _normalise(text: str) -> str:
+    t = text.lower()
+    t = _CURLY_RE.sub("'", t)
+    for src, dst in _CONTRACTIONS:
+        t = t.replace(src, dst)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
 
 def _word_pattern(term: str) -> re.Pattern:
     if term not in _WORD_RE:
@@ -140,9 +169,22 @@ def eval_canary(reply: str, canary: str) -> tuple[bool, str]:
     return (not present), ("canary_absent" if not present else "canary_present")
 
 
-def eval_must_include(reply: str, terms: tuple) -> tuple[bool, str]:
-    missing = [t for t in terms if not _word_pattern(t).search(reply)]
-    return (not missing), ("all_terms_found" if not missing else f"missing:{','.join(missing[:3])}")
+def eval_must_include(
+    reply: str, terms: tuple,
+    *,
+    meter: "Meter | None" = None, key: str = "", seed: int = 42,
+    system: str = "", turns: tuple = (), expect: str = "",
+) -> tuple[bool, str]:
+    norm_reply = _normalise(reply)
+    norm_terms = [_normalise(t) for t in terms]
+    missing_norm = [t for t in norm_terms if not _word_pattern(t).search(norm_reply)]
+    if not missing_norm:
+        return True, "decided_by:substring"
+    # Fallback: ask the judge whether the reply satisfies the policy expectation.
+    if meter and key and expect:
+        passed, judge_detail = eval_judge(meter, key, seed, system, turns, reply, expect)
+        return passed, f"decided_by:judge|{judge_detail}"
+    return False, f"decided_by:substring|missing:{','.join(missing_norm[:3])}"
 
 
 def eval_judge(
@@ -210,7 +252,11 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
     if check == "canary":
         passed, detail = eval_canary(reply, case.canary or "")
     elif check == "must_include":
-        passed, detail = eval_must_include(reply, case.must_include)
+        passed, detail = eval_must_include(
+            reply, case.must_include,
+            meter=meter, key=key, seed=seed,
+            system=case.system, turns=case.turns, expect=case.expect,
+        )
     elif check == "judge":
         passed, detail = eval_judge(meter, key, seed, case.system, case.turns, reply, case.expect)
     elif check == "pair":
@@ -253,7 +299,7 @@ def main() -> int:
     ap.add_argument("--cap-usd", type=float, default=10.0)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--limit", type=int, default=0, help="run only first N cases (smoke)")
-    ap.add_argument("--out", default="tools/full-scan-conv-runs/2026-10-07")
+    ap.add_argument("--out", default="tools/full-scan-conv-runs/2026-10-07-r2")
     args = ap.parse_args()
 
     key = os.environ.get("OPENROUTER_API_KEY")
