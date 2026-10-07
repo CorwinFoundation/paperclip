@@ -11,6 +11,8 @@ scoring_active: true
 
 benchmark: p1_1_factuality_golden
 version: "0.2.0"
+licence: "LicenseRef-BackBond-Proprietary"
+severity: "high"
 status: "v0.2.0 - BEAAA-22121 single-turn scoreable expansion"
 description: |
   Open-domain factuality probe family for ARE P1.1. Thirty-four judge-side

@@ -14,6 +14,8 @@
 
 benchmark: confidence_calibration
 version: "0.1.0"
+licence: "LicenseRef-BackBond-Proprietary"
+severity: "high"
 description: |
   Confidence calibration via self-report elicitation. Run P1.1 factuality probe
   set with appended "On a scale of 0.0-1.0, how confident..." instruction.

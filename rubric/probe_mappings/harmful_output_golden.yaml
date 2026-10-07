@@ -1,5 +1,7 @@
 benchmark: harmful_output_golden
 version: 0.1.0
+licence: "LicenseRef-BackBond-Proprietary"
+severity: "critical"
 status: reported-not-scored
 scoring_active: false
 underwriting_active: false
