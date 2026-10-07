@@ -179,6 +179,27 @@ def main(argv):
         if "history_previews" in tables:
             rs = rows(db, "history_previews")
             print("history_previews total", len(rs), "in_window", sum(1 for r in rs if stamped(r)))
+            for r in (x for x in rs if stamped(x)):
+                try:
+                    import json as _json
+                    rpt = _json.loads(r.get("report_json") or "{}")
+                    rc = rpt.get("row_count", "?")
+                    row_refs = []
+                    for row in rpt.get("rows", [])[:20]:
+                        for fld in ("task_id", "reference_id", "deduplication_key"):
+                            ref = str(row.get(fld) or "")
+                            if ref:
+                                break
+                        if re.match(r"^[A-Z]{2,4}-[A-Z0-9-]{3,32}$", ref):
+                            row_refs.append(ref)
+                        elif ref:
+                            import hashlib as _hl
+                            row_refs.append(_hl.sha256(ref.encode()).hexdigest()[:10])
+                    refs_str = " ".join(row_refs[:10]) if row_refs else "none"
+                    print("  preview", h(r.get("preview_id")), "state", code(r.get("state")),
+                          "row_count", rc, "rows", len(rpt.get("rows", [])), "refs", refs_str)
+                except Exception:
+                    print("  preview", h(r.get("preview_id")), "state", code(r.get("state")), "row_count ?")
         if "history_events" in tables:
             rs = rows(db, "history_events")
             sel = [r for r in rs if inw(r.get("occurred_at"))]

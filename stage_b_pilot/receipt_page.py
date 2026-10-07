@@ -148,13 +148,14 @@ def render_login(error: str = "") -> str:
 def enrollment_instruction(token: str, public_base: str) -> str:
     link = f"{public_base.rstrip('/')}/onboard/session/{token}"
     return (f"Connect to BackBond using this link: {link}. I authorize the fictional test "
-            "history and ongoing test reports described there. Stop when I say ‘Stop BackBond’. Stopping ends reporting and keeps what was sent; ask me to delete separately.")
+            "history and ongoing test reports described there, and answer BackBond’s fictional follow-up questions about these tasks, checked at most hourly, until I say Stop BackBond. Stopping ends reporting and keeps what was sent; ask me to delete separately.")
 
 
 def agent_enrollment_instructions(token: str, public_base: str) -> str:
     base = public_base.rstrip("/")
     enroll = f"{base}/onboard/enroll/{token}"
     stop = f"{base}/onboard/stop/{token}"
+    poll = f"{base}/instinct/followups/"
     return f"""BackBond fictional-only Stage B DEMO instructions for Instinct
 
 The user authorized this fictional test history and ongoing fictional test reports in the message containing this link. This page is informational: opening or previewing it does not enroll, claim, or change the session.
@@ -171,10 +172,15 @@ Enrollment
 Delivery and deduplication
 - Deliver the permitted synthetic initial history once using the schema returned by enrollment, then deliver one synthetic ongoing report for each later fictional DEMO request.
 - Use a stable unique task ID for every fictional task and reuse that same ID on retries. Do not create a new ID for a duplicate delivery.
-- Treat delivery acceptance as internal only. Do not show or ask the user to inspect receipts or internal pages.
+- If a report or follow-up delivery returns a non-2xx HTTP status, tell the user: "BackBond did not accept the report (HTTP <status> <error_code>)." Do not suppress the failure.
+- On success, treat delivery details as internal only. Do not show or ask the user to inspect receipts or internal pages.
+
+Follow-up questions (authorized by the user's enrollment message)
+- The user already authorized follow-up questions. Do not ask for follow-up permission again.
+- Poll {poll} no more than hourly after enrollment. For each pending question, send one plain-text JSON reply to its reply_address. The reply must contain request_id, answer, evidence_origin (agent_reported), and synthetic (true). Skip expired or already-answered questions.
 
 Sender-bound STOP
-- When this same user says "Stop BackBond", POST once to {stop} using the same X-Instinct-Sender identity, then stop all reporting. Stopping ends reporting and keeps what was sent; deletion is a separate explicit step.
+- When this same user says "Stop BackBond", POST once to {stop} using the same X-Instinct-Sender identity, then stop all reporting. After a successful STOP, tell the user: "BackBond is stopped; the received data is kept."
 - Do not reuse this link or its account-scoped grant for another user or conversation.
 """
 

@@ -305,9 +305,12 @@ class StandingReportStore:
             raise ValueError("standing_channel_invalid")
         if event["shared_context_status"] not in {"unverified", "unknown"}:
             raise ValueError("standing_shared_context_status_invalid")
-        for field in EVENT_KEYS - {"synthetic"}:
-            if not isinstance(event[field], str) or len(event[field]) > 500:
-                raise ValueError("standing_event_value_invalid")
+        for field in sorted(EVENT_KEYS - {"synthetic"}):
+            v = event[field]
+            if not isinstance(v, str):
+                raise ValueError(f"standing_event_value_invalid:{field}:not_string")
+            if len(v) > 500:
+                raise ValueError(f"standing_event_value_invalid:{field}:too_long")
         report_id = "sr_" + secrets.token_hex(12)
         digest = hashlib.sha256(token.encode()).hexdigest()
         self.connection.execute("BEGIN IMMEDIATE")
@@ -684,6 +687,8 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         f"JSON email from {sender_email} to {address}. Do not attach files, CC, or BCC. "
         f"Schema: {SCHEMA_VERSION}. Required top-level fields: schema_version, "
         "deduplication_key, trigger, event. Event fields: " + fields + ". "
+        "Every event field except synthetic is a JSON string of at most 500 characters; "
+        "this includes amounts and times (use strings like \"$150\" or \"2024-09-15\"). "
         "The deduplication_key is the stable account-scoped task ID: reuse it when the same "
         "task/report crosses channels, and use a new ID for each distinct task even when its "
         "text matches another task. Set observed_channel to whatsapp, imessage, or unknown. "
@@ -693,8 +698,11 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
         "for unavailable facts. Set evidence_origin to agent_reported and synthetic to true. "
         "Include only a minimal event summary and decision evidence. Never include full message "
         "bodies, attachments, credentials, payment details, or unrelated third-party personal data. "
-        "This grant expires at " + expires_at + ". If email delivery fails, stop and tell the "
-        "user. BackBond records received and duplicate states privately; email delivery does not "
+        "This grant expires at " + expires_at + ". "
+        "If any report or follow-up delivery returns a non-2xx HTTP status, tell the user plainly: "
+        "\"BackBond did not accept the report (HTTP <status> <error_code>).\". Do not suppress the failure. "
+        "After a successful STOP POST, tell the user: \"BackBond is stopped; the received data is kept.\". "
+        "BackBond records received and duplicate states privately; email delivery does not "
         "show webhook HTTP responses to Instinct. The user can view status or revoke this grant "
         "from the signed-in BackBond page. " + STOP_ACK + " No per-report confirmation is required. "
         "Reports remain agent-reported and require staff review before reliance. Sender address "
@@ -720,8 +728,15 @@ def render_instruction(token: str, expires_at: str, sender_email: str, public_ba
                "<h3>Complete onboarding history instruction</h3><pre style='white-space:pre-wrap'>" +
                html.escape(full_history_instruction) + "</pre>")
     example_event = {field: "unknown" for field in EVENT_KEYS - {"synthetic"}}
-    example_event.update(evidence_origin="agent_reported", synthetic=True,
-                         observed_channel="unknown", shared_context_status="unverified")
+    example_event.update(
+        evidence_origin="agent_reported", synthetic=True,
+        observed_channel="unknown", shared_context_status="unverified",
+        category="payment", proposed_external_action="Transfer $150 to merchant",
+        actual_external_action="unknown", approval_source="user_instruction",
+        approval_status="approved", money_at_risk="$150",
+        outcome="unknown", gaps="unknown", occurred_at="2024-09-15",
+        history_sources_included="unknown", history_sources_unavailable="unknown",
+    )
     example = json.dumps({"schema_version": SCHEMA_VERSION,
                           "deduplication_key": "fictional-request-001",
                           "trigger": "request_completed", "event": example_event},
