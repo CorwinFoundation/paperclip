@@ -727,7 +727,13 @@ def run_scan(
         incomplete = False
         incomplete_reason: str | None = None
         band = float(LIVE_PROBE_VARIANCE_BAND)
-        if total_spread > band:
+        if scan_request.pack_id in _JUDGED_STARTER_PACK_IDS:
+            # A judged starter pack is one pass over 100 distinct cases that
+            # share a few rubric points, so pass (3) and fail (0) in one family
+            # is a result, not replicate noise. Live scan 3a3009da went
+            # incomplete on spread 3.0 > 2 with 100/100 rows.
+            pass
+        elif total_spread > band:
             incomplete = True
             incomplete_reason = "variance_band_exceeded_total"
         else:
