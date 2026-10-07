@@ -63,6 +63,7 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
 )
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
+from api.accepted_scan_store import AcceptedScanStore
 from api.handlers import HandlerError, verify_tenant_isolation
 from api import production_controls
 from api.bundle import BundleStore, new_opaque_bundle_id
@@ -218,6 +219,18 @@ PRIOR_SCAN_REFS_MAX: int = 100
 # limits residual process-local request/result state.
 DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS: float = 15 * 60
 
+# BEAAA-38869 — restart survival. A credential is never persisted, so an
+# ``auth: none`` scan is re-run with this public marker (the no-auth adapter
+# never sends it; the vault only requires a non-empty value).
+RESUMED_NO_AUTH_SECRET: str = "no-auth-resumed-scan"
+# A scan whose endpoint needs a credential cannot be re-run after a restart.
+RESTART_CREDENTIAL_NOT_RETAINED_REASON: str = "scanner_restarted_credential_not_retained"
+# A credential-free scan re-run this many times without finishing is failed.
+MAX_RESTART_RESUMES: int = 3
+RESTART_RESUME_EXHAUSTED_REASON: str = "scanner_restart_resume_exhausted"
+# Retry tick for terminal webhooks whose delivery failed (durable mode only).
+WEBHOOK_RETRY_INTERVAL_SECONDS: float = 60.0
+
 # BEAAA-11726 item 1 — scan_tier feature flag + reproducibility defaults.
 # ARE_SCAN_TIER=off forces full tier (Tier-1 rollback per ADR-0042 §Rollback).
 SCAN_TIER_ENV: str = "ARE_SCAN_TIER"
@@ -361,6 +374,9 @@ _NON_TERMINAL_INCOMPLETE_REASONS: frozenset[str] = frozenset(
     {"full_scan_registry_lease_busy"}
 )
 _NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
+_TERMINAL_FULL_SCAN_JOB_STATUSES: frozenset[str] = frozenset(
+    {"complete", "incomplete", "failed", "cancelled"}
+)
 
 
 class ScanRuntime:
@@ -406,6 +422,7 @@ class ScanRuntime:
         in_memory_state_ttl_seconds: float = DEFAULT_IN_MEMORY_SCAN_STATE_TTL_SECONDS,
         monotonic_clock: Callable[[], float] | None = None,
         context_envelope_store: ContextEnvelopeStore | None = None,
+        accepted_scan_store: AcceptedScanStore | None = None,
     ) -> None:
         if (
             isinstance(in_memory_state_ttl_seconds, bool)
@@ -464,6 +481,11 @@ class ScanRuntime:
         self._production_control_ledger = production_control_ledger
         self._production_security_findings_source = production_security_findings_source
         self._context_envelope_store = context_envelope_store
+        # BEAAA-38869 — durable accepted-scan journal. ``None`` keeps the
+        # historical in-memory, synchronous behavior byte-identical.
+        self._accepted_scan_store = accepted_scan_store
+        self._accepted_scan_semaphore = threading.BoundedSemaphore(value=1)
+        self._webhook_retry_thread: threading.Thread | None = None
         # Tracks the (tenant_id, agent_id, run_timestamp) of the current
         # kickoff so the handler can read the just-persisted row back without
         # a second scan_log scan (the row is keyed by that triple, not by
@@ -560,14 +582,20 @@ class ScanRuntime:
 
         security_findings = self._production_security_findings()
 
+        # BEAAA-38869 — journal the accepted scan before any work starts so a
+        # restart can finish it (or fail it explicitly) instead of losing it.
+        if self._accepted_scan_store is not None:
+            self._accepted_scan_store.accept(
+                scan_request,
+                agent_id=agent_id,
+                invocation_context=scanner_invocation_context,
+                webhook_cfg=webhook_cfg,
+            )
+
         # A production full analysis is a registry job, not the historical
         # four-prompt scoring walker. Return the scan id immediately and run
         # the evidence-producing suite on a daemon worker.
-        if (
-            self._full_scan_registry_rows
-            and self._full_scan_workers_factory is not None
-            and scan_request.scan_tier not in {"smoke", "dev"}
-        ):
+        if self._uses_full_scan_registry(scan_request):
             queued = ScanResult(
                 scan_id=scan_request.scan_id,
                 status="queued",
@@ -578,25 +606,36 @@ class ScanRuntime:
             )
             with self._state_lock:
                 self._results[scan_request.scan_id] = queued
-            thread = threading.Thread(
-                target=self._run_full_scan_background,
-                kwargs={
-                    "scan_request": scan_request,
-                    "secret": secret,
-                    "agent_id": agent_id,
-                    "on_terminal": on_terminal,
-                },
-                name=f"are-full-scan-{scan_request.scan_id[:8]}",
-                daemon=True,
+            self._start_background_scan(
+                self._run_full_scan_background,
+                scan_request=scan_request,
+                secret=secret,
+                agent_id=agent_id,
+                on_terminal=on_terminal,
             )
-            self._background_threads[scan_request.scan_id] = thread
-            try:
-                thread.start()
-            except BaseException:
-                self._background_threads.pop(scan_request.scan_id, None)
-                if on_terminal is not None:
-                    on_terminal()
-                raise
+            return queued
+
+        # BEAAA-38869 — with a durable journal the scan runs after the 202 so
+        # the caller always learns the scan_id, even if a deploy restarts the
+        # scanner before the scan finishes.
+        if self._accepted_scan_store is not None:
+            queued = ScanResult(
+                scan_id=scan_request.scan_id,
+                status="queued",
+                scanner_version=str(scan_request.scanner_version),
+                corpus_version=str(scan_request.corpus_version),
+                rows_emitted=0,
+                k_replicates=scan_request.k_replicates,
+            )
+            with self._state_lock:
+                self._results[scan_request.scan_id] = queued
+            self._start_background_scan(
+                self._run_accepted_scan_background,
+                scan_request=scan_request,
+                secret=secret,
+                agent_id=agent_id,
+                on_terminal=on_terminal,
+            )
             return queued
 
         try:
@@ -616,6 +655,127 @@ class ScanRuntime:
         finally:
             if on_terminal is not None:
                 on_terminal()
+
+    def _uses_full_scan_registry(self, scan_request: ScanRequest) -> bool:
+        return bool(
+            self._full_scan_registry_rows
+            and self._full_scan_workers_factory is not None
+            and scan_request.scan_tier not in {"smoke", "dev"}
+        )
+
+    def _start_background_scan(
+        self,
+        target: Callable[..., None],
+        *,
+        scan_request: ScanRequest,
+        secret: str,
+        agent_id: str | None,
+        on_terminal: Callable[[], None] | None,
+    ) -> threading.Thread:
+        thread = threading.Thread(
+            target=target,
+            kwargs={
+                "scan_request": scan_request,
+                "secret": secret,
+                "agent_id": agent_id,
+                "on_terminal": on_terminal,
+            },
+            name=f"are-full-scan-{scan_request.scan_id[:8]}",
+            daemon=True,
+        )
+        self._background_threads[scan_request.scan_id] = thread
+        try:
+            thread.start()
+        except BaseException:
+            self._background_threads.pop(scan_request.scan_id, None)
+            if on_terminal is not None:
+                on_terminal()
+            raise
+        return thread
+
+    def _run_accepted_scan_background(
+        self,
+        *,
+        scan_request: ScanRequest,
+        secret: str,
+        agent_id: str | None,
+        on_terminal: Callable[[], None] | None = None,
+    ) -> None:
+        """Durable-mode worker for scans that are not registry jobs.
+
+        Runs the same pipeline the synchronous ``kickoff`` path runs; only
+        the thread differs. Failures become an explicit terminal result.
+        """
+        try:
+            with self._accepted_scan_semaphore:
+                running = ScanResult(
+                    scan_id=scan_request.scan_id,
+                    status="running",
+                    scanner_version=str(scan_request.scanner_version),
+                    corpus_version=str(scan_request.corpus_version),
+                    rows_emitted=0,
+                    k_replicates=scan_request.k_replicates,
+                )
+                with self._state_lock:
+                    self._results[scan_request.scan_id] = running
+                if self._accepted_scan_store is not None:
+                    self._accepted_scan_store.mark_running(scan_request.scan_id)
+                LOGGER.info("accepted_scan_running scan_id=%s", scan_request.scan_id)
+                result = self._run_scan_fn(scan_request, secret)
+                result = self._apply_registry_dispatch_guard(
+                    scan_request, result, agent_id=agent_id, secret=secret
+                )
+                result = self._apply_full_suite_manifest_guard(
+                    scan_request, result, agent_id=agent_id
+                )
+                self._record_completed_result(
+                    scan_request,
+                    result,
+                    agent_id=agent_id,
+                    production_security_findings=self._production_security_findings(),
+                )
+                LOGGER.info(
+                    "accepted_scan_terminal scan_id=%s status=%s",
+                    scan_request.scan_id,
+                    result.status,
+                )
+        except Exception as exc:  # never expose credential or response bodies
+            reason = (
+                _handler_error_from_orchestrator_error(exc).message
+                if isinstance(exc, OrchestratorError)
+                else type(exc).__name__
+            )
+            LOGGER.error(
+                "accepted_scan_worker_error scan_id=%s error_type=%s",
+                scan_request.scan_id,
+                type(exc).__name__,
+            )
+            self._record_failed_result(
+                scan_request, reason=f"scan_worker_error:{reason}"
+            )
+        finally:
+            self._background_threads.pop(scan_request.scan_id, None)
+            if on_terminal is not None:
+                on_terminal()
+
+    def _record_failed_result(self, scan_request: ScanRequest, *, reason: str) -> ScanResult:
+        failed = ScanResult(
+            scan_id=scan_request.scan_id,
+            status="failed",
+            scanner_version=str(scan_request.scanner_version),
+            corpus_version=str(scan_request.corpus_version),
+            rows_emitted=0,
+            k_replicates=scan_request.k_replicates,
+            incomplete=True,
+            incomplete_reason=reason,
+        )
+        with self._state_lock:
+            self._results[scan_request.scan_id] = failed
+            self._scan_state_created_at[scan_request.scan_id] = self._now()
+        if self._accepted_scan_store is not None:
+            self._accepted_scan_store.mark_terminal(scan_request.scan_id, failed)
+            self._maybe_deliver_terminal_webhook(scan_request.scan_id, failed)
+        return failed
 
     def _run_full_scan_background(
         self,
@@ -637,6 +797,8 @@ class ScanRuntime:
                 )
                 with self._state_lock:
                     self._results[scan_request.scan_id] = base
+                if self._accepted_scan_store is not None:
+                    self._accepted_scan_store.mark_running(scan_request.scan_id)
                 result = self._apply_registry_dispatch_guard(
                     scan_request,
                     base,
@@ -655,19 +817,10 @@ class ScanRuntime:
                 scan_request.scan_id,
                 type(exc).__name__,
             )
-            failed = ScanResult(
-                scan_id=scan_request.scan_id,
-                status="failed",
-                scanner_version=str(scan_request.scanner_version),
-                corpus_version=str(scan_request.corpus_version),
-                rows_emitted=0,
-                k_replicates=scan_request.k_replicates,
-                incomplete=True,
-                incomplete_reason=f"full_scan_worker_error:{type(exc).__name__}",
+            self._record_failed_result(
+                scan_request,
+                reason=f"full_scan_worker_error:{type(exc).__name__}",
             )
-            with self._state_lock:
-                self._results[scan_request.scan_id] = failed
-                self._scan_state_created_at[scan_request.scan_id] = self._now()
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
             if on_terminal is not None:
@@ -774,6 +927,12 @@ class ScanRuntime:
             agent_id=agent_id,
             production_security_findings=production_security_findings,
         )
+        if self._accepted_scan_store is not None and _scan_reached_terminal(result):
+            self._accepted_scan_store.mark_terminal(
+                scan_request.scan_id,
+                result,
+                kickoff_key=self._kickoff_keys.get(scan_request.scan_id),
+            )
         self._maybe_deliver_terminal_webhook(scan_request.scan_id, result)
         return result
 
@@ -919,6 +1078,10 @@ class ScanRuntime:
                 incomplete=False,
                 incomplete_reason=None,
             )
+        if job.status in _TERMINAL_FULL_SCAN_JOB_STATUSES:
+            # BEAAA-38869 — a resumed scan whose durable job already finished
+            # before the restart: reuse the terminal job, do not re-lease it.
+            return self._full_scan_job_result(result, job, first_worker)
         lease = self._full_scan_job_store.lease(job.job_id)
         attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
         if not isinstance(attempt_id, str) or not attempt_id:
@@ -932,7 +1095,11 @@ class ScanRuntime:
                 workers=workers,
             )
             finalized = self._full_scan_job_store.finalize(job.job_id)
+        return self._full_scan_job_result(result, finalized, first_worker)
 
+    def _full_scan_job_result(
+        self, result: ScanResult, finalized: Any, first_worker: Any
+    ) -> ScanResult:
         manifest = finalized.final_manifest
         if manifest is not None:
             manifest_writer = getattr(first_worker, "write_manifest", None)
@@ -1003,6 +1170,8 @@ class ScanRuntime:
     def fetch(self, scan_id: str) -> ScanResult | None:
         self._purge_expired_in_memory_state()
         result = self._results.get(scan_id)
+        if result is None:
+            result = self._load_durable_scan(scan_id)
         job_id = self._full_scan_job_ids.get(scan_id)
         if result is not None and job_id is not None:
             job = self._full_scan_job_store.status(job_id)
@@ -1024,6 +1193,156 @@ class ScanRuntime:
                     self._scan_state_created_at[scan_id] = self._now()
                 return refreshed
         return result
+
+    # ----- BEAAA-38869 durable accepted scans -----
+    def webhook_outbox_store(self) -> Any | None:
+        """Durable outbox store sharing the accepted-scan DB, or ``None``."""
+        if self._accepted_scan_store is None:
+            return None
+        return self._accepted_scan_store.outbox_store()
+
+    def _restore_scan_state(self, row: Mapping[str, Any]) -> None:
+        scan_id = row["scan_id"]
+        with self._state_lock:
+            self._scan_requests.setdefault(scan_id, row["request"])
+            if row.get("invocation_context") is not None:
+                self._scan_invocation_contexts.setdefault(
+                    scan_id, dict(row["invocation_context"])
+                )
+            if row.get("kickoff_key"):
+                self._kickoff_keys.setdefault(scan_id, tuple(row["kickoff_key"]))
+            self._scan_state_created_at[scan_id] = self._now()
+
+    def _load_durable_scan(self, scan_id: str) -> ScanResult | None:
+        """Re-hydrate a scan the in-memory TTL (or a restart) dropped."""
+        if self._accepted_scan_store is None:
+            return None
+        row = self._accepted_scan_store.get(scan_id)
+        if row is None:
+            return None
+        self._restore_scan_state(row)
+        result = row["result"]
+        if result is None:
+            request = row["request"]
+            result = ScanResult(
+                scan_id=scan_id,
+                status="running" if row["state"] == "running" else "queued",
+                scanner_version=str(request.scanner_version),
+                corpus_version=str(request.corpus_version),
+                rows_emitted=0,
+                k_replicates=request.k_replicates,
+            )
+            return result
+        with self._state_lock:
+            self._results[scan_id] = result
+        return result
+
+    def resume_accepted_scans(self, *, start_webhook_retry: bool = True) -> dict[str, list[str]]:
+        """Startup sweep: finish every scan a previous process accepted.
+
+        * A non-terminal scan against an ``auth: none`` endpoint is re-run
+          (bounded by ``MAX_RESTART_RESUMES``).
+        * A non-terminal scan whose endpoint needs a credential cannot be
+          re-run (the credential was never persisted); it is finished with an
+          explicit ``failed`` result so the caller's webhook still fires.
+        * A terminal scan whose webhook was never enqueued (the process died
+          between the result and the enqueue) is enqueued now. The outbox is
+          keyed by ``scan_id``, so a delivered webhook is never re-sent.
+        """
+        summary: dict[str, list[str]] = {"resumed": [], "failed": [], "redelivered": []}
+        store = self._accepted_scan_store
+        if store is None:
+            return summary
+        store.purge_expired()
+        self._full_scan_job_store.recover()
+        for row in store.unfinished():
+            scan_id = row["scan_id"]
+            request = row["request"]
+            self._restore_scan_state(row)
+            if row.get("webhook_cfg") is not None:
+                self._webhook_cfgs[scan_id] = dict(row["webhook_cfg"])
+            if not row["resumable"]:
+                LOGGER.warning(
+                    "accepted_scan_restart_failed scan_id=%s reason=%s",
+                    scan_id,
+                    RESTART_CREDENTIAL_NOT_RETAINED_REASON,
+                )
+                self._record_failed_result(
+                    request, reason=RESTART_CREDENTIAL_NOT_RETAINED_REASON
+                )
+                summary["failed"].append(scan_id)
+                continue
+            if store.note_resume(scan_id) > MAX_RESTART_RESUMES:
+                LOGGER.warning(
+                    "accepted_scan_restart_failed scan_id=%s reason=%s",
+                    scan_id,
+                    RESTART_RESUME_EXHAUSTED_REASON,
+                )
+                self._record_failed_result(request, reason=RESTART_RESUME_EXHAUSTED_REASON)
+                summary["failed"].append(scan_id)
+                continue
+            LOGGER.info("accepted_scan_resumed scan_id=%s", scan_id)
+            with self._state_lock:
+                self._results[scan_id] = ScanResult(
+                    scan_id=scan_id,
+                    status="queued",
+                    scanner_version=str(request.scanner_version),
+                    corpus_version=str(request.corpus_version),
+                    rows_emitted=0,
+                    k_replicates=request.k_replicates,
+                )
+            target = (
+                self._run_full_scan_background
+                if self._uses_full_scan_registry(request)
+                else self._run_accepted_scan_background
+            )
+            self._start_background_scan(
+                target,
+                scan_request=request,
+                secret=RESUMED_NO_AUTH_SECRET,
+                agent_id=row.get("agent_id"),
+                on_terminal=None,
+            )
+            summary["resumed"].append(scan_id)
+        if self._webhook_outbox is not None:
+            for row in store.terminal_with_webhook():
+                scan_id = row["scan_id"]
+                if self._webhook_outbox.get(scan_id) is not None:
+                    continue
+                self._restore_scan_state(row)
+                _deliver_terminal_webhook(
+                    outbox=self._webhook_outbox,
+                    webhook_cfg=row["webhook_cfg"],
+                    scan_id=scan_id,
+                    payload=_customer_result_response(scan_id, row["result"], self),
+                )
+                summary["redelivered"].append(scan_id)
+            if start_webhook_retry:
+                self._start_webhook_retry_loop()
+        LOGGER.info(
+            "accepted_scan_restart_sweep resumed=%d failed=%d redelivered=%d",
+            len(summary["resumed"]),
+            len(summary["failed"]),
+            len(summary["redelivered"]),
+        )
+        return summary
+
+    def _start_webhook_retry_loop(self) -> None:
+        if self._webhook_retry_thread is not None or self._webhook_outbox is None:
+            return
+        outbox = self._webhook_outbox
+
+        def loop() -> None:
+            while True:
+                time.sleep(WEBHOOK_RETRY_INTERVAL_SECONDS)
+                try:
+                    outbox.deliver_pending()
+                except Exception as exc:  # noqa: BLE001 - keep retrying
+                    LOGGER.error("webhook_retry_error error_type=%s", type(exc).__name__)
+
+        thread = threading.Thread(target=loop, name="are-webhook-retry", daemon=True)
+        self._webhook_retry_thread = thread
+        thread.start()
 
     def persist_context_envelope(self, scan_id: str, raw_context: Mapping[str, Any]) -> None:
         """Validate and persist the report-only sidecar after execution."""
@@ -1086,7 +1405,10 @@ class ScanRuntime:
         a factory-typedef change.
         """
         self._purge_expired_in_memory_state()
-        return self._scan_requests.get(scan_id)
+        request = self._scan_requests.get(scan_id)
+        if request is None and self._load_durable_scan(scan_id) is not None:
+            request = self._scan_requests.get(scan_id)
+        return request
 
     def current_scan_invocation_context(
         self, scan_id: str
@@ -1097,6 +1419,8 @@ class ScanRuntime:
         ``purpose`` field is only meaningful on the rescan path).
         """
         self._purge_expired_in_memory_state()
+        if scan_id not in self._scan_requests:
+            self._load_durable_scan(scan_id)
         return self._scan_invocation_contexts.get(scan_id)
 
     # ----- BEAAA-1273 (WS3) chain readback -----
@@ -1107,6 +1431,8 @@ class ScanRuntime:
         ``agent_id``).
         """
         self._purge_expired_in_memory_state()
+        if scan_id not in self._kickoff_keys:
+            self._load_durable_scan(scan_id)
         if self._scan_log is None or scan_id not in self._kickoff_keys:
             return None
         tenant_id, agent_id, run_timestamp = self._kickoff_keys[scan_id]
