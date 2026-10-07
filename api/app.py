@@ -317,6 +317,15 @@ def create_app(
     # a restart. ``delivered`` records are skipped, so recovery never dupes.
     if app.state.webhook_outbox is not None:
         app.state.webhook_outbox.deliver_pending()
+    # BEAAA-38869 item 2 — on startup, re-run or fail every scan that a prior
+    # process accepted but never finished (e.g. the process was killed during a
+    # deploy). Credential-free scans are re-queued; credential-bearing ones are
+    # immediately failed so the caller's webhook still fires. No-op when no
+    # AcceptedScanStore is wired (offline / test setups without production_scan_wiring).
+    if app.state.scan_runtime is not None and hasattr(
+        app.state.scan_runtime, "resume_accepted_scans"
+    ):
+        app.state.scan_runtime.resume_accepted_scans()
     # BEAAA-1274 (WS4) — per-purpose SLA metric registry + routing-event sink.
     # Default sinks survive the lifetime of the app instance so the rolling
     # window observed by ``GET /scanner/v1/sla`` matches the window the

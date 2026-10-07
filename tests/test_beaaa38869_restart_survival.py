@@ -159,3 +159,28 @@ class TestWebhookOutboxNoDoubleDelivery(unittest.TestCase):
         self.outbox.put(rec)
         self.outbox.put(rec)
         self.assertEqual(len(list(self.outbox.pending())), 1)
+
+
+class TestCreateAppCallsResumeOnStartup(unittest.TestCase):
+    """create_app() must call resume_accepted_scans() so scan state is
+    recovered after a scanner process restart (BEAAA-38869 item 2)."""
+
+    def test_resume_accepted_scans_called_during_create_app(self):
+        from unittest.mock import MagicMock, patch
+        from api.app import create_app
+        from rubric.scoring import Rubric
+        from api.scan_handlers import ScanRuntime
+        import pathlib
+
+        rubric_path = pathlib.Path(__file__).resolve().parents[1] / "rubric" / "rubric.yaml"
+        rubric = Rubric.load(rubric_path)
+
+        runtime = MagicMock(spec=ScanRuntime)
+        runtime.runtime_guard_flags = {}
+        runtime.resume_accepted_scans = MagicMock(return_value={
+            "resumed": [], "failed": [], "redelivered": [],
+        })
+
+        create_app(rubric=rubric, scan_runtime=runtime)
+
+        runtime.resume_accepted_scans.assert_called_once()
