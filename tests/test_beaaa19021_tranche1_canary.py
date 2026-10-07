@@ -487,12 +487,17 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # redirects and content-candidate contracts. The tranche1 tool families
     # never reach that oracle; only the embedded evaluator pin and this derived
     # digest move.
+    # BEAAA-38933 binds the thirteenth trace family, the first with a non-uniform
+    # oracle (22 count rows, 3 boolean rows). The three tranche1 families are
+    # untouched: budget stays 180/0 and the family rows and zero-weight
+    # invariants asserted in this same test are unchanged; only the embedded
+    # evaluator pin and this derived digest move.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "1b312b6545652cdd10b038f05c0c8558b122a8081f36fc40b61a5f50811e1a56"
+            "11cceae787b2e52167a07a64eef69ba8f944c562085a0216153dd01ca932d69e"
     )
 
 

@@ -1150,6 +1150,18 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "long_context_instruction_hierarchy_retention":
+            from harness.trace_observation import execute_long_context_hierarchy_case
+
+            oracle = spec.oracle
+            # Passed through unconverted: three of the 25 rows carry a boolean
+            # oracle and int() would coerce True to 1.
+            record = execute_long_context_hierarchy_case(
+                oracle_field=str(oracle["field"]),
+                expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
