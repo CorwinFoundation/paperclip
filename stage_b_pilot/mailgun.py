@@ -21,6 +21,7 @@ from urllib.request import Request, urlopen
 
 from .inbound import InboundReceipt, InboundStore
 from .history_import import HistoryImportStore, MAX_MESSAGE_BYTES
+from .export_intake import EXPORT_RECIPIENT, ExportIntakeStore
 from .instinct_standing import FOLLOWUP_PREFIX, STANDING_PREFIX, STOP_ACK, StandingReportStore, render_instruction
 
 
@@ -166,6 +167,13 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 encryption_key=history_key,
                 external_ingestion_enabled=history_external_enabled,
             )
+            store.purge_expired()
+            return store
+
+        def _export_store(self) -> ExportIntakeStore:
+            if not history_db_path or not history_key:
+                raise RuntimeError("history_not_configured")
+            store = ExportIntakeStore(history_db_path, encryption_key=history_key)
             store.purge_expired()
             return store
 
@@ -530,6 +538,24 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                 return
             if path == "/history/mailgun/mime":
                 recipient = str(fields.get("recipient", "")).strip()
+                if recipient.lower() == EXPORT_RECIPIENT:
+                    export = None
+                    try:
+                        verify_signature(fields, signing_key)
+                        export = self._export_store()
+                        intake_id = export.ingest(str(fields.get("body-mime", "")).encode(),
+                                                  envelope_recipient=recipient)
+                        self._reply(200, {"accepted": True, "intake_id": intake_id})
+                    except PermissionError as exc:
+                        self._reply(401, {"error": str(exc)})
+                    except ValueError as exc:
+                        self._reply(406, {"error": str(exc)})
+                    except RuntimeError:
+                        self._reply(503, {"error": "history_not_configured"})
+                    finally:
+                        if export is not None:
+                            export.close()
+                    return
                 local_part, separator, domain = recipient.rpartition("@")
                 if (separator == "@" and domain.lower() == "inbound.backbond.ai"
                         and local_part.startswith(STANDING_PREFIX)):

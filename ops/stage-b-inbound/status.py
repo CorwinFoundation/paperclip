@@ -209,6 +209,15 @@ def main(argv):
             for r in sel:
                 print("  history_event", code(r.get("event_type")), "import", h(r.get("import_id")),
                       "occurred", ts(r.get("occurred_at")))
+        if "export_intakes" in tables:
+            rs = rows(db, "export_intakes")
+            sel = [r for r in rs if inw(r.get("received_at"))]
+            print("export_intakes total", len(rs), "in_window", len(sel))
+            for r in sel:
+                refs = " ".join(x if REF.match(x) else h(x) for x in str(r.get("row_refs") or "").split()) or "none"
+                print("  export", str(r.get("code_digest"))[:10], "sender", str(r.get("sender_hash"))[:10],
+                      "received", ts(r.get("received_at")), "state", code(r.get("state")),
+                      "row_count", r.get("row_count"), "refs", refs)
         if "inbound_receipts" in tables:
             rs = rows(db, "inbound_receipts")
             sel = [r for r in rs if stamped(r)]

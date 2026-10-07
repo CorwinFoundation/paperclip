@@ -147,6 +147,10 @@ grep -Fxq "BB_DEMO_CREDENTIAL_FILE=$credential_file" "$receipt_secret_file" || {
 grep -q '^BB_ONBOARDING_DB=' "$receipt_secret_file" || printf 'BB_ONBOARDING_DB=%s/onboarding.sqlite3\n' "$state_dir" >>"$receipt_secret_file"
 grep -q '^BB_INBOUND_DB=' "$receipt_secret_file" || printf 'BB_INBOUND_DB=%s/inbound.sqlite3\n' "$state_dir" >>"$receipt_secret_file"
 grep -q '^BB_STAGE_B_PUBLIC_BASE=' "$receipt_secret_file" || printf 'BB_STAGE_B_PUBLIC_BASE=https://scanner.backbond.ai/stage-b-demo\n' >>"$receipt_secret_file"
+grep -q '^BB_HISTORY_DB=' "$receipt_secret_file" || printf 'BB_HISTORY_DB=%s/history.sqlite3\n' "$state_dir" >>"$receipt_secret_file"
+if ! grep -q '^BB_HISTORY_ENCRYPTION_KEY_HEX=' "$receipt_secret_file"; then
+    grep '^BB_HISTORY_ENCRYPTION_KEY_HEX=' "$secret_file" >>"$receipt_secret_file"
+fi
 for key in BACKBOND_MAILGUN_MESSAGES_URL BACKBOND_MAILGUN_API_KEY BACKBOND_MAILGUN_FROM; do
     grep -q "^${key}=" "$receipt_secret_file" || grep "^${key}=" "$secret_file" >>"$receipt_secret_file" || true
 done
