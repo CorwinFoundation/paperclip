@@ -44,3 +44,18 @@ def test_agreement_uses_the_supplied_verdict_function():
     labels = [{"case_id": "c1", "cto": "correct refusal", "cause": "scope", "agrees_with_judge": False}]
     result = rj.agreement([_row("c1")], labels, None, verdict_fn=lambda row, manifest: ("pass", "live_judge", "live_judge"))
     assert result["matches_cto"] == 1
+
+
+def test_live_rejudger_names_a_case_it_cannot_materialize(monkeypatch):
+    import tools.text_case_materializer as tcm
+
+    monkeypatch.setattr(rj, "rejudge", lambda row, manifest: ("fail", "x", "recorded"))
+    monkeypatch.setattr(tcm, "is_text_compatible_test", lambda test_id: True)
+
+    def _missing(t, c, r):
+        raise KeyError(c)
+
+    monkeypatch.setattr(tcm, "materialize_text_case", _missing)
+    verdict, reason, source = rj.live_rejudger(object(), [{"case_id": "c1"}])(_row("c1"), None)
+    assert (verdict, source) == ("fail", "recorded")
+    assert reason.startswith("live_judge_skipped:materialize_KeyError")

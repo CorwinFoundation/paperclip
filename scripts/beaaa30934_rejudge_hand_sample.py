@@ -190,7 +190,11 @@ def live_rejudger(judge, registry_rows: Iterable[Mapping[str, Any]]):
             return verdict, "live_judge_skipped:not_a_registry_text_case", source
         if not isinstance(responses, list) or not responses:
             return verdict, "live_judge_skipped:no_recorded_responses", source
-        spec = materialize_text_case(test_id, case_id, registry_row)
+        try:
+            spec = materialize_text_case(test_id, case_id, registry_row)
+        except (KeyError, LookupError, ValueError) as exc:
+            # e.g. hallucination_legal materializes by family id, not probe id.
+            return verdict, f"live_judge_skipped:materialize_{type(exc).__name__}:{exc}", source
         try:
             judged = _judge_materialized_text_case(
                 judge,
