@@ -1172,6 +1172,50 @@ def _zoo_coverage_failures(
     return failures
 
 
+def _zoo_routing_facts(
+    decisions: Sequence[Any],
+    target_reports: Mapping[str, Mapping[str, Any]],
+    environ: Mapping[str, str] | None = None,
+    *,
+    job_store_preexisting: bool | None = None,
+) -> dict[str, Any]:
+    """Count-only routing facts for the 0644 operator summary.
+
+    Uses the decisions as routed, before coverage failures re-label routed
+    families as ``unrouted_surface``, so an operator can tell a routing gap
+    from a dispatch gap. Credentials are reported as present/absent only.
+    """
+    # ``job_store_preexisting`` is true when an earlier run on the same date
+    # already wrote this lane's job store. Jobs reopen by idempotency key, so a
+    # terminal job is replayed from its stored rows with no target calls and
+    # without the original abort reason.
+    source = os.environ if environ is None else environ
+    families_by_reason: Counter[str] = Counter()
+    rows_by_reason: Counter[str] = Counter()
+    for decision in decisions:
+        reason = "routed" if decision.target is not None else str(decision.reason).split(":", 1)[0]
+        families_by_reason[reason] += 1
+        rows_by_reason[reason] += len(decision.rows)
+    return {
+        "job_store_preexisting": job_store_preexisting,
+        "families_with_target": sum(1 for d in decisions if d.target is not None),
+        "families_without_target": sum(1 for d in decisions if d.target is None),
+        "families_by_reason": dict(sorted(families_by_reason.items())),
+        "rows_by_reason": dict(sorted(rows_by_reason.items())),
+        "targets": {
+            name: {
+                key: report.get(key)
+                for key in ("status", "rows", "target_calls", "abort_reason")
+            }
+            | {"families": len(report.get("families") or ())}
+            for name, report in sorted(target_reports.items())
+        },
+        "credentials_present": {
+            name: bool(source.get(name, "").strip()) for name in ZOO_SECRET_ENV
+        },
+    }
+
+
 def _reason_code_uncovered_zoo_routes(
     decisions: Sequence[Any], coverage_failures: Mapping[str, str]
 ) -> list[Any]:
@@ -1474,6 +1518,7 @@ def run_scheduled_zoo_scan(
         if decision.target is not None:
             by_target.setdefault(decision.target, []).append(decision)
 
+    job_store_preexisting = (output_dir / "full_scan_jobs.sqlite3").exists()
     runtime_started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat()
     evidence_rows: list[Mapping[str, Any]] = []
@@ -1550,6 +1595,9 @@ def run_scheduled_zoo_scan(
         "abort_reason": run_abort_reason,
         "families": families,
         "routed_families": routed_families,
+        "routing": _zoo_routing_facts(
+            decisions, target_reports, job_store_preexisting=job_store_preexisting
+        ),
         "judge_calls": judge_calls,
         "coverage_failures": coverage_failures,
         "coverage_passed": _zoo_coverage_passed(
@@ -1879,7 +1927,7 @@ OPERATOR_SUMMARY_FIELDS = (
     "started_at", "finished_at", "total_runtime_seconds",
     "estimated_cost_usd", "aborted", "abort_reason", "coverage_passed",
     "coverage_failures", "reconciliation", "incomplete_by_reason",
-    "evidence_rows", "routed_families", "judge_calls", "families",
+    "evidence_rows", "routed_families", "judge_calls", "families", "routing",
 )
 
 
