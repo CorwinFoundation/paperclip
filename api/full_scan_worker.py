@@ -73,6 +73,7 @@ class FullScanQueueWorker:
         max_recovery_attempts: int = DEFAULT_MAX_RECOVERY_ATTEMPTS,
         webhook_secret_resolver: Callable[[str], str | bytes | None] | None = None,
         webhook_http_poster: Callable[[str, dict, bytes], None] | None = None,
+        pack_case_runner: Any | None = None,
     ) -> None:
         if lease_ttl_seconds <= 0:
             raise ValueError("lease_ttl_seconds must be positive")
@@ -84,6 +85,9 @@ class FullScanQueueWorker:
         self._max_recovery_attempts = max_recovery_attempts
         self._webhook_secret_resolver = webhook_secret_resolver
         self._webhook_http_poster = webhook_http_poster or _default_webhook_http_poster
+        # BEAAA-38957 — ``api.full_scan_packs.CaseRunner`` for paid-pack jobs.
+        # Without one, paid-pack jobs are left queued for a worker that has it.
+        self._pack_case_runner = pack_case_runner
 
     def recover(self) -> dict[str, Any]:
         return self._store.recover(max_recovery_attempts=self._max_recovery_attempts)
@@ -114,13 +118,47 @@ class FullScanQueueWorker:
                 final_manifest_hash=pending_terminal.final_manifest_hash,
             )
 
-        lease = self._store.lease_next(ttl_seconds=self._lease_ttl_seconds)
+        lease = self._store.lease_next(
+            ttl_seconds=self._lease_ttl_seconds,
+            job_filter=(
+                None
+                if self._pack_case_runner is not None
+                else (lambda job: job.pack_id is None)
+            ),
+        )
         if lease is None:
             return FullScanWorkerResult(status="idle")
 
         job_id = str(lease["job_id"])
         attempt_id = str(lease["attempt_id"])
         processed = 0
+
+        if self._store.status(job_id).pack_id is not None:
+            from api.full_scan_packs import run_pack_attempt
+
+            outcome = run_pack_attempt(
+                self._store,
+                job_id,
+                attempt_id=attempt_id,
+                runner=self._pack_case_runner,
+                max_cases=max_cases,
+            )
+            if not outcome.finished:
+                return FullScanWorkerResult(
+                    status="interrupted",
+                    job_id=job_id,
+                    attempt_id=attempt_id,
+                    processed_cases=outcome.processed_cases,
+                )
+            self._deliver_terminal_webhook(outcome.job)
+            return FullScanWorkerResult(
+                status="finalized",
+                job_id=job_id,
+                attempt_id=attempt_id,
+                processed_cases=outcome.processed_cases,
+                final_status=outcome.job.status,
+                final_manifest_hash=outcome.job.final_manifest_hash,
+            )
 
         while True:
             pending = self._pending_registry_rows(job_id)
@@ -218,7 +256,7 @@ class FullScanQueueWorker:
             str(row["probe_id"])
             for row in resume["evidence_rows"]
             if isinstance(row, Mapping)
-            and row.get("status") in {"complete", "incomplete", "failed", "skipped"}
+            and row.get("status") in {"complete", "incomplete", "failed", "skipped", "could_not_run"}
         }
         return [
             row

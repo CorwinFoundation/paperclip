@@ -35,11 +35,17 @@ from scanners import CONTRACT_VERSION
 ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
 ATTEMPT_MANIFEST_VERSION = "full-scan-attempt-manifest/v0.1"
 TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled", "incomplete_cost_cap"}
+COULD_NOT_RUN_PROBE_STATUS = "could_not_run"
+COST_CAP_REACHED_REASON = "cost_cap_reached"
+DEFAULT_MAX_RUNNING_JOBS_PER_TARGET = 1
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 # Rows flushed per store write during a dispatch. A process killed mid-dispatch
 # loses at most this many paid target/judge attempts.
 DEFAULT_DISPATCH_CHECKPOINT_ROWS = 10
-RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {"incomplete"}
+RECONCILED_TERMINAL_PROBE_STATUSES = TERMINAL_PROBE_STATUSES | {
+    "incomplete",
+    COULD_NOT_RUN_PROBE_STATUS,
+}
 ACQUISITION_BASES = {
     "target-measured",
     "not-applicable",
@@ -171,9 +177,18 @@ class EvidenceAttemptRow:
     # Judge model that produced the verdict for this row (BEAAA-35757).
     # None when no judge was invoked (e.g. not_applicable rows).
     judge_model: str | None = None
+    # BEAAA-38957 — observed spend for this row, judge and target separately:
+    # ``{"judge_cost_usd", "judge_cost_basis", "target_cost_usd",
+    # "target_cost_basis", "estimated_judge_cost_usd",
+    # "estimated_target_cost_usd", "estimated"}``. A basis is
+    # ``provider_reported`` (usage.cost returned), ``usage_tokens_priced``
+    # (token usage returned, priced from the pinned table) or ``estimated``
+    # (no usage returned). ``None`` on rows that predate paid packs; the key is
+    # then absent from the manifest row so existing manifests are unchanged.
+    cost: dict[str, Any] | None = None
 
     def to_manifest_row(self) -> dict[str, Any]:
-        return {
+        row = {
             "probe_id": self.probe_id,
             "rubric_point_id": self.rubric_point_id,
             "status": self.status,
@@ -208,6 +223,9 @@ class EvidenceAttemptRow:
             "na_evidence": self.na_evidence,
             "judge_model": self.judge_model,
         }
+        if self.cost is not None:
+            row["cost"] = dict(self.cost)
+        return row
 
 
 @dataclass(frozen=True)
@@ -310,6 +328,8 @@ class FullScanJob:
     # BEAAA-38957 — tenant identifier for per-target concurrency and entitlement
     # checks.  ``None`` keeps the legacy unchecked behaviour.
     tenant_id: str | None = None
+    target_id: str | None = None
+    entitlement_id: str | None = None
     # BEAAA-38987 — durable variable-form id from FormStore; None for legacy runs
     # without form-based scenario selection.
     form_id: str | None = None
@@ -338,7 +358,11 @@ class FullScanJobStore:
         *,
         clock: Callable[[], datetime] | None = None,
         persistence: "FullScanJobPersistence | None" = None,
+        entitlements: Any | None = None,
+        max_running_jobs_per_target: int = DEFAULT_MAX_RUNNING_JOBS_PER_TARGET,
     ) -> None:
+        if max_running_jobs_per_target <= 0:
+            raise FullScanExecutorError("max_running_jobs_per_target must be positive")
         self._clock = clock or _utcnow
         self._jobs: dict[str, FullScanJob] = {}
         self._idempotency_index: dict[str, str] = {}
@@ -346,6 +370,10 @@ class FullScanJobStore:
         self._job_target_ids: dict[str, str | None] = {}
         self._lock = RLock()
         self._persistence = persistence
+        # BEAAA-38957 — ``api.full_scan_entitlement.FullScanEntitlementStore``.
+        # A paid-pack job is only accepted against an unconsumed entitlement.
+        self._entitlements = entitlements
+        self._max_running_jobs_per_target = max_running_jobs_per_target
         if persistence is not None:
             for record in persistence.load_jobs():
                 job = _job_from_record(record)
@@ -395,56 +423,91 @@ class FullScanJobStore:
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
+            paid_pack = False
             if wall_clock_budget_seconds is not None and wall_clock_budget_seconds <= 0:
                 raise FullScanExecutorError("wall_clock_budget_seconds must be positive")
             if rate_limit_per_minute is not None and rate_limit_per_minute <= 0:
                 raise FullScanExecutorError("rate_limit_per_minute must be positive")
+            if max_cost_usd is not None and not float(max_cost_usd) > 0:
+                raise FullScanExecutorError("max_cost_usd must be positive")
             if idempotency_key and idempotency_key in self._idempotency_index:
                 return self._jobs[self._idempotency_index[idempotency_key]]
 
             # BEAAA-38957: pack_id validation --------------------------------
             if pack_id is not None:
-                from api.full_scan_pack_registry import VariablePack, resolve_pack
-                try:
-                    resolved_pack = resolve_pack(pack_id)
-                except KeyError as exc:
-                    raise FullScanExecutorError(str(exc)) from exc
-                if isinstance(resolved_pack, VariablePack):
-                    if form_store is None:
-                        raise FullScanExecutorError(f"variable pack {pack_id!r} requires form_store")
-                    form_bank_version = resolved_pack.bank_version
-                elif not cases:
-                    cases = tuple(FullSuiteCase(c.case_id, c.rubric_point_id) for c in resolved_pack)
+                from api.full_scan_packs import PAID_PACKS, pack_registry_cases
+                paid_pack = pack_id in PAID_PACKS
+                if paid_pack:
+                    if cases:
+                        raise FullScanExecutorError("registry_cases must not be passed with pack_id")
+                    if not tenant_id:
+                        raise FullScanExecutorError("pack_id requires tenant_id")
+                    cases = pack_registry_cases(pack_id)
+                else:
+                    from api.full_scan_pack_registry import VariablePack, resolve_pack
+                    try:
+                        resolved_pack = resolve_pack(pack_id)
+                    except KeyError as exc:
+                        raise FullScanExecutorError(
+                            f"unknown_pack: Unknown pack_id {pack_id!r}"
+                        ) from exc
+                    if isinstance(resolved_pack, VariablePack):
+                        if form_store is None:
+                            raise FullScanExecutorError(f"variable pack {pack_id!r} requires form_store")
+                        form_bank_version = resolved_pack.bank_version
+                    elif not cases:
+                        cases = tuple(FullSuiteCase(c.case_id, c.rubric_point_id) for c in resolved_pack)
 
             if not cases and form_store is None:
                 raise FullScanExecutorError("registry_cases must not be empty")
 
-            # BEAAA-38957: entitlement check (paid packs only) ---------------
-            if pack_id is not None and entitlement_store is not None:
+            job_id = str(uuid.uuid4())
+            entitlement_id: str | None = None
+            if paid_pack:
+                if self._entitlements is None:
+                    raise FullScanExecutorError("entitlement_store_unconfigured")
+                entitlement = self._entitlements.check(
+                    tenant_id=str(tenant_id), pack_id=str(pack_id)
+                )
+                if entitlement is None:
+                    raise FullScanExecutorError("entitlement_required")
+                if max_cost_usd is None:
+                    max_cost_usd = entitlement.max_cost_usd
+                elif float(max_cost_usd) > entitlement.max_cost_usd:
+                    raise FullScanExecutorError(
+                        "max_cost_usd exceeds the entitlement's max_cost_usd"
+                    )
+                entitlement = self._entitlements.consume(
+                    tenant_id=str(tenant_id), pack_id=str(pack_id), job_id=job_id,
+                    entitlement_id=entitlement.entitlement_id,
+                )
+                entitlement_id = entitlement.entitlement_id
+            elif pack_id is not None and entitlement_store is not None:
                 if not entitlement_store.check(tenant=tenant_id or "", pack_id=pack_id):
                     raise FullScanExecutorError(
                         f"No unconsumed entitlement for tenant={tenant_id!r} "
                         f"pack_id={pack_id!r}"
                     )
 
-            # BEAAA-38957: per-target concurrency check ----------------------
+            # Variable-form and registry jobs retain the current acceptance-
+            # time limit. Fixed paid packs queue and enforce the limit at lease
+            # time so a purchased job is never discarded.
             if (
-                tenant_id is not None
+                not paid_pack
+                and tenant_id is not None
                 and target_id is not None
                 and max_concurrent_per_target > 0
             ):
                 running_count = sum(
                     1
-                    for jid, j in self._jobs.items()
-                    if (
-                        j.tenant_id == tenant_id
-                        and self._job_target_ids.get(jid) == target_id
-                        and j.status not in TERMINAL_JOB_STATUSES
-                    )
+                    for jid, existing in self._jobs.items()
+                    if existing.tenant_id == tenant_id
+                    and self._job_target_ids.get(jid) == target_id
+                    and existing.status not in TERMINAL_JOB_STATUSES
                 )
                 if running_count >= max_concurrent_per_target:
                     raise FullScanExecutorError(
-                        f"Per-target concurrency limit reached for "
+                        "Per-target concurrency limit reached for "
                         f"tenant={tenant_id!r} target={target_id!r} "
                         f"(max={max_concurrent_per_target})"
                     )
@@ -511,7 +574,7 @@ class FullScanJobStore:
 
             now = self._clock()
             job = FullScanJob(
-                job_id=str(uuid.uuid4()),
+                job_id=job_id,
                 agent_id=agent_id,
                 scanner_version=scanner_version,
                 corpus_version=corpus_version,
@@ -535,13 +598,15 @@ class FullScanJobStore:
                 pack_id=pack_id,
                 max_cost_usd=max_cost_usd,
                 tenant_id=tenant_id,
+                target_id=target_id,
+                entitlement_id=entitlement_id,
                 form_id=resolved_form_id,
             )
             self._jobs[job.job_id] = job
             self._job_target_ids[job.job_id] = target_id
 
             # BEAAA-38957: consume entitlement atomically with job creation --
-            if pack_id is not None and entitlement_store is not None:
+            if not paid_pack and pack_id is not None and entitlement_store is not None:
                 entitlement_store.consume(
                     tenant=tenant_id or "",
                     pack_id=pack_id,
@@ -579,6 +644,14 @@ class FullScanJobStore:
                     "leased": False,
                     "active_attempt_id": job.active_attempt_id,
                     "lease_expires_at": _iso(job.lease_expires_at),
+                }
+            if self._target_running_count(job, now=now) >= self._max_running_jobs_per_target:
+                # BEAAA-38957 — the job stays accepted and queued; a worker
+                # defers it until a running job on the same target finishes.
+                return {
+                    "job_id": job.job_id,
+                    "leased": False,
+                    "reason": "target_concurrency_limit",
                 }
             attempt_id = str(uuid.uuid4())
             lease_expires_at = now + timedelta(seconds=ttl_seconds)
@@ -628,10 +701,21 @@ class FullScanJobStore:
         with self._lock:
             return list(self._jobs)
 
-    def lease_next(self, *, ttl_seconds: int = 300) -> dict[str, Any] | None:
-        """Lease the next resumable queued job, or ``None`` if no job is ready."""
+    def lease_next(
+        self,
+        *,
+        ttl_seconds: int = 300,
+        job_filter: Callable[[FullScanJob], bool] | None = None,
+    ) -> dict[str, Any] | None:
+        """Lease the next resumable queued job, or ``None`` if no job is ready.
+
+        ``job_filter`` lets a worker skip jobs it cannot run (BEAAA-38957: a
+        worker with no pack runner leaves paid-pack jobs queued).
+        """
         with self._lock:
             for job_id in self.queued_job_ids():
+                if job_filter is not None and not job_filter(self._jobs[job_id]):
+                    continue
                 try:
                     lease = self.lease(job_id, ttl_seconds=ttl_seconds)
                 except FullScanExecutorError:
@@ -714,6 +798,11 @@ class FullScanJobStore:
             manifest_hash = manifest_content_hash(manifest)
             bind_eligibility = _bind_eligibility(job, manifest)
             final_status = "complete" if bind_eligibility == "eligible" else "incomplete"
+            if any(
+                row.incomplete_reason == COST_CAP_REACHED_REASON
+                for row in job.evidence_rows
+            ):
+                final_status = "incomplete_cost_cap"
             updated = replace(
                 job,
                 status=final_status,
@@ -858,6 +947,22 @@ class FullScanJobStore:
         self._persist(updated)
         return updated
 
+    def _target_running_count(self, job: FullScanJob, *, now: datetime) -> int:
+        """Live-leased jobs on the same ``(tenant_id, target_id)``, excluding ``job``."""
+        if not job.target_id:
+            return 0
+        return sum(
+            1
+            for other in self._jobs.values()
+            if other.job_id != job.job_id
+            and other.target_id == job.target_id
+            and other.tenant_id == job.tenant_id
+            and other.status not in TERMINAL_JOB_STATUSES
+            and other.active_attempt_id is not None
+            and other.lease_expires_at is not None
+            and other.lease_expires_at > now
+        )
+
     def _require_active_lease(self, job: FullScanJob, *, attempt_id: str) -> None:
         if attempt_id not in job.attempts:
             raise FullScanExecutorError("unknown attempt_id")
@@ -911,6 +1016,12 @@ def build_attempt_manifest(
         "wall_clock_ms": sum(int(row.get("duration_ms") or 0) for row in rows),
         "limits": dict(job.model_versions.get("execution_budget") or {}),
     }
+    if getattr(job, "pack_id", None) is not None or getattr(
+        job, "max_cost_usd", None
+    ) is not None or any(
+        row.get("cost") for row in rows
+    ):
+        budget["cost"] = cost_budget_block(job)
     incomplete_reasons = [
         f"required_case_not_attempted:{case_id}"
         for case_id in missing_required
@@ -1009,11 +1120,72 @@ def build_attempt_manifest(
         ),
         "finished_at": _iso(finished_at),
     }
+    max_cost_usd = getattr(job, "max_cost_usd", None)
+    pack_id = getattr(job, "pack_id", None)
+    if max_cost_usd is not None:
+        manifest["execution_budget"]["max_cost_usd"] = max_cost_usd
+    if pack_id is not None:
+        manifest["pack_id"] = pack_id
+        manifest["tenant_id"] = getattr(job, "tenant_id", None)
+        manifest["target_id"] = getattr(job, "target_id", None)
     evidence_class = job.model_versions.get("evidence_class")
     if evidence_class:
         manifest["evidence_class"] = str(evidence_class)
         manifest["live_service_signed"] = False
     return seal_manifest(manifest)
+
+
+def job_observed_cost_usd(job: FullScanJob) -> float:
+    """Observed spend so far (judge + target) across the job's rows.
+
+    BEAAA-38957: rows carry the provider-reported cost when usage was
+    returned, else their estimate (flagged ``estimated``) — so a row never
+    counts as free just because the provider was silent.
+    """
+    total = 0.0
+    for row in job.evidence_rows:
+        cost = row.cost or {}
+        total += float(cost.get("judge_cost_usd") or 0.0)
+        total += float(cost.get("target_cost_usd") or 0.0)
+    return round(total, 6)
+
+
+def cost_budget_block(job: FullScanJob) -> dict[str, Any]:
+    """Manifest budget block: estimate vs observed, judge vs target."""
+    estimated_judge = estimated_target = observed_judge = observed_target = 0.0
+    basis_counts: Counter[str] = Counter()
+    estimated_rows = 0
+    for row in job.evidence_rows:
+        cost = row.cost
+        if not cost:
+            continue
+        estimated_judge += float(cost.get("estimated_judge_cost_usd") or 0.0)
+        estimated_target += float(cost.get("estimated_target_cost_usd") or 0.0)
+        observed_judge += float(cost.get("judge_cost_usd") or 0.0)
+        observed_target += float(cost.get("target_cost_usd") or 0.0)
+        basis_counts[f"judge:{cost.get('judge_cost_basis') or 'none'}"] += 1
+        basis_counts[f"target:{cost.get('target_cost_basis') or 'none'}"] += 1
+        if cost.get("estimated"):
+            estimated_rows += 1
+    return {
+        "max_cost_usd": job.max_cost_usd,
+        "estimated": {
+            "judge_usd": round(estimated_judge, 6),
+            "target_usd": round(estimated_target, 6),
+            "total_usd": round(estimated_judge + estimated_target, 6),
+        },
+        "observed": {
+            "judge_usd": round(observed_judge, 6),
+            "target_usd": round(observed_target, 6),
+            "total_usd": round(observed_judge + observed_target, 6),
+        },
+        "observed_basis_counts": dict(sorted(basis_counts.items())),
+        "rows_with_estimated_cost": estimated_rows,
+        "cost_cap_reached": any(
+            row.incomplete_reason == COST_CAP_REACHED_REASON
+            for row in job.evidence_rows
+        ),
+    }
 
 
 def build_controlled_validation_report(
@@ -1715,7 +1887,13 @@ def _bind_eligibility_from_missing(
 
 
 def _validate_evidence_row(row: EvidenceAttemptRow) -> None:
-    if row.status not in {"complete", "incomplete", "failed", "skipped"}:
+    if row.status not in {
+        "complete",
+        "incomplete",
+        "failed",
+        "skipped",
+        COULD_NOT_RUN_PROBE_STATUS,
+    }:
         raise FullScanExecutorError(f"invalid probe status: {row.status!r}")
     required = {
         "probe_id": row.probe_id,
@@ -1973,7 +2151,7 @@ def _row_has_evidence(row: Mapping[str, Any]) -> bool:
     status = row.get("status")
     if status == "complete":
         return bool(row.get("evidence_ref"))
-    if status in {"incomplete", "failed", "skipped"}:
+    if status in {"incomplete", "failed", "skipped", COULD_NOT_RUN_PROBE_STATUS}:
         return bool(row.get("incomplete_reason") or row.get("evidence_ref"))
     return False
 
@@ -2082,6 +2260,8 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "observed_judge_cost_usd": job.observed_judge_cost_usd,
         "observed_target_cost_usd": job.observed_target_cost_usd,
         "tenant_id": job.tenant_id,
+        "target_id": job.target_id,
+        "entitlement_id": job.entitlement_id,
         # BEAAA-38987 — variable-form identity.
         "form_id": job.form_id,
     }
@@ -2135,6 +2315,8 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         observed_judge_cost_usd=float(record.get("observed_judge_cost_usd") or 0.0),
         observed_target_cost_usd=float(record.get("observed_target_cost_usd") or 0.0),
         tenant_id=record.get("tenant_id"),
+        target_id=record.get("target_id"),
+        entitlement_id=record.get("entitlement_id"),
         # BEAAA-38987 — variable-form identity (backwards-compatible None default).
         form_id=record.get("form_id"),
     )
