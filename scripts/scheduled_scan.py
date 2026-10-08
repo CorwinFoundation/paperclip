@@ -1223,8 +1223,35 @@ def _zoo_routing_facts(
         )
         if match:
             upstream_http_by_status[match.group(0)] += 1
+    # BEAAA-39088: 1,540 of 2,237 rows on 2026-10-08 landed in the ``format``
+    # bucket, which merges unparseable judge output with case execution
+    # errors. Count the leading reason tokens (lowercase identifiers only, so
+    # no endpoint text, payload or secret can pass through) per family.
+    incomplete_reason_tokens: Counter[str] = Counter()
+    incomplete_reason_by_family: dict[str, Counter[str]] = {}
+    for row in evidence_rows:
+        if not isinstance(row, Mapping) or row.get("status") == "complete":
+            continue
+        raw = str(row.get("incomplete_reason") or row.get("reason") or "")
+        tokens = [
+            match.group(0)
+            for part in raw.split(":")[:2]
+            if (match := re.match(r"[a-z][a-z0-9_]{0,47}", part.strip().lower()))
+        ]
+        if not tokens:
+            continue
+        token = ":".join(tokens)
+        incomplete_reason_tokens[token] += 1
+        family = re.match(r"[a-z0-9_]{1,64}", str(row.get("family") or row.get("test_id") or ""))
+        if family:
+            incomplete_reason_by_family.setdefault(family.group(0), Counter())[token] += 1
     openrouter_key = source.get("OPENROUTER_API_KEY", "").strip()
     return {
+        "incomplete_reason_tokens": dict(incomplete_reason_tokens.most_common()),
+        "incomplete_reason_by_family": {
+            name: dict(counts.most_common(3))
+            for name, counts in sorted(incomplete_reason_by_family.items())
+        },
         "job_store_preexisting": job_store_preexisting,
         "upstream_http_by_status": dict(sorted(upstream_http_by_status.items())),
         "openrouter_key_sha256_prefix": (

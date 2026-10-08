@@ -82,3 +82,20 @@ def test_rotated_openrouter_key_gets_a_fresh_zoo_job_key() -> None:
     assert old == scheduled_scan._zoo_credential_epoch({"OPENROUTER_API_KEY": " sk-or-dead\n"})
     assert "sk-or" not in old + new
     assert scheduled_scan._zoo_credential_epoch({}) == ""
+
+
+def test_incomplete_reason_tokens_are_sanitized_counts() -> None:
+    """BEAAA-39088: split the ``format`` bucket without leaking row content."""
+    rows = [
+        {"status": "incomplete", "family": "rag_x", "incomplete_reason": "judge_unparseable: got '<html>secret'"},
+        {"status": "incomplete", "family": "rag_x", "incomplete_reason": "judge_unparseable: got 'x'"},
+        {"status": "incomplete", "family": "code_y", "incomplete_reason": "case_execution_error:KeyError('tool')"},
+        {"status": "complete", "family": "rag_x", "incomplete_reason": None},
+    ]
+    facts = scheduled_scan._zoo_routing_facts([], {}, {}, evidence_rows=rows)
+    assert facts["incomplete_reason_tokens"] == {
+        "judge_unparseable:got": 2,
+        "case_execution_error:keyerror": 1,
+    }
+    assert facts["incomplete_reason_by_family"]["rag_x"] == {"judge_unparseable:got": 2}
+    assert "secret" not in repr(facts) and "html" not in repr(facts)
