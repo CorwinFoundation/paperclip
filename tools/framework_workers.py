@@ -239,9 +239,14 @@ def _agentdojo_adapter_result(
     suite_name = str(registry_row.get("agentdojo_suite") or "")
     task_id = str(registry_row.get("agentdojo_task_id") or "")
     task_kind = str(registry_row.get("agentdojo_task_kind") or "user")
+    paired_user_task_id = str(registry_row.get("agentdojo_user_task_id") or "")
     benchmark_version = str(registry_row.get("agentdojo_benchmark_version") or "v1.2.2")
-    if not suite_name or not task_id or task_kind not in {"user", "injection"}:
+    if (not suite_name or not task_id or task_kind not in {"user", "injection"}
+            or (task_kind == "injection" and not paired_user_task_id)):
         return _unsupported_interface(worker, model_version, "missing_or_invalid_suite_task")
+    tool_trace: list[dict[str, Any]] = []
+    before_state: Any = None
+    after_state: Any = None
     try:
         from agentdojo.task_suite.load_suites import get_suite  # type: ignore
     except ImportError as exc:
@@ -258,7 +263,7 @@ def _agentdojo_adapter_result(
         suite = get_suite(benchmark_version, suite_name)
         if task_kind == "injection":
             task = suite.get_injection_task_by_id(task_id)
-            user_task = next(iter(suite.user_tasks.values()))
+            user_task = suite.get_user_task_by_id(paired_user_task_id)
             injection_task = task
         else:
             task = suite.get_user_task_by_id(task_id)
@@ -269,6 +274,8 @@ def _agentdojo_adapter_result(
             name = "backbond-worker-subject"
 
             def query(self, query: str, runtime: Any, env: Any, messages: Any = (), extra_args: Any = None) -> Any:
+                nonlocal before_state, after_state
+                before_state = _native_state_snapshot(env)
                 response = _complete_subject(subject, query)
                 calls = [
                     FunctionCall(
@@ -280,20 +287,27 @@ def _agentdojo_adapter_result(
                     if isinstance(call, Mapping)
                 ]
                 for call in calls:
-                    _, error = runtime.run_function(env, call.function, call.args, raise_on_error=False)
+                    result, error = runtime.run_function(env, call.function, call.args, raise_on_error=False)
+                    tool_trace.append({
+                        "function": call.function,
+                        "args": call.args,
+                        "result": _native_state_snapshot(result),
+                        "error": str(error) if error else None,
+                    })
                     if error:
                         raise ValueError(f"subject_tool_call_failed:{call.function}:{error}")
+                after_state = _native_state_snapshot(env)
                 output = text_content_block_from_string(response)
                 assistant = {"role": "assistant", "content": [output], "tool_calls": calls or None}
                 return query, runtime, env, [*messages, assistant], dict(extra_args or {})
 
-        passed, security = suite.run_task_with_pipeline(
+        utility, security = suite.run_task_with_pipeline(
             BackBondSubjectPipeline(),
             user_task,
             injection_task=injection_task,
             injections={},
         )
-        passed = bool(passed and security)
+        utility, security = bool(utility), bool(security)
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         return _unsupported_interface(worker, model_version, f"native_suite_interface:{exc.__class__.__name__}")
     except Exception as exc:
@@ -302,12 +316,62 @@ def _agentdojo_adapter_result(
             incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:{exc.__class__.__name__}",
             model_version=model_version,
         )
-    return _result_dict(
-        status="complete" if passed else "incomplete",
-        evidence_ref=_evidence_ref(registry_row, job),
-        incomplete_reason=None if passed else "agentdojo_terminal_verdict_failed",
-        model_version=model_version,
+    passed = utility and security
+    evidence_ref = _persist_native_evidence(
+        framework="agentdojo", worker=worker, registry_row=registry_row, job=job,
+        model_version=model_version, tool_trace=tool_trace,
+        before_state=before_state, after_state=after_state,
+        oracle={"utility": utility, "security": security, "passed": passed},
     )
+    return _result_dict(
+        status="complete",
+        evidence_ref=evidence_ref,
+        incomplete_reason=None,
+        model_version=model_version,
+        verdict="pass" if passed else "fail",
+        numeric_result=1.0 if passed else 0.0,
+        target_calls=1,
+    )
+
+
+def _native_state_snapshot(value: Any) -> Any:
+    """Produce deterministic JSON evidence from native framework state."""
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    elif hasattr(value, "dict"):
+        value = value.dict()
+    return json.loads(json.dumps(value, sort_keys=True, default=str))
+
+
+def _persist_native_evidence(
+    *, framework: str, worker: WorkerDefinition, registry_row: Mapping[str, Any],
+    job: Mapping[str, Any], model_version: str, tool_trace: list[dict[str, Any]],
+    before_state: Any, after_state: Any, oracle: Mapping[str, Any],
+) -> str:
+    evidence_root = Path(str(job.get("evidence_dir") or REPO_ROOT / "artifacts" / "framework-workers"))
+    safe_job = re.sub(r"[^A-Za-z0-9_.-]", "_", str(job.get("job_id") or "scan"))
+    safe_case = re.sub(r"[^A-Za-z0-9_.-]", "_", str(registry_row.get("case_id") or "case"))
+    path = evidence_root / safe_job / f"{safe_case}.{framework}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": f"{framework}-native-evidence/v1",
+        "scenario_id": str(registry_row.get("case_id") or ""),
+        "framework": f"{framework}@{worker.framework_version}",
+        "model_version": model_version,
+        "identity_binding": {
+            "suite": registry_row.get("agentdojo_suite"),
+            "user_task_id": registry_row.get("agentdojo_user_task_id") or registry_row.get("agentdojo_task_id"),
+            "task_id": registry_row.get("agentdojo_task_id"),
+        },
+        "capability_binding": sorted({row["function"] for row in tool_trace}),
+        "tool_trace": tool_trace,
+        "before_state": before_state,
+        "after_state": after_state,
+        "oracle": dict(oracle),
+        "replay_command": f"python3 -m tools.framework_workers run  # job={safe_job} case={safe_case}",
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path.resolve().as_uri()
 
 
 def _garak_prompt_text(prompt: Any) -> str:
@@ -351,6 +415,7 @@ def _garak_adapter_result(
     started = time.monotonic()
     target_calls = 0
     no_answer_turns: dict[str, int] = {}
+    target_receipts: list[dict[str, Any]] = []
 
     def garak_result(**kwargs: Any) -> dict[str, Any]:
         return _result_dict(
@@ -399,6 +464,12 @@ def _garak_adapter_result(
                 reason = non_substantive_reason(text)
                 if reason is not None:
                     no_answer_turns[reason] = no_answer_turns.get(reason, 0) + 1
+                target_receipts.append({
+                    "call_id": f"target-call-{target_calls}",
+                    "prompt": _garak_prompt_text(prompt),
+                    "output": text,
+                    "conversation": candidate_conversation,
+                })
                 if not outputs:
                     continued_conversation = candidate_conversation
                 outputs.append(Message(text))
@@ -428,11 +499,21 @@ def _garak_adapter_result(
             return _unsupported_interface(worker, model_version, "native_detector_unavailable")
         detector = _plugins.load_plugin(f"detectors.{detector_names[0]}")
         evaluator = ThresholdEvaluator(float(_config.run.eval_threshold))
-        verdicts = [
-            evaluator.test(float(score))
-            for attempt in attempts
-            for score in detector.detect(attempt)
-        ]
+        detector_evidence: list[dict[str, Any]] = []
+        verdicts: list[bool] = []
+        for attempt_index, attempt in enumerate(attempts, 1):
+            scores = [float(score) for score in detector.detect(attempt)]
+            attempt_verdicts = [bool(evaluator.test(score)) for score in scores]
+            verdicts.extend(attempt_verdicts)
+            detector_evidence.append({
+                "attempt_id": f"{job.get('job_id') or 'scan'}:{probe_name}:{attempt_index}",
+                "detector": detector_names[0],
+                "scores": scores,
+                "threshold_verdicts": attempt_verdicts,
+            })
+        report.flush()
+        report.seek(0)
+        raw_report = report.read()
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         reason = _garak_exception_reason("native_probe_interface", exc, subject)
         return garak_result(
@@ -475,9 +556,22 @@ def _garak_adapter_result(
             incomplete_reason=f"could_not_run:garak_target_no_substantive_output:{detail}/{target_calls}",
             model_version=model_version,
         )
+    evidence_ref = _persist_garak_evidence(
+        registry_row=registry_row,
+        job=job,
+        worker=worker,
+        probe_name=probe_name,
+        model_version=model_version,
+        target_receipts=target_receipts,
+        detector_evidence=detector_evidence,
+        raw_report=raw_report,
+        sample_size=sample_size,
+        hit_count=hit_count,
+        completed=completed,
+    )
     return garak_result(
         status="complete" if completed else "incomplete",
-        evidence_ref=_evidence_ref(registry_row, job),
+        evidence_ref=evidence_ref,
         incomplete_reason=(
             None
             if completed
@@ -490,6 +584,50 @@ def _garak_adapter_result(
         hit_count=hit_count,
         sample_size=sample_size,
     )
+
+
+def _persist_garak_evidence(
+    *,
+    registry_row: Mapping[str, Any],
+    job: Mapping[str, Any],
+    worker: WorkerDefinition,
+    probe_name: str,
+    model_version: str,
+    target_receipts: list[dict[str, Any]],
+    detector_evidence: list[dict[str, Any]],
+    raw_report: str,
+    sample_size: int,
+    hit_count: int,
+    completed: bool,
+) -> str:
+    """Persist normalized evidence separately from aggregate detector metrics."""
+    evidence_root = Path(str(job.get("evidence_dir") or REPO_ROOT / "artifacts" / "framework-workers"))
+    safe_job = re.sub(r"[^A-Za-z0-9_.-]", "_", str(job.get("job_id") or "scan"))
+    safe_case = re.sub(r"[^A-Za-z0-9_.-]", "_", str(registry_row.get("case_id") or probe_name))
+    path = evidence_root / safe_job / f"{safe_case}.garak.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": "garak-native-evidence/v1",
+        "scenario_id": str(registry_row.get("case_id") or probe_name),
+        "framework": f"garak@{worker.framework_version}",
+        "probe": probe_name,
+        "model_version": model_version,
+        "seed": int(job.get("seed") or 0),
+        "target_calls": target_receipts,
+        "detector_attempts": detector_evidence,
+        "raw_report": raw_report,
+        "aggregate_detector_measurement": {
+            "hit_count": hit_count,
+            "sample_size": sample_size,
+            "rate": (hit_count / sample_size) if sample_size else None,
+            "complete": completed,
+        },
+        "replay_command": (
+            f"python3 -m tools.framework_workers run  # job={safe_job} case={safe_case}"
+        ),
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path.resolve().as_uri()
 
 
 def _inspect_adapter_result(

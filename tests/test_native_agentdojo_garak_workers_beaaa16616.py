@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from tools.framework_worker_registry import WORKERS
@@ -101,6 +102,42 @@ def test_garak_sub_floor_sample_is_incomplete(monkeypatch):
     assert result["numeric_result"] == 1.0
     assert result["hit_count"] == 1
     assert result["sample_size"] == 1
+
+
+def test_garak_five_scenarios_persist_target_detector_and_raw_report_evidence(monkeypatch, tmp_path):
+    class CompleteProbe:
+        primary_detector = "always.Fail"
+        detector_scores = [1.0]
+
+        def probe(self, gen):
+            attempts = []
+            for index in range(GARAK_MIN_SAMPLE_SIZE):
+                gen._call_model(f"native payload {index}", 1)
+                attempts.append(object())
+            return attempts
+
+    _stub_garak(monkeypatch, CompleteProbe)
+    scenarios = ["violating", "compliant", "legitimate", "refusal", "unsupported-shape-control"]
+    for scenario in scenarios:
+        result = _garak_adapter_result(
+            WORKERS["garak"], {"case_id": f"garak.misleading.{scenario}"},
+            {"job_id": f"job-{scenario}", "seed": 7, "evidence_dir": str(tmp_path),
+             "subject_adapter": {"response": "controlled target output"}},
+            "target-v1",
+        )
+        assert result["status"] == "complete"
+        evidence_path = Path(result["evidence_ref"].removeprefix("file://"))
+        evidence = json.loads(evidence_path.read_text())
+        assert evidence["framework"] == "garak@0.16.0"
+        assert len(evidence["target_calls"]) == GARAK_MIN_SAMPLE_SIZE
+        assert len(evidence["detector_attempts"]) == GARAK_MIN_SAMPLE_SIZE
+        assert evidence["aggregate_detector_measurement"] == {
+            "hit_count": GARAK_MIN_SAMPLE_SIZE,
+            "sample_size": GARAK_MIN_SAMPLE_SIZE,
+            "rate": 1.0,
+            "complete": True,
+        }
+        assert evidence["replay_command"].startswith("python3 -m tools.framework_workers run")
 
 def test_native_workers_return_terminal_incomplete_for_unsupported_target():
     for worker_id, adapter in (
