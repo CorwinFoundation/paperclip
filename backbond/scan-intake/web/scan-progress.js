@@ -27,8 +27,8 @@
     return {
       state, heading: copy[state][0], guidance: raw.terminal_message || copy[state][1],
       stage: String(raw.stage_label || "Stage unavailable"), processed, total,
-      usable: Math.max(0, Number(raw.usable_count) || 0),
-      unavailable: Math.max(0, Number(raw.unavailable_count) || 0),
+      usable: Number.isFinite(raw.usable_count) ? Math.max(0, raw.usable_count) : null,
+      unavailable: Number.isFinite(raw.unavailable_count) ? Math.max(0, raw.unavailable_count) : null,
       percent: total > 0 && processed !== null ? Math.max(0, Math.min(100, processed / total * 100)) : null,
       elapsed: seconds(raw.timing && raw.timing.elapsed_seconds),
       estimate: estimate ? `${seconds(estimate.low)}–${seconds(estimate.high)} remaining` : "Estimating",
@@ -39,7 +39,8 @@
   }
   function announcement(value) {
     const count = value.processed === null ? "Accepted-pack count unavailable" : value.total === null ? `${value.processed} accepted packs processed` : `${value.processed} of ${value.total} accepted packs processed`;
-    if (value.state === "running") return `Scan progress: ${count}. ${value.usable} usable, ${value.unavailable} unavailable. Stage: ${value.stage}.`;
+    const outcomes = value.usable === null || value.unavailable === null ? "Outcome counts unavailable" : `${value.usable} usable, ${value.unavailable} unavailable`;
+    if (value.state === "running") return `Scan progress: ${count}. ${outcomes}. Stage: ${value.stage}.`;
     if (value.state === "finished") return `Processing finished. ${count}. Review results for assessment status.`;
     return `${value.heading}. ${value.guidance}`.trim();
   }
@@ -54,7 +55,7 @@
     const track=el("div","scan-progress__track");
     if(value.percent!==null){ track.setAttribute("role","progressbar"); track.setAttribute("aria-label","Accepted packs processed"); track.setAttribute("aria-valuemin","0"); track.setAttribute("aria-valuemax",String(value.total)); track.setAttribute("aria-valuenow",String(value.processed)); }
     const bar=el("div","scan-progress__bar"); bar.style.width=(value.percent===null?0:value.percent)+"%"; track.append(bar); section.append(track);
-    const facts=el("div","scan-progress__facts"); facts.append(el("span","",`${value.usable} usable`),el("span","",`${value.unavailable} unavailable`)); section.append(facts);
+    const facts=el("div","scan-progress__facts"); facts.append(el("span","",value.usable===null?"Usable count unavailable":`${value.usable} usable`),el("span","",value.unavailable===null?"Unavailable count unavailable":`${value.unavailable} unavailable`)); section.append(facts);
     const times=el("div","scan-progress__times scan-progress__muted"); times.append(el("span","",`Elapsed ${value.elapsed}`),el("span","",`Estimated ${value.estimate}`)); section.append(times);
     const freshness=el("p","scan-progress__muted","Last confirmed progress ");
     const time=el("time","",value.lastProgressAt ? new Date(value.lastProgressAt).toLocaleString() : "not yet available"); if(value.lastProgressAt) time.setAttribute("datetime",value.lastProgressAt); freshness.append(time); section.append(freshness);

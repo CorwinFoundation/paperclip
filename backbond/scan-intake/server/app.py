@@ -428,10 +428,42 @@ def _status(token: str) -> dict:
     return value
 
 
+_PROGRESS_FIELDS = {
+    "state", "phase", "stage_label", "processed_count", "accepted_pack_total",
+    "usable_count", "unavailable_count", "timing", "heartbeat_at", "updated_at",
+}
+
+
+def _engine_progress(scan_id: str) -> dict:
+    """Fetch the bounded owner-scoped engine projection, never its evidence rows."""
+    row = store.scan(scan_id)
+    if not row or not row["scanner_id"] or row["status"] not in {"running", "dispatch_unknown"}:
+        return {}
+    tenant_id = f"partner-{row['partner']}"
+    try:
+        with httpx.Client(timeout=5) as client:
+            response = client.get(
+                f"{SCANNER_URL}/scans/{row['scanner_id']}/progress",
+                headers=_headers({"tenant_id": tenant_id}),
+            )
+        if response.status_code != 200:
+            return {}
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return {key: payload[key] for key in _PROGRESS_FIELDS if key in payload}
+
+
 @app.post("/scan/v1/scan-status")
 def scan_status(body: StatusRequest):
     # POST so the bearer-style token never lands in access-log URLs.
     value = _status(body.status_token)
+    progress = _engine_progress(value["scan_id"])
+    if progress:
+        value.update(progress)
+        value["status"] = progress.get("state", value["status"])
     value.pop("scan_id")
     return value
 
