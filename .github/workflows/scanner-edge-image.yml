@@ -587,13 +587,25 @@ jobs:
 
       - name: Install pinned deploy SSH identity
         shell: bash
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          deploy_key=/home/ghrunner/.ssh/scanner_deploy_key
-          known_hosts=/home/ghrunner/.ssh/known_hosts_scanner
-          test "$(stat -c '%U %a' "$deploy_key")" = "ghrunner 600"
-          test "$(stat -c '%U %a' "$known_hosts")" = "ghrunner 600"
+          ssh_dir="$RUNNER_TEMP/scanner-deploy-ssh"
+          deploy_key="$ssh_dir/deploy_key"
+          known_hosts="$ssh_dir/known_hosts"
+          install -d -m 0700 "$ssh_dir"
+          printf '%s' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
+          printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > "$known_hosts"
+          chmod 0600 "$deploy_key" "$known_hosts"
+          test -s "$deploy_key"
+          test -s "$known_hosts"
           ssh-keygen -y -f "$deploy_key" >/dev/null
+          {
+            echo "DEPLOY_KEY=$deploy_key"
+            echo "DEPLOY_KNOWN_HOSTS=$known_hosts"
+          } >> "$GITHUB_ENV"
 
       - name: Capture prior identity
         shell: bash
@@ -606,7 +618,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_archive="/var/tmp/${ARCHIVE}"
-          ssh_opts=(-4 -i /home/ghrunner/.ssh/scanner_deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/ghrunner/.ssh/known_hosts_scanner)
+          ssh_opts=(-4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS")
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
