@@ -1277,6 +1277,50 @@ def _zoo_routing_facts(
     }
 
 
+def _zoo_case_execution_error_diagnostics(
+    evidence_rows: Sequence[Mapping[str, Any]], evidence_root: Path
+) -> list[dict[str, Any]]:
+    """Return count-only, target-content-free diagnostics for executor errors."""
+    grouped: Counter[tuple[str, str | None, str | None, int | None]] = Counter()
+    for row in evidence_rows:
+        reason = str(row.get("incomplete_reason") or "")
+        if not reason.startswith("case_execution_error:"):
+            continue
+        exception_class = reason.partition(":")[2] or "Exception"
+        missing_attribute = None
+        frame_file = None
+        frame_line = None
+        ref = str(row.get("evidence_ref") or "")
+        relative = ref.removeprefix("evidence://") if ref.startswith("evidence://") else ""
+        if relative and all(part not in {"", ".", ".."} for part in relative.split("/")):
+            try:
+                payload = json.loads(evidence_root.joinpath(*relative.split("/")).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                payload = {}
+            detail = str(payload.get("error_detail") or "")
+            match = re.search(r"has no attribute ['\"]([^'\"]+)['\"]", detail)
+            if match:
+                missing_attribute = match.group(1)
+            for candidate, line in re.findall(
+                r'File "([^"]+)", line (\d+)', str(payload.get("error_traceback") or "")
+            ):
+                normalized = candidate.replace("\\", "/")
+                if "/tools/" in normalized or "/scanners/" in normalized:
+                    frame_file = normalized[normalized.find("tools/"):] if "tools/" in normalized else normalized[normalized.find("scanners/"):]
+                    frame_line = int(line)
+        grouped[(exception_class, missing_attribute, frame_file, frame_line)] += 1
+    return [
+        {
+            "count": count,
+            "exception_class": key[0],
+            "missing_attribute": key[1],
+            "file": key[2],
+            "line": key[3],
+        }
+        for key, count in sorted(grouped.items(), key=lambda item: (str(item[0]), item[1]))
+    ]
+
+
 def _reason_code_uncovered_zoo_routes(
     decisions: Sequence[Any], coverage_failures: Mapping[str, str]
 ) -> list[Any]:
@@ -1601,6 +1645,7 @@ def run_scheduled_zoo_scan(
     runtime_started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat()
     evidence_rows: list[Mapping[str, Any]] = []
+    case_execution_errors: list[dict[str, Any]] = []
     target_reports: dict[str, Any] = {}
     estimated_cost = 0.0
     run_abort_reason: str | None = None
@@ -1615,6 +1660,11 @@ def run_scheduled_zoo_scan(
             conversation_log=conversation_log,
         )
         evidence_rows.extend(target_rows)
+        case_execution_errors.extend(
+            _zoo_case_execution_error_diagnostics(
+                target_rows, output_dir / "evidence" / name
+            )
+        )
         final = dict(getattr(finished, "final_manifest", None) or {})
         budget = final.get("budget") if isinstance(final.get("budget"), Mapping) else {}
         estimated_cost += float(budget.get("estimated_judge_cost_usd") or 0)
@@ -1681,6 +1731,7 @@ def run_scheduled_zoo_scan(
             evidence_rows=evidence_rows,
         ),
         "judge_calls": judge_calls,
+        "case_execution_errors": case_execution_errors,
         "coverage_failures": coverage_failures,
         "coverage_passed": _zoo_coverage_passed(
             routed_families=routed_families,
@@ -2028,6 +2079,7 @@ OPERATOR_SUMMARY_FIELDS = (
     "estimated_cost_usd", "aborted", "abort_reason", "coverage_passed",
     "coverage_failures", "reconciliation", "incomplete_by_reason",
     "evidence_rows", "routed_families", "judge_calls", "families", "routing",
+    "case_execution_errors",
 )
 
 

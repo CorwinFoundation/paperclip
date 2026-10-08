@@ -409,6 +409,37 @@ def test_upstream_http_failure_is_not_reported_as_format():
     ) == "format"
 
 
+def test_zoo_operator_diagnostic_sanitizes_case_execution_error(tmp_path):
+    import scheduled_scan
+
+    ref = "evidence://job-1/test-1/case-1.json"
+    path = tmp_path / "job-1" / "test-1" / "case-1.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({
+        "error_detail": "'Messages' object has no attribute 'batches'",
+        "error_traceback": (
+            '  File "/opt/backbond/src/api/full_scan.py", line 12, in run\n'
+            '  File "/opt/backbond/src/tools/registered_case_executor.py", line 201, in complete\n'
+        ),
+        "payloads": ["secret prompt"],
+        "responses": ["secret response"],
+    }))
+
+    diagnostics = scheduled_scan._zoo_case_execution_error_diagnostics([{
+        "incomplete_reason": "case_execution_error:AttributeError",
+        "evidence_ref": ref,
+    }], tmp_path)
+
+    assert diagnostics == [{
+        "count": 1,
+        "exception_class": "AttributeError",
+        "missing_attribute": "batches",
+        "file": "tools/registered_case_executor.py",
+        "line": 201,
+    }]
+    assert "secret" not in json.dumps(diagnostics)
+
+
 def test_aborted_zoo_rows_are_reason_coded_and_reconcile(decisions):
     import scheduled_scan
 
