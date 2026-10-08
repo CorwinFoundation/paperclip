@@ -6,6 +6,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 SITE="$HERE/site"
 APP_TARGET="${SCAN_INTAKE_APP_TARGET:-/opt/backbond/scan-intake/server/app.py}"
+INTAKE_DB="${SCAN_INTAKE_DB:-/var/lib/backbond-scan-intake/scan-intake.sqlite}"
+SERVICE="${SCAN_INTAKE_SERVICE:-backbond-scan-intake.service}"
 HEALTH_URL="${SCAN_INTAKE_HEALTH_URL:-https://api.backbond.ai/scan/v1/health}"
 
 verify_sources() {
@@ -20,13 +22,29 @@ verify_sources() {
 activate_backend() {
   test "$(id -u)" -eq 0
   test -f "$APP_TARGET"
+  test -f "$INTAKE_DB"
+  PYTHONPATH="$(dirname "$APP_TARGET")" python3 -c 'from qa_service import IntakeStore; assert callable(getattr(IntakeStore, "scan", None))'
+  active_count="$(python3 - "$INTAKE_DB" <<'PY'
+import sqlite3, sys
+db = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+print(db.execute("SELECT count(*) FROM scans WHERE status IN ('reserved','queued','starting','running','dispatch_unknown')").fetchone()[0])
+PY
+)"
+  printf 'active_intakes=%s\n' "$active_count"
+  test "$active_count" = 0
+  prior_pid="$(systemctl show --property MainPID --value "$SERVICE")"
   backup_dir="/var/backups/backbond-scan-intake/beaaa-39323-$(date -u +%Y%m%dT%H%M%SZ)"
   install -d -o root -g root -m 0700 "$backup_dir"
   python3 "$HERE/patch_live_progress.py" --target "$APP_TARGET" --backup "$backup_dir/app.py"
   python3 -m py_compile "$APP_TARGET"
+  systemctl restart "$SERVICE"
+  systemctl is-active --quiet "$SERVICE"
+  loaded_pid="$(systemctl show --property MainPID --value "$SERVICE")"
+  test "$loaded_pid" -gt 0
+  test "$loaded_pid" != "$prior_pid"
   curl --fail --silent --show-error --max-time 20 "$HEALTH_URL" >/dev/null
-  printf 'backend_staged_no_restart app_sha256=%s backup=%s\n' \
-    "$(sha256sum "$APP_TARGET" | cut -d' ' -f1)" "$backup_dir"
+  printf 'backend_activated app_sha256=%s backup=%s loaded_pid=%s\n' \
+    "$(sha256sum "$APP_TARGET" | cut -d' ' -f1)" "$backup_dir" "$loaded_pid"
 }
 
 activate_site() {

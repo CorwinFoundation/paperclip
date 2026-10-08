@@ -24,8 +24,9 @@ def test_activation_is_split_and_preserves_operational_guards():
     source = ACTIVATE.read_text()
     assert 'case "$MODE"' in source
     assert "patch_live_progress.py" in source
-    assert "systemctl restart" not in source
-    assert "backend_staged_no_restart" in source
+    assert 'test "$active_count" = 0' in source
+    assert 'systemctl restart "$SERVICE"' in source
+    assert "backend_activated" in source
     assert 'netlify deploy --site "$NETLIFY_SITE_ID" --dir "$staging" --prod' in source
     assert 'test -n "${NETLIFY_BASE_DIR:-}"' in source
     assert 'test "$site_domain" = "backbond.ai"' in source
@@ -34,19 +35,22 @@ def test_activation_is_split_and_preserves_operational_guards():
     assert "connection_proof:proof" in source
     assert "request('/scan-cancel'" in source
     assert "report_emailed===true" in source
-    assert "sqlite" not in source.lower()
+    assert "mode=ro" in source
+    assert "update scans" not in source.lower()
+    assert "delete from" not in source.lower()
+    assert "insert into" not in source.lower()
     assert "mailgun" not in source.lower()
 
 
 def live_app(progress_fields: str) -> str:
     return f'''{progress_fields}
-tenant_id = f"partner-{{row['partner']}}"
+def _tenant_tokens() -> dict:
+    return {{}}
 # kaltura_genie_browser requires the approved public URL
 # kaltura_genie_browser requires auth type none
-if value["status"] == "dispatch_unknown":
-    pass
-if value["status"] == "finished" and value.get("report_emailed"):
-    pass
+dispatch = "dispatch_unknown"
+def _mail_configured() -> bool:
+    return True
 '''
 
 
@@ -75,3 +79,20 @@ def test_live_patcher_fails_closed_on_guard_mismatch(tmp_path):
         assert "live guard mismatch" in str(error)
     else:
         raise AssertionError("missing live guards must fail closed")
+
+
+def test_live_patcher_inserts_forwarding_into_measured_legacy_baseline(tmp_path):
+    namespace = {}
+    exec(PATCHER.read_text(), namespace)
+    target = tmp_path / "app.py"
+    backup = tmp_path / "original.py"
+    source = live_app(namespace["LEGACY_INSERT_ANCHOR"] + namespace["LEGACY_STATUS"])
+    target.write_text(source)
+    assert namespace["patch"](target, backup) is True
+    updated = target.read_text()
+    assert updated.count(namespace["FORWARDING_BLOCK"]) == 1
+    assert updated.count(namespace["FORWARDING_STATUS"]) == 1
+    assert updated.replace(namespace["FORWARDING_BLOCK"], "").replace(
+        namespace["FORWARDING_STATUS"], namespace["LEGACY_STATUS"]
+    ) == source
+    assert namespace["patch"](target, backup) is False
