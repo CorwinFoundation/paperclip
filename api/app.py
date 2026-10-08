@@ -559,7 +559,11 @@ def create_app(
             raise _http_error(503, exc.code) from exc
 
     @app.post("/internal/ops/controlled-zoo/run", include_in_schema=False)
-    def run_controlled_zoo(request: Request) -> Any:
+    def run_controlled_zoo(
+        request: Request,
+        zoo_family: str | None = None,
+        zoo_case: str | None = None,
+    ) -> Any:
         """Run one packaged controlled-zoo scan from an on-box SSH session.
 
         The live container port is host-loopback-only and the public nginx
@@ -569,9 +573,14 @@ def create_app(
         """
         if request.headers.get("x-forwarded-for"):
             raise _http_error(404, "not_found")
+        if (zoo_family is None) != (zoo_case is None):
+            raise _http_error(400, "zoo_selector_requires_family_and_case")
         from scripts.scheduled_scan import run_scheduled_zoo_scan
 
-        manifest_path = run_scheduled_zoo_scan()
+        manifest_path = run_scheduled_zoo_scan(
+            zoo_family=zoo_family,
+            zoo_case=zoo_case,
+        )
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         return {
             "manifest_path": str(manifest_path),

@@ -16,6 +16,15 @@ and the complete manifest, including per-family `considered`, `routed`,
 `target_called`, `pass`, `fail`, and reason-coded `incomplete` counts, total
 runtime, and estimated cost.
 
+To run exactly one diagnostic row, pass both selectors. The route fails before
+dispatch if the pair is absent from the registry or is not unique:
+
+```sh
+curl --fail --silent --show-error --max-time 21630 \
+  --request POST \
+  'http://127.0.0.1:8077/internal/ops/controlled-zoo/run?zoo_family=<family>&zoo_case=<case>'
+```
+
 The route is absent from OpenAPI, is not allowed through the public nginx edge,
 and rejects requests carrying `X-Forwarded-For`. It is supported only through
 the loopback port available from an authenticated server session.
