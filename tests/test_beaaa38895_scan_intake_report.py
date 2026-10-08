@@ -133,6 +133,7 @@ def test_zero_row_terminal_failure_releases_slot_and_free_scan_quota(tmp_path):
     report = store.report(token)
     assert report["outcome"] == "failed"
     assert report["tests"] == [] and report["starter_score"] is None
+    assert store.db.execute("SELECT 1 FROM mail_outbox WHERE scan_id='s1'").fetchone() is None
 
     status_token = "minimum-capability-status-token"
     store.db.execute("UPDATE scans SET status_token_hash=? WHERE id='s1'",
@@ -145,6 +146,20 @@ def test_zero_row_terminal_failure_releases_slot_and_free_scan_quota(tmp_path):
     replacement = store.reserve(code="c", email="e@x.test", agent_label="replacement",
                                 endpoint_url="https://agent.example.test/chat", transport="rest")
     assert replacement["scan_id"] != "s1"
+
+
+def test_operator_reconciliation_is_bound_idempotent_and_never_mails(tmp_path):
+    store = _store(tmp_path)
+    store.db.execute("UPDATE scans SET scanner_id='remote-s1' WHERE id='s1'")
+    token = store.reconcile_failed("s1", "remote-s1", "scanner_restart_resume_exhausted",
+                                   now="2026-10-08T14:07:18+00:00")
+    assert store.reconcile_failed("s1", "remote-s1", "scanner_restart_resume_exhausted") == token
+    row = store.scan("s1")
+    assert (row["status"], row["outcome"], row["incomplete_reason"], row["tests_json"]) == (
+        "finished", "failed", "scanner_restart_resume_exhausted", "[]")
+    assert store.db.execute("SELECT 1 FROM mail_outbox WHERE scan_id='s1'").fetchone() is None
+    with __import__("pytest").raises(qa_service.IntakeError, match="binding mismatch"):
+        store.reconcile_failed("s1", "wrong-remote", "scanner_restart_resume_exhausted")
 
 
 def test_legacy_list_finish_still_works(tmp_path):

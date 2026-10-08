@@ -243,7 +243,8 @@ class IntakeStore:
         if not row:
             raise IntakeError("scan not found")
         if row['status'] == 'finished' and row['report_token']:
-            self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
+            if row['outcome'] != 'failed':
+                self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
             return row['report_token']
         token = secrets.token_hex(16)  # 128 random bits; matches the viewer
         safe = [{k: v for k, v in test.items() if k in
@@ -263,8 +264,26 @@ class IntakeStore:
               (scan_id,pack_version,tests_json,copied_at) VALUES(?,?,?,?)''',
               (scan_id, row['pack_version'], json.dumps(safe),
                now or datetime.now(timezone.utc).isoformat()))
-        self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
+        if meta.get("outcome") != "failed":
+            self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
         return token
+
+    @synchronized
+    def reconcile_failed(self, scan_id: str, scanner_id: str, reason: str,
+                         *, now: str | None = None) -> str:
+        """Idempotently apply an independently verified zero-row terminal failure."""
+        row = self.scan(scan_id)
+        if not row or row["scanner_id"] != scanner_id:
+            raise IntakeError("scan/scanner binding mismatch")
+        if row["status"] == "finished":
+            if row["outcome"] == "failed" and row["incomplete_reason"] == reason:
+                return row["report_token"]
+            raise IntakeError("scan already has a different terminal outcome")
+        if row["status"] not in {"running", "dispatch_unknown"}:
+            raise IntakeError("scan is not reconcilable")
+        return self.finish(scan_id, {"tests": [], "meta": {
+            "outcome": "failed", "incomplete_reason": reason,
+            "pack_version": None}}, now=now)
 
     @synchronized
     def mail_jobs(self, now: float) -> list[dict]:
