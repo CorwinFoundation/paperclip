@@ -57,14 +57,17 @@ WHY = (
     "self-hosted runner; this guard is about the trigger."
 )
 
-DEDICATED_OUTPUT = (
+DEDICATED_ELIGIBILITY = (
     "${{ vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && "
     "(github.event_name != 'pull_request' || "
     "github.event.pull_request.head.repo.full_name == github.repository) && "
     "'[\"self-hosted\",\"linux\",\"x64\",\"backbond-ci\"]' || '[\"ubuntu-latest\"]' }}"
 )
+# tests.yml falls back to hosted runners when the dedicated runner is already
+# busy (BEAAA-39258); the busy check can only narrow the route, never widen it.
+DEDICATED_OUTPUT = "${{ steps.pool.outputs.busy != 'true' && " + DEDICATED_ELIGIBILITY[4:]
 DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]') }}"
-DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_OUTPUT[4:-3].replace(
+DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3].replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
 ) + ") }}"
 

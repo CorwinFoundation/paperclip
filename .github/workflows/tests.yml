@@ -41,11 +41,14 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
       # Opt in only after the dedicated runner passes its smoke check. Forks
       # and dependency bots stay on hosted runners; deploy runner is excluded
-      # by the dedicated backbond-ci label.
-      runner: ${{ vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
+      # by the dedicated backbond-ci label. When another tests run already
+      # holds or waits for the dedicated runner, fall back to hosted so this
+      # run starts now instead of queueing (BEAAA-39258).
+      runner: ${{ steps.pool.outputs.busy != 'true' && vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
       selection_mode: ${{ steps.select.outputs.selection_mode }}
       tests: ${{ steps.select.outputs.tests }}
       code: ${{ steps.select.outputs.code }}
@@ -60,6 +63,30 @@ jobs:
       instinct: ${{ steps.solution.outputs.instinct }}
       reason: ${{ steps.select.outputs.reason }}
     steps:
+      - name: Check dedicated runner load
+        id: pool
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The dedicated runner serializes everything, so any other run
+          # that is queued or in flight means this one would wait behind it.
+          # If the API call fails, keep the dedicated runner (previous behaviour).
+          # Counts every workflow that can route to backbond-ci.
+          busy=0
+          for wf in tests.yml version-control-preflight.yml local-ci-smoke.yml; do
+            for st in in_progress queued; do
+              n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/runs?status=${st}&per_page=100" \
+                    --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | length" 2>/dev/null) || n=0
+              busy=$((busy + ${n:-0}))
+            done
+          done
+          if [ "$busy" -gt 0 ]; then
+            echo "Dedicated runner busy ($busy other run(s) queued or in flight); using hosted runners." >> "$GITHUB_STEP_SUMMARY"
+            echo "busy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout source
         uses: actions/checkout@v4
 
