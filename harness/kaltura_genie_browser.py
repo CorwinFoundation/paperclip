@@ -10,6 +10,8 @@ from harness.runner import ModelRunner, RunnerError
 PUBLIC_GENIE_URL = "https://learning.kaltura.com/"
 _ROOT = "#genie-application-container"
 _COMPOSER = 'textarea[placeholder="Ask me anything"]'
+_MAX_RESULT_TEXT_CHARS = 4_000
+_RESULT_TEXT_TRUNCATION_MARKER = "\n[TRUNCATED]"
 
 
 def extract_assistant_narrative(article: Any) -> str:
@@ -36,11 +38,26 @@ def extract_assistant_narrative(article: Any) -> str:
 class KalturaGenieBrowserRunner(ModelRunner):
     """One browser session, one freshly-cleared Genie thread per probe."""
 
-    def __init__(self, endpoint: str = PUBLIC_GENIE_URL, *, timeout_s: float = 90.0):
+    def __init__(
+        self,
+        endpoint: str = PUBLIC_GENIE_URL,
+        *,
+        timeout_s: float = 90.0,
+        endpoint_config: dict[str, Any] | None = None,
+    ):
         if endpoint != PUBLIC_GENIE_URL:
             raise RunnerError("kaltura genie browser target is not the approved public URL")
         self._endpoint = endpoint
         self._timeout_s = timeout_s
+        self._config = endpoint_config or {}
+        self._result_rows_enabled = bool(self._config.get("_include_result_rows"))
+        self._redaction_values = tuple(
+            value
+            for value in (self._config.get("system_prompt"),)
+            if isinstance(value, str) and value
+        )
+        self._pending_exchange: tuple[str, str] | None = None
+        self._starter_rows: list[dict[str, str]] = []
         self._pw = self._browser = self._context = self._page = None
 
     def model_id(self) -> str:
@@ -131,8 +148,49 @@ class KalturaGenieBrowserRunner(ModelRunner):
                 stable_since = time.monotonic()
                 continue
             if stable_since is not None and time.monotonic() - stable_since >= 2.0:
+                if self._result_rows_enabled:
+                    self._pending_exchange = (
+                        self._redact_result_text(prompt),
+                        self._redact_result_text(answer),
+                    )
                 return answer
         raise RunnerError("kaltura genie response timed out before stable completion")
+
+    def record_starter_verdict(
+        self, *, test_id: str, family: str, verdict: str, reason: str = ""
+    ) -> None:
+        """Bind the walker's verdict to the real browser prompt/reply pair."""
+        if not self._result_rows_enabled or self._pending_exchange is None:
+            self._pending_exchange = None
+            return
+        prompt, reply = self._pending_exchange
+        row = {
+            "test_id": test_id,
+            "family": family,
+            "prompt": self._cap_result_text(self._redact_result_text(prompt)),
+            "reply": self._cap_result_text(self._redact_result_text(reply)),
+            "verdict": verdict,
+        }
+        if reason:
+            row["reason"] = self._cap_result_text(self._redact_result_text(reason))
+        self._starter_rows.append(row)
+        self._pending_exchange = None
+
+    def starter_result_rows(self) -> tuple[dict[str, str], ...]:
+        return tuple(dict(row) for row in self._starter_rows)
+
+    def _redact_result_text(self, value: str) -> str:
+        redacted = value
+        for secret_value in self._redaction_values:
+            redacted = redacted.replace(secret_value, "[REDACTED]")
+        return redacted
+
+    @staticmethod
+    def _cap_result_text(value: str) -> str:
+        if len(value) <= _MAX_RESULT_TEXT_CHARS:
+            return value
+        keep = _MAX_RESULT_TEXT_CHARS - len(_RESULT_TEXT_TRUNCATION_MARKER)
+        return value[:keep] + _RESULT_TEXT_TRUNCATION_MARKER
 
     def close(self) -> None:
         for obj in (self._context, self._browser, self._pw):

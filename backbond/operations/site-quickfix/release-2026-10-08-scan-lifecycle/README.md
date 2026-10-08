@@ -6,12 +6,20 @@ This package starts from the live `https://backbond.ai/scan/` bytes captured on
 serialization, validation, connection proof, credential clearing, cancellation,
 and error-summary behavior.
 
-The package is idempotent: deploy the complete `site` directory, never individual
-files. This issue prepares the package only; it does not authorize deployment.
+The package deploys the complete `site` directory, never individual static files.
+The activator verifies that the candidate controller assets match their source,
+preserves connection, cancellation, email and transport behavior, backs up the
+live intake application before replacement, and verifies backend/static health.
 
 ```sh
-SITE_DIR=backbond/operations/site-quickfix/release-2026-10-08-scan-lifecycle/site && netlify deploy --dir "$SITE_DIR" --prod
+ACTIVATE=backbond/operations/site-quickfix/release-2026-10-08-scan-lifecycle/activate.sh
+bash "$ACTIVATE" verify
+sudo bash "$ACTIVATE" backend
+NETLIFY_SITE_ID='<existing backbond.ai site id>' bash "$ACTIVATE" site
 ```
+
+The explicit existing site ID is required so activation cannot create or select
+a different Netlify site from ambient CLI state.
 
 Captured live byte hashes before modification:
 

@@ -49,5 +49,5 @@ def test_published_controller_assets_match_candidate_sources():
 
 def test_readme_names_exact_site_dir_and_deploy_command():
     readme = (RELEASE / "README.md").read_text()
-    assert "SITE_DIR=backbond/operations/site-quickfix/release-2026-10-08-scan-lifecycle/site" in readme
-    assert 'netlify deploy --dir "$SITE_DIR" --prod' in readme
+    assert "backbond/operations/site-quickfix/release-2026-10-08-scan-lifecycle/activate.sh" in readme
+    assert "NETLIFY_SITE_ID='<existing backbond.ai site id>' bash \"$ACTIVATE\" site" in readme

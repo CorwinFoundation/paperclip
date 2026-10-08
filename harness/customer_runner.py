@@ -487,11 +487,17 @@ class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
     assistant identity is checked fail-closed before text reaches the walker.
     """
 
-    def __init__(self, *, secret: str, assistant_id: str) -> None:
+    def __init__(
+        self,
+        *,
+        secret: str,
+        assistant_id: str,
+        endpoint_config: dict[str, Any] | None = None,
+    ) -> None:
         if not isinstance(assistant_id, str) or not _UUID_RE.fullmatch(assistant_id):
             raise RunnerError("vapi target requires agent_id to be an assistant UUID")
         self._assistant_id = assistant_id.lower()
-        super().__init__(_VAPI_CHAT_ENDPOINT, secret)
+        super().__init__(_VAPI_CHAT_ENDPOINT, secret, endpoint_config)
         self._model_id = f"vapi:{self._assistant_id}@{_VAPI_HOST}"
 
     def _request_payload(self, prompt: str) -> dict[str, Any]:
@@ -725,11 +731,15 @@ def customer_agent_http_runner_factory(
     host = _extract_host(agent_endpoint)
     if (endpoint_config or {}).get("transport") == "kaltura_genie_browser":
         from harness.kaltura_genie_browser import KalturaGenieBrowserRunner
-        return KalturaGenieBrowserRunner(agent_endpoint)
+        return KalturaGenieBrowserRunner(
+            agent_endpoint,
+            endpoint_config=endpoint_config,
+        )
     if host == _VAPI_HOST:
         return _VapiCustomerAgentRunner(
             secret=secret,
             assistant_id=agent_id or "",
+            endpoint_config=endpoint_config,
         )
     if host == "apichat.syllable.cloud":
         # Syllable's public apichat surface is not a single root POST

@@ -42,13 +42,26 @@ def test_announcement_separates_processing_from_assessment_status():
 
 def test_announcements_are_coalesced_and_elapsed_ticks_are_silent():
     value = js("""(()=>{let now=0,live={textContent:''};let a=new p.Announcer(live,()=>now);let raw={state:'running',stage_label:'Checks',processed_count:1,timing:{elapsed_seconds:1}};let first=a.update(raw);raw.timing.elapsed_seconds=2;let tick=a.update(raw);raw.processed_count=2;now=1000;let early=a.update(raw);now=6000;let later=a.update(raw);return {first,tick,early,later,text:live.textContent}})()""")
-    assert value == {"first": True, "tick": False, "early": False, "later": True, "text": "Scan progress: 2 accepted packs processed. Outcome counts unavailable. Stage: Checks."}
+    assert value == {"first": True, "tick": False, "early": False, "later": True, "text": "Scan progress: 2 tests completed. Outcome counts unavailable. Stage: Checks."}
 
 
 def test_missing_outcome_counts_remain_unavailable():
     value = js("p.model({state:'running',processed_count:2,timing:{elapsed_seconds:1}})")
     assert value["usable"] is None
     assert value["unavailable"] is None
+
+
+def test_current_case_and_family_are_bounded_metadata_and_stale_activity_is_warned():
+    value = js("p.model({state:'running',current_test_id:'case-17',current_family:'prompt-injection',last_activity_at:'2026-10-08T18:00:00Z',timing:{}},Date.parse('2026-10-08T18:00:31Z'))")
+    assert value["currentTest"] == "case-17"
+    assert value["currentFamily"] == "prompt-injection"
+    assert value["stale"] is True
+
+
+def test_fresh_poll_does_not_mask_stale_scan_activity():
+    value = js("p.model({state:'running',last_activity_at:'2026-10-08T18:00:00Z',updated_at:'2026-10-08T18:01:00Z',timing:{}},Date.parse('2026-10-08T18:00:31Z'))")
+    assert value["lastProgressAt"] == "2026-10-08T18:00:00Z"
+    assert value["stale"] is True
 
 
 def test_renderer_declares_determinate_progress_only_for_known_positive_total():

@@ -36,6 +36,8 @@ def test_live_status_projects_real_engine_intermediate_and_terminal_progress(mon
          "unavailable_count": 2, "timing": {"elapsed_seconds": 22.0,
          "queue_seconds": 1.0, "execution_seconds": 21.0,
          "estimated_remaining_seconds": {"low": 82.0, "high": 123.0}},
+         "current_test_id": "starter.case-017", "current_family": "prompt-injection",
+         "last_activity_at": "2026-10-08T18:00:21+00:00",
          "heartbeat_at": "2026-10-08T18:00:22+00:00", "updated_at": "2026-10-08T18:00:22+00:00",
          "evidence_rows": [{"secret": "must not escape"}]},
         {"state": "finished", "phase": "report_preparation", "stage_label": "Preparing report",
@@ -76,6 +78,9 @@ def test_live_status_projects_real_engine_intermediate_and_terminal_progress(mon
     assert intermediate.json()["processed_count"] == 17
     assert intermediate.json()["accepted_pack_total"] == 100
     assert intermediate.json()["timing"]["queue_seconds"] == 1.0
+    assert intermediate.json()["current_test_id"] == "starter.case-017"
+    assert intermediate.json()["current_family"] == "prompt-injection"
+    assert intermediate.json()["last_activity_at"] == "2026-10-08T18:00:21+00:00"
     assert "evidence_rows" not in intermediate.json()
     assert terminal.json()["status"] == "finished"
     assert terminal.json()["usable_count"] == 96

@@ -43,7 +43,7 @@ from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
-from scanners.starter_judge import PASSED, judge_client_from_env, judge_starter_case
+from scanners.starter_judge import COULD_NOT_RUN, PASSED, judge_client_from_env, judge_starter_case
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_V3_CASES
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID
@@ -216,7 +216,12 @@ def customer_agent_probe_run_fn(
             if len(cases) != 100:
                 raise ProbeRunIncompleteError("variable_form_unavailable", "Starter requires a saved complete 100-case form")
         for case in cases:
+            progress = getattr(runner, "case_progress_callback", None)
+            if callable(progress):
+                progress(case_id=case.case_id, family=case.family_id, state="executing")
             if deadline is not None and time.monotonic() >= deadline:
+                if callable(progress):
+                    progress(case_id=case.case_id, family=case.family_id, state="failed", error_category="timeout")
                 raise ProbeRunIncompleteError(
                     "customer_endpoint_unreachable_transport",
                     "customer endpoint scan deadline exceeded",
@@ -229,11 +234,15 @@ def customer_agent_probe_run_fn(
                     (deadline is not None and time.monotonic() >= deadline)
                     or str(exc).lower() == "syllable scan deadline exceeded"
                 ):
+                    if callable(progress):
+                        progress(case_id=case.case_id, family=case.family_id, state="failed", error_category="timeout")
                     raise ProbeRunIncompleteError(
                         "customer_endpoint_unreachable_transport",
                         "customer endpoint scan deadline exceeded",
                     ) from exc
                 errors += 1
+                if callable(progress):
+                    progress(case_id=case.case_id, family=case.family_id, state="failed", error_category="transport")
                 # An endpoint that never answers is a failed scan, not 100
                 # could_not_run rows.
                 if replies == 0 and errors >= 3:
@@ -241,7 +250,14 @@ def customer_agent_probe_run_fn(
                 reply = exc
             else:
                 replies += 1
-            verdict, reason = judge_starter_case(case, reply, judge_client=judge_client)
+                if callable(progress):
+                    progress(case_id=case.case_id, family=case.family_id, state="evaluating")
+            try:
+                verdict, reason = judge_starter_case(case, reply, judge_client=judge_client)
+            except Exception:
+                if callable(progress):
+                    progress(case_id=case.case_id, family=case.family_id, state="failed", error_category="evaluation")
+                raise
             if judged_pack_id == STARTER_PACK_V4_ID and case.canary:
                 reason = reason.replace(case.canary, "[private marker]")
             raw = 3.0 if verdict == PASSED else 0.0
@@ -252,6 +268,15 @@ def customer_agent_probe_run_fn(
                     verdict=verdict,
                     reason=reason,
                 )
+            if callable(progress) and not isinstance(reply, RunnerError):
+                if verdict == COULD_NOT_RUN:
+                    category = "evaluation" if reason.startswith("judge ") else "target"
+                    progress(
+                        case_id=case.case_id, family=case.family_id,
+                        state="failed", error_category=category,
+                    )
+                else:
+                    progress(case_id=case.case_id, family=case.family_id, state="finished")
             yield case.rubric_point_id, {
                 "raw": raw,
                 "evidence_uri": _evidence_uri(case.family_id, judged_pack_id, case.case_id),

@@ -2,7 +2,11 @@
 
 from collections import Counter
 
+import pytest
+
 from scanners import customer_agent_walker as walker
+from harness.runner import RunnerError
+from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.starter_forms import reserve_starter_cases
 from scanners.starter_judge import starter_pack_id_for_rows
 from scanners.variable_test_forms import FormStore
@@ -20,6 +24,8 @@ class FixtureRunner:
         self.starter_cases = cases
         self.prompts = []
         self.rows = []
+        self.progress_events = []
+        self.case_progress_callback = lambda **event: self.progress_events.append(event)
 
     def complete(self, prompt):
         self.prompts.append(prompt)
@@ -42,6 +48,11 @@ def test_two_dispatches_send_different_questions_and_grade_bound_cases(tmp_path,
         assert Counter(r["family"] for r in runner.rows) == {f: 10 for f in {c.family_id for c in cases}}
         assert summary["test_count"] == 100
         assert all("starter-100@4" in row["evidence_uri"] for _, row in rows)
+        assert len(runner.progress_events) == 300
+        assert [event["state"] for event in runner.progress_events[:3]] == [
+            "executing", "evaluating", "finished"
+        ]
+        assert all(set(event) == {"case_id", "family", "state"} for event in runner.progress_events)
         runners.append(runner)
     assert not set(runners[0].prompts) & set(runners[1].prompts)
 
@@ -66,3 +77,59 @@ def test_variable_pack_result_rows_keep_only_redacted_sent_exchange():
     assert len(row["reply"]) == 4_000 and row["reply"].endswith("[TRUNCATED]")
     assert row["form_id"] == "private-form"
     assert starter_pack_id_for_rows([row]) == "starter-100@4"
+
+
+def test_progress_counts_mixed_transport_errors_as_unavailable(tmp_path, monkeypatch):
+    monkeypatch.setattr(walker, "judge_client_from_env", FixtureJudge)
+    cases, _ = reserve_starter_cases(
+        scan_id="mixed", tenant_id="t", agent_id="a",
+        store=FormStore(tmp_path / "forms.sqlite"),
+    )
+    runner = FixtureRunner(cases)
+    calls = 0
+
+    def complete(prompt):
+        nonlocal calls
+        calls += 1
+        if calls % 2 == 0:
+            raise RunnerError("target unavailable")
+        return "successful but potentially risky reply"
+
+    runner.complete = complete
+    assert len(list(walker.customer_agent_probe_run_fn(runner))) == 100
+    terminal = [event for event in runner.progress_events if event["state"] in {"finished", "failed"}]
+    assert Counter(event["state"] for event in terminal) == {"finished": 50, "failed": 50}
+    assert all(event.get("error_category") == "transport" for event in terminal if event["state"] == "failed")
+
+
+def test_progress_closes_judge_exception_as_evaluation_failure(tmp_path, monkeypatch):
+    class BrokenJudge:
+        def complete(self, **kwargs):
+            raise RuntimeError("judge unavailable")
+
+    monkeypatch.setattr(walker, "judge_client_from_env", BrokenJudge)
+    cases, _ = reserve_starter_cases(
+        scan_id="judge-error", tenant_id="t", agent_id="a",
+        store=FormStore(tmp_path / "forms.sqlite"),
+    )
+    runner = FixtureRunner(cases)
+    list(walker.customer_agent_probe_run_fn(runner))
+    assert [event["state"] for event in runner.progress_events[:3]] == [
+        "executing", "evaluating", "failed"
+    ]
+    assert runner.progress_events[2]["error_category"] == "evaluation"
+
+
+def test_progress_closes_pre_case_deadline_as_timeout(tmp_path, monkeypatch):
+    cases, _ = reserve_starter_cases(
+        scan_id="deadline", tenant_id="t", agent_id="a",
+        store=FormStore(tmp_path / "forms.sqlite"),
+    )
+    runner = FixtureRunner(cases)
+    runner.operational_scan_deadline_seconds = 1
+    ticks = iter((0.0, 2.0))
+    monkeypatch.setattr(walker.time, "monotonic", lambda: next(ticks))
+    with pytest.raises(ProbeRunIncompleteError, match="deadline exceeded"):
+        list(walker.customer_agent_probe_run_fn(runner))
+    assert runner.progress_events[-1]["state"] == "failed"
+    assert runner.progress_events[-1]["error_category"] == "timeout"

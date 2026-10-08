@@ -374,6 +374,8 @@ def _handler_error_from_orchestrator_error(exc: OrchestratorError) -> HandlerErr
             if customer_error is not None:
                 return customer_error
     message = str(exc)
+    if message.startswith("starter_result_rows_count_mismatch:"):
+        return HandlerError(500, "starter_result_rows_count_mismatch")
     if message.startswith("prober subprocess raised CorpusSnapshotMismatchError:"):
         return HandlerError(422, "corpus_snapshot_mismatch")
     if message.startswith("prober subprocess raised RunnerError:"):
@@ -758,7 +760,17 @@ class ScanRuntime:
                 if self._accepted_scan_store is not None:
                     self._accepted_scan_store.mark_running(scan_request.scan_id)
                 LOGGER.info("accepted_scan_running scan_id=%s", scan_request.scan_id)
-                result = self._run_scan_fn(scan_request, secret)
+                callback = None
+                if self._accepted_scan_store is not None:
+                    callback = lambda **event: self._accepted_scan_store.record_case_progress(
+                        scan_request.scan_id, **event
+                    )
+                    object.__setattr__(scan_request, "case_progress_callback", callback)
+                try:
+                    result = self._run_scan_fn(scan_request, secret)
+                finally:
+                    if callback is not None:
+                        object.__delattr__(scan_request, "case_progress_callback")
                 result = self._apply_registry_dispatch_guard(
                     scan_request, result, agent_id=agent_id, secret=secret
                 )
@@ -871,6 +883,17 @@ class ScanRuntime:
         agent_id: str | None,
         production_security_findings: dict[str, Any] | None = None,
     ) -> ScanResult:
+        if (
+            scan_request.include_result_rows
+            and scan_request.pack_id in _STARTER_PACK_IDS
+            and _scan_reached_terminal(result)
+            and result.status != "failed"
+            and len(result.starter_result_rows) != result.rows_emitted
+        ):
+            raise OrchestratorError(
+                "starter_result_rows_count_mismatch:"
+                f"expected={result.rows_emitted}:actual={len(result.starter_result_rows)}"
+            )
         with self._state_lock:
             self._results[scan_request.scan_id] = result
             self._scan_state_created_at[scan_request.scan_id] = self._now()
@@ -964,6 +987,13 @@ class ScanRuntime:
             agent_id=agent_id,
             production_security_findings=production_security_findings,
         )
+        # Keep the durable progress projection useful even when the worker
+        # reaches terminal state before the next progress poll.
+        if self._accepted_scan_store is not None:
+            self._accepted_scan_store.note_activity(
+                scan_request.scan_id,
+                completed_test_count=max(0, int(result.rows_emitted or 0)),
+            )
         if self._accepted_scan_store is not None and _scan_reached_terminal(result):
             self._accepted_scan_store.mark_terminal(
                 scan_request.scan_id,
@@ -1259,7 +1289,12 @@ class ScanRuntime:
         try:
             return self._full_scan_job_store.progress_for_scan(scan_id, tenant_id=tenant_id)
         except KeyError:
-            return None
+            if self._accepted_scan_store is None:
+                return None
+            try:
+                return self._accepted_scan_store.case_progress(scan_id, tenant_id=tenant_id)
+            except KeyError:
+                return None
 
     # ----- BEAAA-38869 durable accepted scans -----
     def webhook_outbox_store(self) -> Any | None:
@@ -1267,6 +1302,17 @@ class ScanRuntime:
         if self._accepted_scan_store is None:
             return None
         return self._accepted_scan_store.outbox_store()
+
+    def accepted_scan_progress(self, scan_id: str) -> dict[str, Any]:
+        if self._accepted_scan_store is None:
+            return {"last_activity_at": None, "completed_test_count": 0}
+        row = self._accepted_scan_store.get(scan_id)
+        if row is None:
+            return {"last_activity_at": None, "completed_test_count": 0}
+        return {
+            "last_activity_at": row["last_activity_at"],
+            "completed_test_count": row["completed_test_count"],
+        }
 
     def _restore_scan_state(self, row: Mapping[str, Any]) -> None:
         scan_id = row["scan_id"]
@@ -2616,7 +2662,11 @@ def scan_status_handler(
     if audience == "uw":
         return 200, _uw_payload(result)
     if audience == "customer":
-        return 200, _customer_result_response(scan_id, result, runtime)
+        response = _customer_result_response(scan_id, result, runtime)
+        owning_request = runtime.current_scan_request(scan_id)
+        if owning_request is not None and owning_request.pack_id in _STARTER_PACK_IDS:
+            response.update(runtime.accepted_scan_progress(scan_id))
+        return 200, response
     if audience == "ci_plugin":
         return 200, _ci_plugin_payload(
             scan_id,

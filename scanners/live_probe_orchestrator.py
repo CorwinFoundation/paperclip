@@ -540,6 +540,12 @@ def run_scan(
             active_runner.pack_id = scan_request.pack_id
         except AttributeError:
             pass
+        try:
+            active_runner.case_progress_callback = getattr(
+                scan_request, "case_progress_callback", None
+            )
+        except AttributeError:
+            pass
         if scan_request.pack_id == "starter-100@4":
             from scanners.starter_forms import reserve_starter_cases
 

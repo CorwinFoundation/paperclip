@@ -448,6 +448,7 @@ def _status(token: str) -> dict:
 _PROGRESS_FIELDS = {
     "state", "phase", "stage_label", "processed_count", "accepted_pack_total",
     "usable_count", "unavailable_count", "timing", "heartbeat_at", "updated_at",
+    "last_activity_at", "current_test_id", "current_family",
 }
 
 

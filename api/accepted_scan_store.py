@@ -37,7 +37,7 @@ import sqlite3
 import threading
 import time
 from dataclasses import asdict, fields
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping
 
@@ -67,9 +67,27 @@ CREATE TABLE IF NOT EXISTS accepted_scans (
     context_json       TEXT NOT NULL,
     kickoff_key_json   TEXT,
     result_json        TEXT
+    ,last_activity_at  REAL
+    ,completed_test_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_accepted_scans_state ON accepted_scans (state);
 CREATE INDEX IF NOT EXISTS ix_accepted_scans_accepted_at ON accepted_scans (accepted_at);
+
+CREATE TABLE IF NOT EXISTS scan_case_progress (
+    scan_id            TEXT NOT NULL,
+    case_id            TEXT NOT NULL,
+    family             TEXT NOT NULL,
+    state              TEXT NOT NULL,
+    started_at         REAL,
+    finished_at        REAL,
+    last_activity_at   REAL NOT NULL,
+    retry_count        INTEGER NOT NULL DEFAULT 0,
+    error_category     TEXT,
+    PRIMARY KEY (scan_id, case_id),
+    FOREIGN KEY (scan_id) REFERENCES accepted_scans(scan_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_scan_case_progress_scan_activity
+    ON scan_case_progress (scan_id, last_activity_at);
 
 CREATE TABLE IF NOT EXISTS webhook_outbox (
     idempotency_key    TEXT PRIMARY KEY,
@@ -207,6 +225,13 @@ class AcceptedScanStore:
             self._conn.execute("PRAGMA journal_mode=WAL")
         with self._lock:
             self._conn.executescript(_SCHEMA_SQL)
+            columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(accepted_scans)")}
+            if "last_activity_at" not in columns:
+                self._conn.execute("ALTER TABLE accepted_scans ADD COLUMN last_activity_at REAL")
+            if "completed_test_count" not in columns:
+                self._conn.execute(
+                    "ALTER TABLE accepted_scans ADD COLUMN completed_test_count INTEGER NOT NULL DEFAULT 0"
+                )
 
     @property
     def path(self) -> str:
@@ -255,10 +280,177 @@ class AcceptedScanStore:
     def mark_running(self, scan_id: str) -> None:
         with self._write() as conn:
             conn.execute(
-                "UPDATE accepted_scans SET state=?, updated_at=? "
+                "UPDATE accepted_scans SET state=?, updated_at=?, last_activity_at=? "
                 "WHERE scan_id=? AND state!=?",
-                (STATUS_RUNNING, self._clock(), scan_id, STATUS_TERMINAL),
+                (STATUS_RUNNING, self._clock(), self._clock(), scan_id, STATUS_TERMINAL),
             )
+
+    def note_activity(self, scan_id: str, *, completed_test_count: int) -> None:
+        """Persist scan progress after completed tests without reviving terminal rows."""
+        if completed_test_count < 0:
+            raise ValueError("completed_test_count must be non-negative")
+        now = self._clock()
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE accepted_scans SET updated_at=?, last_activity_at=?, "
+                "completed_test_count=MAX(completed_test_count, ?) "
+                "WHERE scan_id=? AND state!=?",
+                (now, now, completed_test_count, scan_id, STATUS_TERMINAL),
+            )
+
+    def record_case_progress(
+        self,
+        scan_id: str,
+        *,
+        case_id: str,
+        family: str,
+        state: str,
+        error_category: str | None = None,
+        occurred_at: float | None = None,
+    ) -> None:
+        """Persist one bounded Starter-case transition without payload data.
+
+        One row per case makes retries idempotent. Older deliveries cannot
+        overwrite newer state, and terminal case states cannot regress.
+        """
+        allowed_states = {"queued", "retrying", "executing", "evaluating", "finished", "failed"}
+        allowed_errors = {None, "transport", "timeout", "evaluation", "target", "internal"}
+        if state not in allowed_states:
+            raise ValueError("invalid case progress state")
+        if error_category not in allowed_errors:
+            raise ValueError("invalid case progress error category")
+        if not case_id or len(case_id) > 160 or not family or len(family) > 120:
+            raise ValueError("invalid bounded case progress identity")
+        at = self._clock() if occurred_at is None else float(occurred_at)
+        with self._write() as conn:
+            prior = conn.execute(
+                "SELECT state, last_activity_at, retry_count, started_at FROM scan_case_progress "
+                "WHERE scan_id=? AND case_id=?", (scan_id, case_id),
+            ).fetchone()
+            if prior is not None and (
+                at < float(prior["last_activity_at"])
+                or prior["state"] in {"finished", "failed"}
+            ):
+                return
+            retry_count = int(prior["retry_count"]) if prior is not None else 0
+            if state == "retrying" and (prior is None or prior["state"] != "retrying"):
+                retry_count += 1
+            started_at = (
+                float(prior["started_at"])
+                if prior is not None and prior["started_at"] is not None
+                else at if state in {"executing", "evaluating", "finished", "failed"} else None
+            )
+            finished_at = at if state in {"finished", "failed"} else None
+            conn.execute(
+                "INSERT INTO scan_case_progress "
+                "(scan_id,case_id,family,state,started_at,finished_at,last_activity_at,retry_count,error_category) "
+                "VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(scan_id,case_id) DO UPDATE SET "
+                "family=excluded.family,state=excluded.state,started_at=excluded.started_at,"
+                "finished_at=excluded.finished_at,last_activity_at=excluded.last_activity_at,"
+                "retry_count=excluded.retry_count,error_category=excluded.error_category",
+                (scan_id, case_id, family, state, started_at, finished_at, at, retry_count, error_category),
+            )
+            conn.execute(
+                "UPDATE accepted_scans SET updated_at=? WHERE scan_id=? AND state!=?",
+                (at, scan_id, STATUS_TERMINAL),
+            )
+
+    def case_progress(self, scan_id: str, *, tenant_id: str) -> dict[str, Any]:
+        """Return owner-scoped aggregate telemetry with no probe/reply data."""
+        with self._lock:
+            scan = self._conn.execute(
+                "SELECT tenant_id,state,accepted_at,updated_at,request_json,result_json FROM accepted_scans "
+                "WHERE scan_id=? AND tenant_id=?", (scan_id, tenant_id),
+            ).fetchone()
+            if scan is None:
+                raise KeyError(scan_id)
+            rows = self._conn.execute(
+                "SELECT case_id,family,state,started_at,finished_at,last_activity_at,retry_count,error_category "
+                "FROM scan_case_progress WHERE scan_id=? ORDER BY last_activity_at,case_id", (scan_id,),
+            ).fetchall()
+        request = json.loads(scan["request_json"])
+        total = 100 if str(request.get("pack_id") or "").startswith("starter-100@") else 0
+        processed = sum(row["state"] in {"finished", "failed"} for row in rows)
+        usable = sum(row["state"] == "finished" for row in rows)
+        unavailable = sum(row["state"] == "failed" for row in rows)
+        timed_out = sum(row["error_category"] == "timeout" for row in rows)
+        current = next((row for row in reversed(rows) if row["state"] not in {"finished", "failed"}), None)
+        last = rows[-1] if rows else None
+        now = self._clock()
+        accepted_at = float(scan["accepted_at"])
+        first_started_at = min(
+            (float(row["started_at"]) for row in rows if row["started_at"] is not None),
+            default=None,
+        )
+        terminal_finished_at = max(
+            (float(row["finished_at"]) for row in rows if row["finished_at"] is not None),
+            default=float(scan["updated_at"]),
+        )
+        timing_end = terminal_finished_at if scan["state"] == STATUS_TERMINAL else now
+        elapsed = max(0.0, timing_end - accepted_at)
+        queue = max(0.0, (first_started_at or timing_end) - accepted_at)
+        execution = max(0.0, timing_end - first_started_at) if first_started_at is not None else 0.0
+        observed_rate = processed / execution if processed and execution > 0 else None
+        remaining = max(0, total - processed)
+        eta = remaining / observed_rate if observed_rate else None
+        result = json.loads(scan["result_json"]) if scan["result_json"] else None
+        terminal_status = str((result or {}).get("status") or "")
+        if scan["state"] == STATUS_ACCEPTED:
+            state = "queued"
+        elif scan["state"] == STATUS_RUNNING:
+            state = "running"
+        elif terminal_status in {"complete", "completed", "finished"}:
+            state = "finished"
+        elif terminal_status == "incomplete" or bool((result or {}).get("incomplete")):
+            state = "incomplete"
+        elif scan["state"] == STATUS_TERMINAL:
+            state = "error"
+        else:
+            state = "unconfirmed"
+        terminal = state in {"finished", "incomplete", "error"}
+        heartbeat = float(last["last_activity_at"]) if last is not None else float(scan["updated_at"])
+        stage_labels = {
+            "executing": "Running agent test",
+            "evaluating": "Evaluating response",
+            "retrying": "Retrying agent test",
+            "queued": "Waiting for capacity",
+        }
+        return {
+            "scan_id": scan_id,
+            "state": state,
+            "phase": "report_preparation" if terminal and state != "error" else "execution",
+            "stage_label": (
+                "Preparing report" if state in {"finished", "incomplete"}
+                else "Scan stopped" if state == "error"
+                else stage_labels.get(current["state"] if current else "queued", "Evidence checks")
+            ),
+            "counts": {
+                "completed": usable,
+                "timed_out": timed_out,
+                "incomplete": 0,
+                "failed": unavailable - timed_out,
+                "observed": processed,
+                "total": total,
+            },
+            "processed_count": processed,
+            "accepted_pack_total": total,
+            "usable_count": usable,
+            "unavailable_count": unavailable,
+            "current_test_id": str(current["case_id"])[:160] if current else None,
+            "current_family": str(current["family"])[:120] if current else None,
+            "timing": {
+                "elapsed_seconds": round(elapsed, 3),
+                "queue_seconds": round(queue, 3),
+                "execution_seconds": round(execution, 3),
+                "observed_rate_per_second": round(observed_rate, 6) if observed_rate else None,
+                "estimated_remaining_seconds": (
+                    {"low": round(eta * 0.8, 3), "high": round(eta * 1.2, 3)}
+                    if eta else None
+                ),
+            },
+            "heartbeat_at": datetime.fromtimestamp(heartbeat, timezone.utc).isoformat(),
+            "updated_at": datetime.fromtimestamp(heartbeat, timezone.utc).isoformat(),
+        }
 
     def note_resume(self, scan_id: str) -> int:
         with self._write() as conn:
@@ -391,6 +583,8 @@ def _decode(row: sqlite3.Row) -> dict[str, Any]:
         "accepted_at": row["accepted_at"],
         "resumable": bool(row["resumable"]),
         "resume_count": int(row["resume_count"]),
+        "last_activity_at": row["last_activity_at"],
+        "completed_test_count": int(row["completed_test_count"]),
         "request": request_from_record(json.loads(row["request_json"])),
         "agent_id": context.get("agent_id"),
         "invocation_context": context.get("invocation_context"),
