@@ -33,6 +33,7 @@ from api.full_scan_executor import (  # noqa: E402
     FullScanJobStore,
     TERMINAL_JOB_STATUSES,
     UpstreamQuotaAbort,
+    case_id_from_registry_row,
     dispatch_registry_attempt,
     registry_cases_from_rows,
 )
@@ -47,6 +48,16 @@ from tools.registered_case_executor import (  # noqa: E402
 )
 from tools.framework_workers import build_live_framework_workers  # noqa: E402
 from tools._exception_scrubber import strip_http_diagnostics  # noqa: E402
+
+
+def _pending_rows_for_resume(rows: Sequence[Mapping[str, Any]], resumed: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """Bind the persisted pending roster to the dispatcher's stable identity."""
+    pending_ids = {str(row.get("case_id") or "") for row in resumed.get("pending_cases", ()) if isinstance(row, Mapping)}
+    selected = [row for row in rows if case_id_from_registry_row(row) in pending_ids]
+    selected_ids = {case_id_from_registry_row(row) for row in selected}
+    if selected_ids != pending_ids:
+        raise RuntimeError(f"persisted pending roster does not bind to current registry: missing={sorted(pending_ids - selected_ids)}")
+    return selected
 from tools.founder_dev_mode import (  # noqa: E402
     ATTESTATION_FOUNDER_DEV,
     ATTESTATION_PRODUCTION_SIGNED,
@@ -1943,23 +1954,7 @@ def run_scheduled_scan(
             store.recover()
             job = store.status(job.job_id)
         resumed = store.resume(job.job_id)
-        terminal_case_ids = {
-            str(row.get("probe_id") or "")
-            for row in resumed["evidence_rows"]
-            if isinstance(row, Mapping)
-            and row.get("status") in {"complete", "incomplete", "failed", "skipped"}
-        }
-        pending_rows = [
-            row
-            for row in rows
-            if str(
-                row.get("runtime_case_identity")
-                or row.get("case_id")
-                or row.get("case_id_or_probe_id")
-                or ""
-            )
-            not in terminal_case_ids
-        ]
+        pending_rows = _pending_rows_for_resume(rows, resumed)
         lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
         attempt_id = str(lease["attempt_id"])
         try:

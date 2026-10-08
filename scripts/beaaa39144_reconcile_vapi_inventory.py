@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-ID_KEYS = ("stable_case_id", "case_id", "test_case_id")
+ID_KEYS = ("runtime_case_identity", "probe_id", "stable_case_id", "case_id", "test_case_id")
 JUDGEMENT_KEYS = ("verdict", "judgement", "judgment", "result")
+TERMINAL_VERDICTS = frozenset({"PASS", "FAIL", "NOT_APPLICABLE"})
+RESPONSE_KEYS = ("response", "target_response", "assistant_response", "raw_response")
 
 
 def records(value: Any) -> Iterable[dict[str, Any]]:
@@ -46,7 +48,30 @@ def case_id(record: dict[str, Any]) -> str | None:
 def is_judged(record: dict[str, Any]) -> bool:
     for key in JUDGEMENT_KEYS:
         value = record.get(key)
-        if value is not None and value != "":
+        if isinstance(value, dict):
+            value = value.get("verdict") or value.get("label") or value.get("result")
+        if str(value or "").strip().upper() in TERMINAL_VERDICTS:
+            return True
+    return False
+
+
+def is_not_applicable(record: dict[str, Any]) -> bool:
+    return any(str(record.get(key) or "").strip().upper() == "NOT_APPLICABLE" for key in JUDGEMENT_KEYS)
+
+
+def is_acquired(record: dict[str, Any]) -> bool:
+    """Require a real target receipt, not merely a registry-shaped case row."""
+    if is_not_applicable(record):
+        return False
+    if int(record.get("target_calls") or 0) > 0 or str(record.get("acquisition_basis") or "").lower() == "target-measured":
+        return True
+    for envelope in (record, record.get("evidence"), record.get("receipt")):
+        if not isinstance(envelope, dict):
+            continue
+        if any(envelope.get(key) not in (None, "", [], {}) for key in RESPONSE_KEYS):
+            return True
+        messages = envelope.get("messages")
+        if isinstance(messages, list) and any(isinstance(item, dict) and item.get("role") == "assistant" and item.get("content") not in (None, "") for item in messages):
             return True
     return False
 
@@ -62,6 +87,7 @@ def main() -> int:
     inventory = set(inventory_ids)
     acquired: set[str] = set()
     judged: set[str] = set()
+    not_applicable: set[str] = set()
     evidence_files = sorted(
         p for p in args.evidence.rglob("*") if p.is_file() and p.suffix in {".json", ".jsonl"}
     )
@@ -69,9 +95,12 @@ def main() -> int:
         for row in load(path):
             cid = case_id(row)
             if cid:
-                acquired.add(cid)
+                if is_acquired(row):
+                    acquired.add(cid)
                 if is_judged(row):
                     judged.add(cid)
+                if is_not_applicable(row):
+                    not_applicable.add(cid)
 
     report = {
         "schema_version": "1.0.0",
@@ -84,9 +113,11 @@ def main() -> int:
             "files_read": len(evidence_files),
             "acquired_case_ids": len(acquired & inventory),
             "judged_case_ids": len(judged & inventory),
+            "not_applicable_case_ids": len(not_applicable & inventory),
         },
         "missing_acquisition": sorted(inventory - acquired),
         "acquired_not_judged": sorted((inventory & acquired) - judged),
+        "judged_without_acquisition": sorted((inventory & judged) - acquired - not_applicable),
         "evidence_not_in_inventory": sorted(acquired - inventory),
     }
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"

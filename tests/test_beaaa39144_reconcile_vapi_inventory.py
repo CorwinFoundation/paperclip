@@ -17,9 +17,10 @@ def test_reports_acquisition_and_judgement_separately(tmp_path: Path) -> None:
     evidence.mkdir()
     (evidence / "rows.json").write_text(
         json.dumps({"records": [
-            {"stable_case_id": "a", "verdict": "PASS"},
-            {"stable_case_id": "b", "response": "saved"},
-            {"stable_case_id": "outside", "judgement": "FAIL"},
+            {"runtime_case_identity": "a", "target_calls": 1, "verdict": "PASS"},
+            {"probe_id": "b", "evidence": {"messages": [{"role": "assistant", "content": "saved"}]}},
+            {"stable_case_id": "c", "verdict": "unresolved"},
+            {"stable_case_id": "outside", "target_response": "x", "judgement": "FAIL"},
         ]}),
         encoding="utf-8",
     )
@@ -38,6 +39,7 @@ def test_reports_acquisition_and_judgement_separately(tmp_path: Path) -> None:
     }
     assert report["evidence"]["acquired_case_ids"] == 2
     assert report["evidence"]["judged_case_ids"] == 1
+    assert report["evidence"]["not_applicable_case_ids"] == 0
     assert report["missing_acquisition"] == ["c"]
     assert report["acquired_not_judged"] == ["b"]
     assert report["evidence_not_in_inventory"] == ["outside"]
