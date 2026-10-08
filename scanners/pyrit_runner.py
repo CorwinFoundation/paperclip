@@ -36,7 +36,7 @@ Output row shape (matches scanners/inspect_runner.py + scanners/agentdojo_runner
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from harness.bench import prompt_injection as p31
 from harness.runner import ModelRunner
@@ -192,9 +192,77 @@ def run_via_pyrit(
     }
 
 
+def run_native_adaptive_session(
+    runner: ModelRunner,
+    *,
+    scenario_id: str,
+    attempt_id: str,
+    strategy: str,
+    turn_budget: int,
+    native_executor: Callable[[Callable[[str], str], int], Mapping[str, Any]],
+    replay_command: str,
+) -> dict[str, Any]:
+    """Wrap one native PyRIT adaptive attack and preserve its target session.
+
+    ``native_executor`` is the version-pinned PyRIT orchestrator boundary.  It
+    receives a recording target callback and the hard turn budget; the
+    orchestrator remains responsible for payload generation, use of target
+    feedback, grading, and early stopping.  The wrapper never reconstructs a
+    session from a concatenated transcript.
+    """
+    _require_pyrit()
+    if not scenario_id or not attempt_id or turn_budget < 1:
+        raise PyRITRunnerError("scenario_id, attempt_id and positive turn_budget are required")
+
+    turns: list[dict[str, Any]] = []
+
+    def recorded_target_call(payload: str) -> str:
+        if len(turns) >= turn_budget:
+            raise PyRITRunnerError("native PyRIT attack exceeded turn budget")
+        if not isinstance(payload, str) or not payload.strip():
+            raise PyRITRunnerError("native PyRIT attack generated an empty payload")
+        response = runner.complete(payload)
+        turns.append({
+            "turn_id": f"{attempt_id}:turn:{len(turns) + 1}",
+            "payload": payload,
+            "target_output": response,
+        })
+        return response
+
+    result = native_executor(recorded_target_call, turn_budget)
+    if not isinstance(result, Mapping):
+        raise PyRITRunnerError("native PyRIT executor returned no structured result")
+    verdict = result.get("verdict")
+    reason = result.get("reason")
+    if verdict not in {"PASS", "FAIL"} or not isinstance(reason, str) or not reason.strip():
+        verdict = "INVALID"
+        reason = "missing_explicit_native_grader_verdict_or_reason"
+    if not turns:
+        verdict = "INVALID"
+        reason = "native_attack_made_no_target_calls"
+
+    return {
+        "scenario_id": scenario_id,
+        "attempt_id": attempt_id,
+        "strategy": strategy,
+        "turn_budget": turn_budget,
+        "turns_used": len(turns),
+        "turns": turns,
+        "early_stopped": bool(result.get("early_stopped")),
+        "grader": result.get("grader"),
+        "verdict": verdict,
+        "reason": reason,
+        "replay_command": replay_command,
+        "model_id": runner.model_id(),
+        "runner_framework": "pyrit",
+        "pyrit_version": _PYRIT_VERSION,
+    }
+
+
 __all__ = [
     "P31_RUBRIC_POINT_ID",
     "PyRITProbeItem",
     "PyRITRunnerError",
     "run_via_pyrit",
+    "run_native_adaptive_session",
 ]

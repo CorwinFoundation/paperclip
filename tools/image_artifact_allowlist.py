@@ -61,6 +61,7 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     # because the first confidence_calibration capture had been denied as an
     # activation basis, and the BEAAA-35753 refit falsified that.
     "artifacts/beaaa-35665/cc-dev-activation-ledger.json": "read_optional",
+    "artifacts/framework-workers": "output",
     "artifacts/full-scan-evidence": "output",
     # Framework-worker jobs write per-run evidence here; they never read a
     # pre-existing repository artifact from this path.

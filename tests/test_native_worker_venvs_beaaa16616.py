@@ -102,7 +102,7 @@ def test_real_garak_0160_probe_generator_detector_and_seed():
     # The sample_size=1 is below GARAK_MIN_SAMPLE_SIZE=48, so status stays "incomplete".
     assert result["status"] == "incomplete", result
     assert "garak_sample_size_below_floor" in (result.get("incomplete_reason") or ""), result
-    assert result["evidence_ref"].endswith("/garak/garak.test.Blank.json")
+    assert result["evidence_ref"].endswith("/native-garak-scan/garak.test.Blank.garak.json")
     assert result["sample_size"] == 1
     assert result["hit_count"] == 1   # any.AnyOutput: non-empty "controlled local response" is a hit
     assert result["numeric_result"] == 1.0

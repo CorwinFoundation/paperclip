@@ -28,6 +28,7 @@ from scanners.pyrit_runner import (
     P31_RUBRIC_POINT_ID,
     PyRITProbeItem,
     PyRITRunnerError,
+    run_native_adaptive_session,
     run_via_pyrit,
 )
 
@@ -201,6 +202,77 @@ class PyRITDefaultEvaluatorTests(unittest.TestCase):
         self.assertFalse(_default_eval("the model said LEAK-123 oops", item))
         # Canary absent → evaluator reports resisted=True.
         self.assertTrue(_default_eval("I cannot help with that.", item))
+
+
+class PyRITNativeAdaptiveSessionTests(unittest.TestCase):
+    def test_five_scenarios_preserve_feedback_driven_turns_and_verdicts(self) -> None:
+        runner = MockRunner(
+            "adaptive-target",
+            lambda prompt: "context: BLUE" if "target feedback" in prompt else "blocked",
+        )
+
+        def adaptive_executor(target_call, budget):
+            first = target_call("initial payload")
+            second = target_call(f"adapt using target feedback: {first}")
+            return {
+                "verdict": "PASS" if second == "context: BLUE" else "FAIL",
+                "reason": "native grader evaluated the final target output",
+                "grader": "pyrit:test-grader-v1",
+                "early_stopped": budget > 2,
+            }
+
+        scenarios = [
+            "violating-control", "compliant-control", "legitimate-task",
+            "refusal-only-control", "adaptive-multiturn",
+        ]
+        with patch("scanners.pyrit_runner._PYRIT_AVAILABLE", True), patch(
+            "scanners.pyrit_runner._PYRIT_VERSION", "0.6.0"
+        ):
+            evidence = [run_native_adaptive_session(
+                runner,
+                scenario_id=scenario,
+                attempt_id=f"attempt-{index}",
+                strategy="red-teaming-orchestrator",
+                turn_budget=3,
+                native_executor=adaptive_executor,
+                replay_command=f"scanner pyrit replay attempt-{index}",
+            ) for index, scenario in enumerate(scenarios, 1)]
+
+        self.assertEqual(len(evidence), 5)
+        for item in evidence:
+            self.assertEqual(item["turns_used"], 2)
+            self.assertIn(item["verdict"], {"PASS", "FAIL"})
+            self.assertEqual(item["pyrit_version"], "0.6.0")
+            self.assertIn("target feedback: blocked", item["turns"][1]["payload"])
+            self.assertTrue(item["replay_command"].startswith("scanner pyrit replay"))
+
+    def test_missing_grader_result_is_invalid_not_pass(self) -> None:
+        runner = MockRunner("adaptive-target", lambda _prompt: "HTTP 200")
+        with patch("scanners.pyrit_runner._PYRIT_AVAILABLE", True):
+            evidence = run_native_adaptive_session(
+                runner, scenario_id="unsupported", attempt_id="a-invalid",
+                strategy="native", turn_budget=1,
+                native_executor=lambda target, _budget: ({"output": target("payload")}),
+                replay_command="scanner pyrit replay a-invalid",
+            )
+        self.assertEqual(evidence["verdict"], "INVALID")
+        self.assertIn("missing_explicit", evidence["reason"])
+
+    def test_turn_budget_is_enforced_at_target_boundary(self) -> None:
+        runner = MockRunner("adaptive-target", lambda _prompt: "blocked")
+
+        def overruns(target, _budget):
+            target("one")
+            target("two")
+            return {"verdict": "PASS", "reason": "should not bind"}
+
+        with patch("scanners.pyrit_runner._PYRIT_AVAILABLE", True):
+            with self.assertRaisesRegex(PyRITRunnerError, "turn budget"):
+                run_native_adaptive_session(
+                    runner, scenario_id="budget", attempt_id="a-budget",
+                    strategy="native", turn_budget=1, native_executor=overruns,
+                    replay_command="scanner pyrit replay a-budget",
+                )
 
 
 if __name__ == "__main__":
