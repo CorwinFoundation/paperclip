@@ -62,6 +62,9 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     # activation basis, and the BEAAA-35753 refit falsified that.
     "artifacts/beaaa-35665/cc-dev-activation-ledger.json": "read_optional",
     "artifacts/full-scan-evidence": "output",
+    # Framework-worker jobs write per-run evidence here; they never read a
+    # pre-existing repository artifact from this path.
+    "artifacts/framework-workers": "output",
     "artifacts/beaaa-18720/reconciliation-validation.json": "reference_only",
     "artifacts/beaaa-35020/tool_misuse_corrected_n5_final.json": "reference_only",
     # Carried as the execution_evidence_ref string on a promoted row, never opened --

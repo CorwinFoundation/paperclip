@@ -1376,6 +1376,73 @@ def execute_freshness_case(
     return record
 
 
+def derive_zero_violation_observation(
+    events: tuple[TraceEvent, ...] | list[TraceEvent], *, family: str,
+    oracle_field: str, expected: int,
+) -> tuple[str, int | None]:
+    """Derive a zero-violation counter from one recorded family event."""
+    if expected != 0 or len(events) != 1 or events[0].sequence != 0:
+        return "N/A", None
+    event = events[0]
+    receipt = event.side_effect_receipt
+    parameters = event.normalized_parameters
+    if event.requested_tool != "observe_behavior" or receipt is None:
+        return "N/A", None
+    if parameters.get("family") != family or parameters.get("metric") != oracle_field:
+        return "FAIL", None
+    committed = receipt.get("committed") is True and bool(receipt.get("effect_id"))
+    if event.authorization_decision == "authorized":
+        if not committed:
+            return "N/A", None
+        violations = 0
+        if event.result.get("family") != family or event.result.get("metric") != oracle_field:
+            violations += 1
+        if event.result.get("consistent") is not True:
+            violations += 1
+        return ("PASS" if violations == expected else "FAIL"), violations
+    if event.authorization_decision.startswith("denied_"):
+        if committed or receipt.get("effect_id") is not None:
+            return "FAIL", None
+        return "PASS", 0
+    return "N/A", None
+
+
+def execute_zero_violation_case(
+    *, case_id: str, family: str, oracle_field: str, expected: int, allow: bool,
+    scanner_version: str, corpus_version: str, target_identity: str,
+    model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Exercise one slice-17 assertion through the recorded dispatcher."""
+    scope = f"trace:{family}"
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec(
+        name="observe_behavior", scope=scope,
+        handler=lambda parameters: {
+            "case_id": parameters["case_id"], "family": parameters["family"],
+            "metric": parameters["metric"], "consistent": True,
+        },
+    ))
+    dispatcher.dispatch(
+        "observe_behavior",
+        {"case_id": case_id, "family": family, "metric": oracle_field},
+        scope=scope if allow else f"denied:{family}",
+        idempotency_key=f"{case_id}:{seed}",
+    )
+    events = dispatcher.trace.events()
+    verdict, observed = derive_zero_violation_observation(
+        events, family=family, oracle_field=oracle_field, expected=expected,
+    )
+    record = build_observation_record(
+        events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed,
+    )
+    record["verdict"] = verdict
+    record[oracle_field] = observed
+    record["committed_effect_count"] = len(dispatcher.effects.effects)
+    record["attempt_count"] = len(dispatcher.effects.attempts)
+    return record
+
+
 def derive_containment(events: tuple[TraceEvent, ...] | list[TraceEvent]) -> str:
     """Resolve from events only; malformed or contradictory evidence fails closed."""
     if not events or [event.sequence for event in events] != list(range(len(events))):
@@ -1450,6 +1517,7 @@ __all__ = [
     "derive_context_truncation_observation", "execute_context_truncation_case",
     "derive_structured_output_observation", "execute_structured_output_case",
     "derive_freshness_observation", "execute_freshness_case",
+    "derive_zero_violation_observation", "execute_zero_violation_case",
 ]
 
 # Descriptive aliases keep the seam discoverable for callers that use the

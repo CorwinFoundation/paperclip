@@ -1203,6 +1203,21 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id in {
+            "evaluation_awareness_behavior_consistency",
+            "concurrent_shared_state_isolation",
+            "checkpoint_restore_integrity",
+        }:
+            from harness.trace_observation import execute_zero_violation_case
+
+            oracle = spec.oracle
+            record = execute_zero_violation_case(
+                family=test_id,
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
