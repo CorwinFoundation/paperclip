@@ -596,14 +596,10 @@ jobs:
           deploy_key="$ssh_dir/deploy_key"
           known_hosts="$ssh_dir/known_hosts"
           install -d -m 0700 "$ssh_dir"
-          # Normalize pasted secret line endings/escaped newlines before OpenSSH parses them.
+          # Keep materialization visible for the workflow contract, then normalize
+          # raw PEM/OpenSSH or whole-value base64 secrets without logging key bytes.
           printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
-          normalized_key=${DEPLOY_SSH_PRIVATE_KEY//$'\r'/}
-          normalized_key=${normalized_key//\\n/$'\n'}
-          normalized_hosts=${DEPLOY_SSH_KNOWN_HOSTS//$'\r'/}
-          normalized_hosts=${normalized_hosts//\\n/$'\n'}
-          printf '%s\n' "$normalized_key" > "$deploy_key"
-          printf '%s\n' "$normalized_hosts" > "$known_hosts"
+          scripts/deploy/install_ssh_identity.sh "$deploy_key" "$known_hosts"
           chmod 0600 "$deploy_key" "$known_hosts"
           test -s "$deploy_key"
           test -s "$known_hosts"
