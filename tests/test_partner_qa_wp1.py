@@ -11,6 +11,7 @@ from api.scan_handlers import (
 )
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import RunnerError
+from harness.kaltura_genie_browser import extract_assistant_narrative
 from scanners.starter_pack import (
     STARTER_PACK_CORPUS_SNAPSHOT_HASH,
     STARTER_PACK_FAMILY_COUNTS,
@@ -97,6 +98,123 @@ def test_json_map_numeric_response_path() -> None:
         },
     )
     assert runner._parse_response('{"data":[{"reply":"world"}]}') == "world"
+
+
+def test_kaltura_genie_uses_scoped_ks_fresh_turn_and_assistant_text_only() -> None:
+    runner = customer_agent_http_runner_factory(
+        "https://genie.nvp1.ovp.kaltura.com/assistant/converse",
+        "scoped-session",
+        endpoint_config={"transport": "kaltura_genie", "auth": {"type": "bearer"}},
+    )
+    assert runner._auth_headers == {"Authorization": "KS scoped-session"}
+    assert runner._request_payload("hello") == {
+        "userMessage": "hello",
+        "sse": False,
+        "model_type": "fast",
+        "add_message_in_db": False,
+    }
+    _, headers = runner._request_body("hello")
+    assert headers == {"Accept": "application/x-ndjson"}
+    stream = "\n".join([
+        '{"role":"assistant","type":"think","content":"working"}',
+        '{"role":"assistant","type":"text","content":"Hello "}',
+        '{"role":"assistant","type":"tool","content":"hidden"}',
+        '{"role":"assistant","type":"text","content":"world"}',
+    ])
+    assert runner._parse_response(stream) == "Hello world"
+
+
+@pytest.mark.parametrize("stream", [
+    '{"role":"assistant","type":"error","content":"failed"}',
+    '{"event":"error","error":"failed"}',
+    '{"role":"assistant","type":"think","content":"only telemetry"}',
+    'not-json',
+])
+def test_kaltura_genie_fails_closed_without_clean_assistant_text(stream) -> None:
+    runner = customer_agent_http_runner_factory(
+        "https://genie.nvp1.ovp.kaltura.com/assistant/converse",
+        "scoped-session",
+        endpoint_config={"transport": "kaltura_genie", "auth": {"type": "bearer"}},
+    )
+    with pytest.raises(RunnerError):
+        runner._parse_response(stream)
+
+
+def test_kaltura_genie_endpoint_is_exactly_scoped() -> None:
+    config = _validate_agent_endpoint({
+        "url": "https://genie.nvp1.ovp.kaltura.com/assistant/converse",
+        "transport": "kaltura_genie",
+        "auth": {"type": "bearer"},
+    })
+    assert config["transport"] == "kaltura_genie"
+    for url in (
+        "https://learning.kaltura.com/",
+        "https://genie.nvp1.ovp.kaltura.com/other",
+    ):
+        with pytest.raises(HandlerError):
+            _validate_agent_endpoint({
+                "url": url,
+                "transport": "kaltura_genie",
+                "auth": {"type": "bearer"},
+            })
+
+
+def test_kaltura_public_browser_transport_is_exactly_scoped_and_unauthenticated() -> None:
+    config = _validate_agent_endpoint({
+        "url": "https://learning.kaltura.com/",
+        "transport": "kaltura_genie_browser",
+        "auth": {"type": "none"},
+    })
+    runner = customer_agent_http_runner_factory(config["url"], "", endpoint_config=config)
+    assert runner.model_id() == "kaltura-genie:public-learning-browser"
+    for url in ("https://learning.kaltura.com/other", "https://example.test/"):
+        with pytest.raises(HandlerError):
+            _validate_agent_endpoint({
+                "url": url,
+                "transport": "kaltura_genie_browser",
+                "auth": {"type": "none"},
+            })
+
+
+def test_kaltura_browser_extracts_only_two_narrative_fragments() -> None:
+    class Nodes:
+        def __init__(self, values): self.values = values
+        def locator(self, selector): return Nodes(self.values)
+        def count(self): return len(self.values)
+        def nth(self, index): return Node(self.values[index])
+    class Node:
+        def __init__(self, value): self.value = value
+        def locator(self, selector): return Nodes(self.value)
+        def inner_text(self): return self.value
+
+    article = Nodes([
+        [
+            ["user"],
+            ["avatar", "first narrative", "second narrative", "social", "next steps"],
+            ["spacer"],
+        ],
+    ])
+    assert extract_assistant_narrative(article) == "first narrative\nsecond narrative"
+
+
+@pytest.mark.parametrize("article", [
+    [],
+    [[[["user"], ["assistant"], ["spacer"]]], [[["unexpected"]]]],
+    [[["user"], ["assistant"], ["spacer"], ["unexpected"]]],
+])
+def test_kaltura_browser_rejects_changed_nested_article_structure(article) -> None:
+    class Nodes:
+        def __init__(self, values): self.values = values
+        def locator(self, selector): return Nodes(self.values)
+        def count(self): return len(self.values)
+        def nth(self, index): return Node(self.values[index])
+    class Node:
+        def __init__(self, value): self.value = value
+        def locator(self, selector): return Nodes(self.value)
+        def inner_text(self): return self.value
+
+    with pytest.raises(RunnerError, match="structure changed"):
+        extract_assistant_narrative(Nodes(article))
 
 
 @pytest.mark.parametrize("template", [

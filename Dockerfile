@@ -29,6 +29,7 @@ FROM python:${PYTHON_VERSION} AS runtime
 ARG GIT_SHA=unknown
 
 ENV PATH="/opt/venv/bin:${PATH}" \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     BACKBOND_BUILD_SHA="${GIT_SHA}" \
@@ -55,6 +56,9 @@ WORKDIR /app
 
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /app /app
+
+RUN /opt/venv/bin/python -m playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
 
 RUN useradd --system --create-home --home-dir /home/scanner scanner \
     && mkdir -p /var/lib/are-scanner \

@@ -420,11 +420,47 @@ jobs:
           assert not skipped, 'Edge integration prerequisites caused skipped tests'
           PY
 
+  kaltura-browser-image:
+    name: Kaltura browser image readiness
+    needs: changes
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            kaltura:
+              - 'Dockerfile'
+              - 'requirements-runtime.txt'
+              - 'harness/kaltura_genie_browser.py'
+              - '.github/workflows/scanner-edge-image.yml'
+              - '.github/workflows/tests.yml'
+      - name: Build exact scanner image
+        if: steps.paths.outputs.kaltura == 'true'
+        run: docker build --build-arg "GIT_SHA=${GITHUB_SHA}" --tag backbond-scanner-kaltura-pr .
+      - name: Prove browser readiness as service user
+        if: steps.paths.outputs.kaltura == 'true'
+        run: |
+          docker run --rm --entrypoint python backbond-scanner-kaltura-pr -c '
+          import getpass
+          from playwright.sync_api import sync_playwright
+          assert getpass.getuser() == "scanner"
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              browser.close()
+          '
+
   # The one required branch-protection context. Passes iff every shard passed,
   # so the protected-branch check names on master are unchanged by the split.
   pytest-aggregate:
     name: python pytest
-    needs: [changes, pytest, native-integrations]
+    needs: [changes, pytest, native-integrations, kaltura-browser-image]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -433,11 +469,16 @@ jobs:
         env:
           SHARDS_RESULT: ${{ needs.pytest.result }}
           NATIVE_RESULT: ${{ needs.native-integrations.result }}
+          KALTURA_IMAGE_RESULT: ${{ needs.kaltura-browser-image.result }}
         run: |
           case "$NATIVE_RESULT" in
             success|skipped) ;;
             *) echo '::error::Docker/nginx integration coverage did not pass.' >&2; exit 1 ;;
           esac
+          test "$KALTURA_IMAGE_RESULT" = success || {
+            echo '::error::Kaltura browser image readiness did not pass.' >&2
+            exit 1
+          }
           echo "python pytest shard matrix: $SHARDS_RESULT"
           case "$SHARDS_RESULT" in
             success)

@@ -176,6 +176,15 @@ jobs:
       - name: Verify runtime import closure
         run: docker run --rm --entrypoint python "${{ steps.image.outputs.image_tag }}" scripts/verify_runtime_import_closure.py
 
+      - name: Verify Kaltura browser runtime readiness
+        run: |
+          docker run --rm --entrypoint python "${{ steps.image.outputs.image_tag }}" -c '
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              browser.close()
+          '
+
       - name: Verify AIUC-1 direct-family production binding in image
         run: docker run --rm --entrypoint python "${{ steps.image.outputs.image_tag }}" scripts/verify_aiuc1_direct_families_release.py
 

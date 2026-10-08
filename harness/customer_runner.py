@@ -165,6 +165,14 @@ class _CustomerAgentHttpRunner(ModelRunner):
         self._auth_headers_sendable = all(
             _is_sendable_header_value(value) for value in self._auth_headers.values()
         )
+        if self._config.get("transport") == "kaltura_genie" and auth_type == "bearer":
+            # Kaltura Session (KS) auth deliberately differs from OAuth bearer
+            # auth.  Keep the scoped token in the existing ephemeral secret
+            # channel; never place it in endpoint configuration or evidence.
+            self._auth_headers["Authorization"] = f"KS {secret}"
+            self._auth_headers_sendable = _is_sendable_header_value(
+                self._auth_headers["Authorization"]
+            )
 
     def model_id(self) -> str:
         return self._model_id
@@ -180,12 +188,49 @@ class _CustomerAgentHttpRunner(ModelRunner):
             return {"model": self._config["model"], "messages": messages}
         if transport == "json_map":
             return _replace_prompt(self._config["request_template"], prompt)
+        if transport == "kaltura_genie":
+            # Omitting threadId creates a fresh conversation for every probe,
+            # preventing one test from contaminating the next.  Do not persist
+            # scanner conversations in the customer's Genie history.
+            return {
+                "userMessage": prompt,
+                "sse": False,
+                "model_type": "fast",
+                "add_message_in_db": False,
+            }
         return {"prompt": prompt}
 
     def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
-        return _json.dumps(self._request_payload(prompt)).encode("utf-8"), {}
+        headers = {}
+        if self._config.get("transport") == "kaltura_genie":
+            headers["Accept"] = "application/x-ndjson"
+        return _json.dumps(self._request_payload(prompt)).encode("utf-8"), headers
 
     def _parse_response(self, text: str) -> str:
+        if self._config.get("transport") == "kaltura_genie":
+            chunks: list[str] = []
+            for raw_line in text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if line.startswith("data:"):
+                    line = line[5:].strip()
+                try:
+                    event = _json.loads(line)
+                except _json.JSONDecodeError as exc:
+                    raise RunnerError("kaltura genie returned invalid NDJSON") from exc
+                if not isinstance(event, dict):
+                    raise RunnerError("kaltura genie returned a non-object stream event")
+                if event.get("type") == "error" or event.get("event") == "error":
+                    raise RunnerError("kaltura genie stream reported an error")
+                if event.get("role") == "assistant" and event.get("type") == "text":
+                    content = event.get("content")
+                    if isinstance(content, str):
+                        chunks.append(content)
+            answer = "".join(chunks).strip()
+            if not answer:
+                raise RunnerError("kaltura genie stream contained no assistant text")
+            return answer
         try:
             parsed: Any = _json.loads(text)
         except _json.JSONDecodeError:
@@ -678,6 +723,9 @@ def customer_agent_http_runner_factory(
     :func:`api.scan_runtime_factory.v0_mock_runner_factory`.
     """
     host = _extract_host(agent_endpoint)
+    if (endpoint_config or {}).get("transport") == "kaltura_genie_browser":
+        from harness.kaltura_genie_browser import KalturaGenieBrowserRunner
+        return KalturaGenieBrowserRunner(agent_endpoint)
     if host == _VAPI_HOST:
         return _VapiCustomerAgentRunner(
             secret=secret,

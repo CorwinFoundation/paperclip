@@ -113,7 +113,7 @@ class ConnectionFields(BaseModel):
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
     agent_label: str = Field(min_length=1, max_length=120)
     endpoint_url: str = Field(max_length=2048)
-    transport: str = Field(pattern="^(rest|openai_chat|json_map|vapi)$")
+    transport: str = Field(pattern="^(rest|openai_chat|json_map|vapi|kaltura_genie|kaltura_genie_browser)$")
     auth: Auth
     model: str | None = None
     system_prompt: str | None = Field(default=None, max_length=32000)
@@ -146,6 +146,18 @@ class ConnectionFields(BaseModel):
                 raise ValueError('request_template must contain one complete prompt value')
             if not self.response_path:
                 raise ValueError("response_path is required for json_map")
+        if self.transport == "kaltura_genie":
+            if not re.fullmatch(r"genie\.[a-z0-9-]+\.ovp\.kaltura\.com", endpoint_host):
+                raise ValueError("kaltura_genie requires a regional Kaltura Genie host")
+            if urlsplit(self.endpoint_url).path.rstrip('/') != '/assistant/converse':
+                raise ValueError("kaltura_genie requires /assistant/converse")
+            if self.auth.type != "bearer":
+                raise ValueError("kaltura_genie requires a scoped KS in the secure auth field")
+        if self.transport == "kaltura_genie_browser":
+            if self.endpoint_url != "https://learning.kaltura.com/":
+                raise ValueError("kaltura_genie_browser requires the approved public URL")
+            if self.auth.type != "none":
+                raise ValueError("kaltura_genie_browser requires auth type none")
         return self
 
 
