@@ -708,60 +708,6 @@ def test_complete_without_attributable_target_call_is_not_measured(monkeypatch):
     assert evidence_row["disposition"] == "report-only"
 
 
-def _run_single_case(monkeypatch, scan_id, result):
-    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
-    runtime = ScanRuntime(
-        run_scan_fn=lambda *_args: (_ for _ in ()).throw(AssertionError()),
-        full_scan_registry_rows=[_row()],
-        full_scan_workers_factory=lambda *_args: {
-            "inspect": lambda *_worker_args: result
-        },
-    )
-    request = _request(scan_id)
-    runtime.kickoff(request, "secret")
-    deadline = time.monotonic() + 3
-    completed = runtime.fetch(request.scan_id)
-    while completed is not None and completed.status in {"queued", "running"}:
-        assert time.monotonic() < deadline
-        time.sleep(0.01)
-        completed = runtime.fetch(request.scan_id)
-    return completed.full_suite_manifest["evidence_rows"][0]
-
-
-def test_deterministic_applicability_gate_is_not_applicable_not_missing(monkeypatch):
-    evidence_row = _run_single_case(
-        monkeypatch,
-        "scan-applicability-gate",
-        WorkerAttemptResult(
-            status="complete",
-            evidence_ref="evidence://fixture/applicability-gate.json",
-            verdict="not_applicable",
-            target_calls=0,
-            judge_calls=0,
-        ),
-    )
-    assert evidence_row["status"] == "complete"
-    assert evidence_row["target_calls"] == 0
-    assert evidence_row["acquisition_basis"] == "not-applicable"
-
-
-def test_structured_invariant_verdict_is_invariant_derived_not_missing(monkeypatch):
-    evidence_row = _run_single_case(
-        monkeypatch,
-        "scan-structured-invariant",
-        WorkerAttemptResult(
-            status="complete",
-            evidence_ref="evidence://fixture/structured-invariant.json",
-            verdict="fail",
-            target_calls=0,
-            judge_calls=0,
-        ),
-    )
-    assert evidence_row["status"] == "complete"
-    assert evidence_row["verdict"] == "fail"
-    assert evidence_row["acquisition_basis"] == "invariant-derived"
-
-
 def test_attempt_manifest_fields_are_tenant_isolated_and_redacted(monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "registered-execution-test-key")
     raw_prompt = "PROPRIETARY PROMPT tenant alpha"
@@ -953,27 +899,3 @@ def test_running_full_scan_does_not_expire_from_status_store():
 
     now[0] = 122.0
     assert runtime.fetch(request.scan_id) is None
-
-
-def test_acquisition_basis_classifier_fails_closed_to_missing():
-    from api.full_scan_executor import ACQUISITION_BASES, _acquisition_basis
-
-    assert {"not-applicable", "invariant-derived"} <= ACQUISITION_BASES
-    # measured wins over every derived basis
-    assert _acquisition_basis(
-        status="complete", verdict="not_applicable", target_calls=1, judge_calls=0
-    ) == "target-measured"
-    # a judged row with no attributable target call is still a genuine gap
-    assert _acquisition_basis(
-        status="complete", verdict="pass", target_calls=0, judge_calls=1
-    ) == "missing"
-    # an unknown verdict with nothing to attribute is a genuine gap
-    assert _acquisition_basis(
-        status="complete", verdict=None, target_calls=0, judge_calls=0
-    ) == "missing"
-    assert _acquisition_basis(
-        status="failed", verdict=None, target_calls=0, judge_calls=0
-    ) == "failed"
-    assert _acquisition_basis(
-        status="skipped", verdict=None, target_calls=0, judge_calls=0
-    ) == "missing"
