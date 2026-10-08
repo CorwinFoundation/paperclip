@@ -121,6 +121,14 @@ def test_units_have_required_cadence_and_direct_runner():
         assert "scanner/v1/scans" not in text
 
 
+def test_schedule_uses_the_rotatable_openrouter_credential():
+    config = (OPS / "scan-schedule.conf").read_text().splitlines()
+
+    assert "BACKBOND_SCAN_JUDGE_PROVIDER=openrouter" in config
+    assert "BACKBOND_SCAN_JUDGE_MODEL=anthropic/claude-haiku-4.5" in config
+    assert "BACKBOND_SCAN_JUDGE_PROVIDER=anthropic" not in config
+
+
 def test_installer_owns_checkout_manifest_and_exact_unit_permissions():
     text = (OPS / "install.sh").read_text()
     assert "useradd --system --no-create-home --shell /usr/sbin/nologin" in text
