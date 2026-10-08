@@ -11,6 +11,8 @@ def test_deploy_uses_actions_secrets_in_runner_temp() -> None:
     assert "secrets.SCANNER_EDGE_DEPLOY_SSH_PRIVATE_KEY" in text
     assert "secrets.SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS" in text
     assert 'ssh_dir="$RUNNER_TEMP/scanner-deploy-ssh"' in text
+    assert "printf '%s\\n' \"$DEPLOY_SSH_PRIVATE_KEY\" > \"$deploy_key\"" in text
+    assert "printf '%s' \"$DEPLOY_SSH_PRIVATE_KEY\" > \"$deploy_key\"" not in text
     assert 'chmod 0600 "$deploy_key" "$known_hosts"' in text
     assert '-i "$DEPLOY_KEY"' in text
     assert 'UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS"' in text

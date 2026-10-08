@@ -596,7 +596,9 @@ jobs:
           deploy_key="$ssh_dir/deploy_key"
           known_hosts="$ssh_dir/known_hosts"
           install -d -m 0700 "$ssh_dir"
-          printf '%s' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
+          # OpenSSH/libcrypto requires the PEM/OpenSSH footer to be newline-
+          # terminated. GitHub Actions secrets do not preserve that invariant.
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
           printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > "$known_hosts"
           chmod 0600 "$deploy_key" "$known_hosts"
           test -s "$deploy_key"
