@@ -11,7 +11,7 @@
     unconfirmed: ["Progress unconfirmed", "No new progress has been confirmed. The scan may still be running."],
     finished: ["Processing finished", "All accepted packs were processed. Review the results to see whether the assessment is usable and complete."],
     incomplete: ["Scan ended before all packs were processed", "Review available results."],
-    error: ["Scan failed before producing results", "Your scan allowance has been restored. Enter your connection details and test the connection before retrying."],
+    error: ["Scan failed before producing results", "Enter your connection details and test the connection before retrying."],
   };
   const terminal = new Set(["finished", "incomplete", "error"]);
   function seconds(value) {
@@ -22,14 +22,14 @@
   function model(raw) {
     const state = copy[raw.state] ? raw.state : "unconfirmed";
     const total = Number.isFinite(raw.accepted_pack_total) ? Math.max(0, raw.accepted_pack_total) : null;
-    const processed = Math.max(0, Number(raw.processed_count) || 0);
+    const processed = Number.isFinite(raw.processed_count) ? Math.max(0, raw.processed_count) : null;
     const estimate = raw.timing && raw.timing.estimated_remaining_seconds;
     return {
       state, heading: copy[state][0], guidance: raw.terminal_message || copy[state][1],
-      stage: String(raw.stage_label || "Preparing scan"), processed, total,
+      stage: String(raw.stage_label || "Stage unavailable"), processed, total,
       usable: Math.max(0, Number(raw.usable_count) || 0),
       unavailable: Math.max(0, Number(raw.unavailable_count) || 0),
-      percent: total > 0 ? Math.max(0, Math.min(100, processed / total * 100)) : null,
+      percent: total > 0 && processed !== null ? Math.max(0, Math.min(100, processed / total * 100)) : null,
       elapsed: seconds(raw.timing && raw.timing.elapsed_seconds),
       estimate: estimate ? `${seconds(estimate.low)}–${seconds(estimate.high)} remaining` : "Estimating",
       lastProgressAt: raw.updated_at || raw.heartbeat_at || null,
@@ -38,7 +38,7 @@
     };
   }
   function announcement(value) {
-    const count = value.total === null ? `${value.processed} accepted packs processed` : `${value.processed} of ${value.total} accepted packs processed`;
+    const count = value.processed === null ? "Accepted-pack count unavailable" : value.total === null ? `${value.processed} accepted packs processed` : `${value.processed} of ${value.total} accepted packs processed`;
     if (value.state === "running") return `Scan progress: ${count}. ${value.usable} usable, ${value.unavailable} unavailable. Stage: ${value.stage}.`;
     if (value.state === "finished") return `Processing finished. ${count}. Review results for assessment status.`;
     return `${value.heading}. ${value.guidance}`.trim();
@@ -50,7 +50,7 @@
     const head=el("div","scan-progress__head");
     const heading=el("h2","",value.heading); heading.id="scan-progress-heading"; head.append(heading,el("span","scan-progress__state",value.state));
     section.append(head,el("p","scan-progress__stage",value.stage));
-    section.append(el("p","scan-progress__count",value.total===null ? `${value.processed} accepted packs processed` : `${value.processed} of ${value.total} accepted packs processed`));
+    section.append(el("p","scan-progress__count",value.processed===null ? "Accepted-pack count unavailable" : value.total===null ? `${value.processed} accepted packs processed` : `${value.processed} of ${value.total} accepted packs processed`));
     const track=el("div","scan-progress__track");
     if(value.percent!==null){ track.setAttribute("role","progressbar"); track.setAttribute("aria-label","Accepted packs processed"); track.setAttribute("aria-valuemin","0"); track.setAttribute("aria-valuemax",String(value.total)); track.setAttribute("aria-valuenow",String(value.processed)); }
     const bar=el("div","scan-progress__bar"); bar.style.width=(value.percent===null?0:value.percent)+"%"; track.append(bar); section.append(track);

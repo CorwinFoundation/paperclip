@@ -57,5 +57,5 @@ def test_verified_error_recovery_copy_preserves_running_and_completed():
     assert values["running"]["heading"] == "Scan in progress"
     assert values["completed"]["heading"] == "Processing finished"
     assert values["error"]["heading"] == "Scan failed before producing results"
-    assert values["error"]["guidance"] == "Your scan allowance has been restored. Enter your connection details and test the connection before retrying."
+    assert values["error"]["guidance"] == "Enter your connection details and test the connection before retrying."
     assert values["error"]["action"] == "Check connection"

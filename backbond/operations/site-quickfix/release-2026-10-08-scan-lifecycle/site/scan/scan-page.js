@@ -26,6 +26,12 @@
       lifecycle.save(storage, key, state);
     }
 
+    function reset() {
+      stop();
+      state = lifecycle.initial();
+      paint();
+    }
+
     async function poll() {
       if (!state.statusToken) return;
       try {
@@ -73,8 +79,9 @@
     buttons.forEach((button) => button.addEventListener("click", start));
     paint();
     if (lifecycle.ACTIVE.has(state.state) && state.statusToken) watch();
+    else if (lifecycle.TERMINAL.has(state.state) && state.statusToken) poll();
     else if (state.state === "unconfirmed" && opts.reconcileAcceptance) reconcile();
-    return { poll, stop, state: () => state };
+    return { poll, stop, reset, state: () => state };
   }
   return { mount };
 });
