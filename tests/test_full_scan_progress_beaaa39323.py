@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -97,7 +98,19 @@ def test_queue_wait_is_separate_from_slow_execution():
     running = store.progress(job.job_id, tenant_id="owner")
     assert running["timing"]["queue_seconds"] == 30.0
     assert running["timing"]["execution_seconds"] == 45.0
-    assert running["timing"]["estimated_remaining_seconds"] == {"low": 120.0, "high": 180.0}
+    # ETA is derived from 45 seconds of execution, excluding the 30-second queue wait.
+    assert running["timing"]["estimated_remaining_seconds"] == {"low": 72.0, "high": 108.0}
+
+
+def test_failed_and_cancelled_progress_never_claims_report_preparation():
+    clock = Clock()
+    for terminal_status in ("failed", "cancelled"):
+        store = FullScanJobStore(clock=clock)
+        job = submit(store)
+        store._jobs[job.job_id] = replace(job, status=terminal_status)
+        value = store.progress(job.job_id, tenant_id="owner")
+        assert value["phase"] == "execution"
+        assert value["stage_label"] == "Scan stopped"
 
 
 def test_progress_survives_restart_and_projects_terminal_incomplete(tmp_path):

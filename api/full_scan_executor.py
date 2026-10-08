@@ -673,8 +673,8 @@ class FullScanJobStore:
             queue_seconds = max(0.0, ((started_at or clock_now) - created_at).total_seconds())
             execution_seconds = max(0.0, (clock_now - started_at).total_seconds()) if started_at else 0.0
             observed_rate = (
-                observed / elapsed_seconds
-                if job.status == "running" and observed and elapsed_seconds > 0
+                observed / execution_seconds
+                if job.status == "running" and observed and execution_seconds > 0
                 else None
             )
             remaining = max(0, total - observed)
@@ -693,8 +693,9 @@ class FullScanJobStore:
                 "job_id": job.job_id,
                 "scan_id": job.scan_id,
                 "state": state,
-                "phase": "report_preparation" if job.status in TERMINAL_JOB_STATUSES else "execution",
-                "stage_label": "Preparing report" if job.status in TERMINAL_JOB_STATUSES else (
+                "phase": "report_preparation" if job.status in {"complete", "incomplete", "incomplete_cost_cap"} else "execution",
+                "stage_label": "Preparing report" if job.status in {"complete", "incomplete", "incomplete_cost_cap"} else (
+                    "Scan stopped" if job.status in {"failed", "cancelled"} else
                     "Waiting for capacity" if job.status == "queued" else "Evidence checks"
                 ),
                 "counts": {**counts, "observed": observed, "total": total},

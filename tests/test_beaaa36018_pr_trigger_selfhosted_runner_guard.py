@@ -253,7 +253,7 @@ def test_deploy_job_is_self_hosted_and_push_gated() -> None:
         f"is on the self-hosted runner. {WHY}"
     )
     deploy = workflow["jobs"]["deploy"]
-    assert deploy["runs-on"] == ["self-hosted", "linux", "x64"]
+    assert deploy["runs-on"] == ["self-hosted", "linux", "x64", "ariclaw"]
     assert "github.event_name == 'push'" in deploy["if"]
     assert "refs/heads/master" in deploy["if"]
 

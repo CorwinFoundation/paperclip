@@ -531,7 +531,7 @@ jobs:
     name: deploy master image to scanner server
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     needs: image-build
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, ariclaw]
     timeout-minutes: 25
     env:
       SHA: ${{ github.sha }}

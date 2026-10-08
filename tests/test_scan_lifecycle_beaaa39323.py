@@ -34,7 +34,34 @@ def test_accepted_and_ambiguous_starts_never_offer_start():
       console.log(JSON.stringify([accepted,running,unknown].map(x=>lifecycle.view(x))));
     """)
     assert [item["action"] for item in value] == ["progress", "progress", "progress"]
-    assert all(item["label"] == "View scan progress" for item in value)
+    assert [item["label"] for item in value] == ["View scan progress", "View scan progress", "Start outcome unknown"]
+    assert value[2]["disabled"] is True
+
+
+def test_status_requires_acceptance_and_terminal_and_order_are_monotonic():
+    value = run_js("""
+      const idleStatus=lifecycle.reduce(lifecycle.initial(), {type:'status',status:'running',sequence:1});
+      let model=lifecycle.reduce(lifecycle.initial(), {type:'accepted',status:'running',statusToken:'token',sequence:2});
+      const older=lifecycle.reduce(model,{type:'status',status:'queued',sequence:1});
+      model=lifecycle.reduce(model,{type:'status',status:'finished',sequence:3});
+      const late=lifecycle.reduce(model,{type:'status',status:'running',sequence:4});
+      console.log(JSON.stringify({idleStatus,older,finished:model,late}));
+    """)
+    assert value["idleStatus"]["state"] == "idle"
+    assert value["older"]["state"] == "running"
+    assert value["finished"]["state"] == "finished"
+    assert value["late"]["state"] == "finished"
+
+
+def test_unknown_outcome_only_reenables_start_after_not_accepted_reconciliation():
+    value = run_js("""
+      let model=lifecycle.reduce(lifecycle.initial(), {type:'ambiguous_start'});
+      const unknown=lifecycle.view(model);
+      model=lifecycle.reduce(model,{type:'not_accepted'});
+      console.log(JSON.stringify({unknown,reconciled:lifecycle.view(model)}));
+    """)
+    assert value["unknown"] == {"action": "progress", "label": "Start outcome unknown", "disabled": True, "showProgress": True}
+    assert value["reconciled"]["label"] == "Start scan"
 
 
 def test_refresh_reconnect_and_terminal_actions_restore_truthfully():
