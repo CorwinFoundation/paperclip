@@ -368,6 +368,10 @@ class IntakeStore:
         if not row or row['used_at'] is not None or row['expires_at'] <= now or row['attempts'] >= 5:
             return None
         if not hmac.compare_digest(row['code_hash'], hashlib.sha256((nonce + ':' + code).encode()).hexdigest()):
+            # Every failed guess consumes this challenge's budget, including
+            # failures after the report-wide ceiling has been reached.  The
+            # ceiling must not turn a fresh challenge into an unlimited oracle.
+            self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
             total_failures = self.db.execute(
                 "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=? AND issued_at>?",
                 (token, now - 3600)).fetchone()[0]
@@ -377,7 +381,6 @@ class IntakeStore:
             # failed-attempt budget hit for a later challenge. Check the
             # report-wide ceiling only on the failure path so distributed
             # abuse cannot lock out a recipient holding a valid fresh code.
-            self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
             return None
         recipient = self.db.execute("SELECT email FROM scans WHERE report_token=?", (token,)).fetchone()
         if not recipient:

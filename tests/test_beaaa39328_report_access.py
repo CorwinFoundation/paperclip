@@ -76,7 +76,7 @@ def test_report_wide_failure_ceiling_does_not_lock_out_recipient(tmp_path):
     assert store.verify_report_code('a'*32, recipient, request_key='recipient', now=240)
 
 
-def test_report_wide_failure_ceiling_bounds_additional_wrong_guesses(tmp_path):
+def test_report_wide_failure_ceiling_still_exhausts_each_challenge(tmp_path):
     store = store_with_report(tmp_path)
     challenges = [store.issue_report_code('a'*32, request_key=f'foreign-{index // 5}', now=100 + index)[1]
                   for index in range(21)]
@@ -88,8 +88,14 @@ def test_report_wide_failure_ceiling_bounds_additional_wrong_guesses(tmp_path):
 
     nonce, code = challenges[-1].split('.')
     wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
-    assert store.verify_report_code('a'*32, wrong, now=240) is None
-    assert store.db.execute("SELECT attempts FROM report_verifications WHERE id=?", (nonce,)).fetchone()[0] == 0
+    for attempt in range(5):
+        assert store.verify_report_code('a'*32, wrong, now=240 + attempt) is None
+    assert store.db.execute("SELECT attempts FROM report_verifications WHERE id=?", (nonce,)).fetchone()[0] == 5
+    # The sixth guess is rejected without changing the exhausted budget, and
+    # even the correct code can no longer revive this challenge.
+    assert store.verify_report_code('a'*32, wrong, now=245) is None
+    assert store.verify_report_code('a'*32, challenges[-1], now=246) is None
+    assert store.db.execute("SELECT attempts FROM report_verifications WHERE id=?", (nonce,)).fetchone()[0] == 5
 
 
 def test_forwarded_link_cannot_exhaust_recipient_issuance_budget(tmp_path):
