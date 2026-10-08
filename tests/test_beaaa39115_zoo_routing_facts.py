@@ -72,3 +72,13 @@ def test_routing_facts_count_upstream_status_and_fingerprint_key() -> None:
     assert facts["openrouter_key_sha256_prefix"] == expected
     assert "sk-or-secret" not in repr(facts)
     assert scheduled_scan._zoo_routing_facts([], {}, {})["openrouter_key_sha256_prefix"] is None
+
+
+def test_rotated_openrouter_key_gets_a_fresh_zoo_job_key() -> None:
+    """BEAAA-39088: a rotated key re-dispatches the same day; same key resumes."""
+    old = scheduled_scan._zoo_credential_epoch({"OPENROUTER_API_KEY": "sk-or-dead"})
+    new = scheduled_scan._zoo_credential_epoch({"OPENROUTER_API_KEY": "sk-or-live"})
+    assert old != new and old.startswith(":or-") and len(old) == len(":or-") + 12
+    assert old == scheduled_scan._zoo_credential_epoch({"OPENROUTER_API_KEY": " sk-or-dead\n"})
+    assert "sk-or" not in old + new
+    assert scheduled_scan._zoo_credential_epoch({}) == ""

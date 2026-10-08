@@ -1400,6 +1400,7 @@ def _run_zoo_target(
         idempotency_key=(
             f"scheduled-zoo:{run_date}:{target.name}:"
             f"{config.scanner_version}:{config.corpus_version}:{config.seed}"
+            f"{_zoo_credential_epoch()}"
         ),
         wall_clock_budget_seconds=config.timeout_seconds,
         rate_limit_per_minute=config.rpm,
@@ -1458,6 +1459,23 @@ def _run_zoo_target(
             _reason_code_aborted_zoo_rows(decisions, target_rows, abort_reason)
         )
     return finished, target_rows, abort_reason
+
+
+
+def _zoo_credential_epoch(environ: Mapping[str, str] | None = None) -> str:
+    """Job-key suffix that changes when the OpenRouter credential changes.
+
+    BEAAA-39088: on 2026-10-08 every zoo target aborted on upstream 401 with
+    a dead key. Jobs reopen by idempotency key and a terminal job replays its
+    stored rows, so rotating the key would not dispatch again until the next
+    UTC date. Keying the job on a hash prefix of the credential makes a
+    rotated key a fresh attempt the same day; an unchanged key still resumes.
+    """
+    source = os.environ if environ is None else environ
+    key = source.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        return ""
+    return ":or-" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
 
 
 def _require_available_judge() -> str:

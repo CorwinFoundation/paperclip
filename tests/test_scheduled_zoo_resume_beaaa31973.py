@@ -28,6 +28,7 @@ def test_zoo_target_reopens_durable_job_and_dispatches_only_pending(monkeypatch,
         capability_manifest={"prose": True},
         adapter_proof="fixture-adapter",
     )
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     config = scheduled_scan.ScheduleConfig(
         "tenant", "endpoint", tmp_path, "scanner", "corpus", 0,
         1, 30, 0, 100, 30, "judge",
@@ -125,6 +126,7 @@ def test_zoo_target_matches_real_checkpoint_identity_after_restart(monkeypatch, 
         capability_manifest={"prose": True},
         adapter_proof="fixture-adapter",
     )
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     config = scheduled_scan.ScheduleConfig(
         "tenant", "endpoint", tmp_path, "scanner", "corpus", 0,
         1, 30, 0, 100, 30, "judge",
