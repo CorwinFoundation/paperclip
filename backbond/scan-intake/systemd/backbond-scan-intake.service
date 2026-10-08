@@ -9,7 +9,7 @@ WorkingDirectory=/opt/backbond/scan-intake/server
 EnvironmentFile=/etc/backbond/scan-intake.env
 LoadCredential=qa-scanner-tokens.json:/etc/backbond/qa-review-scanner.json
 LoadCredential=scan-mail.json:/etc/backbond/scan-mail.json
-ExecStart=/opt/backbond/scan-venv/bin/uvicorn app:app --host 127.0.0.1 --port 8793 --no-access-log
+ExecStart=/opt/backbond/scan-venv/bin/uvicorn app:app --host 127.0.0.1 --port 8793 --proxy-headers --forwarded-allow-ips=127.0.0.1 --no-access-log
 Restart=on-failure
 NoNewPrivileges=true
 PrivateTmp=true

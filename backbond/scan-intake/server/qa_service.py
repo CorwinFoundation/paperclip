@@ -367,14 +367,16 @@ class IntakeStore:
         row = self.db.execute("SELECT * FROM report_verifications WHERE id=? AND report_token=?", (nonce, token)).fetchone()
         if not row or row['used_at'] is not None or row['expires_at'] <= now or row['attempts'] >= 5:
             return None
-        total_failures = self.db.execute(
-            "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=? AND issued_at>?",
-            (token, now - 3600)).fetchone()[0]
-        if total_failures >= 100:
-            return None
         if not hmac.compare_digest(row['code_hash'], hashlib.sha256((nonce + ':' + code).encode()).hexdigest()):
+            total_failures = self.db.execute(
+                "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=? AND issued_at>?",
+                (token, now - 3600)).fetchone()[0]
+            if total_failures >= 100:
+                return None
             # Count only failed guesses. A successful verification is not a
-            # failed-attempt budget hit for a later challenge.
+            # failed-attempt budget hit for a later challenge. Check the
+            # report-wide ceiling only on the failure path so distributed
+            # abuse cannot lock out a recipient holding a valid fresh code.
             self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
             return None
         recipient = self.db.execute("SELECT email FROM scans WHERE report_token=?", (token,)).fetchone()

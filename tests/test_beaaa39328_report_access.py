@@ -54,6 +54,44 @@ def test_failed_verification_is_bounded_across_challenges(tmp_path):
     assert store.verify_report_code('a'*32, recipient, request_key='recipient', now=122)
 
 
+def test_report_wide_failure_ceiling_does_not_lock_out_recipient(tmp_path):
+    store = store_with_report(tmp_path)
+    challenges = [store.issue_report_code('a'*32, request_key=f'foreign-{index // 5}', now=100 + index)[1]
+                  for index in range(20)]
+    _, recipient = store.issue_report_code('a'*32, request_key='recipient', now=121)
+
+    for index, challenge in enumerate(challenges):
+        nonce, code = challenge.split('.')
+        wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
+        for attempt in range(5):
+            assert store.verify_report_code('a'*32, wrong, request_key=f'foreign-{index // 5}',
+                                            now=130 + index * 5 + attempt) is None
+
+    assert store.db.execute(
+        "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=?",
+        ('a'*32,)).fetchone()[0] == 100
+    nonce, code = recipient.split('.')
+    wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
+    assert store.verify_report_code('a'*32, wrong, request_key='foreign-extra', now=239) is None
+    assert store.verify_report_code('a'*32, recipient, request_key='recipient', now=240)
+
+
+def test_report_wide_failure_ceiling_bounds_additional_wrong_guesses(tmp_path):
+    store = store_with_report(tmp_path)
+    challenges = [store.issue_report_code('a'*32, request_key=f'foreign-{index // 5}', now=100 + index)[1]
+                  for index in range(21)]
+    for index, challenge in enumerate(challenges[:20]):
+        nonce, code = challenge.split('.')
+        wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
+        for attempt in range(5):
+            assert store.verify_report_code('a'*32, wrong, now=130 + index * 5 + attempt) is None
+
+    nonce, code = challenges[-1].split('.')
+    wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
+    assert store.verify_report_code('a'*32, wrong, now=240) is None
+    assert store.db.execute("SELECT attempts FROM report_verifications WHERE id=?", (nonce,)).fetchone()[0] == 0
+
+
 def test_forwarded_link_cannot_exhaust_recipient_issuance_budget(tmp_path):
     store = store_with_report(tmp_path)
     for index in range(5):
@@ -106,3 +144,10 @@ def test_cors_allows_credentialed_viewer_and_logout():
     assert '"https://www.backbond.ai"' in source
     assert '"recipient_hint"' not in source
     assert "nonce = secrets.token_hex(16)" in source
+
+
+def test_intake_unit_trusts_only_loopback_proxy_headers():
+    source = (Path(__file__).resolve().parents[1] / 'backbond' / 'scan-intake' /
+              'systemd' / 'backbond-scan-intake.service').read_text()
+    assert '--proxy-headers' in source
+    assert '--forwarded-allow-ips=127.0.0.1' in source
