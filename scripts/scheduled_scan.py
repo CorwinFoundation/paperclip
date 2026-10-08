@@ -219,6 +219,23 @@ def _rows_for_job(job_name: str) -> tuple[list[dict[str, Any]], str]:
     return rows, "production_runner_executable"
 
 
+def _select_exact_zoo_row(
+    rows: Sequence[Mapping[str, Any]], family: str, case: str
+) -> list[Mapping[str, Any]]:
+    """Return one named Zoo row or fail before any paid dispatch."""
+    selected = [
+        row for row in rows
+        if str(row.get("test_id") or "") == family
+        and str(row.get("case_id") or "") == case
+    ]
+    if len(selected) != 1:
+        raise RuntimeError(
+            f"expected exactly one Zoo registry row for {family}/{case}, "
+            f"found {len(selected)}"
+        )
+    return selected
+
+
 def _config(name: str, default: str | None = None) -> str:
     value = os.environ.get(name, default)
     if value is None or not str(value).strip():
@@ -1586,6 +1603,8 @@ def run_scheduled_zoo_scan(
     *,
     config: ScheduleConfig | None = None,
     limit_per_family: int | None = None,
+    zoo_family: str | None = None,
+    zoo_case: str | None = None,
 ) -> Path:
     """Run the controlled target zoo established by BEAAA-29961.
 
@@ -1613,7 +1632,14 @@ def run_scheduled_zoo_scan(
     _require_available_judge()
 
     run_date = datetime.now(timezone.utc).date().isoformat()
-    output_dir = config.evidence_root / run_date / "zoo"
+    diagnostic_selector = None
+    if zoo_family is not None and zoo_case is not None:
+        diagnostic_selector = hashlib.sha256(
+            f"{zoo_family}\0{zoo_case}".encode("utf-8")
+        ).hexdigest()[:12]
+    output_dir = config.evidence_root / run_date / (
+        f"zoo-diagnostic-{diagnostic_selector}" if diagnostic_selector else "zoo"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     conversation_log = _prepare_conversation_log(config, output_dir)
     preflight_path = output_dir / "egress-preflight.json"
@@ -1630,6 +1656,8 @@ def run_scheduled_zoo_scan(
 
     census = load_surface_census()
     rows = load_default_full_scan_registry_rows()
+    if diagnostic_selector is not None:
+        rows = _select_exact_zoo_row(rows, zoo_family, zoo_case)
     decisions = _limit_decisions_per_family(
         route_registry_rows(rows, census), config.limit_per_family
     )
@@ -1924,13 +1952,22 @@ def run_scheduled_scan(
     *,
     config: ScheduleConfig | None = None,
     limit_per_family: int | None = None,
+    zoo_family: str | None = None,
+    zoo_case: str | None = None,
 ) -> Path:
     if job_name not in {"vapi", "vapi-garak", "vapi-containment-failure", "zoo"}:
         raise ValueError(
             "job must be vapi, vapi-garak, vapi-containment-failure, or zoo"
         )
     if job_name == "zoo":
-        return run_scheduled_zoo_scan(config=config, limit_per_family=limit_per_family)
+        return run_scheduled_zoo_scan(
+            config=config,
+            limit_per_family=limit_per_family,
+            zoo_family=zoo_family,
+            zoo_case=zoo_case,
+        )
+    if zoo_family is not None or zoo_case is not None:
+        raise ValueError("Zoo selectors may only be used with --job zoo")
     # Fail closed before the credential read below and before any HTTP client
     # exists. Order is the whole control; a later check would still have read
     # the Vapi key.
@@ -2135,12 +2172,27 @@ def main(argv: list[str] | None = None) -> int:
             "unlimited, which is what the scheduled units run"
         ),
     )
+    parser.add_argument("--zoo-family", help="operator-only exact Zoo family selector")
+    parser.add_argument("--zoo-case", help="operator-only exact Zoo case selector")
     args = parser.parse_args(argv)
     if args.limit_per_family is not None and args.limit_per_family < 1:
         parser.error("--limit-per-family must be at least 1")
+    if (args.zoo_family is None) != (args.zoo_case is None):
+        parser.error("--zoo-family and --zoo-case must be provided together")
+    if args.zoo_family is not None and args.job != "zoo":
+        parser.error("Zoo selectors may only be used with --job zoo")
     try:
+        scan_kwargs: dict[str, Any] = {
+            "limit_per_family": args.limit_per_family,
+        }
+        if args.zoo_family is not None:
+            scan_kwargs.update(
+                zoo_family=args.zoo_family,
+                zoo_case=args.zoo_case,
+            )
         manifest_path = run_scheduled_scan(
-            args.job, limit_per_family=args.limit_per_family
+            args.job,
+            **scan_kwargs,
         )
     except VapiAuthorizationError as exc:
         # Fail closed, loudly, with a non-zero exit and no traceback: the
