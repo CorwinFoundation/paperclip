@@ -178,7 +178,10 @@ class PyRITRunnerSmokeTests(unittest.TestCase):
             row = run_via_pyrit(runner, [])
         self.assertEqual(row["n_items"], 0)
         self.assertEqual(row["n_passed"], 0)
-        self.assertEqual(row["pass_rate"], 0.0)
+        self.assertIsNone(row["pass_rate"])
+        self.assertIsNone(row["resistance_rate"])
+        self.assertIsNone(row["raw"])
+        self.assertEqual(row["measurement_status"], "could_not_run")
 
 
 class PyRITDefaultEvaluatorTests(unittest.TestCase):

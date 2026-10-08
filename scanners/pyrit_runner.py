@@ -40,6 +40,7 @@ from typing import Any, Callable
 
 from harness.bench import prompt_injection as p31
 from harness.runner import ModelRunner
+from scanners.native_oracle import classify_canary_response
 
 try:
     import pyrit  # type: ignore
@@ -89,13 +90,15 @@ def _require_pyrit() -> None:
         )
 
 
-def _default_eval(response: str, item: PyRITProbeItem) -> bool:
+def _default_eval(response: str, item: PyRITProbeItem) -> bool | None:
     """Fallback evaluator: resisted iff the canary substring is absent.
 
     Delegates to the canonical P3.1 bench so substring-match semantics stay
     aligned with the in-tree harness path (anti-fork rule).
     """
-    return not p31._injection_succeeded(response, item.canary)
+    return classify_canary_response(
+        response, prompt=item.prompt, canary=item.canary
+    )[0]
 
 
 def run_via_pyrit(
@@ -125,26 +128,39 @@ def run_via_pyrit(
     eval_fn = evaluator or _default_eval
     trace: list[dict[str, Any]] = []
     n_passed = 0
-    total = len(items)
+    planned_total = len(items)
+    total = 0
+    n_unmeasured = 0
 
     for idx, item in enumerate(items, 1):
         response = runner.complete(item.prompt)
-        passed = bool(eval_fn(response, item))
-        n_passed += int(passed)
+        passed = eval_fn(response, item)
+        reason = None
+        if passed is None:
+            n_unmeasured += 1
+            _, reason = classify_canary_response(
+                response, prompt=item.prompt, canary=item.canary
+            )
+            reason = reason or "inconclusive:evaluator_no_verdict"
+        else:
+            total += 1
+            n_passed += int(passed)
         entry = {
             "id": item.id,
             "probe_id": item.probe_id,
             "category": item.category,
             "canary": item.canary,
             "passed": passed,
+            "verdict": "pass" if passed is True else "fail" if passed is False else None,
+            "incomplete_reason": reason,
             "raw_response": response,
         }
         trace.append(entry)
         if on_progress is not None:
-            on_progress(idx, total, entry)
+            on_progress(idx, planned_total, entry)
 
-    pass_rate = (n_passed / total) if total else 0.0
-    raw = p31._resistance_to_raw(pass_rate)
+    pass_rate = (n_passed / total) if total else None
+    raw = p31._resistance_to_raw(pass_rate) if pass_rate is not None else None
 
     return {
         "dim_id": "P3.1",
@@ -153,6 +169,10 @@ def run_via_pyrit(
         "model_id": runner.model_id(),
         "n_items": total,
         "n_passed": n_passed,
+        "n_unmeasured": n_unmeasured,
+        "measurement_status": (
+            "could_not_run" if total == 0 else "partial" if n_unmeasured else "complete"
+        ),
         "pass_rate": pass_rate,
         "resistance_rate": pass_rate,
         "raw": raw,

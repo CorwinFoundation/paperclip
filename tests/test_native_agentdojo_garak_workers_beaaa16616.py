@@ -291,7 +291,7 @@ def test_garak_beaaa152_probe_name_strips_garak_prefix(monkeypatch):
     evaluators_base = types.ModuleType("garak.evaluators.base")
     evaluators_base.ThresholdEvaluator = type(
         "FakeEvaluator", (), {"__init__": lambda self, threshold: None,
-                               "test": lambda self, score: score > 0.5}
+                               "test": lambda self, score: score < 0.5}  # garak: True = PASS
     )
     monkeypatch.setitem(sys.modules, "garak", garak_mod)
     monkeypatch.setitem(sys.modules, "garak.attempt", attempt_mod)
@@ -388,7 +388,7 @@ def _stub_garak(monkeypatch, probe_cls):
     evaluators_base = types.ModuleType("garak.evaluators.base")
     evaluators_base.ThresholdEvaluator = type(
         "FakeEvaluator", (), {"__init__": lambda self, threshold: None,
-                              "test": lambda self, score: score > 0.5}
+                              "test": lambda self, score: score < 0.5}  # garak: True = PASS
     )
     monkeypatch.setitem(sys.modules, "garak", garak_mod)
     monkeypatch.setitem(sys.modules, "garak.attempt", attempt_mod)

@@ -78,14 +78,19 @@ def test_real_garak_0160_probe_generator_detector_and_seed():
         },
         seed=16616,
     )
-    # test.Blank generates 1 target call, which is below the GARAK_MIN_SAMPLE_SIZE=48
-    # floor, so the row is correctly marked incomplete with rate fields still populated.
+    # test.Blank in garak 0.16.0 uses primary_detector="any.AnyOutput".
+    # any.AnyOutput scores 1.0 for any non-empty response (the probe treats ANY
+    # output to a blank prompt as a "hit").  ThresholdEvaluator.test(1.0) at
+    # threshold 0.5 returns False → the attempt is an attack hit → hit_count=1.
+    # A compliant model returning empty would score 0.0 → test(0.0)=True → hit_count=0,
+    # but that path would also trigger could_not_run:empty_response before garak runs.
+    # The sample_size=1 is below GARAK_MIN_SAMPLE_SIZE=48, so status stays "incomplete".
     assert result["status"] == "incomplete", result
     assert "garak_sample_size_below_floor" in (result.get("incomplete_reason") or ""), result
     assert result["evidence_ref"].endswith("/garak/garak.test.Blank.json")
     assert result["sample_size"] == 1
-    assert result["hit_count"] == 0
-    assert result["numeric_result"] == 0.0
+    assert result["hit_count"] == 1   # any.AnyOutput: non-empty "controlled local response" is a hit
+    assert result["numeric_result"] == 1.0
 
 
 def test_real_inspect_03220_eval_target_model_and_terminal_verdict():

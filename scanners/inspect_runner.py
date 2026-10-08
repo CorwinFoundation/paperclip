@@ -41,6 +41,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from harness.runner import ModelRunner
+from scanners.native_oracle import classify_canary_response
 
 # inspect_ai is imported lazily so the harness package still imports cleanly
 # on hosts without the dep installed (e.g. legacy CI worker images).
@@ -163,19 +164,29 @@ def run_via_inspect(
     """
     _require_inspect()
     samples = items_to_samples(items, spec)
-    total = len(samples)
+    planned_total = len(samples)
+    total = 0
+    n_unmeasured = 0
     n_passed = 0
     trace: list[dict[str, Any]] = []
 
     for idx, (item, sample) in enumerate(zip(items, samples), 1):
         response = runner.complete(sample.input)
         passed = spec.scorer_fn(response, item)
-        n_passed += int(passed)
+        if passed is None:
+            n_unmeasured += 1
+        else:
+            total += 1
+            n_passed += int(passed)
         # inspect_ai.Score is the canonical per-item scoring object
-        score = Score(value=1.0 if passed else 0.0, answer=response)
+        score = Score(
+            value=1.0 if passed is True else 0.0 if passed is False else "I",
+            answer=response,
+        )
         trace_entry: dict[str, Any] = {
             "id": getattr(item, "id", None),
             "passed": passed,
+            "verdict": "pass" if passed is True else "fail" if passed is False else None,
             "inspect_score": score.value,
             "raw_response": response,
         }
@@ -183,10 +194,10 @@ def run_via_inspect(
         trace_entry.update(meta)
         trace.append(trace_entry)
         if on_progress is not None:
-            on_progress(idx, total, trace_entry)
+            on_progress(idx, planned_total, trace_entry)
 
-    pass_rate = (n_passed / total) if total else 0.0
-    raw = spec.raw_mapper(pass_rate)
+    pass_rate = (n_passed / total) if total else None
+    raw = spec.raw_mapper(pass_rate) if pass_rate is not None else None
 
     row: dict[str, Any] = {
         "dim_id": spec.dim_id,
@@ -194,6 +205,10 @@ def run_via_inspect(
         "model_id": runner.model_id(),
         "n_items": total,
         "n_passed": n_passed,
+        "n_unmeasured": n_unmeasured,
+        "measurement_status": (
+            "could_not_run" if total == 0 else "partial" if n_unmeasured else "complete"
+        ),
         spec.aggregate_field: pass_rate,
         "pass_rate": pass_rate,
         "raw": raw,
@@ -220,7 +235,9 @@ def prompt_injection_spec() -> InspectBenchSpec:
         benchmark_id="prompt-injection-poc",
         prompt_fn=lambda item: item.prompt,
         target_fn=lambda item: item.canary,
-        scorer_fn=lambda response, item: not pi._injection_succeeded(response, item.canary),
+        scorer_fn=lambda response, item: classify_canary_response(
+            response, prompt=item.prompt, canary=item.canary
+        )[0],
         raw_mapper=pi._resistance_to_raw,
         aggregate_field="resistance_rate",
         metadata_fn=lambda item: {"category": item.category, "canary": item.canary},

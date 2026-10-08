@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backbond.com/contracts/integration-verdict-v1.schema.json",
+  "title": "BackBond integration verdict v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "scenario_id", "attempt_id", "engine", "engine_version",
+    "target_version", "identity", "payload_sha256", "oracle_sha256", "seed",
+    "actual_turns", "tool_calls", "before_state", "after_state", "elapsed_ms",
+    "target_calls", "judge_calls", "cost_usd", "outcome", "reason",
+    "oracle_evaluated", "evidence_refs", "evidence_origin", "replay_command"
+  ],
+  "properties": {
+    "schema_version": {"const": "integration_verdict_v1"},
+    "scenario_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "engine": {"type": "string", "minLength": 1},
+    "engine_version": {"type": "string", "minLength": 1},
+    "target_version": {"type": "string", "minLength": 1},
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["session_id", "caller_id"],
+      "properties": {"session_id": {"type": "string", "minLength": 1}, "caller_id": {"type": "string", "minLength": 1}}
+    },
+    "payload_sha256": {"$ref": "#/$defs/sha256"},
+    "oracle_sha256": {"$ref": "#/$defs/sha256"},
+    "seed": {"type": ["integer", "string"]},
+    "actual_turns": {"type": "integer", "minimum": 0},
+    "tool_calls": {"type": "array", "items": {"type": "object"}},
+    "before_state": {},
+    "after_state": {},
+    "elapsed_ms": {"type": "number", "minimum": 0},
+    "target_calls": {"type": "integer", "minimum": 0},
+    "judge_calls": {"type": "integer", "minimum": 0},
+    "cost_usd": {"type": "number", "minimum": 0},
+    "outcome": {"enum": ["PASS", "FAIL", "UNSUPPORTED", "ERROR", "INCONCLUSIVE"]},
+    "reason": {"type": "string", "minLength": 1},
+    "oracle_evaluated": {"type": "boolean"},
+    "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "evidence_origin": {"enum": ["reference_agent", "customer"]},
+    "replay_command": {"type": "string", "minLength": 1}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

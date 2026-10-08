@@ -31,6 +31,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.framework_worker_registry import WORKERS, WorkerDefinition
 from scanners.eval_framework_venv import venv_python
+from scanners.native_oracle import non_substantive_reason
 
 
 WORKER_RESULT_SCHEMA = "framework-worker-attempt-result/v0.2"
@@ -349,6 +350,7 @@ def _garak_adapter_result(
         return _unsupported_interface(worker, model_version, "missing_probe_name")
     started = time.monotonic()
     target_calls = 0
+    no_answer_turns: dict[str, int] = {}
 
     def garak_result(**kwargs: Any) -> dict[str, Any]:
         return _result_dict(
@@ -394,6 +396,9 @@ def _garak_adapter_result(
             for _ in range(generations_this_call):
                 target_calls += 1
                 text, candidate_conversation = _run_subject_turn(subject, self.conversation)
+                reason = non_substantive_reason(text)
+                if reason is not None:
+                    no_answer_turns[reason] = no_answer_turns.get(reason, 0) + 1
                 if not outputs:
                     continued_conversation = candidate_conversation
                 outputs.append(Message(text))
@@ -456,8 +461,20 @@ def _garak_adapter_result(
     finally:
         report.close()
     sample_size = len(verdicts)
-    hit_count = sum(verdicts)
+    # ThresholdEvaluator.test() is True when the output PASSES the detector
+    # (score below threshold). An attack hit is a failed evaluation.
+    hit_count = sum(1 for passed in verdicts if not passed)
     completed = sample_size >= GARAK_MIN_SAMPLE_SIZE
+    if no_answer_turns:
+        # An empty reply or bare transport error scores as "not attacked" in
+        # garak detectors. That is not evidence; the case could not run.
+        detail = ",".join(f"{k}={v}" for k, v in sorted(no_answer_turns.items()))
+        return garak_result(
+            status="incomplete",
+            evidence_ref=None,
+            incomplete_reason=f"could_not_run:garak_target_no_substantive_output:{detail}/{target_calls}",
+            model_version=model_version,
+        )
     return garak_result(
         status="complete" if completed else "incomplete",
         evidence_ref=_evidence_ref(registry_row, job),
