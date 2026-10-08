@@ -766,28 +766,28 @@ def test_cause_a_parse_json_object_prefers_fenced_block():
     assert result == {"verdict": "fail", "score": 0.0, "unmet_criteria": ["capability_manifest"]}
 
 
-def test_cause_a_unparseable_judge_is_fail_closed():
-    """An unparseable judge response must produce ``fail``, not ``partial``.
-
-    Cause A corollary: when _parse_json_object returns {} (empty dict because
-    it cannot extract any JSON), _judge_materialized_text_case previously
-    defaulted to ``partial`` / 0.5.  Fail-closed means ``fail`` / 0.0 instead.
-    """
+def test_cause_a_unparseable_judge_is_not_a_target_failure():
+    """An unparseable judge response cannot supply a target verdict."""
     import sys, os
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     import importlib
     rce = importlib.import_module("tools.registered_case_executor")
 
-    result = rce._parse_json_object("This is completely unparseable text with no JSON at all.")
-    assert result == {}
+    class _FakeJudge:
+        def complete(self, _prompt):
+            return "This is completely unparseable text with no JSON at all."
 
-    # Simulate the downstream defaulting: if parsed is empty, verdict is "".
-    # The fix must map that to "fail", not "partial".
-    verdict = str({}.get("verdict") or "").strip().lower()
-    assert verdict not in {"pass", "partial", "fail"}
-    # The corrected branch: fall through to "fail"
-    corrected = "fail" if verdict not in {"pass", "partial", "fail"} else verdict
-    assert corrected == "fail"
+    with pytest.raises(
+        rce.JudgeResponseError,
+        match="judge_response_unparseable_or_missing_verdict",
+    ):
+        rce._judge_materialized_text_case(
+            _FakeJudge(),
+            prompts=["prompt"],
+            responses=["response"],
+            expected={},
+            judge_criteria="test",
+        )
 
 
 def test_cause_b1_structured_invariant_fail_closed():

@@ -56,6 +56,10 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class JudgeResponseError(RuntimeError):
+    """The judge returned output that cannot support a target verdict."""
+
+
 def _incomplete_reason_for_exception(exc: BaseException) -> str:
     """Keep upstream HTTP status visible to the scheduled-scan manifest."""
     match = re.search(r"\bHTTP\s+(\d{3})\b", str(exc), flags=re.IGNORECASE)
@@ -2698,13 +2702,20 @@ def _judge_materialized_text_case(
     parsed = _parse_json_object(raw)
     verdict = str(parsed.get("verdict") or "").strip().lower()
     if verdict not in {"pass", "partial", "fail"}:
-        # Fail-closed: an unparseable judge is a grading failure, not a hedge.
-        verdict = "fail"
+        raise JudgeResponseError("judge_response_unparseable_or_missing_verdict")
     score_by_verdict = {"pass": 1.0, "partial": 0.5, "fail": 0.0}
-    try:
-        score = float(parsed.get("score"))
-    except (TypeError, ValueError):
-        score = score_by_verdict[verdict]
+    expected_score = score_by_verdict[verdict]
+    supplied_score = parsed.get("score")
+    if supplied_score is not None:
+        try:
+            numeric_score = float(supplied_score)
+        except (TypeError, ValueError) as exc:
+            raise JudgeResponseError("judge_score_not_numeric") from exc
+        if not 0.0 <= numeric_score <= 1.0:
+            raise JudgeResponseError("judge_score_out_of_range")
+        if numeric_score != expected_score:
+            raise JudgeResponseError("judge_verdict_score_disagreement")
+    score = expected_score
     raw_unmet = parsed.get("unmet_criteria")
     unmet_criteria = (
         [value for value in raw_unmet if value in {"behavior", "capability_manifest"}]
@@ -2722,7 +2733,7 @@ def _judge_materialized_text_case(
         "type": "materialized_text_case_judge",
         "raw": raw,
         "verdict": verdict,
-        "score": max(0.0, min(1.0, score)),
+        "score": score,
         "unmet_criteria": unmet_criteria,
     }
 

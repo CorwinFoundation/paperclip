@@ -19,6 +19,7 @@ from scanners.live_probe_orchestrator import ScanRequest, ScanResult
 import tools.registered_case_executor as execution
 from tools.registered_case_executor import (
     EvidenceStore,
+    JudgeResponseError,
     RegisteredCaseExecutor,
     ScanBudget,
     build_registered_case_workers,
@@ -157,6 +158,54 @@ def test_materialized_framework_case_records_runtime_identity_and_aliases(tmp_pa
     assert evidence["execution_mode"] == "materialized_framework_compatible_case"
     assert evidence["source_aliases"]
     assert evidence["judge"]["computed_runtime_case_identity"] == row["runtime_case_identity"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason"),
+    [
+        ('{"verdict":"fail","score":1.0}', "judge_verdict_score_disagreement"),
+        ('{"verdict":"pass","score":0.0}', "judge_verdict_score_disagreement"),
+        ('{"verdict":"fail","score":9}', "judge_score_out_of_range"),
+    ],
+)
+def test_materialized_judge_rejects_score_verdict_disagreement(raw, reason):
+    with pytest.raises(JudgeResponseError, match=reason):
+        execution._judge_materialized_text_case(
+            MockRunner("judge", lambda _prompt: raw),
+            prompts=["prompt"],
+            responses=["response"],
+            expected={},
+            judge_criteria="criteria",
+        )
+
+
+@pytest.mark.parametrize("test_id", ["pyrit", "agentdojo", "halueval"])
+@pytest.mark.parametrize("raw", ["", "The response is a pass."])
+def test_unparseable_materialized_judge_is_could_not_run(
+    tmp_path, test_id, raw
+):
+    row = next(
+        row
+        for row in build_registry()
+        if row.get("production_runner_executable") is True
+        and row["test_id"] == test_id
+    )
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("target", lambda _prompt: "target response"),
+        judge=MockRunner("judge", lambda _prompt: raw),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(max_estimated_judge_cost_usd=100.0),
+    )
+
+    result = executor(
+        row,
+        SimpleNamespace(job_id=f"job-{test_id}", agent_id="agent-1", seed=42),
+    )
+
+    assert result.status == "failed"
+    assert result.verdict == "unresolved"
+    assert result.numeric_result is None
+    assert result.incomplete_reason == "case_execution_error:JudgeResponseError"
 
 
 def test_vapi_cloudflare_injection_refusal_is_terminal_without_judge(tmp_path):

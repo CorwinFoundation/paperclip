@@ -501,12 +501,17 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # three-shape derive. The three tranche1 families are untouched: budget stays
     # 180/0 and the family rows and zero-weight invariants asserted in this same
     # test are unchanged; only the embedded evaluator pin and this digest move.
+    # BEAAA-39169 rejects contradictory or unparseable materialized judge
+    # output before it can become a target verdict. These three deterministic
+    # tranche1 families make zero judge calls, so their 180/0 budget, rows and
+    # zero-weight invariants are unchanged; only the embedded evaluator pin and
+    # this derived digest move.
     # Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "de1f0d08902eb2f015575930a92d4f014e669c379262193e60106b7bb23979b9"
+            "c9cb990b113a54a89611f83405e97e64713811e3255389bbcdc78ae9a5f49d9e"
     )
 
 
