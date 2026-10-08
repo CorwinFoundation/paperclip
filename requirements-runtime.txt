@@ -14,9 +14,9 @@ psycopg==3.2.13 \
 psycopg-binary==3.2.13 \
     --hash=sha256:27150515de5f709e4142429db6fd36a1d01f0b8b17d915b5f7bb095364465398
     # via psycopg
-anthropic==0.40.0 \
-    --hash=sha256:3efeca6d9e97813f93ed34322c6c7ea2279bf0824cd0aa71b59ce222665e2b87 \
-    --hash=sha256:442028ae8790ff9e3b6f8912043918755af1230d193904ae2ef78cc22995280c
+anthropic==0.49.0 \
+    --hash=sha256:bbc17ad4e7094988d2fa86b87753ded8dce12498f4b85fe5810f208f454a8375 \
+    --hash=sha256:c09e885b0f674b9119b4f296d8508907f6cff0009bc20d5cf6b35936c40b4398
     # via -r /tmp/tmp.kWxco0iFFz/requirements-runtime.txt
 anyio==4.14.2 \
     --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \

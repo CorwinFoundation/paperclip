@@ -83,7 +83,7 @@ agentdojo==0.1.35
 # lazy-imported by the live model adapters via `from openai import OpenAI`
 # (harness/runner.py, harness/live_tool_agent.py); the deterministic golden
 # scoring path does not import it, so the bump cannot move golden scores.
-anthropic==0.40.0
+anthropic==0.49.0
 openai==1.58.1
 google-genai==0.3.0
 
