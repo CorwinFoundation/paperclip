@@ -1255,6 +1255,12 @@ class ScanRuntime:
                 return refreshed
         return result
 
+    def progress(self, scan_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+        try:
+            return self._full_scan_job_store.progress_for_scan(scan_id, tenant_id=tenant_id)
+        except KeyError:
+            return None
+
     # ----- BEAAA-38869 durable accepted scans -----
     def webhook_outbox_store(self) -> Any | None:
         """Durable outbox store sharing the accepted-scan DB, or ``None``."""
@@ -2606,6 +2612,21 @@ def scan_status_handler(
             dashboard_base_url=dashboard_base_url,
         )
     raise HandlerError(422, "audience_invalid")
+
+
+def scan_progress_handler(
+    scan_id: str,
+    *,
+    runtime: ScanRuntime,
+    authenticated_tenant_id: str | None,
+) -> tuple[int, dict[str, Any]]:
+    """Owner-scoped progress; absent and foreign scans share a 404 shape."""
+    if not authenticated_tenant_id:
+        raise HandlerError(401, "authentication_required")
+    progress = runtime.progress(scan_id, tenant_id=authenticated_tenant_id)
+    if progress is None:
+        raise HandlerError(404, "scan_not_found")
+    return 200, progress
 
 
 def scan_context_report_handler(

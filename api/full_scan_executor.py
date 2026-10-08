@@ -298,6 +298,7 @@ class FullScanJob:
     final_manifest_hash: str | None = None
     bind_eligibility: str = "blocked_base_suite_incomplete"
     created_at: datetime | None = None
+    started_at: datetime | None = None
     updated_at: datetime | None = None
     wall_clock_budget_seconds: int | None = None
     rate_limit_per_minute: int | None = None
@@ -630,6 +631,102 @@ class FullScanJobStore:
         with self._lock:
             return self._get(job_id)
 
+    def progress(
+        self,
+        job_id: str,
+        *,
+        tenant_id: str,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Return a bounded, owner-scoped live progress projection.
+
+        Counts are derived from the accepted registry and the store's durable,
+        deduplicated evidence rows.  No probe content, target replies, evidence
+        references, credentials, or cross-tenant existence signal is exposed.
+        """
+        with self._lock:
+            job = self._get(job_id)
+            if not tenant_id or job.tenant_id != tenant_id:
+                # Use the same not-found shape for absent and foreign jobs.
+                raise KeyError(job_id)
+
+            total = len(job.registry_cases)
+            counts = {"completed": 0, "timed_out": 0, "incomplete": 0, "failed": 0}
+            accepted = {case.case_id for case in job.registry_cases}
+            for row in job.evidence_rows:
+                if row.probe_id not in accepted:
+                    continue
+                if row.status == "complete":
+                    counts["completed"] += 1
+                elif row.status == "failed":
+                    counts["failed"] += 1
+                elif row.status == "incomplete" and row.incomplete_reason == "timeout":
+                    counts["timed_out"] += 1
+                elif row.status in {"incomplete", "skipped", COULD_NOT_RUN_PROBE_STATUS}:
+                    counts["incomplete"] += 1
+
+            observed = min(total, sum(counts.values()))
+            clock_now = now or self._clock()
+            created_at = job.created_at or clock_now
+            started_at = job.started_at
+            elapsed_seconds = max(0.0, (clock_now - created_at).total_seconds())
+            queue_seconds = max(0.0, ((started_at or clock_now) - created_at).total_seconds())
+            execution_seconds = max(0.0, (clock_now - started_at).total_seconds()) if started_at else 0.0
+            observed_rate = (
+                observed / elapsed_seconds
+                if job.status == "running" and observed and elapsed_seconds > 0
+                else None
+            )
+            remaining = max(0, total - observed)
+            eta_seconds = remaining / observed_rate if observed_rate else None
+            state = {
+                "queued": "queued",
+                "running": "running",
+                "complete": "finished",
+                "incomplete": "incomplete",
+                "incomplete_cost_cap": "incomplete",
+                "failed": "error",
+                "cancelled": "error",
+            }.get(job.status, "unconfirmed")
+            unavailable = counts["timed_out"] + counts["incomplete"] + counts["failed"]
+            return {
+                "job_id": job.job_id,
+                "scan_id": job.scan_id,
+                "state": state,
+                "phase": "report_preparation" if job.status in TERMINAL_JOB_STATUSES else "execution",
+                "stage_label": "Preparing report" if job.status in TERMINAL_JOB_STATUSES else (
+                    "Waiting for capacity" if job.status == "queued" else "Evidence checks"
+                ),
+                "counts": {**counts, "observed": observed, "total": total},
+                "processed_count": observed,
+                "accepted_pack_total": total,
+                "usable_count": counts["completed"],
+                "unavailable_count": unavailable,
+                "timing": {
+                    "elapsed_seconds": round(elapsed_seconds, 3),
+                    "queue_seconds": round(queue_seconds, 3),
+                    "execution_seconds": round(execution_seconds, 3),
+                    "observed_rate_per_second": round(observed_rate, 6) if observed_rate else None,
+                    "estimated_remaining_seconds": (
+                        {"low": round(eta_seconds * 0.8, 3), "high": round(eta_seconds * 1.2, 3)}
+                        if eta_seconds else None
+                    ),
+                },
+                "heartbeat_at": _iso(job.updated_at or created_at),
+                "updated_at": _iso(job.updated_at or created_at),
+            }
+
+    def progress_for_scan(
+        self, scan_id: str, *, tenant_id: str, now: datetime | None = None
+    ) -> dict[str, Any]:
+        """Resolve a public scan id without disclosing foreign job existence."""
+        with self._lock:
+            job_id = next((job.job_id for job in self._jobs.values()
+                           if job.scan_id == scan_id and job.tenant_id == tenant_id), None)
+        if job_id is None:
+            raise KeyError(scan_id)
+        return self.progress(job_id, tenant_id=tenant_id, now=now)
+
     def lease(self, job_id: str, *, ttl_seconds: int = 300) -> dict[str, Any]:
         with self._lock:
             if ttl_seconds <= 0:
@@ -658,6 +755,7 @@ class FullScanJobStore:
             updated = replace(
                 job,
                 status="running",
+                started_at=job.started_at or now,
                 attempts=job.attempts + (attempt_id,),
                 active_attempt_id=attempt_id,
                 lease_expires_at=lease_expires_at,
@@ -2234,6 +2332,7 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "final_manifest_hash": job.final_manifest_hash,
         "bind_eligibility": job.bind_eligibility,
         "created_at": _iso(job.created_at) if job.created_at else None,
+        "started_at": _iso(job.started_at) if job.started_at else None,
         "updated_at": _iso(job.updated_at) if job.updated_at else None,
         "wall_clock_budget_seconds": job.wall_clock_budget_seconds,
         "rate_limit_per_minute": job.rate_limit_per_minute,
@@ -2300,6 +2399,7 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
             "bind_eligibility", "blocked_base_suite_incomplete"
         ),
         created_at=_parse_iso(record.get("created_at")),
+        started_at=_parse_iso(record.get("started_at")),
         updated_at=_parse_iso(record.get("updated_at")),
         wall_clock_budget_seconds=record.get("wall_clock_budget_seconds"),
         rate_limit_per_minute=record.get("rate_limit_per_minute"),
