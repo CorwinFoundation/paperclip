@@ -50,3 +50,15 @@ def test_summary_never_changes_the_outcome_when_the_manifest_is_unreadable(tmp_p
     skipped = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
     assert skipped["operator_summary_skipped"] == str(missing)
     assert "error" in skipped
+
+
+def test_exception_summary_is_published_and_sanitized(tmp_path, monkeypatch):
+    monkeypatch.setenv("BACKBOND_SCAN_EVIDENCE_ROOT", str(tmp_path))
+    path = scheduled_scan.publish_operator_exception_summary(
+        "vapi", RuntimeError("request failed Authorization: Bearer secret")
+    )
+    assert path is not None
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    assert summary["status"] == "exception"
+    assert summary["resumable"] is True
+    assert "secret" not in summary["abort_reason"]

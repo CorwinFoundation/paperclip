@@ -33,6 +33,7 @@ from api.full_scan_executor import (  # noqa: E402
     FullScanJobStore,
     TERMINAL_JOB_STATUSES,
     UpstreamQuotaAbort,
+    build_attempt_manifest,
     case_id_from_registry_row,
     dispatch_registry_attempt,
     registry_cases_from_rows,
@@ -47,7 +48,7 @@ from tools.registered_case_executor import (  # noqa: E402
     default_judge_runner,
 )
 from tools.framework_workers import build_live_framework_workers  # noqa: E402
-from tools._exception_scrubber import strip_http_diagnostics  # noqa: E402
+from tools._exception_scrubber import scrub, strip_http_diagnostics  # noqa: E402
 
 
 def _pending_rows_for_resume(rows: Sequence[Mapping[str, Any]], resumed: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -2062,6 +2063,7 @@ def run_scheduled_scan(
         capability_manifest=capability_manifest,
     )
     vapi_abort_reason: str | None = None
+    wall_clock_exit = False
     if job.status in TERMINAL_JOB_STATUSES:
         finished = job
     else:
@@ -2073,17 +2075,51 @@ def run_scheduled_scan(
         lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
         attempt_id = str(lease["attempt_id"])
         try:
-            dispatch_registry_attempt(
-                store,
-                job.job_id,
-                attempt_id=attempt_id,
-                registry_rows=pending_rows,
-                workers=workers,
-                execution_flag=execution_flag,
-            )
+            # Dispatch one row at a time so the shared six-hour ledger can stop
+            # the attempt without walking the rest of the roster and turning
+            # every remaining case into another budget-exceeded row. Each call
+            # checkpoints its row; an incomplete budget row remains pending by
+            # FullScanJobStore contract and is retried on the next invocation.
+            for pending_row in pending_rows:
+                dispatch_registry_attempt(
+                    store,
+                    job.job_id,
+                    attempt_id=attempt_id,
+                    registry_rows=[pending_row],
+                    workers=workers,
+                    execution_flag=execution_flag,
+                    checkpoint_every=1,
+                )
+                current = store.status(job.job_id)
+                case_id = case_id_from_registry_row(pending_row)
+                latest = next(
+                    (row for row in current.evidence_rows if row.probe_id == case_id),
+                    None,
+                )
+                if (
+                    latest is not None
+                    and latest.status == "incomplete"
+                    and latest.incomplete_reason
+                    == "budget_exceeded:max_wall_clock_seconds"
+                ):
+                    wall_clock_exit = True
+                    vapi_abort_reason = "budget_exceeded:max_wall_clock_seconds"
+                    break
         except UpstreamQuotaAbort as exc:
             vapi_abort_reason = exc.abort_reason
-        finished = store.finalize(job.job_id, attempt_id=attempt_id)
+        if wall_clock_exit:
+            # Clear the live lease now instead of relying on process-death
+            # recovery. The same idempotent job is immediately resumable.
+            store.recover()
+            partial = store.status(job.job_id)
+            finished = replace(
+                partial,
+                final_manifest=build_attempt_manifest(
+                    partial, finished_at=datetime.now(timezone.utc)
+                ),
+            )
+        else:
+            finished = store.finalize(job.job_id, attempt_id=attempt_id)
     finished_at = datetime.now(timezone.utc).isoformat()
     manifest = _operator_manifest(
         job_name=job_name,
@@ -2099,6 +2135,9 @@ def run_scheduled_scan(
     )
     manifest["aborted"] = vapi_abort_reason is not None
     manifest["abort_reason"] = vapi_abort_reason
+    manifest["resumable"] = wall_clock_exit
+    if manifest["resumable"]:
+        manifest["pending_cases"] = len(store.resume(job.job_id)["pending_cases"])
     manifest["capability_manifest"] = capability_manifest
     manifest["capability_declaration"] = capability_evidence
     manifest_path = output_dir / "manifest.json"
@@ -2116,7 +2155,7 @@ OPERATOR_SUMMARY_FIELDS = (
     "estimated_cost_usd", "aborted", "abort_reason", "coverage_passed",
     "coverage_failures", "reconciliation", "incomplete_by_reason",
     "evidence_rows", "routed_families", "judge_calls", "families", "routing",
-    "case_execution_errors",
+    "case_execution_errors", "status", "resumable", "pending_cases",
 )
 
 
@@ -2153,6 +2192,31 @@ def publish_operator_summary(manifest_path: Path) -> Path:
     )}
     print(json.dumps({"operator_summary": str(path), **brief}, sort_keys=True), file=sys.stderr)
     return path
+
+
+def publish_operator_exception_summary(job_name: str, exc: BaseException) -> Path | None:
+    """Best-effort sanitized summary for failures before a manifest returns."""
+    try:
+        evidence_root = Path(_config("BACKBOND_SCAN_EVIDENCE_ROOT"))
+        run_date = datetime.now(timezone.utc).date().isoformat()
+        path = evidence_root / run_date / f"{job_name}.summary.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "schema": "backbond.scheduled-scan-operator-summary/v1",
+            "job": job_name,
+            "run_date": run_date,
+            "status": "exception",
+            "aborted": True,
+            "abort_reason": f"{type(exc).__name__}: {scrub(strip_http_diagnostics(str(exc)), {})}",
+            "resumable": True,
+        }
+        path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        os.chmod(path, 0o644)
+        print(json.dumps({"operator_summary": str(path), **summary}, sort_keys=True), file=sys.stderr)
+        return path
+    except Exception as publish_exc:
+        print(json.dumps({"operator_summary_skipped": job_name, "error": str(publish_exc)}, sort_keys=True), file=sys.stderr)
+        return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2199,6 +2263,9 @@ def main(argv: list[str] | None = None) -> int:
         # journal line an operator reads should say what is missing.
         print(f"scheduled-scan refused to run: {exc}", file=sys.stderr)
         return 2
+    except Exception as exc:
+        publish_operator_exception_summary(args.job, exc)
+        return 1
     publish_operator_summary(manifest_path)
     if args.job == "zoo":
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
