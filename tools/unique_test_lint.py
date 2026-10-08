@@ -79,7 +79,11 @@ METADATA_ONLY_REASONS = frozenset(
 SEVERITY_VALUES = frozenset(
     {"critical", "high", "medium", "low", "info", "sev1", "sev2", "sev3", "sev4"}
 )
+# Founder ruling on imported reference sets (BEAAA-39490): apply the same
+# cross-corpus near-duplicate boundary to imported and BackBond-authored rows.
+# A score strictly above 0.6 is a duplicate; equality remains eligible.
 NEAR_DUP_JACCARD = 0.8
+IMPORTED_NEAR_DUP_JACCARD = 0.6
 SHINGLE_WORDS = 3
 
 # --- prompt content patterns -------------------------------------------------
@@ -357,6 +361,7 @@ def assign_duplicates(
     canonical_by_text: dict[str, str] = {}
     canonical_by_base: dict[str, str] = {}
     canonical_shingles: dict[str, frozenset[str]] = {}
+    canonical_records: dict[str, LintRecord] = {}
     postings: dict[str, list[str]] = defaultdict(list)
     for result in order:
         record = result.record
@@ -387,7 +392,11 @@ def assign_duplicates(
             score = inter / (len(sh) + len(other_sh) - inter)
             if score > best or (score == best and other < best_id):
                 best_id, best = other, score
-        if best >= threshold:
+        imported_pair = record.source.startswith("adapted:") or (
+            bool(best_id) and canonical_records[best_id].source.startswith("adapted:")
+        )
+        pair_threshold = IMPORTED_NEAR_DUP_JACCARD if imported_pair else threshold
+        if best > pair_threshold:
             result.reasons.append(R_DUP_NEAR)
             result.dup_of = best_id
             continue
@@ -395,6 +404,7 @@ def assign_duplicates(
         if base:
             canonical_by_base[base] = record.record_id
         canonical_shingles[record.record_id] = sh
+        canonical_records[record.record_id] = record
         for s in sh:
             postings[s].append(record.record_id)
     for result in results:
@@ -528,7 +538,11 @@ def summarize(
             "generated_variant": (
                 "records carrying parent_unique_test_id; they count as their parent's unique test"
             ),
-            "near_duplicate": f"word {SHINGLE_WORDS}-shingle Jaccard >= {NEAR_DUP_JACCARD} on normalized prompt text",
+            "near_duplicate": (
+                f"word {SHINGLE_WORDS}-shingle Jaccard > {IMPORTED_NEAR_DUP_JACCARD} "
+                "when an imported row participates; otherwise > "
+                f"{NEAR_DUP_JACCARD}, on normalized prompt text"
+            ),
         },
     }
     if extra:

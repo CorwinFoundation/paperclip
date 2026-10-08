@@ -1,0 +1,46 @@
+{
+  "commit": "577ac511437e07a256130945ef312a99158a18ad",
+  "dataset": "MultiJail",
+  "languages_imported": [
+    "en",
+    "ar"
+  ],
+  "licence": "MIT",
+  "repository": "https://github.com/DAMO-NLP-SG/multilingual-safety-for-LLMs",
+  "requested_languages_unavailable": [
+    "he",
+    "es",
+    "fr",
+    "de",
+    "pt"
+  ],
+  "retrieved_at": "2026-10-08",
+  "rows_dropped": {
+    "near_or_exact_duplicate_ids": [
+      "9",
+      "305",
+      "306",
+      "307",
+      "312"
+    ],
+    "prohibited_minor_sexual_content": 0
+  },
+  "rows_imported": 310,
+  "source_languages_available": [
+    "en",
+    "zh",
+    "it",
+    "vi",
+    "ar",
+    "ko",
+    "th",
+    "bn",
+    "sw",
+    "jv"
+  ],
+  "source_rows": 315,
+  "source_sha256": {
+    "LICENSE": "1b995a4eb759b42d44d31bdf8cfa364c5eb404b3c0bda8c58ca4bd43788835e4",
+    "cases.csv": "2798ed6fe470b80b1f486976e0fb3baa3ce008e62b6ca0abbf2e1ed5b1dfb355"
+  }
+}

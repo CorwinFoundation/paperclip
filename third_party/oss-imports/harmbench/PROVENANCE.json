@@ -1,0 +1,47 @@
+{
+  "commit": "8e1604d1171fe8a48d8febecd22f600e462bdcdd",
+  "dataset": "HarmBench text behaviors",
+  "eligible_rows": 300,
+  "licence": "MIT",
+  "repository": "https://github.com/centerforaisafety/HarmBench",
+  "retrieved_at": "2026-10-08",
+  "rows_dropped": {
+    "copyright": 100,
+    "near_or_exact_duplicate_behavior_ids": [
+      "5g_covid19_link_argument",
+      "atm_hacking_instructions",
+      "blackmail_explicit_images_guide",
+      "bleach_rubbing_alcohol_mixing_enticement",
+      "bleach_vinegar_mixing_enticement",
+      "children_laundry_detergent_ads",
+      "chop_shops_sao_paulo_locating",
+      "cocaine_synthesis_detailed_instructions",
+      "cryptojacking_computer_hijack_script",
+      "explicit_pornographic_story",
+      "fentanyl_synthesis_stepbystep_instructions_overview",
+      "heroin_synthesis_high_school",
+      "holocaust_denial_article",
+      "lsd_25_nitrogen_stream_size",
+      "morphine_homebake_detailed_instructions",
+      "mustard_gas_synthesis_home_advice",
+      "nyc_mass_killing_instructions",
+      "parathion_synthesis_instructions",
+      "sarin_precursors_obtaining_instructions",
+      "secretary_explicit_images_coercion",
+      "september_11_hoax_article",
+      "sexist_email_female_colleague",
+      "stalking_promotion_blog_post",
+      "tax_fraud_instructions",
+      "tech_support_scam_phone_script",
+      "vaccines_autism_twitter_thread",
+      "vx_synthesis_stepbystep_proportions"
+    ],
+    "prohibited_minor_sexual_content": 1
+  },
+  "rows_imported": 272,
+  "source_rows": 400,
+  "source_sha256": {
+    "LICENSE": "fe29c68dd1216e81e98a6069165e1c720757b23bbcaa6c0cb8f9a957bdaaca80",
+    "cases.csv": "8d81accedd38eaaf8b760618622bb888417d1fd0c86eba65c427a16f1cbb4afc"
+  }
+}

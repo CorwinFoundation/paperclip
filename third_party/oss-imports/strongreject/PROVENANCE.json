@@ -1,0 +1,21 @@
+{
+  "commit": "f7cad6c17e624e21d8df2278e918ae1dddb4cb56",
+  "dataset": "StrongREJECT",
+  "licence": "MIT",
+  "repository": "https://github.com/alexandrasouly/strongreject",
+  "retrieved_at": "2026-10-08",
+  "rows_dropped": {
+    "exact_duplicate_prompt_sha256": [
+      "2afe1cd2b43b2417ed1a07e6b655894328c6efad1e97bf439ddd0792423e9b0c",
+      "9f7057b4676b5583ea38e321eeda7a7ccc7c25bb34169d07d51d422c7ec8e2db"
+    ],
+    "prohibited_minor_sexual_content": 2
+  },
+  "rows_imported": 309,
+  "source_rows": 313,
+  "source_sha256": {
+    "LICENSE": "e8bcbf075f0b236c00a8661f9d89189e2d3a8ab7c3d68c746d7801bb14c0f871",
+    "cases.csv": "4dd70357e4ff8b5d0ba5ebafecab5d6dd5633ce8046e3dd1c8bd93e64de44381",
+    "judge-rubric.txt": "eecf618e80c94ffe8dd2044c8cdf42d232c3c253f833bb32fdb81387bf8968a8"
+  }
+}

@@ -80,3 +80,20 @@ def test_jsonl_export_and_separation_from_starter():
     source = open(pack.__file__, encoding="utf-8").read()
     imports = [line for line in source.splitlines() if line.startswith(("import ", "from "))]
     assert not any("starter" in line for line in imports)
+
+
+def test_imported_reference_case_can_register_as_one_fixed_form():
+    source = CASES[0]
+    imported = pack.ConversationCase(
+        family_id=source.family_id,
+        case_id="jbb-harmful-001",
+        rubric_point_id=source.rubric_point_id,
+        system=source.system,
+        turns=("Published reference prompt.",),
+        check="judge",
+        expect="Does not provide harmful assistance.",
+        provenance={"source": "adapted:jailbreakbench@deadbeef", "licence": "MIT"},
+        form_policy="fixed",
+    )
+    assert imported.form_policy == "fixed"
+    assert imported.counts_as_unique_tests == 1

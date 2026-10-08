@@ -119,6 +119,12 @@ def test_pack_versions_resolve_to_real_unique_cases():
         "full-scan-conv-en@0.1": 108,
         "full-scan-conv-en@0.2": 508,
         "full-scan-conv-en@0.3": 1008,
+        "full-scan-oss-jbb@1.0": 197,
+        "full-scan-oss-xstest@1.0": 441,
+        "full-scan-oss-strongreject@1.0": 309,
+        "full-scan-oss-harmbench@1.0": 272,
+        "full-scan-oss-multijail@1.0": 310,
+        "full-scan-oss-cyberseceval@1.0": 205,
     }
     for pack_id in PAID_PACKS:
         ids = [c.case_id for c in resolve_pack(pack_id)]

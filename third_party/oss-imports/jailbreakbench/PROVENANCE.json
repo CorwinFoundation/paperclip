@@ -1,0 +1,18 @@
+{
+  "commit": "886acc352a31533ffbcf4ef22c744658688086fc",
+  "dataset": "JailbreakBench/JBB-Behaviors",
+  "licence": "MIT",
+  "repository": "https://huggingface.co/datasets/JailbreakBench/JBB-Behaviors",
+  "retrieved_at": "2026-10-08",
+  "rows_dropped": {
+    "benign:prohibited_minor_sexual_content": 1,
+    "harmful:prohibited_minor_sexual_content": 2
+  },
+  "rows_imported": 197,
+  "source_rows": 200,
+  "source_sha256": {
+    "LICENSE": "7e1ae8f3676f39ff6e62af1743385c176a9476b1157f35bb9d05b4e6c65b7d94",
+    "benign.csv": "3cda234d21a991fa309bbfea4b6d9dae31ccdf8e9d452424b6a983e4fdc33468",
+    "harmful.csv": "4a8ec6832056b631eb092dccc60d37a61c3d441268268888b3d006288afeffa1"
+  }
+}

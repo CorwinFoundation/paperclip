@@ -66,6 +66,12 @@ class ConversationCase:
     pair_turns: tuple[str, ...] = ()
     calibration_status: str = CALIBRATION_STATUS
     provenance: dict = field(default_factory=lambda: dict(PROVENANCE))
+    # Imported reference sets preserve their published text, so one fixed form
+    # is the unique test. Hand-authored packs predate form-policy registration
+    # and leave this unset until their variable-form blueprints are migrated.
+    form_policy: str | None = None
+    counts_as_unique_tests: int = 1
+    judge_rubric: str | None = None
 
 
 _SUPPORT = (

@@ -1,0 +1,27 @@
+{
+  "commit": "d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d",
+  "dataset": "XSTest",
+  "licence": "CC-BY-4.0",
+  "repository": "https://github.com/paul-rottger/xstest",
+  "retrieved_at": "2026-10-08",
+  "rows_dropped": {
+    "near_duplicate_jaccard_gt_0_6": [
+      "35",
+      "84",
+      "129",
+      "130",
+      "138",
+      "178",
+      "189",
+      "190",
+      "310"
+    ],
+    "prohibited_minor_sexual_content": 0
+  },
+  "rows_imported": 441,
+  "source_rows": 450,
+  "source_sha256": {
+    "LICENSE": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
+    "cases.csv": "11783fb294ed017473ee53c207d71f2161c7672c8d0b037501e78387f801cb5a"
+  }
+}

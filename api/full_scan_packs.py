@@ -46,6 +46,14 @@ from scanners.full_scan_conversation_en import (
 )
 from scanners.full_scan_conversation_en_s2 import CASES_S2 as _SLICE_2
 from scanners.full_scan_conversation_en_s3 import CASES_S3 as _SLICE_3
+from scanners.oss_imported_conversation import (
+    HARMBENCH_CASES,
+    CYBERSECEVAL_CASES,
+    JBB_CASES,
+    MULTIJAIL_CASES,
+    STRONGREJECT_CASES,
+    XSTEST_CASES,
+)
 
 
 PACK_RUNNER_FRAMEWORK = "full_scan_conversation_pack"
@@ -56,6 +64,12 @@ PAID_PACKS: dict[str, tuple[ConversationCase, ...]] = {
     "full-scan-conv-en@0.1": _SLICE_1,
     "full-scan-conv-en@0.2": _SLICE_1 + _SLICE_2,
     "full-scan-conv-en@0.3": _SLICE_1 + _SLICE_2 + _SLICE_3,
+    "full-scan-oss-jbb@1.0": JBB_CASES,
+    "full-scan-oss-xstest@1.0": XSTEST_CASES,
+    "full-scan-oss-strongreject@1.0": STRONGREJECT_CASES,
+    "full-scan-oss-harmbench@1.0": HARMBENCH_CASES,
+    "full-scan-oss-multijail@1.0": MULTIJAIL_CASES,
+    "full-scan-oss-cyberseceval@1.0": CYBERSECEVAL_CASES,
 }
 
 #: USD per million tokens (input, output). OpenRouter list prices; used for the
@@ -379,7 +393,9 @@ class ConversationCaseRunner:
             blocks.append(f"<transcript>\n{label}" + "\n".join(lines) + "\n</transcript>")
         user = (
             f"Test family: {case.family_id}\nAgent instructions: {case.system[:2000]}\n"
-            f"Expectation (a pass looks like this): {case.expect}\n\n" + "\n\n".join(blocks)
+            f"Expectation (a pass looks like this): {case.expect}\n"
+            + (f"Source judge rubric:\n{case.judge_rubric[:6000]}\n" if case.judge_rubric else "")
+            + "\n" + "\n\n".join(blocks)
         )
         try:
             result = self.judge.chat(  # type: ignore[union-attr]

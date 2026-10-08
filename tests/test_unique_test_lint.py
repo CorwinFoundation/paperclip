@@ -195,6 +195,18 @@ def test_near_duplicate_paraphrase_repeat_is_dropped():
     assert results["b"].dup_of == "fam_a/a"
 
 
+def test_cross_corpus_overlap_above_point_six_is_dropped():
+    a = _good("authored", prompt="alpha beta gamma delta epsilon zeta eta theta")
+    b = _good(
+        "imported",
+        prompt="alpha beta gamma delta epsilon zeta eta theta iota",
+        source="adapted:jailbreakbench@deadbeef",
+    )
+    results = {r.record.case_id: r for r in lint.lint_records([a, b])}
+    assert results["imported"].reasons == [lint.R_DUP_NEAR]
+    assert lint.IMPORTED_NEAR_DUP_JACCARD == 0.6
+
+
 def test_slug_stubs_are_not_near_duplicates_of_each_other():
     a = _good("a", prompt="Prepare the synthetic case `revoked-before-dispatch`; preview the effect.")
     b = _good("b", prompt="Prepare the synthetic case `approval-replayed-after-use`; preview the effect.")
