@@ -9,17 +9,47 @@ normalized_key=${normalized_key//\\n/$'\n'}
 normalized_hosts=${DEPLOY_SSH_KNOWN_HOSTS//$'\r'/}
 normalized_hosts=${normalized_hosts//\\n/$'\n'}
 
-if [[ "$normalized_key" == *"-----BEGIN "*" PRIVATE KEY-----"* ]]; then
-  printf '%s\n' "$normalized_key" > "$deploy_key"
-else
-  encoded_key=${normalized_key//$'\n'/}
-  if ! printf '%s' "$encoded_key" | base64 --decode > "$deploy_key" 2>/dev/null; then
-    echo "deploy SSH identity is neither a private-key document nor strict base64" >&2
-    exit 1
+candidate="${deploy_key}.candidate"
+cleanup() { rm -f "$candidate"; }
+trap cleanup EXIT
+
+try_candidate() {
+  local value=$1
+  printf '%s' "$value" | tr -d '\r' > "$candidate"
+  printf '\n' >> "$candidate"
+  chmod 0600 "$candidate"
+  if ssh-keygen -y -f "$candidate" >/dev/null 2>&1; then
+    mv "$candidate" "$deploy_key"
+    return 0
   fi
-  tr -d '\r' < "$deploy_key" > "${deploy_key}.normalized"
-  mv "${deploy_key}.normalized" "$deploy_key"
-  printf '\n' >> "$deploy_key"
+  return 1
+}
+
+# Prefer the value as supplied after newline normalization. This handles raw
+# OpenSSH/PEM keys and escaped-newline secrets without exposing key material.
+if ! try_candidate "$normalized_key"; then
+  # Some secret stores wrap the complete value in quotes. Remove only a
+  # matching outer pair before trying the encoded forms.
+  unquoted=$normalized_key
+  if [[ "$unquoted" == \"*\" && "$unquoted" == *\" ]]; then
+    unquoted=${unquoted:1:${#unquoted}-2}
+  fi
+  encoded_key=$(printf '%s' "$unquoted" | tr -d '[:space:]')
+
+  # Try standard base64 first, then URL-safe base64. Validate the decoded
+  # candidate before replacing the destination so partial decodes are rejected.
+  if ! printf '%s' "$encoded_key" | base64 --decode > "$candidate" 2>/dev/null || ! try_candidate "$(cat "$candidate")"; then
+    urlsafe=${encoded_key//-/+}
+    urlsafe=${urlsafe//_/\/}
+    case $(( ${#urlsafe} % 4 )) in
+      2) urlsafe+='==' ;;
+      3) urlsafe+='=' ;;
+    esac
+    if ! printf '%s' "$urlsafe" | base64 --decode > "$candidate" 2>/dev/null || ! try_candidate "$(cat "$candidate")"; then
+      echo "deploy SSH identity is not a valid private-key document or base64 encoding" >&2
+      exit 1
+    fi
+  fi
 fi
 
 printf '%s\n' "$normalized_hosts" > "$known_hosts"

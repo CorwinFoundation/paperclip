@@ -26,6 +26,8 @@ def test_normalizer_accepts_raw_escaped_and_base64_keys(tmp_path):
         raw.replace("\n", "\r\n"),
         raw.rstrip("\n").replace("\n", r"\n"),
         base64.b64encode(raw.encode()).decode(),
+        base64.urlsafe_b64encode(raw.encode()).decode().rstrip("="),
+        f'"{base64.b64encode(raw.encode()).decode()}"',
     )
 
     for index, value in enumerate(variants):
