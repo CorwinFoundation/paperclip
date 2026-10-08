@@ -156,7 +156,7 @@ class IntakeStore:
               (id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status)
               VALUES(?,?,?,?,?,?,?,?,?, 'reserved')""",
               (scan_id, code, row["partner"], email, agent_label, host, transport,
-               "starter-100@1", created))
+               "starter-100@4", created))
             # Only a digest of the status token is stored; the caller holds the token.
             status_token = secrets.token_urlsafe(24)
             self.db.execute('UPDATE scans SET status_token_hash=? WHERE id=?',
@@ -397,7 +397,7 @@ def scanner_payload(data: dict, *, callback_url: str, callback_secret_ref: str) 
             "credential_secret": 'qa-no-auth' if auth['type'] == 'none' else auth.get('value') or '',
             "scanner_version": os.environ.get('QA_SCANNER_VERSION', 'partner-qa-v1'),
             "scan_mode": "live_probe", "scan_tier": "smoke",
-            "pack_id": "starter-100@1", "include_result_rows": True,
+            "pack_id": "starter-100@4", "include_result_rows": True,
             "seed": int(os.environ.get('QA_SCANNER_CORPUS_SEED', '42')),
             "webhook": {"url": callback_url, "secret_ref": callback_secret_ref}}
 

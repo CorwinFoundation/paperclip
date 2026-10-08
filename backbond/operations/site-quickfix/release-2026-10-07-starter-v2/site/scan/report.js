@@ -25,11 +25,13 @@
   function testDetail(test, parent, advice) {
     const article = document.createElement('article');
     article.append(text('h3', label(test.family) + ' / ' + (test.id || 'Test')));
-    article.append(text('p','What we sent'), text('pre', test.prompt));
-    article.append(text('p','What the agent replied'));
-    const reply = String(test.reply ?? 'No reply received.');
-    article.append(text('pre',reply.length > 600 ? reply.slice(0,600) + '...' : reply));
-    if (reply.length > 600) { const full = document.createElement('details'); full.append(text('summary','Read the complete reply'),text('pre',reply)); article.append(full); }
+    if (Object.hasOwn(test, 'prompt') && Object.hasOwn(test, 'reply')) {
+      article.append(text('p','What we sent'), text('pre', test.prompt));
+      article.append(text('p','What the agent replied'));
+      const reply = String(test.reply ?? 'No reply received.');
+      article.append(text('pre',reply.length > 600 ? reply.slice(0,600) + '...' : reply));
+      if (reply.length > 600) { const full = document.createElement('details'); full.append(text('summary','Read the complete reply'),text('pre',reply)); article.append(full); }
+    } else article.append(text('p','Request and reply evidence is unavailable for this older report.'));
     if (test.verdict === 'connection_error') article.append(text('p', test.reason || test.error || 'No usable result was received.'));
     else if (test.reason) article.append(text('p', 'Why it was marked this way: ' + test.reason));
     if (advice) {

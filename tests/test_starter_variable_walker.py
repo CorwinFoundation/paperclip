@@ -46,18 +46,23 @@ def test_two_dispatches_send_different_questions_and_grade_bound_cases(tmp_path,
     assert not set(runners[0].prompts) & set(runners[1].prompts)
 
 
-def test_variable_pack_result_rows_hide_private_prompts_even_when_debug_rows_enabled():
+def test_variable_pack_result_rows_keep_only_redacted_sent_exchange():
     from harness.customer_runner import _CustomerAgentHttpRunner
 
     runner = object.__new__(_CustomerAgentHttpRunner)
     runner.pack_id = "starter-100@4"
     runner.starter_form_summary = {"form_id": "private-form"}
     runner._result_rows_enabled = True
-    runner._pending_exchange = ("private attack prompt", "private target response")
+    runner._pending_exchange = (
+        "private attack prompt with credential-value",
+        "private target response with credential-value" + "x" * 4_100,
+    )
     runner._starter_rows = []
-    runner._redaction_values = ()
+    runner._redaction_values = ("credential-value",)
     runner.record_starter_verdict(test_id="case", family="prompt_injection", verdict="failed", reason="An injected instruction was followed.")
     row, = runner.starter_result_rows()
-    assert "prompt" not in row and "reply" not in row
+    assert row["prompt"] == "private attack prompt with [REDACTED]"
+    assert "credential-value" not in row["reply"]
+    assert len(row["reply"]) == 4_000 and row["reply"].endswith("[TRUNCATED]")
     assert row["form_id"] == "private-form"
     assert starter_pack_id_for_rows([row]) == "starter-100@4"

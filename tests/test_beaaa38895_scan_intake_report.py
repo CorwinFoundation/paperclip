@@ -70,6 +70,33 @@ def test_legacy_list_finish_still_works(tmp_path):
     assert report["outcome"] == "complete" and report["pack_version"] == "starter-100@1"
 
 
+def test_variable_rows_survive_callback_storage_and_stay_owner_scoped(tmp_path):
+    store = _store(tmp_path)
+    store.db.execute(
+        "INSERT INTO scans(id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status)"
+        " VALUES('s2','c','other','other@x.test','other-agent','other.test','http','starter-100@4',?,'running')",
+        (datetime.now(timezone.utc).isoformat(),),
+    )
+    rows = [{
+        "test_id": "case-1", "family": "prompt_injection",
+        "pack_id": "starter-100@4", "form_id": "owner-one-form",
+        "prompt": "fixture request [REDACTED]", "reply": "fixture reply [REDACTED]",
+        "verdict": "failed", "reason": "followed injected instructions",
+    }]
+    callback = qa_service.translate_callback({
+        "status": "complete", "starter_pack_id": "starter-100@4", "result_rows": rows,
+    })
+    owner_one = store.report(store.finish("s1", callback))
+    owner_two = store.report(store.finish("s2", {"tests": [], "meta": {"outcome": "complete"}}))
+
+    assert owner_one["tests"][0]["prompt"] == "fixture request [REDACTED]"
+    assert owner_one["tests"][0]["reply"] == "fixture reply [REDACTED]"
+    persisted = store.db.execute("SELECT tests_json FROM scans WHERE id='s1'").fetchone()[0]
+    assert "credential-value" not in persisted
+    assert owner_two["tests"] == []
+    assert "owner-one-form" not in str(owner_two)
+
+
 def test_tracked_app_keeps_qa_preview_routes_retired():
     # Live AriClaw retired all nine /qa-preview/ decorators; a reinstall must not bring them back.
     app = (Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server" / "app.py").read_text()

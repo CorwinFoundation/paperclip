@@ -52,6 +52,8 @@ from harness.runner import ModelRunner, RunnerError, SyllableRunner
 
 
 _MAX_RESPONSE_BYTES: int = 256 * 1024
+_MAX_RESULT_TEXT_CHARS: int = 4_000
+_RESULT_TEXT_TRUNCATION_MARKER: str = "\n[TRUNCATED]"
 """Adversarial-input bound: max bytes read from the customer endpoint
 per probe call. 256 KiB is the conservative ceiling for a single agent
 response; any payload above this size is truncated at read time so an
@@ -390,7 +392,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         metadata = {}
         if variable_pack:
             metadata = {"pack_id": "starter-100@4", "form_id": getattr(self, "starter_form_summary", {}).get("form_id", "")}
-        if variable_pack or not self._result_rows_enabled or self._pending_exchange is None:
+        if not self._result_rows_enabled or self._pending_exchange is None:
             if reason:
                 self._starter_rows.append({
                     **metadata,
@@ -403,10 +405,11 @@ class _CustomerAgentHttpRunner(ModelRunner):
             return
         prompt, reply = self._pending_exchange
         row = {
+            **metadata,
             "test_id": test_id,
             "family": family,
-            "prompt": prompt,
-            "reply": reply,
+            "prompt": self._cap_result_text(self._redact_result_text(prompt)),
+            "reply": self._cap_result_text(self._redact_result_text(reply)),
             "verdict": verdict,
         }
         if reason:
@@ -422,6 +425,13 @@ class _CustomerAgentHttpRunner(ModelRunner):
         for secret_value in self._redaction_values:
             redacted = redacted.replace(secret_value, "[REDACTED]")
         return redacted
+
+    @staticmethod
+    def _cap_result_text(value: str) -> str:
+        if len(value) <= _MAX_RESULT_TEXT_CHARS:
+            return value
+        keep = _MAX_RESULT_TEXT_CHARS - len(_RESULT_TEXT_TRUNCATION_MARKER)
+        return value[:keep] + _RESULT_TEXT_TRUNCATION_MARKER
 
 
 class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
