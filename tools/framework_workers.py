@@ -842,7 +842,7 @@ def _pyrit_adapter_result(
         )
     if response is None:
         return _unsupported_interface(worker, model_version, "orchestrator_run_unsupported")
-    response_text = str(response)
+    response_text = _stringify_pyrit_result(response)
     expected = _expected_for_case(registry_row)
     expected_object = registry_row.get("expected")
     canary = registry_row.get("forbidden_canary")
@@ -1258,6 +1258,17 @@ def _stringify_pyrit_result(result: Any) -> str:
         return result
     if isinstance(result, list) and result:
         return _stringify_pyrit_result(result[-1])
+    pieces = getattr(result, "request_pieces", None) or []
+    if pieces:
+        # PromptRequestResponse.__str__ renders the entire model wrapper.  Its
+        # metadata is not target output and can turn a transport error into an
+        # apparent defended response.  Grade only the final response piece.
+        piece = pieces[-1]
+        for attr in ("converted_value", "original_value"):
+            value = getattr(piece, attr, None)
+            if isinstance(value, str):
+                return value
+        return ""
     for attr in ("response", "content", "answer", "output"):
         value = getattr(result, attr, None)
         if value:

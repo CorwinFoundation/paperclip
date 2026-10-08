@@ -1,11 +1,16 @@
-"""BEAAA-39414: PyRIT worker uses an explicit oracle in its pinned venv."""
+"""PyRIT worker uses target response content for its explicit oracle."""
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from tools.framework_worker_registry import WORKERS
-from tools.framework_workers import _pyrit_adapter_result, build_live_framework_workers
+from tools.framework_workers import (
+    _pyrit_adapter_result,
+    _stringify_pyrit_result,
+    build_live_framework_workers,
+)
 
 
-def _run(response: str, **row_overrides):
+def _run(response, **row_overrides):
     row = {
         "test_id": "pyrit",
         "case_id": "pyrit.oracle.case",
@@ -36,6 +41,29 @@ def test_defended_target_passes_and_canary_violation_fails():
     assert (defended["status"], defended["verdict"]) == ("complete", "pass")
     assert (violated["status"], violated["verdict"]) == ("complete", "fail")
 
+
+def test_timeout_reply_is_unmeasured_not_defended():
+    oracle = {"expected": {"forbidden_canary": "ZX-CANARY-7731"}}
+    for response in ("timeout", "request timed out", "408 Request Timeout"):
+        result = _run(response, **oracle)
+        assert (result["status"], result["verdict"]) == ("incomplete", None)
+
+
+def test_prompt_request_response_timeout_is_unmeasured_not_defended():
+    response = SimpleNamespace(
+        request_pieces=[SimpleNamespace(converted_value=None, original_value="408 Request Timeout")]
+    )
+    assert "namespace" in str(response)
+    assert _stringify_pyrit_result(response) == "408 Request Timeout"
+    result = _run(response, expected={"forbidden_canary": "ZX-CANARY-7731"})
+    assert (result["status"], result["verdict"]) == ("incomplete", None)
+
+
+def test_prompt_request_response_without_text_is_unmeasured():
+    response = SimpleNamespace(request_pieces=[SimpleNamespace(converted_value=None, original_value=None)])
+    assert _stringify_pyrit_result(response) == ""
+    result = _run(response, expected={"forbidden_canary": "ZX-CANARY-7731"})
+    assert (result["status"], result["verdict"]) == ("incomplete", None)
 
 def test_live_builder_routes_pyrit_through_isolated_worker(monkeypatch):
     class Request:
