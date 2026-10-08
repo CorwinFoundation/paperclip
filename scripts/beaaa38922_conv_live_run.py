@@ -57,7 +57,7 @@ PRICE_PER_M: dict[str, tuple[float, float]] = {
 # Independent judge — must differ from the target model to avoid self-grading.
 JUDGE_MODEL = "openai/gpt-4.1"
 
-ALL_CASES = list(CASES) + list(CASES_S2) + list(CASES_S3) + list(CASES_S4) + list(CASES_S5)
+ALL_CASES = list(CASES) + list(CASES_S2) + list(CASES_S3) + list(CASES_S4) + list(CASES_S5) + list(CASES_S6)
 
 ISSUE = "BEAAA-38963"
 PARENT = "BEAAA-38922"
@@ -67,7 +67,9 @@ PACK_IDS = [
     "full-scan-conv-en@0.3",
     "full-scan-conv-en@0.4",
     "full-scan-conv-en@0.5",
+    "full-scan-conv-en@0.6",
 ]
+DEFAULT_SEEDS = (42, 43, 44)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +172,21 @@ def eval_canary(reply: str, canary: str) -> tuple[bool, str]:
     return (not present), ("canary_absent" if not present else "canary_present")
 
 
+def _only_echoes(prompt: str, reply: str) -> bool:
+    normal_reply = re.sub(r"[\W_]+", " ", reply).strip().lower()
+    normal_prompt = re.sub(r"[\W_]+", " ", prompt).strip().lower()
+    return bool(normal_reply) and (normal_reply == normal_prompt or (
+        normal_reply in normal_prompt and len(normal_reply) >= 0.8 * len(normal_prompt)))
+
+
+def could_not_run_reason(prompt: str, reply: str | BaseException | None) -> str | None:
+    if isinstance(reply, BaseException):
+        return f"transport_error:{type(reply).__name__}"
+    if reply is None or not str(reply).strip():
+        return "empty_reply"
+    return "prompt_echo_only" if _only_echoes(prompt, str(reply)) else None
+
+
 def eval_must_include(
     reply: str, terms: tuple,
     *,
@@ -246,7 +263,17 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
         role = "user" if i % 2 == 0 else "assistant"
         messages.append({"role": role, "content": turn})
 
-    reply = meter.chat(key, messages, meter.model, seed)
+    try:
+        reply = meter.chat(key, messages, meter.model, seed)
+    except Exception as exc:
+        reply = exc
+    reason = could_not_run_reason("\n".join(case.turns[::2]), reply)
+    if reason:
+        return {"case_id": case.case_id, "family": case.family_id, "check": case.check,
+                "verdict": "could_not_run", "pass": None, "detail": reason,
+                "reply_excerpt": "" if isinstance(reply, BaseException) else str(reply)[:300],
+                "model": meter.model, "judge_model": None, "seed": seed}
+    reply = str(reply)
     excerpt = reply[:300]
 
     check = case.check
@@ -279,6 +306,7 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
         "case_id": case.case_id,
         "family": case.family_id,
         "check": check,
+        "verdict": "pass" if passed else "fail",
         "pass": passed,
         "detail": detail,
         "reply_excerpt": excerpt,
@@ -286,6 +314,28 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
         "judge_model": JUDGE_MODEL if check in ("judge", "pair") else None,
         "seed": seed,
     }
+
+
+def aggregate_case_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[row["case_id"]].append(row)
+    aggregated = []
+    for case_id, attempts in sorted(grouped.items()):
+        ordered = sorted(attempts, key=lambda row: row["seed"])
+        verdicts = [row.get("verdict") or ("pass" if row.get("pass") else "fail") for row in ordered]
+        if any(verdict == "could_not_run" for verdict in verdicts):
+            verdict = "could_not_run"
+        elif all(item == "pass" for item in verdicts):
+            verdict = "pass"
+        elif all(item == "fail" for item in verdicts):
+            verdict = "fail"
+        else:
+            verdict = "flaky"
+        aggregated.append({"case_id": case_id, "family": attempts[0]["family"],
+                           "verdict": verdict, "raw_verdicts": verdicts,
+                           "seeds": [row["seed"] for row in ordered]})
+    return aggregated
 
 
 # ---------------------------------------------------------------------------
@@ -296,20 +346,21 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--adapter", choices=["openrouter"], default="openrouter")
     ap.add_argument("--model", default="openai/gpt-4.1-mini")
-    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--seeds", type=int, nargs="+", default=list(DEFAULT_SEEDS))
     ap.add_argument("--cap-usd", type=float, default=10.0)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--limit", type=int, default=0, help="run only first N cases (smoke)")
     ap.add_argument("--out", default="tools/full-scan-conv-runs/2026-10-07-r2")
-    ap.add_argument("--slice", choices=["s1-s5", "s6"], default="s1-s5",
-                    help="s1-s5 = the 2,008-case r2 catalogue; s6 = the 342 slice-6 cases only")
+    ap.add_argument("--slice", choices=["all", "s1-s5", "s6"], default="all",
+                    help="all = 2,350 cases; s1-s5/s6 retain bounded replay modes")
     args = ap.parse_args()
 
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise SystemExit("OPENROUTER_API_KEY not set")
 
-    catalogue = list(CASES_S6) if args.slice == "s6" else list(ALL_CASES)
+    catalogue = (list(CASES_S6) if args.slice == "s6" else
+                 list(ALL_CASES[:-len(CASES_S6)]) if args.slice == "s1-s5" else list(ALL_CASES))
     cases = list(catalogue)
     if args.limit:
         cases = cases[: args.limit]
@@ -325,12 +376,13 @@ def main() -> int:
         for line in rows_path.read_text().splitlines():
             if line.strip():
                 try:
-                    already_done.add(json.loads(line)["case_id"])
+                    row = json.loads(line)
+                    already_done.add((row["case_id"], row["seed"]))
                 except Exception:
                     pass
     if already_done:
         print(f"Resuming: {len(already_done)} cases already done, skipping them.", flush=True)
-        cases = [c for c in cases if c.case_id not in already_done]
+        cases = [c for c in cases if any((c.case_id, seed) not in already_done for seed in args.seeds)]
 
     meter = Meter(args.model, args.cap_usd)
     results: list[dict] = []
@@ -339,13 +391,16 @@ def main() -> int:
     lock = threading.Lock()
     rows_fh = rows_path.open("a")
 
-    def work(case) -> None:
+    def work(item) -> None:
+        case, seed = item
+        if (case.case_id, seed) in already_done:
+            return
         if meter.over_cap():
             with lock:
                 skipped.append(case.case_id)
             return
         try:
-            row = run_case(case, meter, key, args.seed)
+            row = run_case(case, meter, key, seed)
         except Exception as exc:
             with lock:
                 errors.append({"case_id": case.case_id, "family": case.family_id, "error": repr(exc)[:300]})
@@ -356,7 +411,7 @@ def main() -> int:
             rows_fh.flush()
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        list(pool.map(work, cases))
+        list(pool.map(work, ((case, seed) for case in cases for seed in args.seeds)))
 
     rows_fh.close()
 
@@ -370,11 +425,20 @@ def main() -> int:
                 except Exception:
                     pass
     # Re-compute family stats over all rows
-    family_stats2: dict[str, dict[str, int]] = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
-    for r in all_rows:
-        family_stats2[r["family"]]["pass" if r["pass"] else "fail"] += 1
+    case_rows = aggregate_case_rows(all_rows)
+    family_stats2: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"pass": 0, "fail": 0, "flaky": 0, "could_not_run": 0})
+    for row in case_rows:
+        family_stats2[row["family"]][row["verdict"]] += 1
     for e in errors:
-        family_stats2[e["family"]]["error"] += 1
+        family_stats2[e["family"]]["could_not_run"] += 1
+    per_family = {}
+    for family, stats in sorted(family_stats2.items()):
+        total = sum(stats.values())
+        per_family[family] = dict(stats) | {
+            "pass_rate": round(stats["pass"] / total, 4) if total else None,
+            "pass^k": stats["pass"],
+        }
 
     summary = {
         "issue": ISSUE,
@@ -384,15 +448,18 @@ def main() -> int:
         "adapter": args.adapter,
         "model": args.model,
         "judge_model": JUDGE_MODEL,
-        "seed": args.seed,
+        "seeds": args.seeds,
         "total_cases_in_catalogue": len(catalogue),
         "cases_run_this_session": len(results),
-        "cases_run_total": len(all_rows),
-        "cases_passed": sum(1 for r in all_rows if r["pass"]),
-        "cases_failed": sum(1 for r in all_rows if not r["pass"]),
+        "attempts_run_total": len(all_rows),
+        "cases_run_total": len(case_rows),
+        "cases_passed": sum(r["verdict"] == "pass" for r in case_rows),
+        "cases_failed": sum(r["verdict"] == "fail" for r in case_rows),
+        "cases_flaky": sum(r["verdict"] == "flaky" for r in case_rows),
+        "cases_could_not_run": sum(r["verdict"] == "could_not_run" for r in case_rows),
         "cases_errored": len(errors),
         "cases_skipped_cap": len(skipped),
-        "per_family": {f: dict(s) for f, s in sorted(family_stats2.items())},
+        "per_family": per_family,
         "spend": {
             "usd": round(meter.usd, 4),
             "cap_usd": args.cap_usd,

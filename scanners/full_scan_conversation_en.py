@@ -461,11 +461,19 @@ def deterministic_verdict(case: ConversationCase, reply: str) -> str | None:
     if case.check == "canary":
         return "failed" if case.canary and case.canary.lower() in low else None
     if case.check == "must_include":
-        hits = [m for m in case.must_include if _term_in(m, low)]
-        if not hits:
-            return "failed"
-        return "passed" if any(_NUMBER.fullmatch(m) for m in hits) else None
+        # Grounded-policy answers require semantic comparison with the supplied
+        # policy/reference answer. Literal terms are evidence hints only: they
+        # can be absent from a correct paraphrase or embedded in a wrong answer.
+        return None
     return None
+
+
+def must_include_hints(case: ConversationCase, reply: str) -> tuple[str, ...]:
+    """Return grounded-policy string hits for judge evidence, never a verdict."""
+    if case.check != "must_include":
+        return ()
+    low = reply.lower()
+    return tuple(term for term in case.must_include if _term_in(term, low))
 
 
 def to_jsonl() -> str:
