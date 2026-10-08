@@ -11,7 +11,7 @@
     unconfirmed: ["Progress unconfirmed", "No new progress has been confirmed. The scan may still be running."],
     finished: ["Processing finished", "All accepted packs were processed. Review the results to see whether the assessment is usable and complete."],
     incomplete: ["Scan ended before all packs were processed", "Review available results."],
-    error: ["Scan could not continue", "Confirmed progress has been preserved."],
+    error: ["Scan could not continue", "No result was produced. Check your connection, then start a new scan when you’re ready."],
   };
   const terminal = new Set(["finished", "incomplete", "error"]);
   function seconds(value) {

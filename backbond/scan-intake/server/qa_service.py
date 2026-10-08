@@ -148,14 +148,16 @@ class IntakeStore:
             if not row or not row["active"] or row["expires_at"] < created[:10]:
                 raise IntakeError("invalid or expired code")
             used = self.db.execute(
-                "SELECT count(*) FROM scans WHERE partner=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted')",
+                "SELECT count(*) FROM scans WHERE partner=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted') "
+                "AND NOT (status='finished' AND outcome='failed')",
                 (row["partner"], email)).fetchone()[0]
             if used >= row["scans_per_email"]:
                 raise IntakeError(LIMIT_MESSAGE.format(limit=row["scans_per_email"]))
             emails = self.db.execute(
-                "SELECT count(DISTINCT email) FROM scans WHERE code=? AND status NOT IN ('connection_failed','cancelled','interrupted')",
+                "SELECT count(DISTINCT email) FROM scans WHERE code=? AND status NOT IN ('connection_failed','cancelled','interrupted') "
+                "AND NOT (status='finished' AND outcome='failed')",
                 (code,)).fetchone()[0]
-            known = self.db.execute("SELECT 1 FROM scans WHERE code=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted') LIMIT 1", (code, email)).fetchone()
+            known = self.db.execute("SELECT 1 FROM scans WHERE code=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted') AND NOT (status='finished' AND outcome='failed') LIMIT 1", (code, email)).fetchone()
             if not known and emails >= row["max_emails"]:
                 raise IntakeError("This partner code has reached its email limit.")
             if self.db.execute("SELECT 1 FROM scans WHERE email=? AND status IN ('reserved','queued','starting','running','dispatch_unknown') LIMIT 1", (email,)).fetchone():
@@ -397,8 +399,11 @@ class IntakeStore:
         status = row["status"]
         if status == "finished" and row["outcome"] == "incomplete":
             status = "incomplete"
+        elif status == "finished" and row["outcome"] == "failed":
+            status = "error"
         return {"scan_id": row["id"], "status": status, "created_at": row["created_at"],
-                "finished_at": row["finished_at"], "report_emailed": row["mail"] == "sent"}
+                "finished_at": row["finished_at"], "report_emailed": row["mail"] == "sent",
+                "retry_allowed": row["outcome"] == "failed"}
 
     @synchronized
     def delete_by_status_token(self, token: str) -> bool:
@@ -513,7 +518,7 @@ def translate_callback(payload: dict) -> dict:
     incomplete = bool(payload.get("incomplete")) or status in {"incomplete", "partial", "failed"}
     pack = payload.get("pack_id") or payload.get("starter_pack_id")
     return {"tests": translate_tests(payload), "meta": {
-        "outcome": "incomplete" if incomplete else "complete",
+        "outcome": "failed" if status == "failed" and not (payload.get("result_rows") or []) else "incomplete" if incomplete else "complete",
         "incomplete_reason": str(payload.get("incomplete_reason") or "")[:200] or None if incomplete else None,
         "pack_version": pack if isinstance(pack, str) and re.fullmatch(r"[a-z0-9-]{1,40}@\d{1,4}", pack) else None}}
 
@@ -523,7 +528,7 @@ def report_outcome(outcome, incomplete_reason, tests: list[dict]) -> dict:
     passed = sum(1 for t in tests if t.get("verdict") == "pass")
     failed = sum(1 for t in tests if t.get("verdict") == "fail")
     not_run = len(tests) - passed - failed
-    incomplete = outcome == "incomplete"
+    incomplete = outcome in {"incomplete", "failed"}
     return {"outcome": outcome or "complete", "incomplete_reason": incomplete_reason,
             "starter_score": None if incomplete or not (passed + failed) else round(100 * passed / (passed + failed), 1),
             "counts": {"passed": passed, "failed": failed, "could_not_run": not_run}}

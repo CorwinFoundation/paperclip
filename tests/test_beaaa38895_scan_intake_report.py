@@ -8,12 +8,47 @@ no reasons, starter-100@1.
 from __future__ import annotations
 
 import sys
+import hashlib
+import hmac
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server"))
 
 import qa_service  # noqa: E402
+
+
+def test_webhook_accepts_only_truthful_zero_row_terminal_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv("QA_DB_PATH", str(tmp_path / "intake.sqlite"))
+    import app
+    from fastapi.testclient import TestClient
+
+    class Queue:
+        calls = []
+        def callback(self, scan_id, callback):
+            self.calls.append((scan_id, callback))
+
+    queue = Queue()
+    monkeypatch.setattr(app, "queue", queue)
+    monkeypatch.setattr(app, "WEBHOOK_SECRET", "test-secret")
+    client = TestClient(app.app)
+
+    def post(payload):
+        raw = json.dumps(payload, separators=(",", ":")).encode()
+        signature = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest()
+        return client.post("/scan/v1/scanner-webhook", content=raw,
+                           headers={"content-type": "application/json",
+                                    "x-backbond-signature": "sha256=" + signature})
+
+    failed = {"scan_id": "remote-s1", "status": "failed", "incomplete": True,
+              "incomplete_reason": "scanner_restart_resume_exhausted", "result_rows": []}
+    assert post(failed).status_code == 204
+    assert queue.calls[0][1]["meta"] == {
+        "outcome": "failed", "incomplete_reason": "scanner_restart_resume_exhausted",
+        "pack_version": None,
+    }
+    assert post({"scan_id": "remote-s2", "status": "complete", "result_rows": []}).status_code == 400
 
 
 def test_customer_target_rejects_backbond_scanner_services(tmp_path, monkeypatch):
@@ -88,6 +123,28 @@ def test_complete_scan_gets_a_score(tmp_path):
     done = dict(PAYLOAD, status="complete", incomplete=False, incomplete_reason=None)
     report = store.report(store.finish("s1", qa_service.translate_callback(done)))
     assert report["outcome"] == "complete" and report["starter_score"] == round(100 * 14 / 42, 1)
+
+
+def test_zero_row_terminal_failure_releases_slot_and_free_scan_quota(tmp_path):
+    store = _store(tmp_path)
+    failure = {"scan_id": "remote-s1", "status": "failed", "incomplete": True,
+               "incomplete_reason": "scanner_restart_resume_exhausted", "result_rows": []}
+    token = store.finish("s1", qa_service.translate_callback(failure))
+    report = store.report(token)
+    assert report["outcome"] == "failed"
+    assert report["tests"] == [] and report["starter_score"] is None
+
+    status_token = "minimum-capability-status-token"
+    store.db.execute("UPDATE scans SET status_token_hash=? WHERE id='s1'",
+                     (qa_service.hashlib.sha256(status_token.encode()).hexdigest(),))
+    assert store.status(status_token)["status"] == "error"
+    assert store.status(status_token)["retry_allowed"] is True
+
+    store.put_code(qa_service.Code("c", "p", "Partner", "standard", 1, 1,
+                                  "2099-01-01"))
+    replacement = store.reserve(code="c", email="e@x.test", agent_label="replacement",
+                                endpoint_url="https://agent.example.test/chat", transport="rest")
+    assert replacement["scan_id"] != "s1"
 
 
 def test_legacy_list_finish_still_works(tmp_path):

@@ -467,7 +467,12 @@ async def scanner_webhook(request: Request, x_backbond_signature: str = Header(d
         if not isinstance(scan_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', scan_id):
             raise ValueError('invalid scan ID')
         rows = body.get('result_rows')
-        if not isinstance(rows, list) or not 1 <= len(rows) <= 100 or not all(isinstance(row, dict) for row in rows):
+        terminal_failure = (str(body.get('status') or '').lower() == 'failed'
+                            and body.get('incomplete') is True
+                            and bool(body.get('incomplete_reason')))
+        if (not isinstance(rows, list) or len(rows) > 100
+                or (not rows and not terminal_failure)
+                or not all(isinstance(row, dict) for row in rows)):
             raise ValueError('invalid result rows')
         queue.callback(scan_id, translate_callback(body))
     except (ValueError, IntakeError):
