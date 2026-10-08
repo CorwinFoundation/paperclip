@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -13,12 +14,13 @@ ID_KEYS = ("runtime_case_identity", "probe_id", "stable_case_id", "case_id", "te
 JUDGEMENT_KEYS = ("verdict", "judgement", "judgment", "result")
 TERMINAL_VERDICTS = frozenset({"PASS", "FAIL", "NOT_APPLICABLE"})
 RESPONSE_KEYS = ("response", "responses", "target_response", "assistant_response", "raw_response")
+PROMPT_CASE_RE = re.compile(r"Behavioral evaluation case\s+[^/\s]+/([^,\s]+)")
 
 
 def records(value: Any) -> Iterable[dict[str, Any]]:
     if isinstance(value, dict):
         yield value
-        for key in ("records", "cases", "results", "items"):
+        for key in ("records", "cases", "results", "items", "evidence_rows"):
             child = value.get(key)
             if isinstance(child, list):
                 for item in child:
@@ -42,6 +44,14 @@ def case_id(record: dict[str, Any]) -> str | None:
         value = record.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
+    messages = record.get("messages")
+    if isinstance(messages, list):
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") != "user":
+                continue
+            match = PROMPT_CASE_RE.search(str(message.get("content") or ""))
+            if match:
+                return match.group(1)
     return None
 
 
@@ -123,8 +133,14 @@ def main() -> int:
     target_called: set[str] = set()
     judge_called: set[str] = set()
     verdict_case_ids: dict[str, set[str]] = {value: set() for value in TERMINAL_VERDICTS}
-    evidence_files = sorted(
-        p for p in args.evidence.rglob("*") if p.is_file() and p.suffix in {".json", ".jsonl"}
+    evidence_files = (
+        [args.evidence]
+        if args.evidence.is_file() and args.evidence.suffix in {".json", ".jsonl"}
+        else sorted(
+            p
+            for p in args.evidence.rglob("*")
+            if p.is_file() and p.suffix in {".json", ".jsonl"}
+        )
     )
     for path in evidence_files:
         for row in load(path):

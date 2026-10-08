@@ -52,6 +52,47 @@ def test_reports_acquisition_and_judgement_separately(tmp_path: Path) -> None:
     assert report["target_counter_without_response"] == []
 
 
+def test_accepts_single_jsonl_evidence_export(tmp_path: Path) -> None:
+    inventory = tmp_path / "inventory.jsonl"
+    inventory.write_text(json.dumps({"stable_case_id": "case-a"}) + "\n", encoding="utf-8")
+    evidence = tmp_path / "private-conversations.jsonl"
+    evidence.write_text(
+        json.dumps({"messages": [
+            {"role": "user", "content": "Behavioral evaluation case family/case-a, seed 0."},
+            {"role": "assistant", "content": "saved"},
+        ], "verdict": "PASS"})
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--inventory", str(inventory), "--evidence", str(evidence)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    report = json.loads(result.stdout)
+    assert report["evidence"]["files_read"] == 1
+    assert report["evidence"]["acquired_case_ids"] == 1
+    assert report["evidence"]["judged_case_ids"] == 1
+    assert report["evidence"]["completed_case_ids"] == 1
+
+
+def test_reads_full_scan_manifest_inventory(tmp_path: Path) -> None:
+    inventory = tmp_path / "manifest.json"
+    inventory.write_text(
+        json.dumps({"evidence_rows": [{"probe_id": "a"}, {"probe_id": "b"}]}),
+        encoding="utf-8",
+    )
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text(json.dumps({"probe_id": "a", "response": "saved"}), encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--inventory", str(inventory), "--evidence", str(evidence)],
+        check=True, capture_output=True, text=True,
+    )
+    assert json.loads(result.stdout)["inventory"]["unique_case_ids"] == 2
+
+
 def test_attempt_metadata_and_empty_responses_are_not_acquisitions(tmp_path: Path) -> None:
     inventory = tmp_path / "inventory.jsonl"
     inventory.write_text(
