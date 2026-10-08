@@ -43,6 +43,7 @@ _TIMEOUT_ERROR = re.compile(
     # describing a timeout.
     r"^\s*(?:error\s*:\s*)?(?:"
     r"timed?\s+out|"
+    r"(?:upstream|provider|network)\s+request\s+timeout|"
     r"(?:request|connection|upstream|provider|operation|socket|read|write|network|gateway)\s+timed?\s+out|"
     r"(?:context\s+)?deadline\s+exceeded"
     r")[.!]?\s*$",

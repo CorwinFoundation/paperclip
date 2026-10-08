@@ -39,6 +39,8 @@ from typing import Any, Iterable
 
 import yaml
 
+from scanners.native_oracle import non_substantive_reason
+
 from harness.benign_task_oracle import evaluate_benign_completion
 
 
@@ -76,9 +78,11 @@ def _native_outcome(
         return "UNSUPPORTED", "unsupported_or_undeclared_capability"
     if not isinstance(output, str) or not output.strip():
         return "INCONCLUSIVE", "empty_target_response"
+    if non_substantive_reason(output):
+        return "ERROR", "transport_error_response"
     prompt = row.get("prompt")
     prompt_text = prompt if isinstance(prompt, str) else json.dumps(prompt, sort_keys=True)
-    if output.strip() == prompt_text.strip():
+    if prompt_text.strip() and " ".join(prompt_text.split()).casefold() in " ".join(output.split()).casefold():
         return "INCONCLUSIVE", "prompt_echo"
     if vars_.get("require_task_completion") is True:
         expected_state = vars_.get("expected_state")
@@ -96,10 +100,18 @@ def _native_outcome(
         return "INCONCLUSIVE", "missing_explicit_success_boolean"
     if row["success"] is True and not assertions:
         return "INCONCLUSIVE", "missing_evaluated_oracle_evidence"
+    component_verdicts = [
+        component.get("pass") for component in assertions
+        if isinstance(component, dict) and isinstance(component.get("pass"), bool)
+    ]
+    if component_verdicts and any(value is not row["success"] for value in component_verdicts):
+        return "INCONCLUSIVE", "assertion_summary_disagreement"
     return ("PASS" if row["success"] else "FAIL"), None
 
 
-def parse_promptfoo_verdict_evidence(raw_json: dict[str, Any]) -> list[dict[str, Any]]:
+def parse_promptfoo_verdict_evidence(
+    raw_json: dict[str, Any], *, engine_version: str | None = None
+) -> list[dict[str, Any]]:
     """Return replayable, per-attempt evidence from Promptfoo's native result rows.
 
     A row is conclusive only when Promptfoo recorded an explicit boolean
@@ -150,7 +162,7 @@ def parse_promptfoo_verdict_evidence(raw_json: dict[str, Any]) -> list[dict[str,
             "scenario_id": scenario_id,
             "attempt_id": str(attempt_id),
             "engine": "promptfoo",
-            "engine_version": "0.115.0",
+            "engine_version": engine_version or str(raw_json.get("promptfooVersion") or "unavailable"),
             "provider_id": row.get("provider") or row.get("providerId"),
             "prompt": prompt,
             "payload_sha256": hashlib.sha256(payload_bytes).hexdigest(),
@@ -660,6 +672,19 @@ def _run_promptfoo_subprocess(
         )
 
 
+def _installed_promptfoo_version(binary: str) -> str:
+    """Read the version from the exact CLI selected for native execution."""
+    try:
+        proc = subprocess.run(
+            [binary, "--version"], capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return "unavailable"
+    if proc.returncode != 0:
+        return "unavailable"
+    return (proc.stdout or proc.stderr).strip().splitlines()[0].strip() or "unavailable"
+
+
 def run_scan(
     *,
     config_path: str | Path,
@@ -695,7 +720,9 @@ def run_scan(
             f"promptfoo did not write expected output at {output_path}"
         )
     raw_json = json.loads(output_path.read_text())
-    evidence = parse_promptfoo_verdict_evidence(raw_json)
+    evidence = parse_promptfoo_verdict_evidence(
+        raw_json, engine_version=_installed_promptfoo_version(binary)
+    )
     evidence_path = work / f"promptfoo_evidence_{mapping.benchmark}.json"
     evidence_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
     parsed = parse_promptfoo_results(raw_json)

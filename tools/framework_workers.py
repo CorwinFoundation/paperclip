@@ -31,7 +31,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.framework_worker_registry import WORKERS, WorkerDefinition
 from scanners.eval_framework_venv import venv_python
-from scanners.native_oracle import non_substantive_reason
+from scanners.native_oracle import classify_canary_response, non_substantive_reason
 
 
 WORKER_RESULT_SCHEMA = "framework-worker-attempt-result/v0.2"
@@ -764,12 +764,34 @@ def _pyrit_adapter_result(
     if response is None:
         return _unsupported_interface(worker, model_version, "orchestrator_run_unsupported")
     expected = _expected_for_case(registry_row)
-    passed = bool(str(response)) and (not expected or expected in str(response))
+    if not expected:
+        return _result_dict(
+            status="incomplete",
+            evidence_ref=None,
+            incomplete_reason="could_not_run:pyrit_missing_expected_oracle",
+            model_version=model_version,
+            verdict=None,
+            target_calls=1,
+        )
+    passed, reason = classify_canary_response(
+        str(response), prompt=prompt, canary=expected
+    )
+    if passed is None:
+        return _result_dict(
+            status="incomplete",
+            evidence_ref=None,
+            incomplete_reason=reason or "could_not_run:pyrit_inconclusive",
+            model_version=model_version,
+            verdict=None,
+            target_calls=1,
+        )
     return _result_dict(
-        status="complete" if passed else "incomplete",
-        evidence_ref=_evidence_ref(registry_row, job) if passed else None,
-        incomplete_reason=None if passed else "pyrit_terminal_verdict_failed",
+        status="complete",
+        evidence_ref=_evidence_ref(registry_row, job),
+        incomplete_reason=None,
         model_version=model_version,
+        verdict="pass" if passed else "fail",
+        target_calls=1,
     )
 
 

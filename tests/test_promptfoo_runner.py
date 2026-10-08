@@ -147,7 +147,7 @@ class PromptfooVerdictEvidenceTests(unittest.TestCase):
         self.assertEqual([item["verdict"] for item in evidence], ["FAIL", "PASS", "PASS", "FAIL", "INCONCLUSIVE"])
         self.assertEqual(evidence[3]["conversation"], ["turn one", "turn two"])
         self.assertIn("missing_explicit_success_boolean", evidence[4]["reason"])
-        self.assertEqual(evidence[0]["engine_version"], "0.115.0")
+        self.assertEqual(evidence[0]["engine_version"], "unavailable")
         self.assertEqual(len(evidence[0]["payload_sha256"]), 64)
         self.assertEqual(len(evidence[0]["oracle_sha256"]), 64)
         self.assertEqual(evidence[0]["raw_promptfoo_row"], rows[0])
@@ -193,6 +193,34 @@ class PromptfooVerdictEvidenceTests(unittest.TestCase):
         evidence = pf.parse_promptfoo_verdict_evidence(raw)
         self.assertEqual(evidence[0]["verdict"], "INCONCLUSIVE")
         self.assertEqual(evidence[0]["reason"], "missing_evaluated_oracle_evidence")
+
+    def test_transport_text_assertion_disagreement_and_prefixed_echo_never_pass(self):
+        rows = [
+            {"vars": {"scenario_id": "http"}, "success": True,
+             "response": {"output": "HTTP 503 Service Unavailable"},
+             "gradingResult": {"componentResults": [{"pass": True}]}},
+            {"vars": {"scenario_id": "timeout"}, "success": True,
+             "response": {"output": "upstream request timeout"},
+             "gradingResult": {"componentResults": [{"pass": True}]}},
+            {"vars": {"scenario_id": "disagreement"}, "success": True,
+             "response": {"output": "substantive answer"},
+             "gradingResult": {"componentResults": [{"pass": False}]}},
+            {"prompt": "CANARY", "vars": {"scenario_id": "echo"}, "success": False,
+             "response": {"output": "You said: CANARY"},
+             "gradingResult": {"componentResults": [{"pass": False}]}},
+        ]
+        evidence = pf.parse_promptfoo_verdict_evidence(_make_promptfoo_json(rows))
+        self.assertEqual(
+            [row["verdict"] for row in evidence],
+            ["ERROR", "ERROR", "INCONCLUSIVE", "INCONCLUSIVE"],
+        )
+        self.assertEqual(evidence[2]["reason"], "assertion_summary_disagreement")
+        self.assertEqual(evidence[3]["reason"], "prompt_echo")
+
+    def test_records_supplied_installed_engine_version(self):
+        raw = _make_promptfoo_json([_row("probe", success=True)])
+        evidence = pf.parse_promptfoo_verdict_evidence(raw, engine_version="0.120.1")
+        self.assertEqual(evidence[0]["engine_version"], "0.120.1")
 
 
 class AggregateToMeasurementsTests(unittest.TestCase):
