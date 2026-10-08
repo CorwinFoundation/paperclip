@@ -94,6 +94,14 @@ class IntakeStore:
           CREATE TABLE IF NOT EXISTS improvement_samples(
             scan_id TEXT PRIMARY KEY, pack_version TEXT NOT NULL,
             tests_json TEXT NOT NULL, copied_at TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS report_verifications(
+            id TEXT PRIMARY KEY, report_token TEXT NOT NULL, code_hash TEXT NOT NULL,
+            expires_at REAL NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+            used_at REAL, issued_at REAL NOT NULL);
+          CREATE TABLE IF NOT EXISTS report_sessions(
+            session_hash TEXT PRIMARY KEY, report_token TEXT NOT NULL,
+            recipient_hash TEXT NOT NULL, created_at REAL NOT NULL,
+            last_seen_at REAL NOT NULL, expires_at REAL NOT NULL, revoked_at REAL);
         ''')
         if 'status_token_hash' not in {row[1] for row in self.db.execute('PRAGMA table_info(scans)')}:
             self.db.execute('ALTER TABLE scans ADD COLUMN status_token_hash TEXT')
@@ -287,6 +295,74 @@ class IntakeStore:
                 "pack_version": row["pack_version"], "created_at": row["created_at"],
                 "partner": row["partner"], "tests": json.loads(row["tests_json"]),
                 **report_outcome(row["outcome"], row["incomplete_reason"], json.loads(row["tests_json"]))}
+
+    @synchronized
+    def report_recipient_hint(self, token: str) -> str | None:
+        row = self.db.execute("SELECT email FROM scans WHERE report_token=? AND status='finished'", (token,)).fetchone()
+        if not row or not row['email'] or '@' not in row['email']:
+            return None
+        local, domain = row['email'].split('@', 1)
+        return (local[:1] + '*' * max(2, len(local) - 1) + '@' + domain)
+
+    @synchronized
+    def issue_report_code(self, token: str, *, now: float | None = None) -> tuple[str, str] | None:
+        now = time.time() if now is None else now
+        row = self.db.execute("SELECT email FROM scans WHERE report_token=? AND status='finished'", (token,)).fetchone()
+        if not row or not row['email']:
+            return None
+        recent = self.db.execute("SELECT count(*) FROM report_verifications WHERE report_token=? AND issued_at>?",
+                                 (token, now - 3600)).fetchone()[0]
+        if recent >= 5:
+            return None
+        code = f'{secrets.randbelow(1_000_000):06d}'
+        nonce = secrets.token_hex(16)
+        digest = hashlib.sha256((nonce + ':' + code).encode()).hexdigest()
+        self.db.execute("UPDATE report_verifications SET used_at=? WHERE report_token=? AND used_at IS NULL", (now, token))
+        self.db.execute("INSERT INTO report_verifications VALUES(?,?,?,?,0,NULL,?)",
+                        (nonce, token, digest, now + 600, now))
+        return row['email'], nonce + '.' + code
+
+    @synchronized
+    def verify_report_code(self, token: str, presented: str, *, now: float | None = None) -> str | None:
+        now = time.time() if now is None else now
+        try:
+            nonce, code = presented.split('.', 1)
+        except ValueError:
+            return None
+        row = self.db.execute("SELECT * FROM report_verifications WHERE id=? AND report_token=?", (nonce, token)).fetchone()
+        if not row or row['used_at'] is not None or row['expires_at'] <= now or row['attempts'] >= 5:
+            return None
+        self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
+        if not hmac.compare_digest(row['code_hash'], hashlib.sha256((nonce + ':' + code).encode()).hexdigest()):
+            return None
+        recipient = self.db.execute("SELECT email FROM scans WHERE report_token=?", (token,)).fetchone()
+        if not recipient:
+            return None
+        self.db.execute("UPDATE report_verifications SET used_at=? WHERE id=?", (now, nonce))
+        raw = secrets.token_urlsafe(32)
+        self.db.execute("INSERT INTO report_sessions VALUES(?,?,?,?,?,?,NULL)",
+                        (hashlib.sha256(raw.encode()).hexdigest(), token,
+                         hashlib.sha256(recipient['email'].encode()).hexdigest(), now, now, now + 1800))
+        return raw
+
+    @synchronized
+    def authorize_report(self, token: str, session: str | None, *, now: float | None = None) -> bool:
+        if not session:
+            return False
+        now = time.time() if now is None else now
+        digest = hashlib.sha256(session.encode()).hexdigest()
+        row = self.db.execute("SELECT * FROM report_sessions WHERE session_hash=? AND report_token=?",
+                              (digest, token)).fetchone()
+        if not row or row['revoked_at'] is not None or row['expires_at'] <= now or row['last_seen_at'] + 600 <= now:
+            return False
+        self.db.execute("UPDATE report_sessions SET last_seen_at=? WHERE session_hash=?", (now, digest))
+        return True
+
+    @synchronized
+    def revoke_report_session(self, session: str | None, *, now: float | None = None) -> None:
+        if session:
+            self.db.execute("UPDATE report_sessions SET revoked_at=? WHERE session_hash=?",
+                            (time.time() if now is None else now, hashlib.sha256(session.encode()).hexdigest()))
 
     @synchronized
     def interrupted(self, scan_id: str) -> None:

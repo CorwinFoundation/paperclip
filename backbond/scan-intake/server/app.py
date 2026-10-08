@@ -14,7 +14,7 @@ import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue, deliver_pending
 
@@ -227,6 +227,21 @@ def _send_report(to: str, agent: str, token: str) -> None:
                 'from': 'BackBond <info@backbond.ai>', 'to': [to],
                 'subject': f'Your BackBond scan report — {agent}',
                 'text': f'Your scan is complete.\n\nView the report:\nhttps://backbond.ai/scan/r/{token}'})
+        if response.status_code not in {200, 201}:
+            raise RuntimeError('Report mail delivery unavailable')
+
+
+def _send_report_code(to: str, code: str) -> None:
+    path = _mail_credentials_path()
+    if not path or not path.is_file():
+        raise RuntimeError("Report mail is not configured")
+    value = json.loads(path.read_text())
+    with httpx.Client(timeout=30) as client:
+        response = client.post('https://api.resend.com/emails',
+            headers={'Authorization': 'Bearer ' + value['api_key']}, json={
+                'from': 'BackBond <info@backbond.ai>', 'to': [to],
+                'subject': 'Your BackBond report verification code',
+                'text': f'Your verification code is {code}. It expires in 10 minutes.'})
         if response.status_code not in {200, 201}:
             raise RuntimeError('Report mail delivery unavailable')
 
@@ -453,8 +468,72 @@ async def scanner_webhook(request: Request, x_backbond_signature: str = Header(d
         raise HTTPException(400, 'invalid scanner callback')
 
 
+class ReportCode(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+def _report_session(request: Request) -> str | None:
+    return request.cookies.get('bb_report_session')
+
+
+def _report_csrf_ok(request: Request) -> bool:
+    """Report verification changes must originate from the first-party viewer."""
+    origin = request.headers.get('origin')
+    referer = request.headers.get('referer')
+    allowed = {'https://backbond.ai', 'https://www.backbond.ai'}
+    if origin:
+        return origin.rstrip('/') in allowed
+    if referer:
+        return any(referer.startswith(value + '/') for value in allowed)
+    return False
+
+
+@app.post("/scan/v1/reports/{token}/verification")
+def request_report_verification(token: str, request: Request):
+    if not _report_csrf_ok(request):
+        raise HTTPException(403, "verification failed")
+    issued = store.issue_report_code(token)
+    if issued:
+        recipient, value = issued
+        nonce, code = value.split('.', 1)
+        _send_report_code(recipient, code)
+        response = JSONResponse({"status": "If this report is available, a code was sent.",
+                                 "recipient_hint": store.report_recipient_hint(token)})
+        response.set_cookie('bb_report_challenge', nonce, secure=True, httponly=True,
+                            samesite='strict', max_age=600, path=f'/scan/v1/reports/{token}')
+        return response
+    return {"status": "If this report is available, a code was sent."}
+
+
+@app.post("/scan/v1/reports/{token}/session")
+def create_report_session(token: str, body: ReportCode, request: Request):
+    if not _report_csrf_ok(request):
+        raise HTTPException(403, "verification failed")
+    nonce = request.cookies.get('bb_report_challenge') or ''
+    session = store.verify_report_code(token, nonce + '.' + body.code)
+    if not session:
+        raise HTTPException(403, "verification failed")
+    response = JSONResponse({"status": "verified"})
+    response.set_cookie('bb_report_session', session, secure=True, httponly=True,
+                        samesite='strict', max_age=1800, path=f'/scan/v1/reports/{token}')
+    response.delete_cookie('bb_report_challenge', path=f'/scan/v1/reports/{token}')
+    return response
+
+
+@app.delete("/scan/v1/reports/{token}/session", status_code=204)
+def delete_report_session(token: str, request: Request):
+    if not _report_csrf_ok(request):
+        raise HTTPException(403, "verification failed")
+    store.revoke_report_session(_report_session(request))
+    response = Response(status_code=204)
+    response.delete_cookie('bb_report_session', path=f'/scan/v1/reports/{token}')
+    return response
+
+
 @app.get("/scan/v1/reports/{token}")
-def report(token: str):
+def report(token: str, request: Request):
+    if not store.authorize_report(token, _report_session(request)):
+        raise HTTPException(404, "report not found")
     value = store.report(token)
     # Read sanitized existing reports through the public API without opening its database.
     if value is None and os.environ.get('QA_REVIEW_EXISTING_REPORTS') == '1' and re.fullmatch(r'[a-f0-9]{32}', token):
