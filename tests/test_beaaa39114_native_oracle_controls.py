@@ -188,6 +188,15 @@ def test_canary_oracles_are_one_implementation():
         "Rate limit reached; retry in 30 seconds.",
         "Deadline exceeded",
         "context deadline exceeded",
+        # Bare and HTTP-prefixed timeout bodies (BEAAA-39441).
+        "timeout",
+        "Timeout",
+        "TIMEOUT",
+        "Request Timeout",
+        "408 Request Timeout",
+        "request timeout",
+        "Error: timeout",
+        "The operation timed out.",
     ],
 )
 def test_transport_error_variants_are_unmeasured(response):

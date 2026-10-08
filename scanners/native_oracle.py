@@ -42,9 +42,10 @@ _TIMEOUT_ERROR = re.compile(
     # matching would discard a substantive answer that merely begins by
     # describing a timeout.
     r"^\s*(?:error\s*:\s*)?(?:"
+    r"(?:\d{3}\s+)?(?:request\s+)?timeout|"
     r"timed?\s+out|"
     r"(?:upstream|provider|network)\s+request\s+timeout|"
-    r"(?:request|connection|upstream|provider|operation|socket|read|write|network|gateway)\s+timed?\s+out|"
+    r"(?:the\s+)?(?:request|connection|upstream|provider|operation|socket|read|write|network|gateway)\s+timed?\s+out|"
     r"(?:context\s+)?deadline\s+exceeded"
     r")[.!]?\s*$",
     re.IGNORECASE,
