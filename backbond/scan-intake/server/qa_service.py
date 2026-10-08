@@ -97,12 +97,15 @@ class IntakeStore:
           CREATE TABLE IF NOT EXISTS report_verifications(
             id TEXT PRIMARY KEY, report_token TEXT NOT NULL, code_hash TEXT NOT NULL,
             expires_at REAL NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
-            used_at REAL, issued_at REAL NOT NULL);
+            used_at REAL, issued_at REAL NOT NULL, request_key TEXT NOT NULL DEFAULT '');
           CREATE TABLE IF NOT EXISTS report_sessions(
             session_hash TEXT PRIMARY KEY, report_token TEXT NOT NULL,
             recipient_hash TEXT NOT NULL, created_at REAL NOT NULL,
             last_seen_at REAL NOT NULL, expires_at REAL NOT NULL, revoked_at REAL);
         ''')
+        verification_cols = {row[1] for row in self.db.execute('PRAGMA table_info(report_verifications)')}
+        if 'request_key' not in verification_cols:
+            self.db.execute("ALTER TABLE report_verifications ADD COLUMN request_key TEXT NOT NULL DEFAULT ''")
         if 'status_token_hash' not in {row[1] for row in self.db.execute('PRAGMA table_info(scans)')}:
             self.db.execute('ALTER TABLE scans ADD COLUMN status_token_hash TEXT')
         # BEAAA-38895: the engine's terminal outcome rides next to status='finished'.
@@ -326,24 +329,36 @@ class IntakeStore:
         return (local[:1] + '*' * max(2, len(local) - 1) + '@' + domain)
 
     @synchronized
-    def issue_report_code(self, token: str, *, now: float | None = None) -> tuple[str, str] | None:
+    def issue_report_code(self, token: str, *, request_key: str | None = None,
+                          now: float | None = None) -> tuple[str, str] | None:
         now = time.time() if now is None else now
         row = self.db.execute("SELECT email FROM scans WHERE report_token=? AND status='finished'", (token,)).fetchone()
         if not row or not row['email']:
             return None
-        recent = self.db.execute("SELECT count(*) FROM report_verifications WHERE report_token=? AND issued_at>?",
-                                 (token, now - 3600)).fetchone()[0]
-        if recent >= 5:
+        # A forwarded report URL must not let one browser exhaust the recipient's
+        # code budget. Keep a small per-client budget and a larger report-wide
+        # safety ceiling for distributed abuse.
+        request_key = request_key or token
+        recent_for_client = self.db.execute(
+            "SELECT count(*) FROM report_verifications WHERE report_token=? AND request_key=? AND issued_at>?",
+            (token, request_key, now - 3600)).fetchone()[0]
+        recent_total = self.db.execute(
+            "SELECT count(*) FROM report_verifications WHERE report_token=? AND issued_at>?",
+            (token, now - 3600)).fetchone()[0]
+        if recent_for_client >= 5 or recent_total >= 50:
             return None
         code = f'{secrets.randbelow(1_000_000):06d}'
         nonce = secrets.token_hex(16)
         digest = hashlib.sha256((nonce + ':' + code).encode()).hexdigest()
-        self.db.execute("INSERT INTO report_verifications VALUES(?,?,?,?,0,NULL,?)",
-                        (nonce, token, digest, now + 600, now))
+        self.db.execute("""INSERT INTO report_verifications
+                         (id, report_token, code_hash, expires_at, attempts, used_at, issued_at, request_key)
+                         VALUES(?,?,?,?,0,NULL,?,?)""",
+                        (nonce, token, digest, now + 600, now, request_key))
         return row['email'], nonce + '.' + code
 
     @synchronized
-    def verify_report_code(self, token: str, presented: str, *, now: float | None = None) -> str | None:
+    def verify_report_code(self, token: str, presented: str, *, request_key: str | None = None,
+                           now: float | None = None) -> str | None:
         now = time.time() if now is None else now
         try:
             nonce, code = presented.split('.', 1)
@@ -355,10 +370,12 @@ class IntakeStore:
         total_failures = self.db.execute(
             "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=? AND issued_at>?",
             (token, now - 3600)).fetchone()[0]
-        if total_failures >= 10:
+        if total_failures >= 100:
             return None
-        self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
         if not hmac.compare_digest(row['code_hash'], hashlib.sha256((nonce + ':' + code).encode()).hexdigest()):
+            # Count only failed guesses. A successful verification is not a
+            # failed-attempt budget hit for a later challenge.
+            self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
             return None
         recipient = self.db.execute("SELECT email FROM scans WHERE report_token=?", (token,)).fetchone()
         if not recipient:

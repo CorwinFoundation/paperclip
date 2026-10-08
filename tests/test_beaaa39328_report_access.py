@@ -42,13 +42,24 @@ def test_new_issuance_does_not_invalidate_recipient_code(tmp_path):
 
 def test_failed_verification_is_bounded_across_challenges(tmp_path):
     store = store_with_report(tmp_path)
-    challenges = [store.issue_report_code('a'*32, now=100 + index)[1] for index in range(3)]
+    challenges = [store.issue_report_code('a'*32, request_key=f'foreign-{index}', now=100 + index)[1]
+                  for index in range(3)]
     for index in range(10):
         challenge = challenges[index % 3]
         nonce, code = challenge.split('.')
         wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
-        assert store.verify_report_code('a'*32, wrong, now=110 + index) is None
-    assert store.verify_report_code('a'*32, challenges[0], now=121) is None
+        assert store.verify_report_code('a'*32, wrong, request_key=f'foreign-{index % 3}', now=110 + index) is None
+    # Ten guesses from other clients do not lock out the recipient's valid code.
+    _, recipient = store.issue_report_code('a'*32, request_key='recipient', now=121)
+    assert store.verify_report_code('a'*32, recipient, request_key='recipient', now=122)
+
+
+def test_forwarded_link_cannot_exhaust_recipient_issuance_budget(tmp_path):
+    store = store_with_report(tmp_path)
+    for index in range(5):
+        assert store.issue_report_code('a'*32, request_key=f'foreign-{index}', now=100 + index)
+    _, recipient = store.issue_report_code('a'*32, request_key='recipient', now=106)
+    assert recipient
 
 
 def test_session_idle_absolute_and_logout(tmp_path):

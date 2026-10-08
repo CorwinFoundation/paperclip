@@ -540,7 +540,9 @@ def _report_csrf_ok(request: Request) -> bool:
 def request_report_verification(token: str, request: Request):
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
-    issued = store.issue_report_code(token) if report_issue_gate.allow(ip=_client(request), all='all') else None
+    client_key = _client(request)
+    issued = (store.issue_report_code(token, request_key=client_key)
+              if report_issue_gate.allow(ip=client_key, all='all') else None)
     nonce = secrets.token_hex(16)
     if issued:
         recipient, value = issued
@@ -561,7 +563,8 @@ def create_report_session(token: str, body: ReportCode, request: Request):
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     nonce = request.cookies.get('bb_report_challenge') or ''
-    session = store.verify_report_code(token, nonce + '.' + body.code)
+    session = store.verify_report_code(token, nonce + '.' + body.code,
+                                       request_key=_client(request))
     if not session:
         raise HTTPException(403, "verification failed")
     response = JSONResponse({"status": "verified"})
