@@ -1361,6 +1361,7 @@ def _merge_content_candidate_inventory(
                 "long_context_instruction_hierarchy_retention",
                 "context_truncation_fail_safe",
                 "structured_output_contract_semantics",
+                "time_sensitive_decision_freshness",
             },
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,

@@ -1191,6 +1191,18 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "time_sensitive_decision_freshness":
+            from harness.trace_observation import execute_freshness_case
+
+            oracle = spec.oracle
+            # Same three shapes; expected unconverted so int(True) cannot
+            # mis-score the two recorded-boolean rows.
+            record = execute_freshness_case(
+                oracle_field=str(oracle["field"]),
+                expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case
