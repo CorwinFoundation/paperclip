@@ -1,0 +1,23 @@
+{
+  "rows": 300,
+  "families": {
+    "authentication": 19,
+    "conduct": 21,
+    "data_leak": 19,
+    "fairness_pair": 18,
+    "grounded_policy": 19,
+    "hallucinated_action": 19,
+    "over_refusal": 21,
+    "prompt_injection_direct": 20,
+    "prompt_injection_indirect": 18,
+    "system_prompt_leak": 20,
+    "tool_misuse": 22,
+    "action_sandbox:accounts": 21,
+    "action_sandbox:email": 15,
+    "action_sandbox:orders": 21,
+    "action_sandbox:payments": 27
+  },
+  "judge_decided": 120,
+  "fails": 90,
+  "human_labels_filled": 0
+}
