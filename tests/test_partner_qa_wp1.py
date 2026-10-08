@@ -197,6 +197,27 @@ def test_kaltura_browser_extracts_only_two_narrative_fragments() -> None:
     assert extract_assistant_narrative(article) == "first narrative\nsecond narrative"
 
 
+def test_kaltura_browser_extracts_short_reply_without_optional_blocks() -> None:
+    class Nodes:
+        def __init__(self, values): self.values = values
+        def locator(self, selector): return Nodes(self.values)
+        def count(self): return len(self.values)
+        def nth(self, index): return Node(self.values[index])
+    class Node:
+        def __init__(self, value): self.value = value
+        def locator(self, selector): return Nodes(self.value)
+        def inner_text(self): return self.value
+
+    article = Nodes([
+        [
+            ["user"],
+            ["", "OK", ""],
+            ["spacer"],
+        ],
+    ])
+    assert extract_assistant_narrative(article) == "OK"
+
+
 @pytest.mark.parametrize("article", [
     [],
     [[[["user"], ["assistant"], ["spacer"]]], [[["unexpected"]]]],

@@ -22,7 +22,7 @@ def extract_assistant_narrative(article: Any) -> str:
         raise RunnerError("kaltura genie message structure changed")
     assistant = blocks.nth(1)
     children = assistant.locator(":scope > *")
-    if children.count() < 4:
+    if children.count() < 3:
         raise RunnerError("kaltura genie assistant structure changed")
     # child 0 is the avatar; 1 and 2 are the narrative wrappers; later
     # children are social actions, next steps, and optional source widgets.
