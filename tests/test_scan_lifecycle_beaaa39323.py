@@ -56,5 +56,19 @@ def test_refresh_reconnect_and_terminal_actions_restore_truthfully():
     assert value["reconnecting"]["state"] == "reconnecting"
     assert value["resumed"]["state"] == "running"
     assert value["views"]["restored"]["action"] == "progress"
-    for state in ("finished", "incomplete", "error"):
+    for state in ("finished", "incomplete"):
         assert value["views"][state]["label"] == "New scan"
+
+
+def test_error_reopens_form_and_requires_fresh_connection_proof_without_changing_other_states():
+    value = run_js("""
+      let running=lifecycle.reduce(lifecycle.initial(),{type:'connection_passed'});
+      running=lifecycle.reduce(running,{type:'accepted',status:'running',statusToken:'scan-1'});
+      const completed=lifecycle.reduce(running,{type:'status',status:'finished'});
+      const error=lifecycle.reduce(running,{type:'status',status:'error'});
+      console.log(JSON.stringify({running:lifecycle.view(running),completed:lifecycle.view(completed),error,errorView:lifecycle.view(error)}));
+    """)
+    assert value["running"]["action"] == "progress"
+    assert value["completed"]["label"] == "New scan"
+    assert value["error"]["connectionPassed"] is False
+    assert value["errorView"] == {"action": "retry", "label": "Test connection to retry", "disabled": True, "showProgress": True, "reopenForm": True}

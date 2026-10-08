@@ -35,7 +35,7 @@
         return { ...current, state: "stalled", priorState: current.priorState || current.state };
       case "status":
         if (!SERVER_STATES.has(event.status)) return { ...current, state: "unconfirmed" };
-        return { ...current, state: event.status, priorState: null };
+        return { ...current, state: event.status, priorState: null, connectionPassed: event.status === "error" ? false : current.connectionPassed };
       case "new_scan":
         return TERMINAL.has(current.state) ? initial() : current;
       default:
@@ -45,6 +45,7 @@
 
   function view(model) {
     if (model.state === "idle") return { action: "start", label: "Start scan", disabled: false, showProgress: false };
+    if (model.state === "error") return { action: "retry", label: "Test connection to retry", disabled: true, showProgress: true, reopenForm: true };
     if (TERMINAL.has(model.state)) return { action: "new", label: "New scan", disabled: false, showProgress: true };
     if (model.state === "submitting") return { action: "progress", label: "Starting scan…", disabled: true, showProgress: true };
     return { action: "progress", label: "View scan progress", disabled: false, showProgress: true };

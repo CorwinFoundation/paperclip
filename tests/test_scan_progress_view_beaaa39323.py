@@ -50,3 +50,12 @@ def test_renderer_declares_determinate_progress_only_for_known_positive_total():
     assert 'setAttribute("role","progressbar")' in source
     assert 'if(value.percent!==null)' in source
     assert 'aria-valuenow' in source and 'aria-valuemax' in source
+
+
+def test_verified_error_recovery_copy_preserves_running_and_completed():
+    values = js("({running:p.model({state:'running',timing:{}}),completed:p.model({state:'finished',timing:{}}),error:p.model({state:'error',timing:{}})})")
+    assert values["running"]["heading"] == "Scan in progress"
+    assert values["completed"]["heading"] == "Processing finished"
+    assert values["error"]["heading"] == "Scan failed before producing results"
+    assert values["error"]["guidance"] == "Your scan allowance has been restored. Enter your connection details and test the connection before retrying."
+    assert values["error"]["action"] == "Check connection"

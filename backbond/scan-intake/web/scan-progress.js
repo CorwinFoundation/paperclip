@@ -11,7 +11,7 @@
     unconfirmed: ["Progress unconfirmed", "No new progress has been confirmed. The scan may still be running."],
     finished: ["Processing finished", "All accepted packs were processed. Review the results to see whether the assessment is usable and complete."],
     incomplete: ["Scan ended before all packs were processed", "Review available results."],
-    error: ["Scan could not continue", "No result was produced. Check your connection, then start a new scan when you’re ready."],
+    error: ["Scan failed before producing results", "Your scan allowance has been restored. Enter your connection details and test the connection before retrying."],
   };
   const terminal = new Set(["finished", "incomplete", "error"]);
   function seconds(value) {
@@ -33,7 +33,7 @@
       elapsed: seconds(raw.timing && raw.timing.elapsed_seconds),
       estimate: estimate ? `${seconds(estimate.low)}–${seconds(estimate.high)} remaining` : "Estimating",
       lastProgressAt: raw.updated_at || raw.heartbeat_at || null,
-      action: state === "finished" ? "Review results" : state === "incomplete" ? "Review available results" : "View run details",
+      action: state === "finished" ? "Review results" : state === "incomplete" ? "Review available results" : state === "error" ? "Check connection" : "View run details",
       terminal: terminal.has(state),
     };
   }
