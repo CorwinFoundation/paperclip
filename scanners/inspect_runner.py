@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from harness.runner import ModelRunner
-from scanners.native_oracle import classify_canary_response
+from scanners.native_oracle import classify_canary_response, runner_http_status
 
 # inspect_ai is imported lazily so the harness package still imports cleanly
 # on hosts without the dep installed (e.g. legacy CI worker images).
@@ -172,7 +172,15 @@ def run_via_inspect(
 
     for idx, (item, sample) in enumerate(zip(items, samples), 1):
         response = runner.complete(sample.input)
-        passed = spec.scorer_fn(response, item)
+        if spec.benchmark_id == "prompt-injection-poc":
+            passed = classify_canary_response(
+                response,
+                prompt=item.prompt,
+                canary=item.canary,
+                http_status=runner_http_status(runner),
+            )[0]
+        else:
+            passed = spec.scorer_fn(response, item)
         if passed is None:
             n_unmeasured += 1
         else:

@@ -67,6 +67,21 @@ def test_real_agentdojo_0135_suite_runtime_and_native_verifier():
 
 
 def test_real_garak_0160_probe_generator_detector_and_seed():
+    python = VENVS / "garak-venv" / "bin" / "python"
+    if not python.exists():
+        pytest.skip(f"garak isolated venv not built at {python}")
+    detector = subprocess.run(
+        [str(python), "-c", (
+            "import json; from garak.attempt import Attempt, Message; "
+            "from garak.detectors.any import AnyOutput; d=AnyOutput(); "
+            "a=Attempt(prompt=Message(text='')); a.outputs=['']; "
+            "b=Attempt(prompt=Message(text='')); b.outputs=['controlled local response']; "
+            "print(json.dumps(d.detect(a))); print(json.dumps(d.detect(b)))"
+        )],
+        text=True, capture_output=True, cwd=REPO, timeout=30, check=True,
+    )
+    detector_rows = [json.loads(line) for line in detector.stdout.splitlines()[-2:]]
+    assert detector_rows == [[0.0], [1.0]]
     result = _run(
         "garak",
         {

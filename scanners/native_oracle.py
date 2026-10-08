@@ -38,16 +38,20 @@ _ENVOY_ERROR = re.compile(
 # Node.js / OS-level connection reset
 _ECONNRESET = re.compile(r"\bECONNRESET\b", re.IGNORECASE)
 _TIMEOUT_ERROR = re.compile(
-    # A short reply consisting only of "timed out" (optionally error-prefixed)
-    # is a transport failure.  In longer prose require a transport qualifier so
-    # user-session text such as "your session timed out" remains measurable.
-    r"(?:^\s*(?:error\s*:\s*)?timed?\s+out[.!]?\s*$|"
-    r"\b(?:request|connection|upstream|provider|operation|socket|read|write|network|gateway)\s+timed?\s+out\b)",
+    # Only a complete, terse timeout body is a transport failure.  Prefix
+    # matching would discard a substantive answer that merely begins by
+    # describing a timeout.
+    r"^\s*(?:error\s*:\s*)?(?:"
+    r"timed?\s+out|"
+    r"(?:request|connection|upstream|provider|operation|socket|read|write|network|gateway)\s+timed?\s+out|"
+    r"(?:context\s+)?deadline\s+exceeded"
+    r")[.!]?\s*$",
     re.IGNORECASE,
 )
-# Rate-limit responses that start with "Rate limit exceeded" (with or without trailing retry hint)
+# Complete rate-limit bodies, optionally followed by a terse retry hint.
 _RATE_LIMIT_PREFIX = re.compile(
-    r"^\s*(?:rate\s+limit(?:ed|\s+exceeded)|quota\s+exceeded)\b",
+    r"^\s*(?:rate\s+limit(?:ed|\s+(?:exceeded|reached))|quota\s+exceeded)"
+    r"(?:[.;:]?\s*(?:please\s+)?retry(?:\s+(?:after|in)\s+\d+\s*(?:s|sec(?:ond)?s?|m|min(?:ute)?s?))?[.!]?)?\s*$",
     re.IGNORECASE,
 )
 # nginx / envoy HTML error pages
@@ -150,3 +154,9 @@ def classify_canary_response(
     if _looks_like_transport_error(stripped):
         return None, "could_not_run:transport_error_response"
     return True, None
+
+
+def runner_http_status(runner: object) -> int | None:
+    """Read an adapter's status for the immediately preceding completion."""
+    value = getattr(runner, "last_http_status", None)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None

@@ -32,7 +32,7 @@ from harness.probe_sanitizer import (
 )
 from harness.runner import ModelRunner
 from scanners.eval_framework_venv import resolve_framework, resolve_or_import
-from scanners.native_oracle import classify_canary_response
+from scanners.native_oracle import classify_canary_response, runner_http_status
 
 # Stable dim_ids for the BEAAA-1682 TOOL_MISUSE wrap. Imported by the live
 # probe orchestrator + the G1 smoke harness; never reformatted inline.
@@ -113,7 +113,15 @@ def run_via_agentdojo(
         # Scoring reads the verbatim response body — canary substring math
         # is invariant; scanner_safe_* are render-only siblings for any
         # downstream judge / evidence / log render context.
-        passed = eval_fn(response_envelope.scoring_body, item)
+        if evaluator is None:
+            passed = classify_canary_response(
+                response_envelope.scoring_body,
+                prompt=item.prompt,
+                canary=item.canary,
+                http_status=runner_http_status(runner),
+            )[0]
+        else:
+            passed = eval_fn(response_envelope.scoring_body, item)
         reason = None
         if passed is None:
             n_unmeasured += 1
@@ -263,7 +271,15 @@ def run_tool_misuse_via_agentdojo(
         probe_envelope = sanitize_probe_payload(item.prompt)
         response = runner.complete(probe_envelope.agent_body)
         response_envelope = sanitize_response_payload(response)
-        passed = eval_fn(response_envelope.scoring_body, item)
+        if evaluator is None:
+            passed = classify_canary_response(
+                response_envelope.scoring_body,
+                prompt=item.prompt,
+                canary=item.canary,
+                http_status=runner_http_status(runner),
+            )[0]
+        else:
+            passed = eval_fn(response_envelope.scoring_body, item)
         reason = None
         if passed is None:
             n_unmeasured += 1

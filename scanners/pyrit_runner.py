@@ -40,7 +40,7 @@ from typing import Any, Callable
 
 from harness.bench import prompt_injection as p31
 from harness.runner import ModelRunner
-from scanners.native_oracle import classify_canary_response
+from scanners.native_oracle import classify_canary_response, runner_http_status
 
 try:
     import pyrit  # type: ignore
@@ -134,7 +134,15 @@ def run_via_pyrit(
 
     for idx, item in enumerate(items, 1):
         response = runner.complete(item.prompt)
-        passed = eval_fn(response, item)
+        if evaluator is None:
+            passed = classify_canary_response(
+                response,
+                prompt=item.prompt,
+                canary=item.canary,
+                http_status=runner_http_status(runner),
+            )[0]
+        else:
+            passed = eval_fn(response, item)
         reason = None
         if passed is None:
             n_unmeasured += 1
