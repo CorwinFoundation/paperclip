@@ -2024,6 +2024,7 @@ def connectivity_check_handler(
     )
     if not isinstance(secret, str) or (not secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
+    runner = None
     try:
         runner = runner_factory(
             endpoint["url"], secret, body.get("agent_id"), endpoint_config=endpoint
@@ -2035,6 +2036,10 @@ def connectivity_check_handler(
     except RunnerError:
         return 200, {"success": False, "error": "connection_failed"}
     finally:
+        if runner is not None:
+            close = getattr(runner, "close", None)
+            if callable(close):
+                close()
         del secret
 
 

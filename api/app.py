@@ -5,6 +5,7 @@ and lets unittest target handlers directly without booting an ASGI app.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -491,7 +492,11 @@ def create_app(
     async def post_connectivity_check(request: Request) -> Any:
         body = await request.json()
         try:
-            status, payload = connectivity_check_handler(body)
+            # Customer runners are synchronous. Browser-backed transports use
+            # Playwright's sync API, which must not execute on this ASGI event
+            # loop thread. The handler owns runner creation/use/cleanup, so the
+            # complete lifecycle remains on one worker thread.
+            status, payload = await asyncio.to_thread(connectivity_check_handler, body)
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
         return JSONResponse(status_code=status, content=payload)
