@@ -338,7 +338,6 @@ class IntakeStore:
         code = f'{secrets.randbelow(1_000_000):06d}'
         nonce = secrets.token_hex(16)
         digest = hashlib.sha256((nonce + ':' + code).encode()).hexdigest()
-        self.db.execute("UPDATE report_verifications SET used_at=? WHERE report_token=? AND used_at IS NULL", (now, token))
         self.db.execute("INSERT INTO report_verifications VALUES(?,?,?,?,0,NULL,?)",
                         (nonce, token, digest, now + 600, now))
         return row['email'], nonce + '.' + code
@@ -352,6 +351,11 @@ class IntakeStore:
             return None
         row = self.db.execute("SELECT * FROM report_verifications WHERE id=? AND report_token=?", (nonce, token)).fetchone()
         if not row or row['used_at'] is not None or row['expires_at'] <= now or row['attempts'] >= 5:
+            return None
+        total_failures = self.db.execute(
+            "SELECT COALESCE(sum(attempts),0) FROM report_verifications WHERE report_token=? AND issued_at>?",
+            (token, now - 3600)).fetchone()[0]
+        if total_failures >= 10:
             return None
         self.db.execute("UPDATE report_verifications SET attempts=attempts+1 WHERE id=?", (nonce,))
         if not hmac.compare_digest(row['code_hash'], hashlib.sha256((nonce + ':' + code).encode()).hexdigest()):

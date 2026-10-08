@@ -51,6 +51,40 @@
   const STARTER_NOT_RUN = 'Anything we did not run is marked N/A or not run. Neither one counts as a pass.';
   // Until /scan/full/new exists the button opens the current contact route.
   const FULL_SCAN_SCOPE_URL = partner => 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report-full-scan-scope') + '&subject=Full%20Scan%20scope';
+  const API = 'https://api.backbond.ai/scan/v1/reports/';
+  const request = (url, options = {}) => fetch(url, {...options, credentials:'include', cache:'no-store', referrerPolicy:'no-referrer'});
+  function verification(token) {
+    const host = $('report-error'); host.replaceChildren(); host.hidden = false;
+    host.append(text('p','Verify that you are the report recipient to continue.'));
+    const requestButton = text('button','Email me a code'); requestButton.type = 'button';
+    const form = document.createElement('form'); form.hidden = true;
+    const input = document.createElement('input'); input.inputMode = 'numeric'; input.autocomplete = 'one-time-code'; input.pattern = '[0-9]{6}'; input.maxLength = 6; input.required = true; input.setAttribute('aria-label','Six-digit verification code');
+    const submit = text('button','Open report'); submit.type = 'submit';
+    const status = text('p',''); form.append(input, submit); host.append(requestButton, form, status);
+    requestButton.addEventListener('click', async () => {
+      requestButton.disabled = true;
+      try {
+        await request(API + token + '/verification', {method:'POST'});
+        status.textContent = 'If this report is available, a code was sent to its original recipient.';
+        form.hidden = false; input.focus();
+      } catch { status.textContent = 'Verification is temporarily unavailable. Try again later.'; }
+      finally { requestButton.disabled = false; }
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); submit.disabled = true;
+      try {
+        const response = await request(API + token + '/session', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:input.value})});
+        if (!response.ok) { status.textContent = 'That code is invalid or expired.'; return; }
+        await load();
+      } catch { status.textContent = 'Verification is temporarily unavailable. Try again later.'; }
+      finally { submit.disabled = false; }
+    });
+  }
+  function logout(token) {
+    const button = text('button','Sign out'); button.type = 'button';
+    button.addEventListener('click', async () => { await request(API + token + '/session', {method:'DELETE'}); $('report').hidden = true; verification(token); });
+    $('report').prepend(button);
+  }
   function starterScopeBlocks(table, partner, packVersion = 'starter-100@3') {
     const tested = document.createElement('section'); tested.className = 'starter-tested';
     tested.append(text('h2','What this Starter scan tested'));
@@ -68,8 +102,8 @@
     const match = location.pathname.match(/^\/scan\/r\/([a-f0-9]{32})\/?$/i);
     if (!match) { $('report-error').textContent = 'This report link is invalid. Open the complete link from your report email.'; return; }
     try {
-      const response = await fetch('https://api.backbond.ai/scan/v1/reports/' + match[1], {credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
-      if (!response.ok) { $('report-error').textContent = response.status === 404 || response.status === 410 ? 'This report is unavailable or has expired. Reports stay viewable for 180 days.' : 'The report service is unavailable. Try again later.'; return; }
+      const response = await request(API + match[1]);
+      if (!response.ok) { if (response.status === 404) verification(match[1]); else $('report-error').textContent = 'The report service is unavailable. Try again later.'; return; }
       const data = await response.json();
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4'].includes(data.pack_version)) throw new Error('schema');
       // could_not_run (starter-100@2 and @3) is its own verdict upstream; here it sits in the not-run bucket, never in fail.
@@ -107,7 +141,7 @@
       const partner = /^[a-z0-9-]{1,60}$/.test(data.partner || '') ? data.partner : 'partner';
       if (['starter-100@3','starter-100@4'].includes(data.pack_version)) starterScopeBlocks($('families').closest('table') || $('families'), partner, data.pack_version);
       $('contact').href = 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report') + '&subject=Full%20agent%20scan';
-      $('report-error').hidden = true; $('report').hidden = false;
+      $('report-error').hidden = true; $('report').hidden = false; logout(match[1]);
     } catch { $('report-error').textContent = 'The report could not be loaded. Try again later.'; }
   }
   load();

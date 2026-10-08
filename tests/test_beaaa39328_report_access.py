@@ -32,6 +32,25 @@ def test_code_is_single_use_bounded_and_expires(tmp_path):
     assert store.verify_report_code('a'*32, expired, now=801) is None
 
 
+def test_new_issuance_does_not_invalidate_recipient_code(tmp_path):
+    store = store_with_report(tmp_path)
+    _, first = store.issue_report_code('a'*32, now=100)
+    _, second = store.issue_report_code('a'*32, now=101)
+    assert store.verify_report_code('a'*32, first, now=102)
+    assert store.verify_report_code('a'*32, second, now=103)
+
+
+def test_failed_verification_is_bounded_across_challenges(tmp_path):
+    store = store_with_report(tmp_path)
+    challenges = [store.issue_report_code('a'*32, now=100 + index)[1] for index in range(3)]
+    for index in range(10):
+        challenge = challenges[index % 3]
+        nonce, code = challenge.split('.')
+        wrong = nonce + '.' + ('000000' if code != '000000' else '111111')
+        assert store.verify_report_code('a'*32, wrong, now=110 + index) is None
+    assert store.verify_report_code('a'*32, challenges[0], now=121) is None
+
+
 def test_session_idle_absolute_and_logout(tmp_path):
     store = store_with_report(tmp_path)
     _, challenge = store.issue_report_code('a'*32, now=100)
@@ -58,3 +77,21 @@ def test_report_mutations_require_first_party_origin(tmp_path, monkeypatch):
     assert _report_csrf_ok(Request({'referer': 'https://www.backbond.ai/scan/r/' + 'a' * 32}))
     assert not _report_csrf_ok(Request({}))
     assert not _report_csrf_ok(Request({'origin': 'https://evil.example'}))
+
+
+def test_real_viewer_uses_credentialed_verification_contract():
+    source = (Path(__file__).resolve().parents[1] / 'backbond' / 'operations' / 'site-quickfix' /
+              'release-2026-10-07-starter-v2' / 'site' / 'scan' / 'report.js').read_text()
+    for required in ("credentials:'include'", "'/verification'", "'/session'", "method:'DELETE'",
+                     'one-time-code', 'Email me a code', 'Sign out'):
+        assert required in source
+    assert "credentials:'omit'" not in source
+
+
+def test_cors_allows_credentialed_viewer_and_logout():
+    source = (Path(__file__).resolve().parents[1] / 'backbond' / 'scan-intake' / 'server' / 'app.py').read_text()
+    assert 'allow_credentials=True' in source
+    assert '"DELETE"' in source
+    assert '"https://www.backbond.ai"' in source
+    assert '"recipient_hint"' not in source
+    assert "nonce = secrets.token_hex(16)" in source

@@ -52,14 +52,19 @@ async def lifespan(app):
         thread.join(timeout=1)
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["https://backbond.ai"], allow_credentials=False,
-                   allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type"])
+app.add_middleware(CORSMiddleware,
+                   allow_origins=["https://backbond.ai", "https://www.backbond.ai"],
+                   allow_credentials=True,
+                   allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+                   allow_headers=["Content-Type"])
 store = IntakeStore(DB_PATH)
 proofs = ConnectionProofs(ttl=int(os.environ.get('QA_CONNECTION_PROOF_TTL', '900')))
 check_gate = RateGate(email=(int(os.environ.get('QA_CHECKS_PER_EMAIL_HOUR', '10')), 3600),
                       ip=(int(os.environ.get('QA_CHECKS_PER_IP_HOUR', '30')), 3600),
                       all=(int(os.environ.get('QA_CHECKS_PER_HOUR', '300')), 3600))
 public_gate = RateGate(ip=(int(os.environ.get('QA_PUBLIC_SCANS_PER_IP_DAY', '3')), 86400))
+report_issue_gate = RateGate(ip=(int(os.environ.get('QA_REPORT_CODES_PER_IP_HOUR', '5')), 3600),
+                             all=(int(os.environ.get('QA_REPORT_CODES_PER_HOUR', '300')), 3600))
 
 
 @app.exception_handler(RequestValidationError)
@@ -535,17 +540,20 @@ def _report_csrf_ok(request: Request) -> bool:
 def request_report_verification(token: str, request: Request):
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
-    issued = store.issue_report_code(token)
+    issued = store.issue_report_code(token) if report_issue_gate.allow(ip=_client(request), all='all') else None
+    nonce = secrets.token_hex(16)
     if issued:
         recipient, value = issued
         nonce, code = value.split('.', 1)
-        _send_report_code(recipient, code)
-        response = JSONResponse({"status": "If this report is available, a code was sent.",
-                                 "recipient_hint": store.report_recipient_hint(token)})
-        response.set_cookie('bb_report_challenge', nonce, secure=True, httponly=True,
-                            samesite='strict', max_age=600, path=f'/scan/v1/reports/{token}')
-        return response
-    return {"status": "If this report is available, a code was sent."}
+        try:
+            _send_report_code(recipient, code)
+        except Exception:
+            # Delivery state must not become a report/recipient enumeration oracle.
+            pass
+    response = JSONResponse({"status": "If this report is available, a code was sent."})
+    response.set_cookie('bb_report_challenge', nonce, secure=True, httponly=True,
+                        samesite='strict', max_age=600, path=f'/scan/v1/reports/{token}')
+    return response
 
 
 @app.post("/scan/v1/reports/{token}/session")
