@@ -17,7 +17,7 @@ def test_reports_acquisition_and_judgement_separately(tmp_path: Path) -> None:
     evidence.mkdir()
     (evidence / "rows.json").write_text(
         json.dumps({"records": [
-            {"runtime_case_identity": "a", "target_calls": 1, "verdict": "PASS"},
+            {"runtime_case_identity": "a", "target_calls": 1, "responses": ["actual reply"], "verdict": "PASS"},
             {"probe_id": "b", "evidence": {"messages": [{"role": "assistant", "content": "saved"}]}},
             {"stable_case_id": "c", "verdict": "unresolved"},
             {"stable_case_id": "outside", "target_response": "x", "judgement": "FAIL"},
@@ -40,6 +40,37 @@ def test_reports_acquisition_and_judgement_separately(tmp_path: Path) -> None:
     assert report["evidence"]["acquired_case_ids"] == 2
     assert report["evidence"]["judged_case_ids"] == 1
     assert report["evidence"]["not_applicable_case_ids"] == 0
+    assert report["evidence"]["completed_case_ids"] == 1
+    assert report["evidence"]["terminal_verdicts"] == {"fail": 0, "not_applicable": 0, "pass": 1}
     assert report["missing_acquisition"] == ["c"]
     assert report["acquired_not_judged"] == ["b"]
     assert report["evidence_not_in_inventory"] == ["outside"]
+    assert report["remaining_executable"] == ["b", "c"]
+
+
+def test_attempt_metadata_and_empty_responses_are_not_acquisitions(tmp_path: Path) -> None:
+    inventory = tmp_path / "inventory.jsonl"
+    inventory.write_text(
+        "\n".join(json.dumps({"stable_case_id": value}) for value in ("empty", "na", "real")),
+        encoding="utf-8",
+    )
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    (evidence / "rows.json").write_text(json.dumps({"records": [
+        {"stable_case_id": "empty", "target_calls": 1, "responses": ["  "], "verdict": "FAIL"},
+        {"stable_case_id": "na", "responses": [], "verdict": {"label": "not_applicable"}},
+        {"stable_case_id": "real", "responses": ["reply"], "verdict": {"result": "pass"}},
+    ]}), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--inventory", str(inventory), "--evidence", str(evidence)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    report = json.loads(result.stdout)
+    assert report["evidence"]["acquired_case_ids"] == 1
+    assert report["evidence"]["judged_case_ids"] == 3
+    assert report["evidence"]["completed_case_ids"] == 1
+    assert report["judged_without_acquisition"] == ["empty"]
+    assert report["remaining_executable"] == ["empty"]

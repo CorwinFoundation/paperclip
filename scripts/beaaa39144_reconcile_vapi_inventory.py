@@ -12,7 +12,7 @@ from typing import Any, Iterable
 ID_KEYS = ("runtime_case_identity", "probe_id", "stable_case_id", "case_id", "test_case_id")
 JUDGEMENT_KEYS = ("verdict", "judgement", "judgment", "result")
 TERMINAL_VERDICTS = frozenset({"PASS", "FAIL", "NOT_APPLICABLE"})
-RESPONSE_KEYS = ("response", "target_response", "assistant_response", "raw_response")
+RESPONSE_KEYS = ("response", "responses", "target_response", "assistant_response", "raw_response")
 
 
 def records(value: Any) -> Iterable[dict[str, Any]]:
@@ -45,33 +45,51 @@ def case_id(record: dict[str, Any]) -> str | None:
     return None
 
 
-def is_judged(record: dict[str, Any]) -> bool:
+def terminal_verdict(record: dict[str, Any]) -> str | None:
     for key in JUDGEMENT_KEYS:
         value = record.get(key)
         if isinstance(value, dict):
             value = value.get("verdict") or value.get("label") or value.get("result")
-        if str(value or "").strip().upper() in TERMINAL_VERDICTS:
-            return True
-    return False
+        normalized = str(value or "").strip().upper()
+        if normalized in TERMINAL_VERDICTS:
+            return normalized
+    return None
+
+
+def is_judged(record: dict[str, Any]) -> bool:
+    return terminal_verdict(record) is not None
 
 
 def is_not_applicable(record: dict[str, Any]) -> bool:
-    return any(str(record.get(key) or "").strip().upper() == "NOT_APPLICABLE" for key in JUDGEMENT_KEYS)
+    return terminal_verdict(record) == "NOT_APPLICABLE"
+
+
+def has_response(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(has_response(item) for item in value)
+    if isinstance(value, dict):
+        return any(has_response(item) for item in value.values())
+    return value is not None
 
 
 def is_acquired(record: dict[str, Any]) -> bool:
     """Require a real target receipt, not merely a registry-shaped case row."""
     if is_not_applicable(record):
         return False
-    if int(record.get("target_calls") or 0) > 0 or str(record.get("acquisition_basis") or "").lower() == "target-measured":
-        return True
     for envelope in (record, record.get("evidence"), record.get("receipt")):
         if not isinstance(envelope, dict):
             continue
-        if any(envelope.get(key) not in (None, "", [], {}) for key in RESPONSE_KEYS):
+        if any(has_response(envelope.get(key)) for key in RESPONSE_KEYS):
             return True
         messages = envelope.get("messages")
-        if isinstance(messages, list) and any(isinstance(item, dict) and item.get("role") == "assistant" and item.get("content") not in (None, "") for item in messages):
+        if isinstance(messages, list) and any(
+            isinstance(item, dict)
+            and item.get("role") == "assistant"
+            and has_response(item.get("content"))
+            for item in messages
+        ):
             return True
     return False
 
@@ -88,6 +106,7 @@ def main() -> int:
     acquired: set[str] = set()
     judged: set[str] = set()
     not_applicable: set[str] = set()
+    verdict_case_ids: dict[str, set[str]] = {value: set() for value in TERMINAL_VERDICTS}
     evidence_files = sorted(
         p for p in args.evidence.rglob("*") if p.is_file() and p.suffix in {".json", ".jsonl"}
     )
@@ -97,10 +116,14 @@ def main() -> int:
             if cid:
                 if is_acquired(row):
                     acquired.add(cid)
-                if is_judged(row):
+                verdict = terminal_verdict(row)
+                if verdict:
                     judged.add(cid)
-                if is_not_applicable(row):
-                    not_applicable.add(cid)
+                    verdict_case_ids[verdict].add(cid)
+                    if verdict == "NOT_APPLICABLE":
+                        not_applicable.add(cid)
+
+    completed = inventory & acquired & judged
 
     report = {
         "schema_version": "1.0.0",
@@ -114,10 +137,16 @@ def main() -> int:
             "acquired_case_ids": len(acquired & inventory),
             "judged_case_ids": len(judged & inventory),
             "not_applicable_case_ids": len(not_applicable & inventory),
+            "completed_case_ids": len(completed),
+            "terminal_verdicts": {
+                key.lower(): len(value & inventory)
+                for key, value in sorted(verdict_case_ids.items())
+            },
         },
         "missing_acquisition": sorted(inventory - acquired),
         "acquired_not_judged": sorted((inventory & acquired) - judged),
         "judged_without_acquisition": sorted((inventory & judged) - acquired - not_applicable),
+        "remaining_executable": sorted(inventory - completed - not_applicable),
         "evidence_not_in_inventory": sorted(acquired - inventory),
     }
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
