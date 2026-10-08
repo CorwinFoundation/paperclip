@@ -101,6 +101,21 @@ def run(e, archive, archive_sha, *, digest=DIGEST):
 def test_shell_syntax_and_exact_read_only_mount():
     assert subprocess.run(["bash","-n",str(HELPER)]).returncode == 0
     assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()
+    text = HELPER.read_text()
+    assert 'exec 9>"$ACTIVATION_LOCK"' in text
+    assert "flock -x 9" in text
+
+
+def test_activation_lock_is_initialized_on_the_exact_container_mount(tmp_path):
+    e, _env_file, state, archive, archive_sha, _calls = harness(tmp_path)
+    result = run(e, archive, archive_sha)
+    assert result.returncode == 0, result.stderr
+    lock = state / "activation.lock"
+    assert lock.is_file()
+    assert stat.S_IMODE(lock.stat().st_mode) == 0o644
+    assert 'STATE_DIR="${SCANNER_STATE_DIR:-/var/lib/backbond-deploy-agent}"' in HELPER.read_text()
+    assert 'ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"' in HELPER.read_text()
+    assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()
 
 
 def test_development_helper_takes_identity_from_five_validated_arguments():

@@ -18,6 +18,7 @@ CONTAINER="${SCANNER_CONTAINER_NAME:-backbond-scanner-live-edge}"
 EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
+ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"
 # BEAAA-31542: retained-evidence export. The live unit bind-mounts the state
 # directory read-write at the same path on the host, so the evidence is already
 # on disk; only the 0710 mode on the state directory keeps the deploy seat out.
@@ -421,6 +422,17 @@ cleanup_manifest_resources || die 'manifest preflight resource cleanup failed'
 MANIFEST_TMP=
 trap - EXIT INT TERM
 case $- in (*e*) :;; (*) die 'errexit disabled after manifest preflight cleanup';; esac
+
+# Accepted scans hold LOCK_SH on this stable inode until terminal completion.
+# Take LOCK_EX only after image preflight: it atomically stops new admissions
+# and drains accepted credential-holding scans before activation state changes.
+if [ ! -e "$ACTIVATION_LOCK" ]; then
+  install -o "$EXPECTED_OWNER_UID" -g "$EXPECTED_OWNER_GID" -m 0644 /dev/null "$ACTIVATION_LOCK"
+fi
+require_root_owned "$ACTIVATION_LOCK"
+exec 9>"$ACTIVATION_LOCK"
+flock -x 9
+log 'accepted scans drained; activation admission gate closed'
 
 LOCAL_TAG="backbond-scanner-live:$SHA"
 RELEASES="$STATE_DIR/releases"; TRANSACTIONS="$STATE_DIR/transactions"; RECEIPTS="$STATE_DIR/receipts"

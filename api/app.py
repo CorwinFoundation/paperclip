@@ -24,6 +24,7 @@ from rubric.scoring import Rubric
 from harness.secret_redaction import redact_secret_obj
 
 from .bundle import BundleStore
+from .activation_guard import ActivationInProgress, ActivationLease
 from .config import ApiConfig
 from .edge_gateway import AuthError, EdgeGateway, RateLimited
 from .handlers import (
@@ -196,19 +197,36 @@ def _rate_limited_response(exc: RateLimited) -> JSONResponse:
     )
 
 
+def _activation_in_progress_response() -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"error": "admission_unavailable", "reason": "activation_in_progress"},
+        headers={"Retry-After": "1"},
+    )
+
+
 def _admit_scan_or_none(request: Request):
     """Resolve the caller's key record and admit one scan through the D3
     limiter, returning a :class:`ConcurrencyLease` (to release when the scan
     is terminal). Returns ``None`` when the gateway is disabled. Raises 401
     if the key vanished (expiry race) and :class:`RateLimited` when over a cap.
     """
-    gateway: EdgeGateway | None = getattr(request.app.state, "edge_gateway", None)
-    if gateway is None:
-        return None
-    record = gateway.resolve_record(_bearer_token(request))
-    if record is None:
-        raise _http_error(401, "authorization_invalid")
-    return gateway.admit_scan(record)
+    # The shared activation lease is acquired before admission and retained
+    # until the scan's terminal callback.  scanner-deploy takes the exclusive
+    # side, so once activation begins no request can slip between drain and
+    # restart.  The lock contains no credential or request material.
+    activation_lease = ActivationLease()
+    try:
+        gateway: EdgeGateway | None = getattr(request.app.state, "edge_gateway", None)
+        if gateway is None:
+            return activation_lease
+        record = gateway.resolve_record(_bearer_token(request))
+        if record is None:
+            raise _http_error(401, "authorization_invalid")
+        return activation_lease.set_delegate(gateway.admit_scan(record))
+    except BaseException:
+        activation_lease.release()
+        raise
 
 
 def _uw_audience_entitled(authenticated_tenant_id: str | None) -> bool:
@@ -432,6 +450,8 @@ def create_app(
         # belt-and-braces double release is safe.
         try:
             lease = _admit_scan_or_none(request)
+        except ActivationInProgress:
+            return _activation_in_progress_response()
         except RateLimited as exc:
             return _rate_limited_response(exc)
         lease_transferred = False
@@ -520,6 +540,8 @@ def create_app(
         # scan and is not limited).
         try:
             lease = _admit_scan_or_none(request)
+        except ActivationInProgress:
+            return _activation_in_progress_response()
         except RateLimited as exc:
             return _rate_limited_response(exc)
         # BEAAA-14399 — same admission-lease terminal handoff as POST /scan.

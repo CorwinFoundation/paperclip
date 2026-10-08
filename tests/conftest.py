@@ -6,10 +6,23 @@ verify the key-absent behaviour explicitly patch this env var away.
 """
 import os
 import sys
+import tempfile
+from pathlib import Path
 
 assert sys.version_info >= (3, 11), "are-scanner tests require Python 3.11+"
 
 os.environ.setdefault("ARE_ALLOW_DEV_SIGNING_KEY", "true")
+
+if "BACKBOND_ACTIVATION_LOCK_PATH" not in os.environ:
+    activation_lock = tempfile.NamedTemporaryFile(
+        prefix="backbond-activation-test-", delete=False
+    )
+    activation_lock.close()
+    os.environ["BACKBOND_ACTIVATION_LOCK_PATH"] = activation_lock.name
+
+    import atexit
+
+    atexit.register(Path(activation_lock.name).unlink, missing_ok=True)
 
 # Legacy unit tests predate the mandatory corpus pin. Keep those tests explicit
 # and deterministic without weakening score(): every omitted test pin is

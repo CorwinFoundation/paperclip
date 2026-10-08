@@ -118,7 +118,9 @@ def test_zoo_job_is_unaffected_by_the_gate(monkeypatch, tmp_path):
     """No gate values present, and the zoo lane still runs."""
     expected = tmp_path / "manifest.json"
 
-    def _zoo(*, config=None, limit_per_family=None):
+    def _zoo(
+        *, config=None, limit_per_family=None, zoo_family=None, zoo_case=None
+    ):
         return expected
 
     monkeypatch.setattr(scheduled_scan, "run_scheduled_zoo_scan", _zoo)
