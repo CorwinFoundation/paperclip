@@ -1910,7 +1910,13 @@ def run_scheduled_scan(
     cases = registry_cases_from_rows(rows, execution_flag=execution_flag)
     model_versions = next(iter(workers.values())).manifest_metadata()
     model_versions["evidence_class"] = EVIDENCE_LABEL
-    store = FullScanJobStore()
+    # Persist the live run beside its evidence.  The stable idempotency key
+    # reopens the same job after a service/process restart, and the per-case
+    # checkpoints let us dispatch only rows that have not reached a terminal
+    # state.  This prevents a restart from repeating paid target/judge calls.
+    store = FullScanJobStore(
+        persistence=FullScanJobPersistence(output_dir / "full_scan_jobs.sqlite3")
+    )
     runtime_started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat()
     job = store.submit(
@@ -1921,25 +1927,53 @@ def run_scheduled_scan(
         seed=config.seed,
         registry_cases=cases,
         scan_id=f"scheduled-{job_name}-{run_date}",
+        idempotency_key=(
+            f"scheduled-{job_name}:{run_date}:"
+            f"{config.scanner_version}:{config.corpus_version}:{config.seed}"
+        ),
         wall_clock_budget_seconds=config.timeout_seconds,
         rate_limit_per_minute=config.rpm,
         capability_manifest=capability_manifest,
     )
-    lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
-    attempt_id = str(lease["attempt_id"])
     vapi_abort_reason: str | None = None
-    try:
-        dispatch_registry_attempt(
-            store,
-            job.job_id,
-            attempt_id=attempt_id,
-            registry_rows=rows,
-            workers=workers,
-            execution_flag=execution_flag,
-        )
-    except UpstreamQuotaAbort as exc:
-        vapi_abort_reason = exc.abort_reason
-    finished = store.finalize(job.job_id, attempt_id=attempt_id)
+    if job.status in TERMINAL_JOB_STATUSES:
+        finished = job
+    else:
+        if job.active_attempt_id is not None:
+            store.recover()
+            job = store.status(job.job_id)
+        resumed = store.resume(job.job_id)
+        terminal_case_ids = {
+            str(row.get("probe_id") or "")
+            for row in resumed["evidence_rows"]
+            if isinstance(row, Mapping)
+            and row.get("status") in {"complete", "incomplete", "failed", "skipped"}
+        }
+        pending_rows = [
+            row
+            for row in rows
+            if str(
+                row.get("runtime_case_identity")
+                or row.get("case_id")
+                or row.get("case_id_or_probe_id")
+                or ""
+            )
+            not in terminal_case_ids
+        ]
+        lease = store.lease(job.job_id, ttl_seconds=config.timeout_seconds)
+        attempt_id = str(lease["attempt_id"])
+        try:
+            dispatch_registry_attempt(
+                store,
+                job.job_id,
+                attempt_id=attempt_id,
+                registry_rows=pending_rows,
+                workers=workers,
+                execution_flag=execution_flag,
+            )
+        except UpstreamQuotaAbort as exc:
+            vapi_abort_reason = exc.abort_reason
+        finished = store.finalize(job.job_id, attempt_id=attempt_id)
     finished_at = datetime.now(timezone.utc).isoformat()
     manifest = _operator_manifest(
         job_name=job_name,
