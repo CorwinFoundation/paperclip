@@ -25,13 +25,18 @@
   function testDetail(test, parent, advice) {
     const article = document.createElement('article');
     article.append(text('h3', label(test.family) + ' / ' + (test.id || 'Test')));
-    if (Object.hasOwn(test, 'prompt') && Object.hasOwn(test, 'reply')) {
-      article.append(text('p','What we sent'), text('pre', test.prompt));
+    const prompt = typeof test.prompt === 'string' ? test.prompt : '';
+    const reply = typeof test.reply === 'string' ? test.reply : '';
+    if (!prompt.trim() && !reply.trim()) {
+      article.append(text('p', test.evidenceOmitted
+        ? 'This test pack does not include request or reply text in its report. The recorded verdict and explanation are shown below.'
+        : 'Request and reply text are unavailable for this test. The recorded result is shown below.'));
+    } else {
+      article.append(text('p','What we sent'), text('pre', prompt.trim() ? prompt : 'Request text is unavailable.'));
       article.append(text('p','What the agent replied'));
-      const reply = String(test.reply ?? 'No reply received.');
-      article.append(text('pre',reply.length > 600 ? reply.slice(0,600) + '...' : reply));
+      article.append(text('pre',reply.trim() ? (reply.length > 600 ? reply.slice(0,600) + '...' : reply) : 'No reply text was recorded.'));
       if (reply.length > 600) { const full = document.createElement('details'); full.append(text('summary','Read the complete reply'),text('pre',reply)); article.append(full); }
-    } else article.append(text('p','Request and reply evidence is unavailable for this older report.'));
+    }
     if (test.verdict === 'connection_error') article.append(text('p', test.reason || test.error || 'No usable result was received.'));
     else if (test.reason) article.append(text('p', 'Why it was marked this way: ' + test.reason));
     if (advice) {
@@ -68,7 +73,7 @@
       const data = await response.json();
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4'].includes(data.pack_version)) throw new Error('schema');
       // could_not_run (starter-100@2 and @3) is its own verdict upstream; here it sits in the not-run bucket, never in fail.
-      const tests = data.tests.map(item => ({...item, verdict: ['pass','fail'].includes(item.verdict) ? item.verdict : 'connection_error'}));
+      const tests = data.tests.map(item => ({...item, evidenceOmitted: data.pack_version === 'starter-100@4', verdict: ['pass','fail'].includes(item.verdict) ? item.verdict : 'connection_error'}));
       const when = new Date(data.created_at);
       if (!Number.isFinite(when.getTime())) throw new Error('date');
       const date = when.toISOString().replace('T',' ').replace(/\.\d{3}Z$/, ' UTC');

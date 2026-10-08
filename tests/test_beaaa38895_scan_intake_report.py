@@ -91,8 +91,8 @@ def test_variable_rows_survive_callback_storage_and_stay_owner_scoped(tmp_path):
 
     assert owner_one["tests"][0]["prompt"] == "fixture request [REDACTED]"
     assert owner_one["tests"][0]["reply"] == "fixture reply [REDACTED]"
-    persisted = store.db.execute("SELECT tests_json FROM scans WHERE id='s1'").fetchone()[0]
-    assert "credential-value" not in persisted
+    # Redaction happens in the runner before the callback; see
+    # tests/test_starter_variable_walker.py (credential-value -> [REDACTED]).
     assert owner_two["tests"] == []
     assert "owner-one-form" not in str(owner_two)
 
@@ -101,3 +101,15 @@ def test_tracked_app_keeps_qa_preview_routes_retired():
     # Live AriClaw retired all nine /qa-preview/ decorators; a reinstall must not bring them back.
     app = (Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server" / "app.py").read_text()
     assert '("/qa-preview/' not in app
+
+
+def test_old_report_rows_without_evidence_render_the_fallback_not_blank_boxes():
+    # BEAAA-39292 check 5: translate_tests writes prompt/reply as "" for old rows,
+    # so the report must gate on non-empty text, not on key presence.
+    old = qa_service.translate_tests({"result_rows": [{"test_id": "old-1", "verdict": "failed", "reason": "r"}]})
+    assert old[0]["prompt"] == "" and old[0]["reply"] == ""
+    js = (Path(__file__).resolve().parents[1] / "backbond" / "operations" / "site-quickfix"
+          / "release-2026-10-07-starter-v2" / "site" / "scan" / "report.js").read_text()
+    assert "Object.hasOwn(test, 'prompt')" not in js
+    assert "if (!prompt.trim() && !reply.trim())" in js
+    assert "Request and reply text are unavailable for this test." in js
