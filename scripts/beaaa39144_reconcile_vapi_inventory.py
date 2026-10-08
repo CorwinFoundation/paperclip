@@ -94,6 +94,20 @@ def is_acquired(record: dict[str, Any]) -> bool:
     return False
 
 
+def call_count(record: dict[str, Any], key: str) -> int:
+    """Read counters from both executor rows and retained raw receipt budgets."""
+    candidates = [
+        record.get(key),
+        (record.get("budget") or {}).get("case_delta", {}).get(key)
+        if isinstance(record.get("budget"), dict)
+        else None,
+    ]
+    for value in candidates:
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+            return int(value)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--inventory", type=Path, required=True)
@@ -106,6 +120,8 @@ def main() -> int:
     acquired: set[str] = set()
     judged: set[str] = set()
     not_applicable: set[str] = set()
+    target_called: set[str] = set()
+    judge_called: set[str] = set()
     verdict_case_ids: dict[str, set[str]] = {value: set() for value in TERMINAL_VERDICTS}
     evidence_files = sorted(
         p for p in args.evidence.rglob("*") if p.is_file() and p.suffix in {".json", ".jsonl"}
@@ -116,6 +132,10 @@ def main() -> int:
             if cid:
                 if is_acquired(row):
                     acquired.add(cid)
+                if call_count(row, "target_calls") > 0:
+                    target_called.add(cid)
+                if call_count(row, "judge_calls") > 0:
+                    judge_called.add(cid)
                 verdict = terminal_verdict(row)
                 if verdict:
                     judged.add(cid)
@@ -138,6 +158,8 @@ def main() -> int:
             "judged_case_ids": len(judged & inventory),
             "not_applicable_case_ids": len(not_applicable & inventory),
             "completed_case_ids": len(completed),
+            "target_call_case_ids": len(target_called & inventory),
+            "judge_call_case_ids": len(judge_called & inventory),
             "terminal_verdicts": {
                 key.lower(): len(value & inventory)
                 for key, value in sorted(verdict_case_ids.items())
@@ -146,6 +168,8 @@ def main() -> int:
         "missing_acquisition": sorted(inventory - acquired),
         "acquired_not_judged": sorted((inventory & acquired) - judged),
         "judged_without_acquisition": sorted((inventory & judged) - acquired - not_applicable),
+        "responses_without_target_counter": sorted((inventory & acquired) - target_called),
+        "target_counter_without_response": sorted((inventory & target_called) - acquired),
         "remaining_executable": sorted(inventory - completed - not_applicable),
         "evidence_not_in_inventory": sorted(acquired - inventory),
     }
