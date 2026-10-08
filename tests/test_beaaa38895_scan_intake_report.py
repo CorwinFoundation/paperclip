@@ -15,6 +15,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backbond" / "scan-
 
 import qa_service  # noqa: E402
 
+
+def test_customer_target_rejects_backbond_scanner_services(tmp_path, monkeypatch):
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("QA_DB_PATH", str(tmp_path / "intake.sqlite"))
+    import app
+
+    base = {
+        "email": "internal@backbond.ai", "agent_label": "isolation check",
+        "transport": "rest", "auth": {"type": "none"},
+    }
+    for endpoint in (
+        "https://backbond.ai/scan/r/d3533c0cff194b7794662d4048e13caf",
+        "https://scanner.backbond.ai/internal-fixture",
+        "https://api.backbond.ai/scan/v1/scans",
+        "https://SCANNER.BACKBOND.AI./internal-fixture",
+    ):
+        try:
+            app.ConnectionFields(**base, endpoint_url=endpoint)
+        except ValidationError as exc:
+            assert "must not target a BackBond scanner service" in str(exc)
+        else:
+            raise AssertionError(f"accepted internal service target: {endpoint}")
+
+    assert app.ConnectionFields(**base, endpoint_url="https://agent.example.test/chat")
+
 ROWS = (
     [{"test_id": f"p{i}", "family": "prompt_injection", "prompt": "x", "reply": "y",
       "verdict": "passed", "reason": "declined"} for i in range(14)]

@@ -9,6 +9,7 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -117,6 +118,11 @@ class ConnectionFields(BaseModel):
 
     @model_validator(mode="after")
     def consent_and_transport(self):
+        endpoint_host = (urlsplit(self.endpoint_url).hostname or "").lower().rstrip(".")
+        if endpoint_host in {
+            "backbond.ai", "www.backbond.ai", "scanner.backbond.ai", "api.backbond.ai",
+        }:
+            raise ValueError("endpoint_url must not target a BackBond scanner service")
         if self.transport == "openai_chat" and not self.model:
             raise ValueError("model is required for openai_chat")
         if self.transport == "json_map":
