@@ -172,7 +172,7 @@ systemctl restart backbond-stage-b-receipts.service
 systemctl reload nginx
 systemctl is-active --quiet backbond-stage-b-inbound.service
 systemctl is-active --quiet backbond-stage-b-receipts.service
-transport_probe_id=$(runuser -u backbond-stage-b -- /usr/bin/python3 -c \
+transport_probe_id=$(runuser -u backbond-stage-b -- env PYTHONPATH="$repo_root" /usr/bin/python3 -c \
   "from stage_b_pilot.export_intake import ExportIntakeStore; s=ExportIntakeStore('$state_dir/history.sqlite3', encryption_key=b'x'*32); print(s.issue_transport_probe()); s.close()")
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8788/healthz
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null

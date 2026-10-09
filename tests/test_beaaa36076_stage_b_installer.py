@@ -13,6 +13,11 @@ def test_installer_restarts_both_units_and_records_runtime_version():
     assert "runtime_backup" in text and "rollback" in text
 
 
+def test_transport_probe_arming_imports_from_the_staged_candidate():
+    text = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
+    assert 'env PYTHONPATH="$repo_root" /usr/bin/python3 -c' in text
+
+
 def test_installer_protects_mutable_state_and_credentials_for_rollback():
     text = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
     assert 'chmod 0700 "$runtime_backup"' in text
