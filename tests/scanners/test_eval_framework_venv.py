@@ -135,6 +135,7 @@ class FrameworkRegistryTests(unittest.TestCase):
             "pyrit": "0.6.0",
             "agentdojo": "0.1.35",
             "inspect": "0.3.220",
+            "tau_bench": "59a200c6d575d595120f1cb70fea53cef0632f6b",
         }
         got = {k: v.pinned_version for k, v in efv.FRAMEWORKS.items()}
         self.assertEqual(got, expected)

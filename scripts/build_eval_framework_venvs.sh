@@ -40,12 +40,13 @@ declare -A FRAMEWORKS=(
   [pyrit]="requirements-eval-pyrit.txt pyrit pyrit 0.6.0"
   [agentdojo]="requirements-eval-agentdojo.txt agentdojo agentdojo 0.1.35"
   [inspect]="requirements-eval-inspect.txt inspect_ai inspect-ai 0.3.220"
+  [tau_bench]="requirements/eval_pins.txt tau_bench tau-bench 59a200c6d575d595120f1cb70fea53cef0632f6b"
 )
 
 if [[ $# -gt 0 ]]; then
   TARGETS=("$@")
 else
-  TARGETS=(garak pyrit agentdojo inspect)
+  TARGETS=(garak pyrit agentdojo inspect tau_bench)
 fi
 
 echo "== build_eval_framework_venvs (BEAAA-13331) =="
@@ -74,14 +75,21 @@ build_one() {
   echo "   venv:   $vdir"
 
   "$PYTHON" -m venv --clear "$vdir"
-  "$vpy" -m pip install --require-hashes -r "$REPO_ROOT/$req" \
-    2>&1 | tee "$TRANSCRIPT_DIR/${fw}-install.log"
+  if [[ "$fw" == "tau_bench" ]]; then
+    "$vpy" -m pip install -r "$REPO_ROOT/$req" 2>&1 | tee "$TRANSCRIPT_DIR/${fw}-install.log"
+  else
+    "$vpy" -m pip install --require-hashes -r "$REPO_ROOT/$req" 2>&1 | tee "$TRANSCRIPT_DIR/${fw}-install.log"
+  fi
 
   # Verify both importability and the installed distribution version. Some
   # upstream modules, including agentdojo==0.1.35, do not define __version__.
   # importlib.metadata is the package-manager authority in that case.
   local got
-  got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${dist}'))")"
+  if [[ "$fw" == "tau_bench" ]]; then
+    got="$("$vpy" -c "import json, pathlib, ${mod}; p=pathlib.Path('${vdir}')/'lib'; d=next(p.glob('python*/site-packages/tau_bench-*.dist-info/direct_url.json')); print(json.loads(d.read_text())['vcs_info']['commit_id'])")"
+  else
+    got="$("$vpy" -c "import ${mod}; from importlib.metadata import version; print(version('${dist}'))")"
+  fi
   if [[ "$got" != "$want" ]]; then
     echo "!! $fw version mismatch: got '$got', expected '$want'" >&2
     return 1

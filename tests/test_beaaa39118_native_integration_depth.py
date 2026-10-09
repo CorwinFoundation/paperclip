@@ -39,8 +39,14 @@ def test_live_workers_select_native_inspect_and_agentdojo(monkeypatch, tmp_path)
             "agent_id": "agent-39118",
         }
 
-    # Tau deliberately stays on the registered executor: it records every
-    # target turn and applies the deterministic database end-state checks.
+    # Tau now uses the same isolated native-worker boundary. The child adapter
+    # records every target turn and applies deterministic database end-state
+    # checks while preserving the customer-agent subject configuration.
     tau = workers["tau_bench"]
-    assert not isinstance(tau, IsolatedFrameworkWorker)
-    assert tau.tau_session_factory is not None
+    assert isinstance(tau, IsolatedFrameworkWorker)
+    assert tau.subject_adapter == {
+        "kind": "customer_agent_http",
+        "endpoint": "https://agent.example.test/run",
+        "secret": "secret",
+        "agent_id": "agent-39118",
+    }

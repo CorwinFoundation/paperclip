@@ -175,9 +175,8 @@ def build_live_framework_workers(
 
     Inspect and AgentDojo must cross the same subprocess boundary as Garak so
     their pinned packages, native task models, tool calls, and terminal checks
-    are used by live scans.  Tau remains on ``RegisteredCaseExecutor`` because
-    that adapter owns the target-backed multi-turn session and deterministic
-    database end-state checks.
+    are used by live scans. Tau uses the same subprocess boundary while
+    retaining target-backed multi-turn and database end-state checks.
     """
     from tools.registered_case_executor import build_registered_case_workers
 
@@ -199,6 +198,9 @@ def build_live_framework_workers(
         worker_id="garak",
         timeout_seconds=GARAK_NATIVE_PROBE_TIMEOUT_SECONDS,
         subject_adapter=subject_adapter,
+    )
+    workers["tau_bench"] = IsolatedFrameworkWorker(
+        worker_id="tau_bench", subject_adapter=subject_adapter
     )
     return workers
 
@@ -238,6 +240,8 @@ def run_worker_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         return _agentdojo_adapter_result(worker, registry_row, job, model_version)
     if worker.worker_id == "garak":
         return _garak_adapter_result(worker, registry_row, job, model_version)
+    if worker.worker_id == "tau_bench":
+        return _tau_bench_adapter_result(worker, registry_row, job, model_version)
     return _adapter_result(worker, registry_row, job, model_version)
 
 
@@ -370,6 +374,88 @@ def _native_state_snapshot(value: Any) -> Any:
     elif hasattr(value, "dict"):
         value = value.dict()
     return json.loads(json.dumps(value, sort_keys=True, default=str))
+
+
+def _tau_bench_adapter_result(
+    worker: WorkerDefinition,
+    registry_row: Mapping[str, Any],
+    job: Mapping[str, Any],
+    model_version: str,
+) -> dict[str, Any]:
+    """Run an authorized report-only Tau case in its pinned subprocess."""
+    subject = _subject_adapter(job, registry_row)
+    if subject is None:
+        return _unsupported_interface(worker, model_version, "missing_subject_adapter")
+    if subject.get("kind") != "customer_agent_http":
+        return _unsupported_interface(worker, model_version, "unsupported_subject_adapter")
+    if registry_row.get("scoring_active") is not False:
+        return _unsupported_interface(worker, model_version, "tau_case_must_be_report_only")
+    case_id = str(registry_row.get("case_id") or "")
+    try:
+        import tau_bench  # type: ignore  # noqa: F401 -- proves child runtime
+        from evals.provisional_tau_support_crm import SCENARIOS, run_scenario
+        from tools.registered_case_executor import _http_tau_session_factory
+    except ImportError as exc:
+        return _result_dict(
+            status="incomplete", evidence_ref=None,
+            incomplete_reason=f"worker_dependency_unavailable:{worker.worker_id}:{exc.__class__.__name__}",
+            model_version=model_version,
+        )
+    scenario = next((item for item in SCENARIOS if item.stable_id == case_id), None)
+    if scenario is None:
+        return _unsupported_interface(worker, model_version, "unknown_scenario_id")
+    started = time.monotonic()
+    try:
+        factory = _http_tau_session_factory(
+            str(subject.get("endpoint") or ""), str(subject.get("secret") or ""),
+            str(subject.get("agent_id") or "") or None,
+        )
+        outcome = run_scenario(scenario, factory, seed=int(job.get("seed") or 0))
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        return _unsupported_interface(worker, model_version, f"native_task_interface:{exc.__class__.__name__}")
+    except Exception as exc:
+        return _result_dict(
+            status="incomplete", evidence_ref=None,
+            incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:{exc.__class__.__name__}",
+            model_version=model_version,
+        )
+    evidence_ref = _persist_tau_evidence(worker, registry_row, job, outcome)
+    transcript = outcome.get("transcript", {})
+    turns = transcript.get("turns", []) if isinstance(transcript, Mapping) else []
+    return _result_dict(
+        status="complete", evidence_ref=evidence_ref, incomplete_reason=None,
+        model_version=model_version, verdict=str(outcome["verdict"]),
+        numeric_result=1.0 if outcome["verdict"] == "pass" else 0.0,
+        target_calls=len(turns), judge_calls=0,
+        duration_ms=max(1, int((time.monotonic() - started) * 1000)),
+        seed_binding=_seed_binding_for_subject(subject, int(job.get("seed") or 0)),
+    )
+
+
+def _persist_tau_evidence(
+    worker: WorkerDefinition, registry_row: Mapping[str, Any],
+    job: Mapping[str, Any], outcome: Mapping[str, Any],
+) -> str:
+    evidence_root = Path(str(job.get("evidence_dir") or REPO_ROOT / "artifacts" / "framework-workers"))
+    safe_job = re.sub(r"[^A-Za-z0-9_.-]", "_", str(job.get("job_id") or "scan"))
+    safe_case = re.sub(r"[^A-Za-z0-9_.-]", "_", str(registry_row.get("case_id") or "case"))
+    path = evidence_root / safe_job / f"{safe_case}.tau_bench.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": "tau-bench-native-evidence/v1",
+        "scenario_id": registry_row.get("case_id"),
+        "attempt_id": f"{safe_job}:{safe_case}:{int(job.get('seed') or 0)}",
+        "framework": f"tau-bench@{worker.framework_version}",
+        "seed": int(job.get("seed") or 0),
+        "transcript": outcome.get("transcript"),
+        "tool_trace": outcome.get("tool_call_log"),
+        "after_state": outcome.get("observed_state"),
+        "oracle": {"checks": outcome.get("checks"), "verdict": outcome.get("verdict")},
+        "reason": "database end-state and exact tool-call oracle",
+        "replay_command": f"python3 -m tools.framework_workers run  # job={safe_job} case={safe_case}",
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path.resolve().as_uri()
 
 
 def _persist_native_evidence(
@@ -1060,7 +1146,7 @@ def _adapter_result(
 
 
 def _worker_python(worker_id: str) -> str:
-    if worker_id in {"inspect", "pyrit", "agentdojo", "garak"}:
+    if worker_id in {"inspect", "pyrit", "agentdojo", "garak", "tau_bench"}:
         py = venv_python(worker_id)
         if py.exists():
             return str(py)
@@ -1420,10 +1506,14 @@ def _dependency_error(worker: WorkerDefinition) -> str | None:
             if shutil.which(name) is None:
                 return f"{name}=missing-cli"
             continue
-        if name in {"tau-bench", "tau2-bench"}:
-            # These are git pins in requirements/eval_pins.txt. The executable
-            # adapter is blocked until the package exposes an importable module.
-            return f"{name}=git-pin-not-importable"
+        if name == "tau2-bench":
+            continue
+        if name == "tau-bench":
+            try:
+                importlib.import_module("tau_bench")
+            except ImportError:
+                return f"{name}=missing-package"
+            continue
         package_name = name if name in PYTHON_PACKAGE_NAMES else name
         try:
             installed = importlib.metadata.version(package_name)

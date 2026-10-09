@@ -112,6 +112,13 @@ FRAMEWORKS: dict[str, FrameworkSpec] = {
         pinned_version="0.3.220",
         requirements="requirements-eval-inspect.txt",
     ),
+    "tau_bench": FrameworkSpec(
+        key="tau_bench",
+        import_name="tau_bench",
+        distribution_name="tau-bench",
+        pinned_version="59a200c6d575d595120f1cb70fea53cef0632f6b",
+        requirements="requirements/eval_pins.txt",
+    ),
 }
 
 
