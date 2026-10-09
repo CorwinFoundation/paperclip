@@ -1,0 +1,79 @@
+{
+  "ledger_id": "beaaa-38921-coverage-2026-10-09",
+  "aggregation_version": "coverage-projection-v2",
+  "as_of_date": "2026-10-09",
+  "scoring_active": false,
+  "inventories_are_additive": false,
+  "source_repository_identity": {"commit": "2d852919d0ee53dec8be0350584472b5d5482d22", "branch": "origin/master"},
+  "deployed_identity": {"status": "not_observed_in_source_evidence", "commit": null, "image_digest": null},
+  "baseline_delta": [{"baseline": "BEAAA-38921 registry delivery", "registered_eligible_unique_tests": 396, "delta": 0}],
+  "aggregate_controls": [
+    {
+      "control_id": "action-baseline-refuse-everything-2026-10-09",
+      "control_type": "refuse_everything",
+      "source_ref": "BEAAA-38920 independent QA at origin/master 2d852919d",
+      "unique_scenarios": 494,
+      "evaluation_rows": 579,
+      "pooled_pass_rate": 0.636,
+      "authorized_task_completion_rate": 0.0,
+      "forbidden_action_resistance_rate": 1.0,
+      "aggregate_disposition": "fail",
+      "reason": "blanket refusal cannot establish successful authorized-task performance"
+    }
+  ],
+  "bindings": [
+    {
+      "pack_id": "conversation-2350", "family_id": "conversation", "target_capability": "text_conversation",
+      "scenario_id_namespace": "conversation_case_id", "attempt_id_namespace": "conversation_attempt_id",
+      "counts": {"registered_unique_scenarios": 2350, "selectable": 2350, "selected_unique_scenarios": 2350, "evaluation_rows": 2350, "attempt_rows": 2350, "decisive": 114, "pass": 64, "fail": 50, "flaky": 6, "could_not_run": 2230, "calibrated": 0},
+      "scoring_eligibility": "ineligible", "calibration_evidence_ref": null,
+      "customer_applicability": "unknown_until_target_capability_binding", "deployed_runtime_ready": false,
+      "unsupported_capabilities": ["customer applicability not evidenced", "runtime identity not evidenced"],
+      "last_evidenced_date": "2026-10-09", "raw_artifact": {"ref": "board rollup e2378d48-944b-42cd-9612-7f0afcffa285", "sha256": null}
+    },
+    {
+      "pack_id": "action-494", "family_id": "consequential_action", "target_capability": "tool_action",
+      "scenario_id_namespace": "action_case_id", "attempt_id_namespace": "action_attempt_id",
+      "counts": {"registered_unique_scenarios": 494, "selectable": 494, "selected_unique_scenarios": 494, "evaluation_rows": 579, "attempt_rows": 494, "decisive": 440, "pass": 306, "fail": 134, "flaky": 54, "could_not_run": 0, "calibrated": 0},
+      "scoring_eligibility": "ineligible", "calibration_evidence_ref": null,
+      "customer_applicability": "unknown_until_target_capability_binding", "deployed_runtime_ready": false,
+      "unsupported_capabilities": ["customer tool-action consent not evidenced", "runtime identity not evidenced", "490 source identities lack qualified behavioral fingerprints"],
+      "semantic_uniqueness": {
+        "status": "partially_verified",
+        "qualified_behavioral_identities": 4,
+        "unqualified_source_identities": 490,
+        "qualified_scope": "cross-tenant read/write, authorized/forbidden",
+        "unmeasured_lifecycle_surfaces": ["delegation", "approval_freshness", "revocation", "retry", "interruption"],
+        "evidence_ref": "BEAAA-39119 audit of PR #1043 merged as c3e83e548"
+      },
+      "last_evidenced_date": "2026-10-09", "raw_artifact": {"ref": "board rollup e2378d48-944b-42cd-9612-7f0afcffa285", "sha256": null}
+    },
+    {
+      "pack_id": "oss-import-1734", "family_id": "oss_imported", "target_capability": "varies_by_source",
+      "scenario_id_namespace": "oss_case_id", "attempt_id_namespace": "oss_attempt_id",
+      "counts": {"registered_unique_scenarios": 1734, "selectable": 0, "selected_unique_scenarios": 0, "evaluation_rows": 0, "attempt_rows": 0, "decisive": 0, "pass": 0, "fail": 0, "flaky": 0, "could_not_run": 0, "calibrated": 0},
+      "scoring_eligibility": "ineligible", "calibration_evidence_ref": null,
+      "customer_applicability": "not_evidenced", "deployed_runtime_ready": false,
+      "unsupported_capabilities": ["selection binding", "attempt evidence", "customer applicability"],
+      "last_evidenced_date": "2026-10-09", "raw_artifact": {"ref": "board inventory e2378d48-944b-42cd-9612-7f0afcffa285", "sha256": null}
+    },
+    {
+      "pack_id": "voice-text-60", "family_id": "voice_channel_text", "target_capability": "voice_text_transport",
+      "scenario_id_namespace": "voice_case_id", "attempt_id_namespace": "voice_attempt_id",
+      "counts": {"registered_unique_scenarios": 60, "selectable": 60, "selected_unique_scenarios": 0, "evaluation_rows": 0, "attempt_rows": 0, "decisive": 0, "pass": 0, "fail": 0, "flaky": 0, "could_not_run": 0, "calibrated": 0},
+      "scoring_eligibility": "ineligible", "calibration_evidence_ref": null,
+      "customer_applicability": "requires_voice_text_capability", "deployed_runtime_ready": true,
+      "unsupported_capabilities": ["audio semantics", "telephony behavior"],
+      "last_evidenced_date": "2026-10-09", "raw_artifact": {"ref": "scanners/starter_voice_pack.py", "version": "76a8e95d", "sha256": "c97029b043500dfa78c421c473c13b8983c75090838195f5c5b7fcd8008db57f"}
+    },
+    {
+      "pack_id": "trace-binding-1181", "family_id": "trace_binding", "target_capability": "runtime_trace",
+      "scenario_id_namespace": "trace_scenario_id", "attempt_id_namespace": "trace_attempt_id",
+      "counts": {"registered_unique_scenarios": 1181, "selectable": 480, "selected_unique_scenarios": 0, "evaluation_rows": 0, "attempt_rows": 0, "decisive": 0, "pass": 0, "fail": 0, "flaky": 0, "could_not_run": 0, "calibrated": 0},
+      "scoring_eligibility": "ineligible", "calibration_evidence_ref": null,
+      "customer_applicability": "requires_runtime_trace_binding", "deployed_runtime_ready": false,
+      "unsupported_capabilities": ["701 scenarios lack current selectable trace binding", "attempt evidence"],
+      "last_evidenced_date": "2026-10-09", "raw_artifact": {"ref": "board inventory e2378d48-944b-42cd-9612-7f0afcffa285", "sha256": null}
+    }
+  ]
+}
