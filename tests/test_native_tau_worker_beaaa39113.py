@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 from evals.provisional_tau_support_crm import SCENARIOS
 from tools.framework_worker_registry import WORKERS
@@ -33,19 +32,64 @@ def test_live_factory_routes_tau_through_isolated_worker(monkeypatch):
 
 
 def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, tmp_path):
-    monkeypatch.setitem(sys.modules, "tau_bench", ModuleType("tau_bench"))
+    class Action:
+        def __init__(self, name, kwargs):
+            self.name, self.kwargs = name, kwargs
+
+    class Environment:
+        wiki = "Retail policy"
+        task = SimpleNamespace(instruction="Refund the duplicate charge")
+        task_index = 0
+        tools_info = [{"type": "function", "function": {"name": "refund_charge"}}]
+
+        def __init__(self):
+            self.data = {"payments": {"refunded_cents": 0}}
+            self.actions = []
+
+        def step(self, action):
+            self.actions.append(action)
+            self.data["payments"]["refunded_cents"] = action.kwargs["amount"]
+            return SimpleNamespace(observation="refund recorded")
+
+        def calculate_reward(self):
+            class Reward:
+                reward = 1.0
+
+                def model_dump(self, *, mode):
+                    assert mode == "json"
+                    return {"reward": 1.0, "info": {"database_end_state": True}}
+
+            return Reward()
+
+    env = Environment()
     monkeypatch.setattr(
-        "tools.registered_case_executor._http_tau_session_factory",
-        lambda *_args: object(),
+        "tools.framework_workers._load_native_tau_environment",
+        lambda _case_id: (env, Action, "respond"),
     )
-    outcome = {
-        "verdict": "pass",
-        "transcript": {"turns": [{"assistant_text": "checked"}, {"assistant_text": "done"}]},
-        "tool_call_log": [{"call": {"tool_name": "lookup_charge"}}],
-        "observed_state": {"payments": {"refunded_cents": 1200}},
-        "checks": {"database_end_state": True, "tool_call_evidence": True},
-    }
-    monkeypatch.setattr("evals.provisional_tau_support_crm.run_scenario", lambda *_args, **_kwargs: outcome)
+
+    responses = iter([
+        {"tool_calls": [{
+            "id": "call-1",
+            "function": {"name": "refund_charge", "arguments": '{"amount": 1200}'},
+        }]},
+        {"content": "The duplicate charge was refunded."},
+    ])
+
+    class Runner:
+        def complete_messages(self, _messages, *, tools):
+            assert tools == env.tools_info
+            return next(responses)
+
+        def execution_evidence(self):
+            return {"request_count": 2, "estimated_cost_usd": 0.01}
+
+        def seed_binding(self, seed):
+            return f"bound:{seed}"
+
+    monkeypatch.setattr(
+        "harness.customer_runner.customer_agent_http_runner_factory",
+        lambda *_args: Runner(),
+    )
     row = {"case_id": SCENARIOS[0].stable_id, "scoring_active": False}
 
     result = _tau_bench_adapter_result(WORKERS["tau_bench"], row, _job(tmp_path), "target-v1")
@@ -56,9 +100,19 @@ def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, 
     evidence = json.loads(Path(result["evidence_ref"].removeprefix("file://")).read_text())
     assert evidence["framework"].endswith(WORKERS["tau_bench"].framework_version)
     assert evidence["attempt_id"] == f"scan-39113:{SCENARIOS[0].stable_id}:4"
-    assert evidence["tool_trace"] == outcome["tool_call_log"]
-    assert evidence["after_state"] == outcome["observed_state"]
-    assert evidence["oracle"]["verdict"] == "pass"
+    assert evidence["native_task_index"] == 0
+    assert evidence["tool_trace"] == [{
+        "name": "refund_charge", "arguments": {"amount": 1200},
+        "observation": "refund recorded",
+    }]
+    assert evidence["before_state"]["payments"]["refunded_cents"] == 0
+    assert evidence["after_state"]["payments"]["refunded_cents"] == 1200
+    assert evidence["oracle"] == {
+        "kind": "tau_bench.Env.calculate_reward", "reward": 1.0,
+        "reward_info": {"info": {"database_end_state": True}, "reward": 1.0},
+        "verdict": "pass",
+    }
+    assert evidence["spend"] == {"estimated_cost_usd": 0.01, "request_count": 2}
 
 
 def test_tau_native_worker_rejects_scoring_and_unknown_cases(tmp_path):

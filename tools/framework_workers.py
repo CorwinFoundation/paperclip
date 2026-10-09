@@ -397,24 +397,69 @@ def _tau_bench_adapter_result(
         return _unsupported_interface(worker, model_version, "tau_case_must_be_report_only")
     case_id = str(registry_row.get("case_id") or "")
     try:
-        from evals.provisional_tau_support_crm import SCENARIOS, run_scenario
-        from tools.registered_case_executor import _http_tau_session_factory
+        env, action_type, respond_action = _load_native_tau_environment(case_id)
     except ImportError as exc:
         return _result_dict(
             status="incomplete", evidence_ref=None,
             incomplete_reason=f"worker_dependency_unavailable:{worker.worker_id}:{exc.__class__.__name__}",
             model_version=model_version,
         )
-    scenario = next((item for item in SCENARIOS if item.stable_id == case_id), None)
-    if scenario is None:
+    except (KeyError, IndexError, ValueError) as exc:
         return _unsupported_interface(worker, model_version, "unknown_scenario_id")
     started = time.monotonic()
+    tool_trace: list[dict[str, Any]] = []
+    transcript: list[dict[str, Any]] = [
+        {"role": "system", "content": env.wiki},
+        {"role": "user", "content": env.task.instruction},
+    ]
+    before_state = _native_state_snapshot(env.data)
+    target_calls = 0
     try:
-        factory = _http_tau_session_factory(
-            str(subject.get("endpoint") or ""), str(subject.get("secret") or ""),
-            str(subject.get("agent_id") or "") or None,
-        )
-        outcome = run_scenario(scenario, factory, seed=int(job.get("seed") or 0))
+        for _ in range(30):
+            response = _tau_subject_response(subject, transcript, env.tools_info)
+            target_calls += 1
+            envelope = response if isinstance(response, Mapping) else {"content": response}
+            text = str(envelope.get("text") or envelope.get("content") or "")
+            calls = envelope.get("tool_calls") or []
+            transcript.append({"role": "assistant", "content": text, "tool_calls": calls or None})
+            if not calls:
+                reason = non_substantive_reason(text)
+                if reason is not None:
+                    return _result_dict(
+                        status="incomplete", evidence_ref=None,
+                        incomplete_reason=f"worker_target_non_substantive:{worker.worker_id}:{reason}",
+                        model_version=model_version, target_calls=target_calls,
+                        duration_ms=max(1, int((time.monotonic() - started) * 1000)),
+                    )
+                env.actions.append(action_type(name=respond_action, kwargs={"content": text}))
+                break
+            for raw_call in calls:
+                function = raw_call.get("function") if isinstance(raw_call, Mapping) else None
+                function = function if isinstance(function, Mapping) else raw_call
+                name = str(function.get("name") or "")
+                arguments = function.get("arguments") or {}
+                if isinstance(arguments, str):
+                    arguments = json.loads(arguments)
+                action = action_type(name=name, kwargs=dict(arguments))
+                step = env.step(action)
+                tool_trace.append({
+                    "name": name, "arguments": dict(arguments),
+                    "observation": str(step.observation),
+                })
+                transcript.append({
+                    "role": "tool", "name": name,
+                    "tool_call_id": str(raw_call.get("id") or name),
+                    "content": str(step.observation),
+                })
+        else:
+            return _result_dict(
+                status="incomplete", evidence_ref=None,
+                incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:step_limit",
+                model_version=model_version, target_calls=target_calls,
+            )
+        after_state = _native_state_snapshot(env.data)
+        reward_result = env.calculate_reward()
+        reward = float(reward_result.reward)
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         return _unsupported_interface(worker, model_version, f"native_task_interface:{exc.__class__.__name__}")
     except Exception as exc:
@@ -423,17 +468,67 @@ def _tau_bench_adapter_result(
             incomplete_reason=f"worker_native_invocation_error:{worker.worker_id}:{exc.__class__.__name__}",
             model_version=model_version,
         )
+    duration_ms = max(1, int((time.monotonic() - started) * 1000))
+    outcome = {
+        "environment": "retail", "task_index": int(getattr(env, "task_index")),
+        "task": _native_state_snapshot(env.task), "transcript": transcript,
+        "tool_trace": tool_trace, "before_state": before_state,
+        "after_state": after_state, "reward": reward,
+        "reward_info": _native_state_snapshot(reward_result),
+        "verdict": "pass" if reward == 1.0 else "fail",
+        "duration_ms": duration_ms,
+        "spend": _native_state_snapshot(subject.get("_runtime_execution_evidence", {})),
+    }
     evidence_ref = _persist_tau_evidence(worker, registry_row, job, outcome)
-    transcript = outcome.get("transcript", {})
-    turns = transcript.get("turns", []) if isinstance(transcript, Mapping) else []
     return _result_dict(
         status="complete", evidence_ref=evidence_ref, incomplete_reason=None,
         model_version=model_version, verdict=str(outcome["verdict"]),
         numeric_result=1.0 if outcome["verdict"] == "pass" else 0.0,
-        target_calls=len(turns), judge_calls=0,
-        duration_ms=max(1, int((time.monotonic() - started) * 1000)),
+        target_calls=target_calls, judge_calls=0, duration_ms=duration_ms,
         seed_binding=_seed_binding_for_subject(subject, int(job.get("seed") or 0)),
     )
+
+
+_TAU_NATIVE_TASK_INDEX = {
+    "58a2a82840cabbe9ab7dee554862ce3eb2c99b70afc9cd462f667b525942f726": 0,
+    "0e1ca6c87b7b6ebcadf6a3a69a654915b35923427aedb61de0756e3f71354243": 1,
+    "384f8b25b24f5a3f5c060bcbcc150ed7e5278ebffe8d0c4b9722010c4971c3aa": 2,
+}
+
+
+def _load_native_tau_environment(case_id: str) -> tuple[Any, Any, str]:
+    """Load a pinned upstream task and environment without an LLM user call."""
+    from tau_bench.envs import get_env  # type: ignore
+    from tau_bench.types import Action, RESPOND_ACTION_NAME  # type: ignore
+
+    task_index = _TAU_NATIVE_TASK_INDEX[case_id]
+    env = get_env(
+        "retail", user_strategy="human", user_model="unused",
+        task_split="test", task_index=task_index,
+    )
+    return env, Action, RESPOND_ACTION_NAME
+
+
+def _tau_subject_response(
+    subject: Mapping[str, Any], messages: list[dict[str, Any]], tools: list[dict[str, Any]],
+) -> Any:
+    if subject.get("kind") == "customer_agent_http":
+        from harness.customer_runner import customer_agent_http_runner_factory
+        runner = customer_agent_http_runner_factory(
+            str(subject.get("endpoint") or ""), str(subject.get("secret") or ""),
+            str(subject.get("agent_id") or "") or None,
+        )
+        complete_messages = getattr(runner, "complete_messages", None)
+        if not callable(complete_messages):
+            raise ValueError("target_missing_tool_call_interface")
+        response = complete_messages(messages, tools=tools)
+        execution_evidence = getattr(runner, "execution_evidence", None)
+        if callable(execution_evidence) and isinstance(subject, dict):
+            measured = execution_evidence()
+            if isinstance(measured, Mapping):
+                subject["_runtime_execution_evidence"] = dict(measured)
+        return response
+    return _response_for_messages(subject, messages)
 
 
 def _persist_tau_evidence(
@@ -451,11 +546,22 @@ def _persist_tau_evidence(
         "attempt_id": f"{safe_job}:{safe_case}:{int(job.get('seed') or 0)}",
         "framework": f"tau-bench@{worker.framework_version}",
         "seed": int(job.get("seed") or 0),
+        "environment": outcome.get("environment"),
+        "native_task_index": outcome.get("task_index"),
+        "native_task": outcome.get("task"),
         "transcript": outcome.get("transcript"),
-        "tool_trace": outcome.get("tool_call_log"),
-        "after_state": outcome.get("observed_state"),
-        "oracle": {"checks": outcome.get("checks"), "verdict": outcome.get("verdict")},
-        "reason": "database end-state and exact tool-call oracle",
+        "tool_trace": outcome.get("tool_trace"),
+        "before_state": outcome.get("before_state"),
+        "after_state": outcome.get("after_state"),
+        "oracle": {
+            "kind": "tau_bench.Env.calculate_reward",
+            "reward": outcome.get("reward"),
+            "reward_info": outcome.get("reward_info"),
+            "verdict": outcome.get("verdict"),
+        },
+        "reason": "native tau-bench database end-state oracle",
+        "duration_ms": outcome.get("duration_ms"),
+        "spend": outcome.get("spend"),
         "replay_command": f"python3 -m tools.framework_workers run  # job={safe_job} case={safe_case}",
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
