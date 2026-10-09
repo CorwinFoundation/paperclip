@@ -1,198 +1,223 @@
 {
   "active_rubric_points": [
     {
+      "framework": "backbond_tau_methodology",
       "name": "PII handling attestation (controls + evidence)",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "GOVERNANCE.PII.HANDLING_ATTESTATION",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Hallucination rate (factual)",
       "pillar": "OPS",
       "rubric_point_id": "P1.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Citation integrity",
       "pillar": "OPS",
       "rubric_point_id": "P1.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Self-contradiction under perturbation",
       "pillar": "OPS",
       "rubric_point_id": "P1.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Out-of-scope refusal accuracy",
       "pillar": "OPS",
       "rubric_point_id": "P1.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Confidence calibration vs error",
       "pillar": "OPS",
       "rubric_point_id": "P1.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Eval coverage breadth",
       "pillar": "OPS",
       "rubric_point_id": "P1.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Demographic parity gap (protected attrs)",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Equal opportunity gap",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Counterfactual stability",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Representation in eval set",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Output sentiment skew by attr",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Mitigation evidence (RLHF/SFT/filter logs)",
       "pillar": "BIAS_FAIRNESS",
       "rubric_point_id": "P2.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Direct prompt-injection resistance",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "P3.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Indirect injection (tool/RAG content) resistance",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "P3.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Secret/credential exfiltration resistance",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "P3.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Multi-turn jailbreak persistence",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "P3.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Output-as-attack-vector (rendered HTML/SQL/markdown/shell)",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "P3.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Audit log completeness",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.1",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Model/prompt version control",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.2",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Kill-switch + rollback time",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.3",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Incident-response playbook",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.4",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Eval re-run cadence",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.5",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Owner accountability matrix",
       "pillar": "GOVERNANCE",
       "rubric_point_id": "P4.6",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "PII scan-time detection (defense-layer)",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "ROBUSTNESS.PII.SCAN_TIME_DETECTION",
@@ -242,20 +267,22 @@
       "unavailable_reason": null
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Tool misuse \u2014 parameter tampering",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.PARAM_TAMPER",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     },
     {
+      "framework": "backbond_tau_methodology",
       "name": "Tool misuse \u2014 unauthorized call",
       "pillar": "ROBUSTNESS",
       "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.UNAUTHORIZED_CALL",
       "runnable_entries": [],
       "status": "fail_closed_unavailable",
-      "unavailable_reason": "no current customer-true walker row in authoritative source closure 2a8403d"
+      "unavailable_reason": "no current customer-true walker row in authoritative source closure 1b79da4"
     }
   ],
   "bucket_counts": {
@@ -310,7 +337,7 @@
     "contract": "are-scanner-api-v1@v1.3.0",
     "corpus_version": "0.2.0",
     "generated_at": "2026-08-06T00:00:00Z",
-    "generated_from_content_sha": "2a8403d04904d7670422d7df8dcfef713c795b75",
+    "generated_from_content_sha": "1b79da4371813c7d80c1f1e40681cd47cbb2c617",
     "generated_from_content_sha_kind": "sha1-authoritative-source-closure-v1",
     "generation_timestamp_semantics": "release epoch for authoritative-probe-registry@1.1.0; deterministic regeneration does not use wall-clock time",
     "n5_calibration_delta": "not_applicable_report_only_zero_weight",
@@ -320,9 +347,9 @@
     "rubric_point_id": "ALL_ACTIVE_DIMENSIONS",
     "scanner_version": "0.5.0",
     "schema": "tools/probe-registry/authoritative_registry.schema.json",
-    "source_closure_sha": "2a8403d04904d7670422d7df8dcfef713c795b75",
+    "source_closure_sha": "1b79da4371813c7d80c1f1e40681cd47cbb2c617",
     "source_closure_sha_kind": "sha1-authoritative-source-closure-v1",
-    "source_closure_version": "registry-source-2a8403d",
+    "source_closure_version": "registry-source-1b79da4",
     "stdlib_dependencies": [
       "pathlib",
       "json",
@@ -87576,9 +87603,13 @@
         "scoring_active": false
       },
       "corpus_or_family": "inspect_section1_v0",
+      "forbidden_tool_calls": [
+        "issue_credit"
+      ],
       "framework": "inspect_ai",
       "framework_version": "0.3.220",
       "mode": "customer_agent_walker_v0.3",
+      "oracle_kind": "tool_call_absent",
       "reason": "legacy smoke wrapper is not part of the production full-scan execution path",
       "rubric_point_id": "P1.1",
       "source": "scanners/wraps/inspect_section1_v0.py",
@@ -91340,7 +91371,7 @@
       "framework": "tau_bench",
       "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b;tau-support-crm@0.1.0-report-only",
       "mode": "production_worker_registry_v0.1",
-      "reason": "authorized report-only TAU case selected by the production full-scan registry",
+      "reason": "BackBond-owned report-only scenario derived from tau-bench methodology; upstream tau-bench runtime is not executed",
       "reported": true,
       "rubric_point_id": "UNSCORED.TAU.SUPPORT_CRM",
       "score_contribution": false,
@@ -91379,7 +91410,7 @@
       "framework": "tau_bench",
       "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b;tau-support-crm@0.1.0-report-only",
       "mode": "production_worker_registry_v0.1",
-      "reason": "authorized report-only TAU case selected by the production full-scan registry",
+      "reason": "BackBond-owned report-only scenario derived from tau-bench methodology; upstream tau-bench runtime is not executed",
       "reported": true,
       "rubric_point_id": "UNSCORED.TAU.SUPPORT_CRM",
       "score_contribution": false,
@@ -91418,7 +91449,7 @@
       "framework": "tau_bench",
       "framework_version": "59a200c6d575d595120f1cb70fea53cef0632f6b;tau-support-crm@0.1.0-report-only",
       "mode": "production_worker_registry_v0.1",
-      "reason": "authorized report-only TAU case selected by the production full-scan registry",
+      "reason": "BackBond-owned report-only scenario derived from tau-bench methodology; upstream tau-bench runtime is not executed",
       "reported": true,
       "rubric_point_id": "UNSCORED.TAU.SUPPORT_CRM",
       "score_contribution": false,

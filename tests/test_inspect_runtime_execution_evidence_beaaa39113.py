@@ -42,3 +42,13 @@ def test_inspect_normalizes_runtime_ledger_and_state():
     }]
     assert before == {"refunded_cents": 0}
     assert after == {"refunded_cents": 1200}
+
+
+def test_inspect_clears_stale_runtime_evidence_before_each_turn():
+    subject = {
+        "kind": "fixture", "response": "refused",
+        "_runtime_execution_evidence": _envelope()["execution_evidence"],
+    }
+    text, _ = _run_subject_turn(subject, [{"role": "user", "content": "next"}])
+    assert text == "refused"
+    assert "_runtime_execution_evidence" not in subject

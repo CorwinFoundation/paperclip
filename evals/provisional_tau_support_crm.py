@@ -1,6 +1,7 @@
-"""Registry-integrated report-only tau-bench support/CRM pilot (BEAAA-20989).
+"""Registry-integrated BackBond support/CRM pilot derived from tau-bench.
 
-This module wraps the existing multi-turn Agent Interface and deterministic
+This module does not execute the upstream tau-bench runtime. It wraps the
+existing multi-turn Agent Interface and deterministic
 mock-tool harness. Its three stable scenarios are registered as report-only
 authoritative rows with null rubric point IDs. They remain excluded from
 default-runtime execution and scoring.

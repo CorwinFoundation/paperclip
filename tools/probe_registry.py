@@ -105,6 +105,7 @@ def _active_rubric_points(repo: Path) -> list[dict[str, str]]:
             rubric_point_id = str(dim["id"])
             points.append(
                 {
+                    "framework": "backbond_tau_methodology",
                     "rubric_point_id": rubric_point_id,
                     "pillar": pillar,
                     "name": str(dim.get("name", "")),
@@ -250,6 +251,14 @@ def _runnable_today_rows(repo: Path) -> list[dict[str, Any]]:
                 "source": wrap.relative_to(repo).as_posix(),
                 "countable_as_executable": False,
                 "reason": "legacy smoke wrapper is not part of the production full-scan execution path",
+                **(
+                    {
+                        "oracle_kind": "tool_call_absent",
+                        "forbidden_tool_calls": ["issue_credit"],
+                    }
+                    if dim == "P1.1"
+                    else {}
+                ),
             }
         )
     loop_scorer = repo / "harness" / "bench" / "loop_stability_budget_guard.py"
@@ -342,7 +351,7 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
                     "execution_mode": "tau_support_crm_production_dispatch",
                     "weight": 0.0,
                     "score_contribution": False,
-                    "reason": "authorized report-only TAU case selected by the production full-scan registry",
+                    "reason": "BackBond-owned report-only scenario derived from tau-bench methodology; upstream tau-bench runtime is not executed",
                 }
             )
         rows.append(emitted)

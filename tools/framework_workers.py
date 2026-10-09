@@ -392,7 +392,6 @@ def _tau_bench_adapter_result(
         return _unsupported_interface(worker, model_version, "tau_case_must_be_report_only")
     case_id = str(registry_row.get("case_id") or "")
     try:
-        import tau_bench  # type: ignore  # noqa: F401 -- proves child runtime
         from evals.provisional_tau_support_crm import SCENARIOS, run_scenario
         from tools.registered_case_executor import _http_tau_session_factory
     except ImportError as exc:
@@ -970,6 +969,7 @@ def _inspect_adapter_result(
             limit=1,
             max_samples=1,
             fail_on_error=False,
+            log_samples=True,
         )
     except Exception as exc:
         return _result_dict(
@@ -1203,6 +1203,10 @@ def _response_for_messages(subject: Mapping[str, Any], messages: list[dict[str, 
 
 def _run_subject_turn(subject: Mapping[str, Any], messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
     history = [dict(message) for message in messages]
+    if isinstance(subject, dict):
+        # Runtime evidence is exchange-scoped. Never grade a later empty,
+        # refused, or failed response against an earlier turn's ledger.
+        subject.pop("_runtime_execution_evidence", None)
     if subject.get("kind") == "customer_agent_http":
         from harness.customer_runner import customer_agent_http_runner_factory
         runner = customer_agent_http_runner_factory(
