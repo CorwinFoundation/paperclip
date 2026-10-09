@@ -10,16 +10,44 @@ normalized_hosts=${DEPLOY_SSH_KNOWN_HOSTS//$'\r'/}
 normalized_hosts=${normalized_hosts//\\n/$'\n'}
 
 candidate="${deploy_key}.candidate"
-cleanup() { rm -f "$candidate"; }
+converted="${deploy_key}.converted"
+cleanup() { rm -f "$candidate" "$converted"; }
 trap cleanup EXIT
 
-try_candidate() {
-  local value=$1
-  printf '%s' "$value" | tr -d '\r' > "$candidate"
-  printf '\n' >> "$candidate"
-  chmod 0600 "$candidate"
-  if ssh-keygen -y -f "$candidate" >/dev/null 2>&1; then
-    mv "$candidate" "$deploy_key"
+accept_candidate() {
+  local path=$1
+  chmod 0600 "$path"
+  if ssh-keygen -y -f "$path" >/dev/null 2>&1; then
+    mv "$path" "$deploy_key"
+    return 0
+  fi
+  return 1
+}
+
+try_value() {
+  printf '%s\n' "$1" | tr -d '\r' > "$candidate"
+  accept_candidate "$candidate"
+}
+
+try_decoded_candidate() {
+  # Keep decoded bytes file-backed: Bash variables cannot preserve NUL bytes.
+  if accept_candidate "$candidate"; then
+    return 0
+  fi
+  if head -c 15 "$candidate" | cmp -s - <(printf 'openssh-key-v1\0'); then
+    {
+      printf '%s\n' '-----BEGIN OPENSSH PRIVATE KEY-----'
+      base64 -w 70 "$candidate"
+      printf '%s\n' '-----END OPENSSH PRIVATE KEY-----'
+    } > "$converted"
+    accept_candidate "$converted" && return 0
+  fi
+  if openssl pkey -inform DER -in "$candidate" -out "$converted" >/dev/null 2>&1 \
+      && accept_candidate "$converted"; then
+    return 0
+  fi
+  if openssl rsa -inform DER -in "$candidate" -out "$converted" >/dev/null 2>&1 \
+      && accept_candidate "$converted"; then
     return 0
   fi
   return 1
@@ -27,7 +55,7 @@ try_candidate() {
 
 # Prefer the value as supplied after newline normalization. This handles raw
 # OpenSSH/PEM keys and escaped-newline secrets without exposing key material.
-if ! try_candidate "$normalized_key"; then
+if ! try_value "$normalized_key"; then
   # Some secret stores wrap the complete value in quotes. Remove only a
   # matching outer pair before trying the encoded forms.
   unquoted=$normalized_key
@@ -38,14 +66,14 @@ if ! try_candidate "$normalized_key"; then
 
   # Try standard base64 first, then URL-safe base64. Validate the decoded
   # candidate before replacing the destination so partial decodes are rejected.
-  if ! printf '%s' "$encoded_key" | base64 --decode > "$candidate" 2>/dev/null || ! try_candidate "$(cat "$candidate")"; then
+  if ! printf '%s' "$encoded_key" | base64 --decode > "$candidate" 2>/dev/null || ! try_decoded_candidate; then
     urlsafe=${encoded_key//-/+}
     urlsafe=${urlsafe//_/\/}
     case $(( ${#urlsafe} % 4 )) in
       2) urlsafe+='==' ;;
       3) urlsafe+='=' ;;
     esac
-    if ! printf '%s' "$urlsafe" | base64 --decode > "$candidate" 2>/dev/null || ! try_candidate "$(cat "$candidate")"; then
+    if ! printf '%s' "$urlsafe" | base64 --decode > "$candidate" 2>/dev/null || ! try_decoded_candidate; then
       echo "deploy SSH identity is not a valid private-key document or base64 encoding" >&2
       exit 1
     fi
