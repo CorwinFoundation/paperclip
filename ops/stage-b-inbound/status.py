@@ -218,6 +218,34 @@ def main(argv):
                 print("  export", str(r.get("code_digest"))[:10], "sender", str(r.get("sender_hash"))[:10],
                       "received", ts(r.get("received_at")), "state", code(r.get("state")),
                       "row_count", r.get("row_count"), "refs", refs)
+        if "transport_probes" in tables:
+            rs = rows(db, "transport_probes")
+            sel = [r for r in rs if stamped(r)]
+            print("transport_probes total", len(rs), "in_window", len(sel))
+            for r in sel:
+                print("  transport_probe", r.get("probe_id"),
+                      "state", code(r.get("state")),
+                      "created", ts(r.get("created_at")),
+                      "expires", ts(r.get("expires_at")),
+                      "received", ts(r.get("received_at")),
+                      "sender", h(r.get("sender_hash")))
+        if "fictional_task_reports" in tables:
+            rs = rows(db, "fictional_task_reports")
+            sel = [r for r in rs if inw(r.get("received_at"))]
+            print("fictional_task_reports total", len(rs), "in_window", len(sel))
+            for r in sel:
+                print("  fictional_task_report", r.get("report_id"),
+                      "probe", r.get("probe_id"),
+                      "received", ts(r.get("received_at")),
+                      "task_requested", r.get("task_requested"),
+                      "proposal", r.get("proposal"),
+                      "price", r.get("price"), "currency", r.get("currency"),
+                      "cancellation_terms", r.get("cancellation_terms"),
+                      "owner_approval", r.get("owner_approval"),
+                      "action_taken", r.get("action_taken"),
+                      "outcome", r.get("outcome"),
+                      "evidence", code(r.get("evidence_origin")),
+                      "verification", code(r.get("verification_state")))
         if "inbound_receipts" in tables:
             rs = rows(db, "inbound_receipts")
             sel = [r for r in rs if stamped(r)]

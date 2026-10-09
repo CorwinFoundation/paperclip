@@ -16,7 +16,8 @@ from urllib.request import Request, urlopen
 import pytest
 
 from stage_b_pilot.export_intake import (
-    EXPORT_RECIPIENT, TRANSPORT_BODY, TRANSPORT_SUBJECT, ExportIntakeStore,
+    EXPORT_RECIPIENT, TASK_REPORT_SUBJECT, TRANSPORT_BODY, TRANSPORT_SUBJECT,
+    ExportIntakeStore,
 )
 from stage_b_pilot.mailgun import make_handler as make_inbound_handler
 from stage_b_pilot.receipt_page import make_handler as make_page_handler
@@ -33,6 +34,67 @@ def transport_message():
     item["Subject"] = TRANSPORT_SUBJECT
     item.set_content(TRANSPORT_BODY)
     return item.as_bytes()
+
+
+def task_report_message(**changes):
+    report = {
+        "fictional": True,
+        "evidence_origin": "agent_reported",
+        "task_requested": "Find a fictional dinner option",
+        "proposal": "Fictional table for two at 19:30",
+        "price": "4800",
+        "currency": "TRY",
+        "cancellation_terms": "Free cancellation until 18:00",
+        "owner_approval": "Owner approved in chat",
+        "action_taken": "Fictional simulation only; nothing booked",
+        "outcome": "Proposal recorded; no real action",
+    }
+    report.update(changes)
+    item = EmailMessage()
+    item["From"] = "same-assistant@instinct.example"
+    item["To"] = EXPORT_RECIPIENT
+    item["Subject"] = TASK_REPORT_SUBJECT
+    item.set_content(json.dumps(report))
+    return item.as_bytes()
+
+
+def test_one_fictional_task_report_is_persisted_and_visible_read_only(tmp_path, monkeypatch, capsys):
+    db = tmp_path / "history.sqlite3"
+    store = ExportIntakeStore(db, encryption_key=KEY, now=lambda: NOW)
+    probe_id = store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    report_id = store.ingest(task_report_message(), envelope_recipient=EXPORT_RECIPIENT)
+    assert report_id.startswith("tr_")
+    row = dict(store.connection.execute("SELECT * FROM fictional_task_reports").fetchone())
+    assert row["received_at"] and row["evidence_origin"] == "agent_reported"
+    assert row["probe_id"] == probe_id
+    assert row["verification_state"] == "unverified"
+    with pytest.raises(ValueError, match="already_received"):
+        store.ingest(task_report_message(outcome="retry"), envelope_recipient=EXPORT_RECIPIENT)
+    store.close()
+    monkeypatch.setenv("BACKBOND_STAGE_B_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("BACKBOND_STAGE_B_NGINX_LOGS", str(tmp_path / "none"))
+    monkeypatch.setenv("BACKBOND_STAGE_B_JOURNAL_CMD", "true")
+    monkeypatch.setattr(sys, "argv", ["status.py", "2026-10-07T19:00", "2026-10-07T21:00"])
+    with pytest.raises(SystemExit) as result:
+        runpy.run_path("ops/stage-b-inbound/status.py", run_name="__main__")
+    assert result.value.code == 0
+    output = capsys.readouterr().out
+    assert "fictional_task_reports total 1 in_window 1" in output
+    assert f"transport_probe {probe_id} state accepted" in output
+    assert "currency TRY" in output and "verification unverified" in output
+
+
+def test_fictional_task_report_requires_matching_unexpired_probe_sender(tmp_path):
+    store = ExportIntakeStore(tmp_path / "history.sqlite3", encryption_key=KEY, now=lambda: NOW)
+    with pytest.raises(ValueError, match="sender_not_verified"):
+        store.ingest(task_report_message(), envelope_recipient=EXPORT_RECIPIENT)
+    store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    with pytest.raises(ValueError, match="sender_not_verified"):
+        store.ingest(task_report_message().replace(
+            b"same-assistant@instinct.example", b"other-assistant@instinct.example"
+        ), envelope_recipient=EXPORT_RECIPIENT)
 
 
 def test_existing_export_mailbox_accepts_one_transport_probe_without_history(tmp_path):
@@ -110,7 +172,7 @@ def test_e6_account_free_schema(tmp_path):
     store = ExportIntakeStore(tmp_path / "h.sqlite3", encryption_key=KEY, now=lambda: NOW)
     code = store.issue_code(); store.ingest(message(code, [row()]), envelope_recipient=EXPORT_RECIPIENT)
     tables = {x[0] for x in store.connection.execute("select name from sqlite_master where type='table'")}
-    assert tables == {"export_codes", "export_intakes", "transport_probes"}
+    assert tables == {"export_codes", "export_intakes", "transport_probes", "fictional_task_reports"}
     columns = {x[1] for x in store.connection.execute("pragma table_info(export_intakes)")}
     assert not columns.intersection({"account_id", "grant_id", "history_request_id", "email"})
 

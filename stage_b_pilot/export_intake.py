@@ -22,6 +22,11 @@ SUBJECT = re.compile(r"^BackBond export ([23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6})$
 MAX_BODY_BYTES = 16 * 1024
 TRANSPORT_SUBJECT = "BackBond delivery test"
 TRANSPORT_BODY = "This is a one-time delivery test. No personal data is included."
+TASK_REPORT_SUBJECT = "BackBond fictional task report"
+TASK_REPORT_FIELDS = (
+    "task_requested", "proposal", "price", "currency", "cancellation_terms",
+    "owner_approval", "action_taken", "outcome",
+)
 
 
 def _utcnow() -> datetime:
@@ -48,6 +53,14 @@ class ExportIntakeStore:
         CREATE TABLE IF NOT EXISTS transport_probes (
           probe_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, expires_at TEXT NOT NULL,
           received_at TEXT, sender_hash TEXT, state TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS fictional_task_reports (
+          report_id TEXT PRIMARY KEY, probe_id TEXT NOT NULL UNIQUE,
+          sender_hash TEXT NOT NULL,
+          received_at TEXT NOT NULL, task_requested TEXT NOT NULL,
+          proposal TEXT NOT NULL, price TEXT NOT NULL, currency TEXT NOT NULL,
+          cancellation_terms TEXT NOT NULL, owner_approval TEXT NOT NULL,
+          action_taken TEXT NOT NULL, outcome TEXT NOT NULL,
+          evidence_origin TEXT NOT NULL, verification_state TEXT NOT NULL);
         """)
         self.connection.commit()
 
@@ -98,6 +111,8 @@ class ExportIntakeStore:
             raise ValueError("export_recipients_or_attachments_invalid")
         if str(message.get("Subject", "")) == TRANSPORT_SUBJECT:
             return self._ingest_transport_probe(message)
+        if str(message.get("Subject", "")) == TASK_REPORT_SUBJECT:
+            return self._ingest_fictional_task_report(message)
         match = SUBJECT.fullmatch(str(message.get("Subject", "")))
         code = match.group(1) if match else ""
         digest = hashlib.sha256(code.encode()).hexdigest()
@@ -177,6 +192,47 @@ class ExportIntakeStore:
         )
         self.connection.commit()
         return row["probe_id"]
+
+    def _ingest_fictional_task_report(self, message) -> str:
+        """Persist one owner-requested fictional task report without a grant."""
+        if message.get_content_type() != "text/plain":
+            raise ValueError("task_report_not_plain_text")
+        try:
+            report = json.loads(message.get_content())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("task_report_invalid_json") from exc
+        expected = {"fictional", "evidence_origin", *TASK_REPORT_FIELDS}
+        if not isinstance(report, dict) or set(report) != expected:
+            raise ValueError("task_report_fields_invalid")
+        if report["fictional"] is not True or report["evidence_origin"] != "agent_reported":
+            raise ValueError("task_report_scope_invalid")
+        for field in TASK_REPORT_FIELDS:
+            if not isinstance(report[field], str) or not report[field] or len(report[field]) > 500:
+                raise ValueError(f"task_report_value_invalid:{field}")
+        sender = parseaddr(str(message.get("From", "")))[1].strip().lower()
+        if not sender:
+            raise ValueError("task_report_sender_invalid")
+        sender_hash = hashlib.sha256(sender.encode()).hexdigest()
+        probe = self.connection.execute(
+            "SELECT probe_id FROM transport_probes WHERE state='accepted' "
+            "AND received_at IS NOT NULL AND sender_hash=? AND expires_at>? "
+            "ORDER BY received_at DESC LIMIT 1", (sender_hash, _iso(self.now())),
+        ).fetchone()
+        if probe is None:
+            raise ValueError("task_report_sender_not_verified")
+        received = _iso(self.now())
+        report_id = "tr_" + secrets.token_hex(12)
+        try:
+            self.connection.execute(
+                "INSERT INTO fictional_task_reports VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (report_id, probe["probe_id"], sender_hash, received,
+                 *(report[field] for field in TASK_REPORT_FIELDS),
+                 "agent_reported", "unverified"),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("task_report_already_received") from exc
+        self.connection.commit()
+        return report_id
 
     def purge_expired(self) -> int:
         now = _iso(self.now())
