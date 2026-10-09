@@ -503,6 +503,11 @@ class HistoryImportStore:
         days = scope.get("lookback_days")
         if not isinstance(days, int) or not 1 <= days <= 365:
             raise ValueError("history_scope_invalid")
+        max_rows = scope.get("max_rows", MAX_ROWS)
+        if not isinstance(max_rows, int) or isinstance(max_rows, bool) or not 1 <= max_rows <= MAX_ROWS:
+            raise ValueError("history_scope_invalid")
+        if len(report["rows"]) > max_rows:
+            raise ValueError("history_exceeds_selected_sample")
         earliest = self.now().date() - timedelta(days=days)
         latest = self.now().date() + timedelta(days=1)
         for row in report["rows"]:

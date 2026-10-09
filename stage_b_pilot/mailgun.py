@@ -490,12 +490,14 @@ def make_handler(db_path: str, signing_key: str, reminder_sender=None, *,
                         address = history.issue_address(
                             user_id, purpose=purpose, synthetic=synthetic,
                             scope={"lookback_days": days, "categories": ["task_records"],
+                                   "max_rows": 3 if not synthetic else 500,
                                    "sender_email": agent_sender},
                             **binding,
                         )
                         self._reply(200, {"address": address.address,
                                           "expires_at": address.expires_at,
                                           "purpose": purpose, "synthetic": synthetic,
+                                          "max_rows": 3 if not synthetic else 500,
                                           "sender_email": agent_sender})
                     else:
                         action = str(fields.get("action", ""))

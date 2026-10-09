@@ -100,7 +100,8 @@ def services(tmp_path):
     )
     inbound = ThreadingHTTPServer(("127.0.0.1", 0), inbound_handler(
         str(inbound_db), SIGNING_KEY, history_db_path=str(history_db),
-        history_key=ENCRYPTION_KEY, history_synthetic_enabled=True,
+        history_key=ENCRYPTION_KEY, history_external_enabled=True,
+        history_synthetic_enabled=True,
         standing_db_path=str(tmp_path / "standing.sqlite3"), standing_synthetic_enabled=True,
     ))
     page = ThreadingHTTPServer(("127.0.0.1", 0), page_handler(
@@ -212,3 +213,25 @@ def test_history_route_rejects_bad_signature_and_cross_user_read(services):
     with pytest.raises(HTTPError) as empty:
         _deliver(inbound, issued["address"], _report(0))
     assert empty.value.code == 406
+
+
+def test_real_history_is_sender_bound_and_limited_to_three_rows(services):
+    inbound, _, token = services
+    issued = _json_request(inbound, "/history/request", token, {
+        "email": "user@example.com", "consent": True, "lookback_days": 7,
+        "purpose": "onboarding", "synthetic": False,
+    })
+    assert issued["max_rows"] == 3
+    with pytest.raises(HTTPError) as oversized:
+        _deliver(inbound, issued["address"], _report(4, synthetic=False))
+    assert oversized.value.code == 406
+
+    issued = _json_request(inbound, "/history/request", token, {
+        "email": "user@example.com", "consent": True, "lookback_days": 7,
+        "purpose": "onboarding", "synthetic": False,
+    })
+    with _deliver(inbound, issued["address"], _report(3, synthetic=False)) as response:
+        assert json.loads(response.read())["accepted"] is True
+    state = _json_request(inbound, "/history/state?email=user%40example.com", token)
+    assert len(state["imports"][0]["report"]["rows"]) == 3
+    assert all(row["synthetic"] is False for row in state["imports"][0]["report"]["rows"])

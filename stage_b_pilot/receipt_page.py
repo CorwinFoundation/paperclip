@@ -253,7 +253,8 @@ def optional_instinct_reports(host: str, port: int, email: str, token: str) -> d
         return {"reports": []}
 
 
-def history_instruction(address: str, email: str, days: int, *, synthetic: bool) -> str:
+def history_instruction(address: str, email: str, days: int, *, synthetic: bool,
+                        max_rows: int = 500) -> str:
     task_kind = "fictional test tasks" if synthetic else "your Instinct task records"
     example_row = {key: "unknown" for key in (
         "occurred_at", "timezone", "task_id", "category", "proposed_action",
@@ -271,7 +272,7 @@ def history_instruction(address: str, email: str, days: int, *, synthetic: bool)
         "personal information. Reply in chat without emailing if there are no tasks. "
         "The email's plain-text body must be one JSON object with schema_version "
         "'instinct-history/v1', row_count equal to the number of rows, rows, and "
-        "end_marker 'END INSTINCT HISTORY'. Include between 1 and 500 rows. "
+        f"end_marker 'END INSTINCT HISTORY'. Include between 1 and {max_rows} rows. "
         "Each row must contain occurred_at (ISO 8601 date or timestamp), timezone, task_id, category, "
         "proposed_action, external_action, approval_status, approval_source, "
         "action_taken, outcome, amount, currency, recovery, evidence_origin, gaps, "
@@ -311,7 +312,8 @@ def render_history(payload: dict, email: str, csrf: str, *, issued: dict | None 
     if issued:
         days = int(issued.get("lookback_days", 7))
         instruction_text = history_instruction(str(issued["address"]), str(issued["sender_email"]), days,
-                                               synthetic=bool(issued.get("synthetic")))
+                                               synthetic=bool(issued.get("synthetic")),
+                                               max_rows=int(issued.get("max_rows", 500)))
         instruction = f'''<section class="receipt"><h2>Give {escape(agent_label)} this instruction</h2>
 <p>The one-time address expires at {escape(issued['expires_at'])}. A valid report is received without another step from you. You can view or delete it here.</p>
 <textarea readonly rows="11">{escape(instruction_text)}</textarea></section>'''
