@@ -540,6 +540,21 @@ def _persist_tau_evidence(
     safe_case = re.sub(r"[^A-Za-z0-9_.-]", "_", str(registry_row.get("case_id") or "case"))
     path = evidence_root / safe_job / f"{safe_case}.tau_bench.json"
     path.parent.mkdir(parents=True, exist_ok=True)
+    replay_payload = _redact_replay_value({
+        "worker_id": worker.worker_id,
+        "registry_row": dict(registry_row),
+        "job": dict(job),
+    })
+    replay_payload_path = path.with_suffix(".replay.json")
+    replay_payload_path.write_text(
+        json.dumps(replay_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    raw_spend = outcome.get("spend")
+    spend = dict(raw_spend) if isinstance(raw_spend, Mapping) else {}
+    # Absence of provider metering is unknown, never a free invocation.
+    spend.setdefault("estimated_cost_usd", None)
+    spend.setdefault("request_count", None)
     payload = {
         "schema": "tau-bench-native-evidence/v1",
         "scenario_id": registry_row.get("case_id"),
@@ -561,8 +576,11 @@ def _persist_tau_evidence(
         },
         "reason": "native tau-bench database end-state oracle",
         "duration_ms": outcome.get("duration_ms"),
-        "spend": outcome.get("spend"),
-        "replay_command": f"python3 -m tools.framework_workers run  # job={safe_job} case={safe_case}",
+        "spend": spend,
+        "replay_payload": replay_payload_path.resolve().as_uri(),
+        "replay_command": (
+            f"python3 -m tools.framework_workers run < {replay_payload_path.resolve()}"
+        ),
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path.resolve().as_uri()

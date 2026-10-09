@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -115,6 +116,12 @@ def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, 
         "verdict": "pass",
     }
     assert evidence["spend"] == {"estimated_cost_usd": 0.01, "request_count": 2}
+    replay_path = Path(evidence["replay_payload"].removeprefix("file://"))
+    assert replay_path.is_file()
+    replay = json.loads(replay_path.read_text())
+    assert replay["job"]["subject_adapter"]["secret"] == "${BACKBOND_REPLAY_SECRET}"
+    assert "secret" not in evidence["replay_command"]
+    assert shlex.split(evidence["replay_command"])[-1] == str(replay_path)
 
 
 def test_tau_native_worker_uses_real_customer_http_runner(monkeypatch, tmp_path):
@@ -209,3 +216,50 @@ def test_tau_native_worker_rejects_scoring_and_unknown_cases(tmp_path):
         WORKERS["tau_bench"], {"case_id": SCENARIOS[0].stable_id, "scoring_active": True}, job, "v1"
     )
     assert scoring["incomplete_reason"].endswith("tau_case_must_be_report_only")
+
+
+def test_tau_preserves_voice_adapters_as_unsupported(tmp_path):
+    for kind in ("vapi", "syllable"):
+        job = _job(tmp_path)
+        job["subject_adapter"] = {"kind": kind}
+        result = _tau_bench_adapter_result(
+            WORKERS["tau_bench"],
+            {"case_id": SCENARIOS[0].stable_id, "scoring_active": False},
+            job,
+            "v1",
+        )
+        assert result["status"] == "incomplete"
+        assert result["incomplete_reason"].endswith("unsupported_subject_adapter")
+
+
+def test_tau_unknown_cost_is_null_not_zero(monkeypatch, tmp_path):
+    class Action:
+        def __init__(self, name, kwargs):
+            self.name, self.kwargs = name, kwargs
+
+    env = SimpleNamespace(
+        wiki="policy", task=SimpleNamespace(instruction="reply"), task_index=0,
+        tools_info=[], data={}, actions=[],
+        calculate_reward=lambda: SimpleNamespace(reward=1.0),
+    )
+    monkeypatch.setattr(
+        "tools.framework_workers._load_native_tau_environment",
+        lambda _case_id: (env, Action, "respond"),
+    )
+    class Runner:
+        def complete_messages(self, _messages, *, tools):
+            return {"content": "done"}
+        def seed_binding(self, seed):
+            return f"bound:{seed}"
+    monkeypatch.setattr(
+        "harness.customer_runner.customer_agent_http_runner_factory",
+        lambda *_args: Runner(),
+    )
+    result = _tau_bench_adapter_result(
+        WORKERS["tau_bench"],
+        {"case_id": SCENARIOS[0].stable_id, "scoring_active": False},
+        _job(tmp_path),
+        "v1",
+    )
+    evidence = json.loads(Path(result["evidence_ref"].removeprefix("file://")).read_text())
+    assert evidence["spend"] == {"estimated_cost_usd": None, "request_count": None}
