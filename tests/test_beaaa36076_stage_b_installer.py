@@ -55,3 +55,9 @@ def test_installer_places_redacted_instinct_acceptance_capture_helper():
     installer = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
     assert "capture-instinct-acceptance.py" in installer
     assert "/usr/local/sbin/backbond-stage-b-capture-instinct-acceptance" in installer
+
+
+def test_installer_has_explicit_idempotent_real_history_activation_switch():
+    installer = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
+    assert '${BB_ENABLE_REAL_HISTORY_ON_INSTALL:-0}' in installer
+    assert "BB_HISTORY_EXTERNAL_ENABLED=1" in installer

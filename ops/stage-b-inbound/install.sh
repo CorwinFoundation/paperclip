@@ -121,6 +121,9 @@ grep -q '^BB_HISTORY_DB=' "$secret_file" || \
     printf 'BB_HISTORY_DB=%s/history.sqlite3\n' "$state_dir" >>"$secret_file"
 grep -q '^BB_HISTORY_EXTERNAL_ENABLED=' "$secret_file" || \
     printf 'BB_HISTORY_EXTERNAL_ENABLED=0\n' >>"$secret_file"
+if [ "${BB_ENABLE_REAL_HISTORY_ON_INSTALL:-0}" = 1 ]; then
+    sed -i 's/^BB_HISTORY_EXTERNAL_ENABLED=.*/BB_HISTORY_EXTERNAL_ENABLED=1/' "$secret_file"
+fi
 grep -q '^BB_HISTORY_SYNTHETIC_ENABLED=' "$secret_file" || \
     printf 'BB_HISTORY_SYNTHETIC_ENABLED=1\n' >>"$secret_file"
 grep -q '^BB_INSTINCT_STANDING_DB=' "$secret_file" || \
