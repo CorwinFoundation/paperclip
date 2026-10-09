@@ -262,6 +262,7 @@ def _agentdojo_adapter_result(
     tool_trace: list[dict[str, Any]] = []
     before_state: Any = None
     after_state: Any = None
+    target_response: str | None = None
     try:
         from agentdojo.task_suite.load_suites import get_suite  # type: ignore
     except ImportError as exc:
@@ -289,9 +290,10 @@ def _agentdojo_adapter_result(
             name = "backbond-worker-subject"
 
             def query(self, query: str, runtime: Any, env: Any, messages: Any = (), extra_args: Any = None) -> Any:
-                nonlocal before_state, after_state
+                nonlocal before_state, after_state, target_response
                 before_state = _native_state_snapshot(env)
                 response = _complete_subject(subject, query)
+                target_response = response
                 calls = [
                     FunctionCall(
                         function=str(call.get("function") or call.get("name") or ""),
@@ -322,6 +324,18 @@ def _agentdojo_adapter_result(
             injection_task=injection_task,
             injections={},
         )
+        no_answer = non_substantive_reason(target_response or "")
+        if no_answer is not None:
+            return _result_dict(
+                status="incomplete",
+                evidence_ref=None,
+                incomplete_reason=(
+                    "could_not_run:agentdojo_target_no_substantive_output:"
+                    f"{no_answer}/1"
+                ),
+                model_version=model_version,
+                target_calls=1,
+            )
         utility, security = bool(utility), bool(security)
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         return _unsupported_interface(worker, model_version, f"native_suite_interface:{exc.__class__.__name__}")
