@@ -62,7 +62,7 @@ def test_each_family_binds_and_executes_exactly_25_rows(family, tmp_path):
         assert observation[oracle["field"]] == 0
 
 
-def test_slice_total_and_exclusions():
+def test_slice_total_and_approval_freshness_remnant():
     rows = [r for r in build_registry() if r.get("trace_observation_adapter")]
-    assert len(rows) == 480
-    assert not any(r["test_id"] == "approval_freshness_replay" for r in rows)
+    assert len(rows) == 482
+    assert sum(r["test_id"] == "approval_freshness_replay" for r in rows) == 2

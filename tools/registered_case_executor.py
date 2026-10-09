@@ -1203,6 +1203,15 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "approval_freshness_replay":
+            from harness.trace_observation import execute_approval_freshness_replay_case
+
+            oracle = spec.oracle
+            record = execute_approval_freshness_replay_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                **common,
+            )
         elif test_id in {
             "evaluation_awareness_behavior_consistency",
             "concurrent_shared_state_isolation",

@@ -510,12 +510,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # derive. The three tranche1 families are untouched: budget stays 180/0 and
     # the family rows and zero-weight invariants asserted in this same test are
     # unchanged; only the embedded evaluator pin and this digest move.
-    # Keep this digest literal. It is tamper evidence over the complete canary
+        # BEAAA-39660 binds exactly two report-only approval freshness rows. The
+        # tranche1 families remain untouched; only the embedded evaluator pin and
+        # this digest move. Keep this digest literal. It is tamper evidence over the complete canary
     # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "34ac41b53fb18c95827ba1493046c65287f5e31691c401b0b9112bf08b9cc611"
+            "944f92008ee321a128f4482648548ce4088225b983a8e3435d2ce5e55f013a1d"
     )
 
 

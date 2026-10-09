@@ -61,4 +61,4 @@ def test_all_25_rows_execute_without_calls_or_spillover(tmp_path):
         assert observation[oracle["field"]] == oracle["expected"]
         produced_fields.add(oracle["field"])
     assert len(produced_fields) == 25
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 480
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 482
