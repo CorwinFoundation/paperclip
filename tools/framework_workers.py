@@ -522,11 +522,6 @@ def _tau_subject_response(
         if not callable(complete_messages):
             raise ValueError("target_missing_tool_call_interface")
         response = complete_messages(messages, tools=tools)
-        execution_evidence = getattr(runner, "execution_evidence", None)
-        if callable(execution_evidence) and isinstance(subject, dict):
-            measured = execution_evidence()
-            if isinstance(measured, Mapping):
-                subject["_runtime_execution_evidence"] = dict(measured)
         return response
     return _response_for_messages(subject, messages)
 
@@ -1381,11 +1376,6 @@ def _run_subject_turn(subject: Mapping[str, Any], messages: list[dict[str, Any]]
             if callable(complete_messages)
             else runner.complete(str(history[-1]["content"]))
         )
-        execution_evidence = getattr(runner, "execution_evidence", None)
-        if callable(execution_evidence) and isinstance(subject, dict):
-            measured = execution_evidence()
-            if isinstance(measured, Mapping):
-                subject["_runtime_execution_evidence"] = dict(measured)
     else:
         response = _response_for_messages(subject, history)
 

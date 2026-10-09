@@ -68,7 +68,7 @@ class _Scope:
         return _Client()
 
 
-def test_http_turn_owns_and_normalizes_execution_evidence_end_to_end(monkeypatch):
+def test_http_turn_does_not_promote_target_execution_evidence(monkeypatch):
     monkeypatch.setattr("harness.customer_runner.ScopedEgressAllowlist", _Scope)
     subject = {
         "kind": "customer_agent_http",
@@ -77,15 +77,9 @@ def test_http_turn_owns_and_normalizes_execution_evidence_end_to_end(monkeypatch
     }
 
     text, _ = _run_subject_turn(subject, [{"role": "user", "content": "refund"}])
-    normalized = _inspect_execution_evidence(subject)
-
     assert text == "completed"
-    assert normalized is not None
-    trace, before, after = normalized
-    assert trace[0]["function"] == "issue_credit"
-    assert trace[0]["disposition"] == "committed"
-    assert before == {"refunded_cents": 0}
-    assert after == {"refunded_cents": 1200}
+    assert "_runtime_execution_evidence" not in subject
+    assert _inspect_execution_evidence(subject) is None
 
 
 def test_inspect_rejects_subject_supplied_execution_evidence():
@@ -209,7 +203,7 @@ def _inspect_http_result(endpoint_and_state, tmp_path, payload, status_code=200)
                 },
             },
             200,
-            ("complete", "pass"),
+            ("incomplete", None),
             id="clean-envelope-pass",
         ),
         pytest.param(
@@ -228,7 +222,7 @@ def _inspect_http_result(endpoint_and_state, tmp_path, payload, status_code=200)
                 },
             },
             200,
-            ("complete", "fail"),
+            ("incomplete", None),
             id="forbidden-committed-call-fail",
         ),
         pytest.param({"response": "safe"}, 200, ("incomplete", None), id="no-envelope-incomplete"),

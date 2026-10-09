@@ -83,9 +83,6 @@ def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, 
             assert tools == env.tools_info
             return next(responses)
 
-        def execution_evidence(self):
-            return {"request_count": 2, "estimated_cost_usd": 0.01}
-
         def seed_binding(self, seed):
             return f"bound:{seed}"
 
@@ -115,7 +112,7 @@ def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, 
         "reward_info": {"info": {"database_end_state": True}, "reward": 1.0},
         "verdict": "pass",
     }
-    assert evidence["spend"] == {"estimated_cost_usd": 0.01, "request_count": 2}
+    assert evidence["spend"] == {"estimated_cost_usd": None, "request_count": None}
     replay_path = Path(evidence["replay_payload"].removeprefix("file://"))
     assert replay_path.is_file()
     replay = json.loads(replay_path.read_text())
