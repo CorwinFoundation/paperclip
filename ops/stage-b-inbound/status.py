@@ -246,6 +246,50 @@ def main(argv):
                       "outcome", r.get("outcome"),
                       "evidence", code(r.get("evidence_origin")),
                       "verification", code(r.get("verification_state")))
+        if "fictional_reporting_windows" in tables:
+            rs = rows(db, "fictional_reporting_windows")
+            sel = [r for r in rs if stamped(r)]
+            print("fictional_reporting_windows total", len(rs), "in_window", len(sel))
+            for r in sel:
+                print("  fictional_reporting_window", r.get("window_id"),
+                      "probe", r.get("probe_id"), "state", code(r.get("state")),
+                      "created", ts(r.get("created_at")), "expires", ts(r.get("expires_at")),
+                      "stopped", ts(r.get("stopped_at")), "max_reports", r.get("max_reports"),
+                      "recipient", code(r.get("recipient")), "sender", h(r.get("sender_hash")),
+                      "deployed_commit", code(r.get("deployed_commit")),
+                      "standing_rule_accepted_at", ts(r.get("standing_rule_accepted_at")),
+                      "account_separation_reported", r.get("account_separation_reported"),
+                      "account_separation_note", r.get("account_separation_note"),
+                      "standing_report_consistent", r.get("standing_report_consistent"),
+                      "standing_report_consistency_note", r.get("standing_report_consistency_note"),
+                      "time_to_first_task_ms", r.get("time_to_first_task_ms"),
+                      "tester_feedback", r.get("tester_feedback"))
+        if "fictional_automatic_reports" in tables:
+            rs = rows(db, "fictional_automatic_reports")
+            sel = [r for r in rs if inw(r.get("received_at"))]
+            print("fictional_automatic_reports total", len(rs), "in_window", len(sel))
+            for r in sel:
+                print("  fictional_automatic_report", r.get("report_id"),
+                      "window", r.get("window_id"), "sequence", r.get("task_sequence"),
+                      "received", ts(r.get("received_at")),
+                      "task_requested", r.get("task_requested"),
+                      "proposal", r.get("proposal"),
+                      "price", r.get("price"), "currency", r.get("currency"),
+                      "cancellation_terms", r.get("cancellation_terms"),
+                      "owner_approval", r.get("owner_approval"),
+                      "action_taken", r.get("action_taken"), "outcome", r.get("outcome"),
+                      "task_id", r.get("task_id"), "task_started_at", ts(r.get("task_started_at")),
+                      "pre_action_check_ids", r.get("pre_action_check_ids"),
+                      "reported_answer", r.get("reported_answer"),
+                      "reported_latency_ms", r.get("reported_latency_ms"),
+                      "stop_count", r.get("stop_count"),
+                      "executions_without_prior_check_count", r.get("executions_without_prior_check_count"),
+                      "forwarded_confirmation_count", r.get("forwarded_confirmation_count"),
+                      "displayed_outcome_match", code(r.get("displayed_outcome_match")),
+                      "non_recoverable_result", r.get("non_recoverable_result"),
+                      "display_defect", r.get("display_defect"),
+                      "evidence", code(r.get("evidence_origin")),
+                      "verification", code(r.get("verification_state")))
         if "inbound_receipts" in tables:
             rs = rows(db, "inbound_receipts")
             sel = [r for r in rs if stamped(r)]

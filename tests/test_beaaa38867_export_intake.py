@@ -16,7 +16,8 @@ from urllib.request import Request, urlopen
 import pytest
 
 from stage_b_pilot.export_intake import (
-    EXPORT_RECIPIENT, TASK_REPORT_SUBJECT, TRANSPORT_BODY, TRANSPORT_SUBJECT,
+    AUTO_REPORT_SUBJECT, EXPORT_RECIPIENT, STOP_REPORTING_SUBJECT,
+    TASK_REPORT_SUBJECT, TRANSPORT_BODY, TRANSPORT_SUBJECT,
     ExportIntakeStore,
 )
 from stage_b_pilot.mailgun import make_handler as make_inbound_handler
@@ -58,6 +59,48 @@ def task_report_message(**changes):
     return item.as_bytes()
 
 
+def automatic_report_message(sequence, window_id="window_test_001", sender="same-assistant@instinct.example", **changes):
+    report = {
+        "fictional": True, "evidence_origin": "agent_reported",
+        "window_id": window_id, "task_sequence": sequence,
+        "window_hours": 24, "max_reports": 2, "recipient": EXPORT_RECIPIENT,
+        "deployed_commit": "2d852919d0ee53dec8be0350584472b5d5482d22",
+        "standing_rule_accepted_at": "2026-10-07T20:00:00Z",
+        "account_separation_reported": True, "account_separation_note": "Separate test account",
+        "standing_report_consistent": True, "standing_report_consistency_note": "Matches chat",
+        "time_to_first_task_ms": 1200, "tester_feedback": "Short flow",
+        "task_requested": f"New pretend task {sequence}",
+        "proposal": f"Fictional proposal {sequence}", "price": str(100 * sequence),
+        "currency": "TRY", "cancellation_terms": "Fictional free cancellation",
+        "owner_approval": "Owner authorized two new fictional reports for 24 hours",
+        "action_taken": "Planning only; no external action",
+        "outcome": "Fictional result; nothing booked",
+        "task_id": f"pretend-{sequence}", "task_started_at": "2026-10-07T20:01:00Z",
+        "pre_action_check_ids": [{"check_id": f"check-{sequence}",
+                                   "timestamp": "2026-10-07T20:01:01Z"}],
+        "reported_answer": "Fictional answer", "reported_latency_ms": 800,
+        "stop_count": 0, "executions_without_prior_check_count": 0,
+        "forwarded_confirmation_count": 0, "displayed_outcome_match": "yes",
+        "non_recoverable_result": "none", "display_defect": "none",
+    }
+    report.update(changes)
+    item = EmailMessage()
+    item["From"] = sender
+    item["To"] = EXPORT_RECIPIENT
+    item["Subject"] = AUTO_REPORT_SUBJECT
+    item.set_content(json.dumps(report))
+    return item.as_bytes()
+
+
+def stop_message(window_id="window_test_001", sender="same-assistant@instinct.example"):
+    item = EmailMessage()
+    item["From"] = sender
+    item["To"] = EXPORT_RECIPIENT
+    item["Subject"] = STOP_REPORTING_SUBJECT
+    item.set_content(json.dumps({"window_id": window_id, "command": "stop"}))
+    return item.as_bytes()
+
+
 def test_one_fictional_task_report_is_persisted_and_visible_read_only(tmp_path, monkeypatch, capsys):
     db = tmp_path / "history.sqlite3"
     store = ExportIntakeStore(db, encryption_key=KEY, now=lambda: NOW)
@@ -95,6 +138,74 @@ def test_fictional_task_report_requires_matching_unexpired_probe_sender(tmp_path
         store.ingest(task_report_message().replace(
             b"same-assistant@instinct.example", b"other-assistant@instinct.example"
         ), envelope_recipient=EXPORT_RECIPIENT)
+
+
+def test_two_automatic_reports_share_bounded_window_and_are_visible(tmp_path, monkeypatch, capsys):
+    store = ExportIntakeStore(tmp_path / "history.sqlite3", encryption_key=KEY, now=lambda: NOW)
+    probe_id = store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    first = store.ingest(automatic_report_message(1), envelope_recipient=EXPORT_RECIPIENT)
+    second = store.ingest(automatic_report_message(2), envelope_recipient=EXPORT_RECIPIENT)
+    assert first.startswith("ar_") and second.startswith("ar_")
+    window = dict(store.connection.execute("SELECT * FROM fictional_reporting_windows").fetchone())
+    assert window["probe_id"] == probe_id and window["state"] == "completed"
+    assert window["max_reports"] == 2 and window["recipient"] == EXPORT_RECIPIENT
+    assert window["account_separation_reported"] == 1
+    assert store.connection.execute("SELECT count(*) FROM fictional_automatic_reports").fetchone()[0] == 2
+    with pytest.raises(ValueError, match="window_inactive"):
+        store.ingest(automatic_report_message(2), envelope_recipient=EXPORT_RECIPIENT)
+    store.close()
+    monkeypatch.setenv("BACKBOND_STAGE_B_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("BACKBOND_STAGE_B_NGINX_LOGS", str(tmp_path / "none"))
+    monkeypatch.setenv("BACKBOND_STAGE_B_JOURNAL_CMD", "true")
+    monkeypatch.setattr(sys, "argv", ["status.py", "2026-10-07T19:00", "2026-10-07T21:00"])
+    with pytest.raises(SystemExit) as result:
+        runpy.run_path("ops/stage-b-inbound/status.py", run_name="__main__")
+    assert result.value.code == 0
+    output = capsys.readouterr().out
+    assert "fictional_reporting_window window_test_001" in output
+    assert "fictional_automatic_reports total 2 in_window 2" in output
+
+
+def test_stop_preserves_saved_report_and_blocks_future_report(tmp_path):
+    store = ExportIntakeStore(tmp_path / "history.sqlite3", encryption_key=KEY, now=lambda: NOW)
+    store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    store.ingest(automatic_report_message(1), envelope_recipient=EXPORT_RECIPIENT)
+    assert store.ingest(stop_message(), envelope_recipient=EXPORT_RECIPIENT) == "window_test_001"
+    window = dict(store.connection.execute("SELECT * FROM fictional_reporting_windows").fetchone())
+    assert window["state"] == "stopped" and window["stopped_at"]
+    assert store.connection.execute("SELECT count(*) FROM fictional_automatic_reports").fetchone()[0] == 1
+    with pytest.raises(ValueError, match="window_inactive"):
+        store.ingest(automatic_report_message(2), envelope_recipient=EXPORT_RECIPIENT)
+
+
+def test_automatic_window_rejects_wrong_sender_sequence_scope_and_expiry(tmp_path):
+    clock = [NOW]
+    store = ExportIntakeStore(tmp_path / "history.sqlite3", encryption_key=KEY, now=lambda: clock[0])
+    store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    with pytest.raises(ValueError, match="first_sequence_invalid"):
+        store.ingest(automatic_report_message(2), envelope_recipient=EXPORT_RECIPIENT)
+    with pytest.raises(ValueError, match="sender_not_verified"):
+        store.ingest(automatic_report_message(1, sender="other@example.test"),
+                     envelope_recipient=EXPORT_RECIPIENT)
+    store.ingest(automatic_report_message(1), envelope_recipient=EXPORT_RECIPIENT)
+    clock[0] += timedelta(hours=25)
+    with pytest.raises(ValueError, match="window_expired"):
+        store.ingest(automatic_report_message(2), envelope_recipient=EXPORT_RECIPIENT)
+
+
+def test_automatic_report_rejects_invalid_observation_fields(tmp_path):
+    store = ExportIntakeStore(tmp_path / "history.sqlite3", encryption_key=KEY, now=lambda: NOW)
+    store.issue_transport_probe()
+    store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    with pytest.raises(ValueError, match="checks_invalid"):
+        store.ingest(automatic_report_message(1, pre_action_check_ids=["bad"]),
+                     envelope_recipient=EXPORT_RECIPIENT)
+    with pytest.raises(ValueError, match="outcome_match_invalid"):
+        store.ingest(automatic_report_message(1, displayed_outcome_match="maybe"),
+                     envelope_recipient=EXPORT_RECIPIENT)
 
 
 def test_existing_export_mailbox_accepts_one_transport_probe_without_history(tmp_path):
@@ -172,7 +283,9 @@ def test_e6_account_free_schema(tmp_path):
     store = ExportIntakeStore(tmp_path / "h.sqlite3", encryption_key=KEY, now=lambda: NOW)
     code = store.issue_code(); store.ingest(message(code, [row()]), envelope_recipient=EXPORT_RECIPIENT)
     tables = {x[0] for x in store.connection.execute("select name from sqlite_master where type='table'")}
-    assert tables == {"export_codes", "export_intakes", "transport_probes", "fictional_task_reports"}
+    assert tables == {"export_codes", "export_intakes", "transport_probes",
+                      "fictional_task_reports", "fictional_reporting_windows",
+                      "fictional_automatic_reports"}
     columns = {x[1] for x in store.connection.execute("pragma table_info(export_intakes)")}
     assert not columns.intersection({"account_id", "grant_id", "history_request_id", "email"})
 

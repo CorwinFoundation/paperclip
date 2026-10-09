@@ -23,9 +23,23 @@ MAX_BODY_BYTES = 16 * 1024
 TRANSPORT_SUBJECT = "BackBond delivery test"
 TRANSPORT_BODY = "This is a one-time delivery test. No personal data is included."
 TASK_REPORT_SUBJECT = "BackBond fictional task report"
+AUTO_REPORT_SUBJECT = "BackBond fictional automatic report"
+STOP_REPORTING_SUBJECT = "Stop BackBond"
 TASK_REPORT_FIELDS = (
     "task_requested", "proposal", "price", "currency", "cancellation_terms",
     "owner_approval", "action_taken", "outcome",
+)
+AUTO_WINDOW_FIELDS = (
+    "deployed_commit", "standing_rule_accepted_at",
+    "account_separation_reported", "account_separation_note",
+    "standing_report_consistent", "standing_report_consistency_note",
+    "time_to_first_task_ms", "tester_feedback",
+)
+AUTO_TASK_FIELDS = (
+    "task_id", "task_started_at", "pre_action_check_ids", "reported_answer",
+    "reported_latency_ms", "stop_count", "executions_without_prior_check_count",
+    "forwarded_confirmation_count", "displayed_outcome_match",
+    "non_recoverable_result", "display_defect",
 )
 
 
@@ -61,6 +75,32 @@ class ExportIntakeStore:
           cancellation_terms TEXT NOT NULL, owner_approval TEXT NOT NULL,
           action_taken TEXT NOT NULL, outcome TEXT NOT NULL,
           evidence_origin TEXT NOT NULL, verification_state TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS fictional_reporting_windows (
+          window_id TEXT PRIMARY KEY, probe_id TEXT NOT NULL UNIQUE,
+          sender_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+          stopped_at TEXT, state TEXT NOT NULL, max_reports INTEGER NOT NULL,
+          recipient TEXT NOT NULL, owner_authorization TEXT NOT NULL,
+          deployed_commit TEXT NOT NULL, standing_rule_accepted_at TEXT NOT NULL,
+          account_separation_reported INTEGER NOT NULL, account_separation_note TEXT NOT NULL,
+          standing_report_consistent INTEGER NOT NULL,
+          standing_report_consistency_note TEXT NOT NULL,
+          time_to_first_task_ms INTEGER NOT NULL, tester_feedback TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS fictional_automatic_reports (
+          report_id TEXT PRIMARY KEY, window_id TEXT NOT NULL,
+          task_sequence INTEGER NOT NULL, sender_hash TEXT NOT NULL,
+          received_at TEXT NOT NULL, task_requested TEXT NOT NULL,
+          proposal TEXT NOT NULL, price TEXT NOT NULL, currency TEXT NOT NULL,
+          cancellation_terms TEXT NOT NULL, owner_approval TEXT NOT NULL,
+          action_taken TEXT NOT NULL, outcome TEXT NOT NULL,
+          task_id TEXT NOT NULL, task_started_at TEXT NOT NULL,
+          pre_action_check_ids TEXT NOT NULL, reported_answer TEXT NOT NULL,
+          reported_latency_ms INTEGER NOT NULL, stop_count INTEGER NOT NULL,
+          executions_without_prior_check_count INTEGER NOT NULL,
+          forwarded_confirmation_count INTEGER NOT NULL,
+          displayed_outcome_match TEXT NOT NULL, non_recoverable_result TEXT NOT NULL,
+          display_defect TEXT NOT NULL, evidence_origin TEXT NOT NULL,
+          verification_state TEXT NOT NULL,
+          UNIQUE(window_id, task_sequence));
         """)
         self.connection.commit()
 
@@ -113,6 +153,10 @@ class ExportIntakeStore:
             return self._ingest_transport_probe(message)
         if str(message.get("Subject", "")) == TASK_REPORT_SUBJECT:
             return self._ingest_fictional_task_report(message)
+        if str(message.get("Subject", "")) == AUTO_REPORT_SUBJECT:
+            return self._ingest_fictional_automatic_report(message)
+        if str(message.get("Subject", "")) == STOP_REPORTING_SUBJECT:
+            return self._stop_fictional_reporting(message)
         match = SUBJECT.fullmatch(str(message.get("Subject", "")))
         code = match.group(1) if match else ""
         digest = hashlib.sha256(code.encode()).hexdigest()
@@ -233,6 +277,163 @@ class ExportIntakeStore:
             raise ValueError("task_report_already_received") from exc
         self.connection.commit()
         return report_id
+
+    def _verified_probe(self, sender_hash: str):
+        return self.connection.execute(
+            "SELECT probe_id FROM transport_probes WHERE state='accepted' "
+            "AND received_at IS NOT NULL AND sender_hash=? AND expires_at>? "
+            "ORDER BY received_at DESC LIMIT 1", (sender_hash, _iso(self.now())),
+        ).fetchone()
+
+    def _ingest_fictional_automatic_report(self, message) -> str:
+        """Accept exactly two new fictional reports in one disclosed 24-hour window."""
+        if message.get_content_type() != "text/plain":
+            raise ValueError("automatic_report_not_plain_text")
+        try:
+            report = json.loads(message.get_content())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("automatic_report_invalid_json") from exc
+        expected = {"fictional", "evidence_origin", "window_id", "task_sequence",
+                    "window_hours", "max_reports", "recipient", *TASK_REPORT_FIELDS,
+                    *AUTO_WINDOW_FIELDS, *AUTO_TASK_FIELDS}
+        if not isinstance(report, dict) or set(report) != expected:
+            raise ValueError("automatic_report_fields_invalid")
+        if (report["fictional"] is not True
+                or report["evidence_origin"] != "agent_reported"
+                or report["window_hours"] != 24 or report["max_reports"] != 2
+                or report["recipient"] != EXPORT_RECIPIENT
+                or report["task_sequence"] not in (1, 2)):
+            raise ValueError("automatic_report_scope_invalid")
+        window_id = report["window_id"]
+        if not isinstance(window_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", window_id):
+            raise ValueError("automatic_report_window_invalid")
+        for field in TASK_REPORT_FIELDS:
+            if not isinstance(report[field], str) or not report[field] or len(report[field]) > 500:
+                raise ValueError(f"automatic_report_value_invalid:{field}")
+        for field in ("deployed_commit", "standing_rule_accepted_at",
+                      "account_separation_note", "standing_report_consistency_note",
+                      "tester_feedback", "task_id", "task_started_at", "reported_answer",
+                      "non_recoverable_result", "display_defect"):
+            if not isinstance(report[field], str) or not report[field] or len(report[field]) > 500:
+                raise ValueError(f"automatic_report_value_invalid:{field}")
+        if not re.fullmatch(r"[0-9a-f]{40}", report["deployed_commit"]):
+            raise ValueError("automatic_report_commit_invalid")
+        if not isinstance(report["account_separation_reported"], bool) \
+                or not isinstance(report["standing_report_consistent"], bool):
+            raise ValueError("automatic_report_window_boolean_invalid")
+        for field in ("time_to_first_task_ms", "reported_latency_ms", "stop_count",
+                      "executions_without_prior_check_count", "forwarded_confirmation_count"):
+            if isinstance(report[field], bool) or not isinstance(report[field], int) or report[field] < 0:
+                raise ValueError(f"automatic_report_value_invalid:{field}")
+        checks = report["pre_action_check_ids"]
+        if not isinstance(checks, list) or len(checks) > 20 or any(
+                not isinstance(item, dict) or set(item) != {"check_id", "timestamp"}
+                or not all(isinstance(item[key], str) and item[key] for key in item)
+                for item in checks):
+            raise ValueError("automatic_report_checks_invalid")
+        if report["displayed_outcome_match"] not in {"yes", "no", "unknown"}:
+            raise ValueError("automatic_report_outcome_match_invalid")
+        sender = parseaddr(str(message.get("From", "")))[1].strip().lower()
+        if not sender:
+            raise ValueError("automatic_report_sender_invalid")
+        sender_hash = hashlib.sha256(sender.encode()).hexdigest()
+        now = self.now()
+        window = self.connection.execute(
+            "SELECT * FROM fictional_reporting_windows WHERE window_id=?", (window_id,)
+        ).fetchone()
+        if window is None:
+            if report["task_sequence"] != 1:
+                raise ValueError("automatic_report_first_sequence_invalid")
+            probe = self._verified_probe(sender_hash)
+            if probe is None:
+                raise ValueError("automatic_report_sender_not_verified")
+            try:
+                self.connection.execute(
+                    "INSERT INTO fictional_reporting_windows VALUES(?,?,?,?,?,NULL,'active',2,?,?,?,?,?,?,?,?,?,?)",
+                    (window_id, probe["probe_id"], sender_hash, _iso(now),
+                     _iso(now + timedelta(hours=24)), EXPORT_RECIPIENT,
+                     report["owner_approval"], report["deployed_commit"],
+                     report["standing_rule_accepted_at"],
+                     int(report["account_separation_reported"]), report["account_separation_note"],
+                     int(report["standing_report_consistent"]),
+                     report["standing_report_consistency_note"],
+                     report["time_to_first_task_ms"], report["tester_feedback"]),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("automatic_report_window_already_exists") from exc
+        else:
+            if window["sender_hash"] != sender_hash:
+                raise ValueError("automatic_report_sender_mismatch")
+            if window["state"] != "active":
+                raise ValueError("automatic_report_window_inactive")
+            if _parse_time(window["expires_at"]) <= now:
+                self.connection.execute(
+                    "UPDATE fictional_reporting_windows SET state='expired' WHERE window_id=?",
+                    (window_id,),
+                )
+                self.connection.commit()
+                raise ValueError("automatic_report_window_expired")
+            for field in ("deployed_commit", "standing_rule_accepted_at",
+                          "account_separation_note", "standing_report_consistency_note",
+                          "time_to_first_task_ms", "tester_feedback"):
+                if str(window[field]) != str(report[field]):
+                    raise ValueError(f"automatic_report_window_mismatch:{field}")
+            if bool(window["account_separation_reported"]) != report["account_separation_reported"] \
+                    or bool(window["standing_report_consistent"]) != report["standing_report_consistent"]:
+                raise ValueError("automatic_report_window_boolean_mismatch")
+        report_id = "ar_" + secrets.token_hex(12)
+        try:
+            self.connection.execute(
+                "INSERT INTO fictional_automatic_reports VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (report_id, window_id, report["task_sequence"], sender_hash, _iso(now),
+                 *(report[field] for field in TASK_REPORT_FIELDS),
+                 report["task_id"], report["task_started_at"], json.dumps(checks),
+                 report["reported_answer"], report["reported_latency_ms"],
+                 report["stop_count"], report["executions_without_prior_check_count"],
+                 report["forwarded_confirmation_count"], report["displayed_outcome_match"],
+                 report["non_recoverable_result"], report["display_defect"],
+                 "agent_reported", "unverified"),
+            )
+        except sqlite3.IntegrityError as exc:
+            self.connection.rollback()
+            raise ValueError("automatic_report_duplicate_sequence") from exc
+        count = self.connection.execute(
+            "SELECT count(*) FROM fictional_automatic_reports WHERE window_id=?", (window_id,)
+        ).fetchone()[0]
+        if count == 2:
+            self.connection.execute(
+                "UPDATE fictional_reporting_windows SET state='completed' WHERE window_id=?",
+                (window_id,),
+            )
+        self.connection.commit()
+        return report_id
+
+    def _stop_fictional_reporting(self, message) -> str:
+        """Stop future reports while preserving the already saved fictional rows."""
+        if message.get_content_type() != "text/plain":
+            raise ValueError("stop_reporting_not_plain_text")
+        try:
+            command = json.loads(message.get_content())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("stop_reporting_invalid_json") from exc
+        if not isinstance(command, dict) or set(command) != {"window_id", "command"} \
+                or command["command"] != "stop":
+            raise ValueError("stop_reporting_command_invalid")
+        sender = parseaddr(str(message.get("From", "")))[1].strip().lower()
+        sender_hash = hashlib.sha256(sender.encode()).hexdigest() if sender else ""
+        row = self.connection.execute(
+            "SELECT sender_hash,state FROM fictional_reporting_windows WHERE window_id=?",
+            (command["window_id"],),
+        ).fetchone()
+        if row is None or row["sender_hash"] != sender_hash:
+            raise ValueError("stop_reporting_window_unknown")
+        if row["state"] == "active":
+            self.connection.execute(
+                "UPDATE fictional_reporting_windows SET stopped_at=?,state='stopped' WHERE window_id=?",
+                (_iso(self.now()), command["window_id"]),
+            )
+            self.connection.commit()
+        return command["window_id"]
 
     def purge_expired(self) -> int:
         now = _iso(self.now())
