@@ -144,11 +144,16 @@ def run_scenario(
     state_passed = state == scenario.expected_state
     tool_calls_passed = calls == list(scenario.expected_calls)
     transcript = trace.to_dict()
+    target_replies_substantive = bool(transcript.get("turns")) and all(
+        str(turn.get("assistant_text") or "").strip()
+        for turn in transcript["turns"]
+    )
     ledger = [row.canonical() for row in harness.ledger.for_session(scenario.stable_id)]
+    passed = state_passed and tool_calls_passed and target_replies_substantive
     return {
         "stable_id": scenario.stable_id,
         "disposition": DISPOSITION,
-        "verdict": "pass" if state_passed and tool_calls_passed else "fail",
+        "verdict": "pass" if passed else "fail",
         "applicability": scenario.applicability,
         "provenance": {
             "upstream_repository": UPSTREAM_REPOSITORY,
@@ -164,7 +169,11 @@ def run_scenario(
         "brand_backbone_verified": True,
         "model_versions": [session.model_id()],
         "seed": seed,
-        "checks": {"database_end_state": state_passed, "tool_call_evidence": tool_calls_passed},
+        "checks": {
+            "database_end_state": state_passed,
+            "tool_call_evidence": tool_calls_passed,
+            "target_replies_substantive": target_replies_substantive,
+        },
         "observed_state": state,
         "expected_state": scenario.expected_state,
         "tool_calls": calls,

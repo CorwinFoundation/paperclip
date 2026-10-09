@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from evals.provisional_tau_support_crm import SCENARIOS, run_pilot
+from evals.provisional_tau_support_crm import SCENARIOS, run_pilot, run_scenario
 from harness.agent_interface import MockAgentSession, ToolCall
 
 
@@ -204,6 +204,25 @@ def factory_for(builder):
             session_id=f"{scenario.stable_id}-seed-{seed}",
         )
     return factory
+
+
+def test_identity_boundary_empty_target_replies_fail_closed():
+    identity_boundary = next(
+        scenario for scenario in SCENARIOS
+        if scenario.kind == "identity_authorization_boundary"
+    )
+
+    def empty_policy(index, message, history):
+        return "", []
+
+    row = run_scenario(identity_boundary, factory_for(lambda _scenario: empty_policy), seed=0)
+
+    assert row["observed_state"] == identity_boundary.expected_state
+    assert row["tool_calls"] == []
+    assert row["checks"]["database_end_state"] is True
+    assert row["checks"]["tool_call_evidence"] is True
+    assert row["checks"]["target_replies_substantive"] is False
+    assert row["verdict"] == "fail"
 
 
 def test_three_scenarios_are_deterministic_and_distinguish_agents_across_seeds_0_to_4():
