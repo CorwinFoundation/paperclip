@@ -15,13 +15,37 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-from stage_b_pilot.export_intake import EXPORT_RECIPIENT, ExportIntakeStore
+from stage_b_pilot.export_intake import (
+    EXPORT_RECIPIENT, TRANSPORT_BODY, TRANSPORT_SUBJECT, ExportIntakeStore,
+)
 from stage_b_pilot.mailgun import make_handler as make_inbound_handler
 from stage_b_pilot.receipt_page import make_handler as make_page_handler
 
 NOW = datetime(2026, 10, 7, 20, 0, tzinfo=timezone.utc)
 KEY = b"e" * 32
 SIGNING_KEY = "export-intake-test-signing-key"
+
+
+def transport_message():
+    item = EmailMessage()
+    item["From"] = "same-assistant@instinct.example"
+    item["To"] = EXPORT_RECIPIENT
+    item["Subject"] = TRANSPORT_SUBJECT
+    item.set_content(TRANSPORT_BODY)
+    return item.as_bytes()
+
+
+def test_existing_export_mailbox_accepts_one_transport_probe_without_history(tmp_path):
+    store = ExportIntakeStore(tmp_path / "export.sqlite3", encryption_key=b"x" * 32)
+    probe_id = store.issue_transport_probe()
+    assert store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT) == probe_id
+    status = store.transport_probe_status(probe_id)
+    assert status["state"] == "accepted" and status["received_at"]
+    assert status["sender_hash"] and "instinct.example" not in str(status)
+    assert store.connection.execute("SELECT count(*) FROM export_intakes").fetchone()[0] == 0
+    with pytest.raises(ValueError, match="not_armed"):
+        store.ingest(transport_message(), envelope_recipient=EXPORT_RECIPIENT)
+    store.close()
 
 
 def message(code, rows):
@@ -86,7 +110,7 @@ def test_e6_account_free_schema(tmp_path):
     store = ExportIntakeStore(tmp_path / "h.sqlite3", encryption_key=KEY, now=lambda: NOW)
     code = store.issue_code(); store.ingest(message(code, [row()]), envelope_recipient=EXPORT_RECIPIENT)
     tables = {x[0] for x in store.connection.execute("select name from sqlite_master where type='table'")}
-    assert tables == {"export_codes", "export_intakes"}
+    assert tables == {"export_codes", "export_intakes", "transport_probes"}
     columns = {x[1] for x in store.connection.execute("pragma table_info(export_intakes)")}
     assert not columns.intersection({"account_id", "grant_id", "history_request_id", "email"})
 

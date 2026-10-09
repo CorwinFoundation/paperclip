@@ -172,6 +172,8 @@ systemctl restart backbond-stage-b-receipts.service
 systemctl reload nginx
 systemctl is-active --quiet backbond-stage-b-inbound.service
 systemctl is-active --quiet backbond-stage-b-receipts.service
+transport_probe_id=$(runuser -u backbond-stage-b -- /usr/bin/python3 -c \
+  "from stage_b_pilot.export_intake import ExportIntakeStore; s=ExportIntakeStore('$state_dir/history.sqlite3', encryption_key=b'x'*32); print(s.issue_transport_probe()); s.close()")
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8788/healthz
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/history >/dev/null
@@ -184,6 +186,8 @@ printf 'stage_b_candidate=%s stage_b_runtime_version=%s inbound_main_pid=%s rece
     "$candidate_commit" "$runtime_version" \
     "$(systemctl show --property MainPID --value backbond-stage-b-inbound.service)" \
     "$(systemctl show --property MainPID --value backbond-stage-b-receipts.service)"
+printf 'transport_probe_id=%s transport_probe_recipient=%s\n' \
+    "$transport_probe_id" 'history+export@inbound.backbond.ai'
 rm -f "$backup"
 rm -rf "$runtime_backup"
 installed=0

@@ -20,6 +20,8 @@ EXPORT_RECIPIENT = "history+export@inbound.backbond.ai"
 CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 SUBJECT = re.compile(r"^BackBond export ([23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6})$")
 MAX_BODY_BYTES = 16 * 1024
+TRANSPORT_SUBJECT = "BackBond delivery test"
+TRANSPORT_BODY = "This is a one-time delivery test. No personal data is included."
 
 
 def _utcnow() -> datetime:
@@ -43,8 +45,35 @@ class ExportIntakeStore:
           sender_hash TEXT NOT NULL, received_at TEXT NOT NULL, state TEXT NOT NULL,
           row_count INTEGER NOT NULL, row_refs TEXT NOT NULL, rows_encrypted BLOB NOT NULL,
           retention_expires_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS transport_probes (
+          probe_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+          received_at TEXT, sender_hash TEXT, state TEXT NOT NULL);
         """)
         self.connection.commit()
+
+    def issue_transport_probe(self) -> str:
+        """Arm one account-free, one-shot ordinary-email diagnostic."""
+        now = self.now()
+        self.connection.execute(
+            "UPDATE transport_probes SET state='superseded' "
+            "WHERE state='awaiting_delivery' AND received_at IS NULL"
+        )
+        probe_id = "tp_" + secrets.token_hex(12)
+        self.connection.execute(
+            "INSERT INTO transport_probes VALUES(?,?,?,NULL,NULL,'awaiting_delivery')",
+            (probe_id, _iso(now), _iso(now + timedelta(hours=24))),
+        )
+        self.connection.commit()
+        return probe_id
+
+    def transport_probe_status(self, probe_id: str) -> dict:
+        row = self.connection.execute(
+            "SELECT probe_id,created_at,expires_at,received_at,sender_hash,state "
+            "FROM transport_probes WHERE probe_id=?", (probe_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("transport_probe_unknown")
+        return dict(row)
 
     def issue_code(self) -> str:
         now = self.now()
@@ -67,6 +96,8 @@ class ExportIntakeStore:
         message = BytesParser(policy=policy.default).parsebytes(raw_message)
         if message.get("Cc") or message.get("Bcc") or message.is_multipart():
             raise ValueError("export_recipients_or_attachments_invalid")
+        if str(message.get("Subject", "")) == TRANSPORT_SUBJECT:
+            return self._ingest_transport_probe(message)
         match = SUBJECT.fullmatch(str(message.get("Subject", "")))
         code = match.group(1) if match else ""
         digest = hashlib.sha256(code.encode()).hexdigest()
@@ -115,6 +146,37 @@ class ExportIntakeStore:
                                 (received, digest))
         self.connection.commit()
         return intake_id
+
+    def _ingest_transport_probe(self, message) -> str:
+        """Record transport only; no history parser, account, or standing grant runs."""
+        if message.get_content_type() != "text/plain":
+            raise ValueError("transport_probe_not_plain_text")
+        if message.get_content().rstrip("\r\n") != TRANSPORT_BODY:
+            raise ValueError("transport_probe_body_mismatch")
+        sender = parseaddr(str(message.get("From", "")))[1].strip().lower()
+        if not sender:
+            raise ValueError("transport_probe_sender_invalid")
+        row = self.connection.execute(
+            "SELECT probe_id,expires_at FROM transport_probes "
+            "WHERE state='awaiting_delivery' AND received_at IS NULL "
+            "ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            raise ValueError("transport_probe_not_armed")
+        if _parse_time(row["expires_at"]) <= self.now():
+            self.connection.execute(
+                "UPDATE transport_probes SET state='expired' WHERE probe_id=?", (row["probe_id"],)
+            )
+            self.connection.commit()
+            raise ValueError("transport_probe_expired")
+        received = _iso(self.now())
+        self.connection.execute(
+            "UPDATE transport_probes SET received_at=?,sender_hash=?,state='accepted' "
+            "WHERE probe_id=? AND received_at IS NULL",
+            (received, hashlib.sha256(sender.encode()).hexdigest(), row["probe_id"]),
+        )
+        self.connection.commit()
+        return row["probe_id"]
 
     def purge_expired(self) -> int:
         now = _iso(self.now())
