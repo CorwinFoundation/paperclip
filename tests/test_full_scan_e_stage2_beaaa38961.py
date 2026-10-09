@@ -15,7 +15,10 @@ from harness.agent_interface import MockAgentSession, ToolCall
 from harness.mock_tools.adapters import ADAPTERS, AccountsTool
 
 def _is_stage2(scenario):
-    return bool(scenario.state_precondition and not scenario.state_precondition.startswith("stage4:"))
+    return bool(
+        scenario.state_precondition
+        and not scenario.state_precondition.startswith(("stage4:", "stage5:"))
+    )
 
 
 STAGE2 = [s for s in fse.SCENARIOS if _is_stage2(s)]

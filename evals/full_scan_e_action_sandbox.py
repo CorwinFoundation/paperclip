@@ -370,12 +370,14 @@ def _build_scenario_catalogue() -> tuple[ActionScenario, ...]:
         build_stage3_semantic_matrix,
     )
     from evals.full_scan_e_catalogue_stage4 import build_stage4_authority_edges
+    from evals.full_scan_e_catalogue_stage5 import build_stage5_delegation
 
     scenarios.extend(build_stage2(ActionScenario, _stable_id))
     scenarios.extend(build_stage3_payments(ActionScenario, _stable_id))
     scenarios.extend(build_stage3_normal_tasks(ActionScenario, _stable_id))
     scenarios.extend(build_stage3_semantic_matrix(ActionScenario, _stable_id))
     scenarios.extend(build_stage4_authority_edges(ActionScenario, _stable_id))
+    scenarios.extend(build_stage5_delegation(ActionScenario, _stable_id))
     return tuple(scenarios)
 
 
@@ -393,8 +395,22 @@ def behavioral_fingerprint(scenario: ActionScenario) -> str | None:
     Only families with a runtime mechanism get a fingerprint. Returning None is
     an explicit statement that source-key uniqueness is not behaviorally verified.
     """
-    if not scenario.state_precondition.startswith("stage4:cross_tenant:"):
+    if not scenario.state_precondition.startswith(("stage4:cross_tenant:", "stage5:delegation:")):
         return None
+    if scenario.state_precondition.startswith("stage5:delegation:"):
+        grant_id = scenario.runtime_binding["delegation_grant_id"]
+        grant = scenario.seed_state["delegation_grants"][grant_id]
+        call = (scenario.violating_calls or scenario.expected_calls)[0]
+        mechanism = {
+            "mechanism": "runtime_delegation_grant",
+            "constraint_profile": grant["constraint_profile"],
+            "subject_relation": "match" if grant["subject"] == scenario.runtime_binding["principal"] else "mismatch",
+            "resource_relation": "match" if grant["resource_id"] == call["arguments"]["order_id"] else "mismatch",
+            "scope_relation": "match" if call["tool_name"] in grant["operations"] else "mismatch",
+            "revocation_phase": grant.get("revoke_phase", "none"),
+            "oracle": "commit_transition" if scenario.planted_violation is None else "block_and_preserve_state",
+        }
+        return _sha256(mechanism)
     principal = scenario.runtime_binding.get("principal", "")
     parts = principal.split(":", 2)
     runtime_tenant = parts[1] if len(parts) == 3 and parts[0] == "tenant" else None
@@ -458,6 +474,10 @@ def _seed(sandbox: Any, scenario: ActionScenario) -> None:
         )
     if "accounts" in scenario.seed_state:
         sandbox.surface_state("accounts")["accounts"].update(copy.deepcopy(scenario.seed_state["accounts"]))
+    if "delegation_grants" in scenario.seed_state:
+        sandbox.surface_state("orders")["delegation_grants"].update(
+            copy.deepcopy(scenario.seed_state["delegation_grants"])
+        )
 
 
 def _observed_state(sandbox: Any, scenario: ActionScenario) -> dict[str, Any]:
@@ -512,6 +532,9 @@ def _observed_calls(harness: MockToolHarness, session_id: str) -> list[dict[str,
             "runtime_principal": row.result.raw.get("runtime_principal"),
             "runtime_tenant_id": row.result.raw.get("runtime_tenant_id"),
             "resource_tenant_id": row.result.raw.get("resource_tenant_id"),
+            "delegation_grant_id": row.result.raw.get("delegation_grant_id"),
+            "delegation_grant_state": row.result.raw.get("delegation_grant_state"),
+            "delegation_decision_reason": row.result.raw.get("delegation_decision_reason"),
         }
         for row in harness.ledger.for_session(session_id)
     ]
@@ -718,7 +741,9 @@ def run_scenario(
         "mutating_calls": mutating_calls,
         "expected_tool_calls": list(scenario.expected_calls),
         "runtime_bindings_observed": [
-            {k: c[k] for k in ("runtime_principal", "runtime_tenant_id", "resource_tenant_id")}
+            {k: c[k] for k in ("runtime_principal", "runtime_tenant_id", "resource_tenant_id",
+                                "delegation_grant_id", "delegation_grant_state",
+                                "delegation_decision_reason")}
             for c in observed_calls if c.get("runtime_principal")
         ],
         "action_outcomes": action_outcomes,

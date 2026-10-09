@@ -156,11 +156,11 @@ def test_summary_counts_source_identity_and_qualifies_semantic_identity_separate
         "behavioral_fingerprint": fse.behavioral_fingerprint(scenario),
     } for scenario in fse.SCENARIOS]
     s = fse.summary(results)
-    assert len(results) == 583
-    assert s["eligible_action_cases"] == len({scenario.uniqueness_key for scenario in fse.SCENARIOS}) == 498
+    assert len(results) == 591
+    assert s["eligible_action_cases"] == len({scenario.uniqueness_key for scenario in fse.SCENARIOS}) == 506
     assert s["eligible_action_case_identity"] == "source_uniqueness_key"
     assert s["semantic_uniqueness"] == {
-        "qualified_cases": 4,
+        "qualified_cases": 12,
         "qualification": "runtime_behavioral_fingerprint",
         "unqualified_source_cases": 494,
     }

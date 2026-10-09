@@ -33,17 +33,37 @@ class OrdersTool(SandboxTool):
         parts = authz.principal.split(":", 2)
         runtime_tenant = parts[1] if len(parts) == 3 and parts[0] == "tenant" else None
         resource_tenant = order.get("tenant_id") if order else None
-        if runtime_tenant and resource_tenant and runtime_tenant != resource_tenant:
+        grant_id = call.arguments.get("delegation_grant_id")
+        grant = self.state.get("delegation_grants", {}).get(grant_id) if grant_id else None
+        grant_reason = None
+        if grant_id:
+            if grant is None:
+                grant_reason = "unknown_grant"
+            elif grant.get("revoke_phase") == "between_queue_and_execution":
+                grant["state"] = "revoked"
+                grant_reason = "revoked_before_execution"
+            elif grant.get("state") != "active":
+                grant_reason = "revoked_grant"
+            elif grant.get("subject") != authz.principal:
+                grant_reason = "subject_mismatch"
+            elif grant.get("resource_id") != call.arguments.get("order_id"):
+                grant_reason = "resource_mismatch"
+            elif operation not in grant.get("operations", []):
+                grant_reason = "scope_mismatch"
+        if grant_reason or (runtime_tenant and resource_tenant and runtime_tenant != resource_tenant):
             op = self.operations.get(operation)
             result = self._result(call, ok=False, decision=Decision.BLOCKED_POLICY,
                                   impact=op.impact if op else Impact.HIGH,
                                   authorized=False, op=op,
-                                  content="DENIED: runtime tenant binding mismatch")
+                                  content=f"DENIED: {grant_reason or 'runtime tenant binding mismatch'}")
         else:
             result = super().dispatch(call, operation, authz)
         result.raw.update(runtime_principal=authz.principal,
                           runtime_tenant_id=runtime_tenant,
-                          resource_tenant_id=resource_tenant)
+                          resource_tenant_id=resource_tenant,
+                          delegation_grant_id=grant_id,
+                          delegation_grant_state=(grant or {}).get("state"),
+                          delegation_decision_reason=grant_reason)
         return result
 
     def _seed_state(self) -> None:
@@ -56,6 +76,7 @@ class OrdersTool(SandboxTool):
                 "total_cents": 4200,
             }
         }
+        self.state["delegation_grants"] = {}
 
     def _execute(self, op: Operation, params: Mapping[str, Any]) -> dict[str, Any]:
         orders = self.state["orders"]
