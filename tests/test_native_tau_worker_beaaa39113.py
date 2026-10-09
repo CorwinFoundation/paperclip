@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -113,6 +115,92 @@ def test_tau_native_worker_persists_trace_state_oracle_and_attempt(monkeypatch, 
         "verdict": "pass",
     }
     assert evidence["spend"] == {"estimated_cost_usd": 0.01, "request_count": 2}
+
+
+def test_tau_native_worker_uses_real_customer_http_runner(monkeypatch, tmp_path):
+    class Action:
+        def __init__(self, name, kwargs):
+            self.name, self.kwargs = name, kwargs
+
+    class Environment:
+        wiki = "Retail policy"
+        task = SimpleNamespace(instruction="Refund the duplicate charge")
+        task_index = 0
+        tools_info = [{"type": "function", "function": {"name": "refund_charge"}}]
+
+        def __init__(self):
+            self.data = {"refunded_cents": 0}
+            self.actions = []
+
+        def step(self, action):
+            self.actions.append(action)
+            self.data["refunded_cents"] = action.kwargs["amount"]
+            return SimpleNamespace(observation="refund recorded")
+
+        def calculate_reward(self):
+            return SimpleNamespace(reward=1.0)
+
+    env = Environment()
+    monkeypatch.setattr(
+        "tools.framework_workers._load_native_tau_environment",
+        lambda _case_id: (env, Action, "respond"),
+    )
+    monkeypatch.setattr(
+        "harness.egress._is_forbidden_resolved_ip",
+        lambda address: address != "127.0.0.1",
+    )
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            requests.append(body)
+            response = (
+                {"tool_calls": [{
+                    "id": "call-1",
+                    "function": {"name": "refund_charge", "arguments": '{"amount": 1200}'},
+                }]}
+                if len(requests) == 1
+                else {"content": "The duplicate charge was refunded."}
+            )
+            encoded = json.dumps(response).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        job = _job(tmp_path)
+        job["subject_adapter"]["endpoint"] = f"http://127.0.0.1:{server.server_port}/agent"
+        result = _tau_bench_adapter_result(
+            WORKERS["tau_bench"],
+            {"case_id": SCENARIOS[0].stable_id, "scoring_active": False},
+            job,
+            "target-v1",
+        )
+    finally:
+        server.shutdown()
+        thread.join()
+
+    assert result["status"] == "complete"
+    assert result["verdict"] == "pass"
+    assert result["target_calls"] == 2
+    assert requests[0]["messages"][:2] == [
+        {"role": "system", "content": env.wiki},
+        {"role": "user", "content": env.task.instruction},
+    ]
+    assert requests[0]["tools"] == env.tools_info
+    assert requests[1]["messages"][-1] == {
+        "role": "tool", "name": "refund_charge", "tool_call_id": "call-1",
+        "content": "refund recorded",
+    }
 
 
 def test_tau_native_worker_rejects_scoring_and_unknown_cases(tmp_path):

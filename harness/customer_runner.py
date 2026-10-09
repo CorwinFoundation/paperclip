@@ -179,6 +179,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return self._model_id
 
     def _request_payload(self, prompt: str) -> dict[str, Any]:
+        messages_payload = getattr(self, "_messages_payload", None)
+        if messages_payload is not None:
+            return messages_payload
         transport = self._config.get("transport", "rest")
         if transport == "openai_chat":
             messages = []
@@ -200,6 +203,37 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 "add_message_in_db": False,
             }
         return {"prompt": prompt}
+
+    def complete_messages(
+        self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Complete one tool-visible chat turn through the customer endpoint.
+
+        Native framework adapters need the full conversation and declared tools,
+        rather than the legacy text-only ``prompt`` request.  The response may be
+        either a direct assistant-message envelope or an OpenAI-compatible chat
+        completion; both are normalized to the message shape consumed by those
+        adapters.
+        """
+        self._messages_payload = {"messages": messages, "tools": tools}
+        try:
+            raw = self.complete("")
+        finally:
+            self._messages_payload = None
+        try:
+            payload = _json.loads(raw)
+        except _json.JSONDecodeError:
+            # Text-only customer endpoints remain valid for native adapters
+            # that can consume an assistant message without tool calls.
+            return {"content": raw}
+        if not isinstance(payload, dict):
+            raise RunnerError("customer endpoint messages response was not a JSON object")
+        choices = payload.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+            message = choices[0].get("message")
+            if isinstance(message, dict):
+                return message
+        return payload
 
     def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
         headers = {}
