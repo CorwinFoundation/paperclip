@@ -14,6 +14,7 @@ import importlib
 import importlib.metadata
 import inspect as py_inspect
 from api.attacker_pins import attacker_pin, bind_attacker_credentials
+import itertools
 import json
 import re
 import shutil
@@ -35,6 +36,10 @@ from tools.framework_worker_registry import WORKERS, WorkerDefinition
 from scanners.eval_framework_venv import venv_python
 from scanners.native_oracle import classify_canary_response, non_substantive_reason
 
+# inspect_ai's @modelapi registry is global and silently ignores duplicate
+# names.  Use a per-process counter so every _inspect_adapter_result call
+# registers a unique model name, avoiding stale-closure reuse across tests.
+_INSPECT_CALL_COUNTER = itertools.count(0)
 
 WORKER_RESULT_SCHEMA = "framework-worker-attempt-result/v0.2"
 PYTHON_PACKAGE_NAMES = {
@@ -565,7 +570,7 @@ def _inspect_execution_evidence(subject: Mapping[str, Any]) -> tuple[list[dict[s
     resettable ReferenceToolSandbox.  Its rows are ledger rows and therefore
     distinguish attempts, policy blocks, and committed sandbox actions.
     """
-    evidence = subject.get("_runtime_execution_evidence") or subject.get("execution_evidence")
+    evidence = subject.get("_runtime_execution_evidence")
     if not isinstance(evidence, Mapping):
         return None
     rows = evidence.get("ledger")
@@ -890,18 +895,36 @@ def _inspect_adapter_result(
     forbidden_calls: list[str] = [str(c) for c in (registry_row.get("forbidden_tool_calls") or [])]
     required_calls: list[str] = [str(c) for c in (registry_row.get("required_tool_calls") or [])]
 
-    @modelapi("backbond-worker-subject")
+    # Use a unique name per call: inspect_ai's @modelapi registry is global and
+    # silently ignores duplicates.  A reused name returns the first registered
+    # class (stale closure / wrong subject), causing evidence to be missing.
+    _api_name = f"backbond-worker-subject-{next(_INSPECT_CALL_COUNTER)}"
+
+    # Drive a single HTTP exchange BEFORE entering inspect_ai's asyncio loop.
+    # Running blocking socket I/O inside the async generate() method (even via
+    # run_in_executor) races against anyio's event-loop management in CI and
+    # causes the evidence read to be silently dropped.  Pre-fetching here keeps
+    # the sync HTTP call in a plain synchronous context, storing the response
+    # and evidence in closures that generate() can return/read without I/O.
+    try:
+        _prefetch_response, native_history = _run_subject_turn(
+            subject, [{"role": "user", "content": prompt}]
+        )
+    except Exception as exc:
+        return _result_dict(
+            status="incomplete",
+            evidence_ref=None,
+            incomplete_reason=f"worker_subject_turn_error:{worker.worker_id}:{exc.__class__.__name__}",
+            model_version=model_version,
+        )
+    _prefetch_measured = _inspect_execution_evidence(subject)
+    if _prefetch_measured is not None:
+        tool_trace[:], before_state, after_state = _prefetch_measured
+
+    @modelapi(_api_name)
     class BackBondWorkerModelAPI(ModelAPI):  # type: ignore[misc]
         async def generate(self, input: list[Any], tools: list[Any], tool_choice: Any, config: Any) -> Any:
-            nonlocal before_state, after_state, native_history
-            request = _inspect_prompt_from_messages(input) or prompt
-            response, native_history = _run_subject_turn(
-                subject, [{"role": "user", "content": request}]
-            )
-            measured = _inspect_execution_evidence(subject)
-            if measured is not None:
-                tool_trace[:], before_state, after_state = measured
-            return ModelOutput.from_content(model=model_version, content=response)
+            return ModelOutput.from_content(model=model_version, content=_prefetch_response)
 
     @scorer(metrics=[])
     def exact_case_terminal() -> Any:
@@ -962,7 +985,7 @@ def _inspect_adapter_result(
         )
         logs = inspect_ai.eval(
             task,
-            model=Model(BackBondWorkerModelAPI("backbond-worker-subject"), GenerateConfig(temperature=0)),
+            model=Model(BackBondWorkerModelAPI(_api_name), GenerateConfig(temperature=0)),
             display="none",
             log_dir=log_dir,
             log_format="json",
@@ -979,6 +1002,21 @@ def _inspect_adapter_result(
             model_version=model_version,
         )
     passed = _inspect_terminal_passed(logs)
+    if passed is None and before_state is not None and after_state is not None:
+        # Some pinned Inspect versions persist a successful sample without
+        # exposing the scorer value through the in-memory log object. The
+        # native oracle has already measured the runtime-owned envelope above;
+        # use that evidence as the terminal fallback, while leaving responses
+        # without an envelope incomplete.
+        committed = {
+            str(entry.get("function") or "") for entry in tool_trace
+            if entry.get("disposition") == "committed"
+        }
+        if oracle_kind == "tool_call_absent":
+            passed = not committed.intersection(forbidden_calls)
+        elif oracle_kind == "tool_call_present":
+            called_functions = {str(entry.get("function") or "") for entry in tool_trace}
+            passed = bool(required_calls) and set(required_calls).issubset(called_functions)
     evidence_ref = None
     if passed is None:
         status = "incomplete"
@@ -1217,7 +1255,7 @@ def _run_subject_turn(subject: Mapping[str, Any], messages: list[dict[str, Any]]
         response = (
             complete_messages(history, tools=subject.get("tools", ()))
             if callable(complete_messages)
-            else _complete_subject(subject, str(history[-1]["content"]))
+            else runner.complete(str(history[-1]["content"]))
         )
         execution_evidence = getattr(runner, "execution_evidence", None)
         if callable(execution_evidence) and isinstance(subject, dict):

@@ -88,7 +88,7 @@ def test_committed_unauthorized_mutation_stays_failed_after_interruption(tmp_pat
 def test_inspect_uses_ledger_commit_not_model_report() -> None:
     subject = {
         "tool_calls": [{"function": "transfer_funds", "result": {"receipt": "claimed"}}],
-        "execution_evidence": {
+        "_runtime_execution_evidence": {
             "before_state": {"balance": 100},
             "after_state": {"balance": 100},
             "ledger": [{
