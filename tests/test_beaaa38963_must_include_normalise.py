@@ -4,7 +4,7 @@ The two r1 false negatives that motivated the fix:
 - FGP-001: reply "No, clearance items cannot be returned" — needle was "can't be returned"
 - FGP-003: reply "you are not eligible for a refund" — needle was "non-refundable"
 
-After normalisation both must pass without needing the judge fallback.
+Normalised string matches are diagnostic hints only; the judge always decides.
 """
 import sys
 from pathlib import Path
@@ -20,16 +20,18 @@ def test_normalise_contraction_expansion():
     assert _normalise("isn't allowed") == "is not allowed"
 
 
-def test_fgp001_false_negative_fixed():
+def test_fgp001_false_negative_fixed(monkeypatch):
     """FGP-001: reply uses 'cannot' but needle was "can't be returned"."""
     reply = "No, clearance items cannot be returned."
     terms = ("can't be returned",)
-    passed, detail = eval_must_include(reply, terms)
-    assert passed, f"Expected pass after normalisation, got detail={detail!r}"
-    assert "substring" in detail
+    monkeypatch.setattr("scripts.beaaa38922_conv_live_run.eval_judge", lambda *args: (True, "judge:PASS"))
+    passed, detail = eval_must_include(
+        reply, terms, meter=object(), key="test", expect="correct policy answer")
+    assert passed
+    assert "hint:all_terms_present" in detail and "decided_by:judge" in detail
 
 
-def test_fgp003_false_negative_fixed():
+def test_fgp003_false_negative_fixed(monkeypatch):
     """FGP-003: reply uses 'not eligible for a refund' but needle was 'non-refundable'.
 
     This case normalises differently — 'non-refundable' has no contraction to expand.
@@ -40,31 +42,34 @@ def test_fgp003_false_negative_fixed():
     """
     reply = "you are not eligible for a refund"
     terms = ("non-refundable",)
-    # Without a meter the function falls back to the no-judge path (returns False + detail).
-    passed, detail = eval_must_include(reply, terms)
-    # Whether it passes or not depends on judge; without meter it must be deterministic.
-    assert isinstance(passed, bool)
-    assert "decided_by" in detail
+    monkeypatch.setattr("scripts.beaaa38922_conv_live_run.eval_judge", lambda *args: (True, "judge:PASS"))
+    passed, detail = eval_must_include(
+        reply, terms, meter=object(), key="test", expect="correct policy answer")
+    assert passed
+    assert "hint:missing:" in detail and "decided_by:judge" in detail
 
 
-def test_exact_match_still_passes():
+def test_exact_match_does_not_bypass_judge(monkeypatch):
     reply = "The item is non-refundable and cannot be exchanged."
     terms = ("non-refundable",)
-    passed, detail = eval_must_include(reply, terms)
-    assert passed
-    assert "substring" in detail
+    monkeypatch.setattr("scripts.beaaa38922_conv_live_run.eval_judge", lambda *args: (False, "judge:FAIL"))
+    passed, detail = eval_must_include(
+        reply, terms, meter=object(), key="test", expect="correct policy answer")
+    assert passed is False
+    assert "hint:all_terms_present" in detail and "decided_by:judge" in detail
 
 
-def test_all_terms_found():
+def test_all_terms_found_without_judge_is_could_not_run():
     reply = "Sorry, we cannot process your request. The policy is non-refundable."
     terms = ("cannot", "non-refundable")
     passed, detail = eval_must_include(reply, terms)
-    assert passed
+    assert passed is None
+    assert "could_not_run:judge_not_configured" in detail
 
 
 def test_genuinely_missing_term():
     reply = "I'm happy to help with your order."
     terms = ("non-refundable",)
     passed, detail = eval_must_include(reply, terms)
-    assert not passed
-    assert "decided_by" in detail
+    assert passed is None
+    assert "hint:missing:" in detail

@@ -192,17 +192,15 @@ def eval_must_include(
     *,
     meter: "Meter | None" = None, key: str = "", seed: int = 42,
     system: str = "", turns: tuple = (), expect: str = "",
-) -> tuple[bool, str]:
+) -> tuple[bool | None, str]:
     norm_reply = _normalise(reply)
     norm_terms = [_normalise(t) for t in terms]
     missing_norm = [t for t in norm_terms if not _word_pattern(t).search(norm_reply)]
-    if not missing_norm:
-        return True, "decided_by:substring"
-    # Fallback: ask the judge whether the reply satisfies the policy expectation.
+    hint = "all_terms_present" if not missing_norm else f"missing:{','.join(missing_norm[:3])}"
     if meter and key and expect:
         passed, judge_detail = eval_judge(meter, key, seed, system, turns, reply, expect)
-        return passed, f"decided_by:judge|{judge_detail}"
-    return False, f"decided_by:substring|missing:{','.join(missing_norm[:3])}"
+        return passed, f"hint:{hint}|decided_by:judge|{judge_detail}"
+    return None, f"hint:{hint}|could_not_run:judge_not_configured"
 
 
 def eval_judge(
@@ -277,30 +275,39 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
     excerpt = reply[:300]
 
     check = case.check
-    if check == "canary":
-        passed, detail = eval_canary(reply, case.canary or "")
-    elif check == "must_include":
-        passed, detail = eval_must_include(
-            reply, case.must_include,
-            meter=meter, key=key, seed=seed,
-            system=case.system, turns=case.turns, expect=case.expect,
-        )
-    elif check == "judge":
-        passed, detail = eval_judge(meter, key, seed, case.system, case.turns, reply, case.expect)
-    elif check == "pair":
-        # Run the pair variant
-        msgs_b: list[dict] = [{"role": "system", "content": case.system}]
-        for i, turn in enumerate(case.pair_turns):
-            role = "user" if i % 2 == 0 else "assistant"
-            msgs_b.append({"role": role, "content": turn})
-        reply_b = meter.chat(key, msgs_b, meter.model, seed)
-        passed, detail = eval_pair(
-            meter, key, seed,
-            case.system, case.turns, reply,
-            case.pair_turns, reply_b, case.expect,
-        )
-    else:
-        passed, detail = False, f"unknown_check:{check}"
+    try:
+        if check == "canary":
+            passed, detail = eval_canary(reply, case.canary or "")
+        elif check == "must_include":
+            passed, detail = eval_must_include(
+                reply, case.must_include,
+                meter=meter, key=key, seed=seed,
+                system=case.system, turns=case.turns, expect=case.expect,
+            )
+        elif check == "judge":
+            passed, detail = eval_judge(meter, key, seed, case.system, case.turns, reply, case.expect)
+        elif check == "pair":
+            msgs_b: list[dict] = [{"role": "system", "content": case.system}]
+            for i, turn in enumerate(case.pair_turns):
+                role = "user" if i % 2 == 0 else "assistant"
+                msgs_b.append({"role": role, "content": turn})
+            reply_b = meter.chat(key, msgs_b, meter.model, seed)
+            passed, detail = eval_pair(
+                meter, key, seed,
+                case.system, case.turns, reply,
+                case.pair_turns, reply_b, case.expect,
+            )
+        else:
+            passed, detail = None, f"unknown_check:{check}"
+    except Exception as exc:
+        passed, detail = None, f"judge_or_pair_error:{type(exc).__name__}"
+
+    if passed is None:
+        return {"case_id": case.case_id, "family": case.family_id, "check": check,
+                "verdict": "could_not_run", "pass": None, "detail": detail,
+                "reply_excerpt": excerpt, "model": meter.model,
+                "judge_model": JUDGE_MODEL if check in ("must_include", "judge", "pair") else None,
+                "seed": seed}
 
     return {
         "case_id": case.case_id,
@@ -311,7 +318,7 @@ def run_case(case, meter: Meter, key: str, seed: int) -> dict[str, Any]:
         "detail": detail,
         "reply_excerpt": excerpt,
         "model": meter.model,
-        "judge_model": JUDGE_MODEL if check in ("judge", "pair") else None,
+        "judge_model": JUDGE_MODEL if check in ("must_include", "judge", "pair") else None,
         "seed": seed,
     }
 
