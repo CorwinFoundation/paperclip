@@ -28,6 +28,11 @@ PUBLIC_API = os.environ.get("QA_PUBLIC_API", "https://api.backbond.ai")
 WEBHOOK_SECRET = os.environ.get("QA_WEBHOOK_SECRET", "")
 PUBLIC_CODE = "PUBLIC"
 PUBLIC_PARTNER = "public"
+DEFAULT_STARTER_PACK_ID = "starter-100@4"
+STARTER_PACK_IDS = frozenset({
+    "starter-100@1", "starter-100@2", "starter-100@3", "starter-100@4",
+    "starter-voice-50@1",
+})
 # are-scanner api/scan_handlers.py: pack starter-100@1 (100 messages) and one
 # CONNECTIVITY_PROMPT ("Reply with exactly OK.") per connection check.
 SCAN_MESSAGES = 100
@@ -120,9 +125,14 @@ class ConnectionFields(BaseModel):
     request_template: str | None = Field(default=None, max_length=32000)
     response_path: str | None = None
     vapi_assistant_id: str | None = None
+    # An omitted value deliberately remains absent.  This lets surgical live
+    # upgrades preserve the installed service's existing default pack.
+    pack_id: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def consent_and_transport(self):
+        if self.pack_id is not None and self.pack_id not in STARTER_PACK_IDS:
+            raise ValueError("pack_id must be a registered Starter pack")
         endpoint_host = (urlsplit(self.endpoint_url).hostname or "").lower().rstrip(".")
         if endpoint_host in {
             "backbond.ai", "www.backbond.ai", "scanner.backbond.ai", "api.backbond.ai",
@@ -393,7 +403,7 @@ def start_scan(body: ScanRequest, request: Request):
         reservation = store.reserve(code=clean["code"], email=str(clean["email"]),
             agent_label=clean["agent_label"], endpoint_url=clean["endpoint_url"],
             transport=clean["transport"], terms_version=body.terms_version or "unversioned-legacy",
-            improvement_consent=body.consent_improvement)
+            improvement_consent=body.consent_improvement, pack_version=body.pack_id)
     except IntakeError as exc:
         raise HTTPException(429 if "limit" in str(exc) or "used" in str(exc) else 400, str(exc))
     payload = _payload(clean)

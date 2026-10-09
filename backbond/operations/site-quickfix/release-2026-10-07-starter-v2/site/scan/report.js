@@ -105,7 +105,7 @@
       const response = await request(API + match[1]);
       if (!response.ok) { if (response.status === 404) verification(match[1]); else $('report-error').textContent = 'The report service is unavailable. Try again later.'; return; }
       const data = await response.json();
-      if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4'].includes(data.pack_version)) throw new Error('schema');
+      if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');
       // could_not_run (starter-100@2 and @3) is its own verdict upstream; here it sits in the not-run bucket, never in fail.
       const tests = data.tests.map(item => ({...item, evidenceOmitted: data.pack_version === 'starter-100@4', verdict: ['pass','fail'].includes(item.verdict) ? item.verdict : 'connection_error'}));
       const when = new Date(data.created_at);
