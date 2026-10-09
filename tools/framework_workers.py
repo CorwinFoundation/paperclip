@@ -22,6 +22,7 @@ import sys
 import tempfile
 import time
 import types
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -403,8 +404,47 @@ def _persist_native_evidence(
     return path.resolve().as_uri()
 
 
+_REPLAY_SECRET_KEYS = {
+    "auth", "cookie", "credential", "key", "password", "secret", "token",
+}
+_REPLAY_SECRET_PLACEHOLDER = "${BACKBOND_REPLAY_SECRET}"
+
+
+def _is_replay_secret_key(key: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+    compact = normalized.replace("_", "")
+    return any(term in compact for term in _REPLAY_SECRET_KEYS)
+
+
+def _redact_replay_url(value: str) -> str:
+    """Redact URL userinfo and credential-shaped query parameter values."""
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return value
+    if not parsed.scheme or not parsed.netloc:
+        return value
+
+    netloc = parsed.netloc
+    if parsed.username is not None or parsed.password is not None:
+        # Preserve the host and port, but remove both parts of userinfo.
+        netloc = f"{_REPLAY_SECRET_PLACEHOLDER}@{netloc.rsplit('@', 1)[-1]}"
+
+    query = parsed.query
+    if query:
+        query = urlencode([
+            (name, _REPLAY_SECRET_PLACEHOLDER if _is_replay_secret_key(name) else item)
+            for name, item in parse_qsl(query, keep_blank_values=True)
+        ])
+    return urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
+
+
 def _redact_replay_value(value: Any, key: str = "") -> Any:
-    """Keep worker stdin replayable without persisting bearer credentials."""
+    """Keep worker stdin replayable without persisting credentials."""
+    # Credential containers can be mappings or lists, so redact the value
+    # before descending rather than only checking scalar leaves.
+    if _is_replay_secret_key(key):
+        return _REPLAY_SECRET_PLACEHOLDER
     if isinstance(value, Mapping):
         return {
             str(k): _redact_replay_value(v, str(k))
@@ -412,10 +452,10 @@ def _redact_replay_value(value: Any, key: str = "") -> Any:
         }
     if isinstance(value, (list, tuple)):
         return [_redact_replay_value(item, key) for item in value]
-    if key.lower() in {"secret", "token", "authorization", "api_key", "password"}:
-        return "${BACKBOND_REPLAY_SECRET}"
     if isinstance(value, Path):
         return str(value)
+    if isinstance(value, str) and ("://" in value or value.startswith(("http:", "https:"))):
+        return _redact_replay_url(value)
     return value
 
 

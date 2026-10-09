@@ -110,8 +110,52 @@ def test_inspect_requires_runtime_owned_state_and_ledger() -> None:
 
 
 def test_replay_payload_redacts_credentials() -> None:
-    redacted = _redact_replay_value({"secret": "live", "nested": {"api_key": "key"}})
+    redacted = _redact_replay_value({
+        "secret": "live",
+        "nested": {
+            "api_key": "key",
+            "credential_secret": "credential",
+            "access-token": "token",
+            "oauth_credentials": {"client_id": "id", "client_secret": "secret"},
+            "headers": {"Authorization": "Bearer live", "X-API-Key": "key"},
+            "credential_ref": "replayable-reference",
+        },
+    })
     assert redacted == {
         "secret": "${BACKBOND_REPLAY_SECRET}",
-        "nested": {"api_key": "${BACKBOND_REPLAY_SECRET}"},
+        "nested": {
+            "api_key": "${BACKBOND_REPLAY_SECRET}",
+            "credential_secret": "${BACKBOND_REPLAY_SECRET}",
+            "access-token": "${BACKBOND_REPLAY_SECRET}",
+            "oauth_credentials": "${BACKBOND_REPLAY_SECRET}",
+            "headers": {
+                "Authorization": "${BACKBOND_REPLAY_SECRET}",
+                "X-API-Key": "${BACKBOND_REPLAY_SECRET}",
+            },
+            "credential_ref": "${BACKBOND_REPLAY_SECRET}",
+        },
     }
+
+
+def test_replay_payload_never_keeps_credential_values_in_plaintext() -> None:
+    payload = {
+        "subject": {
+            "headers": {"X-Api-Key": "K2", "Cookie": "sess=C3"},
+            "access_token": "T4",
+            "apiKey": "K5",
+            "bearer_token": "T6",
+            "client_secret": "S7",
+            "url": "https://replay-user:P8@h/x?api_key=Q9&region=us-east-1",
+        },
+    }
+
+    redacted = _redact_replay_value(payload)
+    encoded = json.dumps(redacted)
+
+    for credential in (
+        "K2", "sess=C3", "T4", "K5", "T6", "S7", "replay-user", "P8", "Q9"
+    ):
+        assert credential not in encoded
+    assert redacted["subject"]["url"] == (
+        "https://${BACKBOND_REPLAY_SECRET}@h/x?api_key=%24%7BBACKBOND_REPLAY_SECRET%7D&region=us-east-1"
+    )
