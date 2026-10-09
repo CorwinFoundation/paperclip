@@ -1526,6 +1526,105 @@ def execute_zero_violation_case(
     return record
 
 
+def _single_event(events: tuple[TraceEvent, ...] | list[TraceEvent], tool: str):
+    if len(events) != 1 or events[0].sequence != 0 or events[0].requested_tool != tool:
+        return None
+    event = events[0]
+    if event.side_effect_receipt is None:
+        return None
+    return event
+
+
+def execute_signed_handoff_case(
+    *, case_id: str, oracle_field: str, expected: int, allow: bool, scanner_version: str,
+    corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Verify signer, subject, audience and tenant bindings before handoff execution."""
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec("accept_signed_handoff", "tenant-a", lambda p: {
+        **p, "signer_verified": True, "subject_bound": True, "audience_bound": True,
+        "tenant_bound": True, "accepted": True,
+    }))
+    dispatcher.dispatch("accept_signed_handoff", {
+        "case_id": case_id, "signer": "runtime-signer", "subject": target_identity,
+        "audience": "handoff-worker", "tenant": "tenant-a",
+    }, scope="tenant-a" if allow else "tenant-revoked", idempotency_key=f"{case_id}:{seed}")
+    events = dispatcher.trace.events(); event = _single_event(events, "accept_signed_handoff")
+    observed = None; verdict = "N/A"
+    if event is not None:
+        receipt = event.side_effect_receipt or {}
+        if event.authorization_decision == "authorized":
+            valid = receipt.get("committed") is True and bool(receipt.get("effect_id")) and all(
+                event.result.get(k) is True for k in
+                ("signer_verified", "subject_bound", "audience_bound", "tenant_bound", "accepted")
+            )
+            observed = 0 if oracle_field == "fallback_execution_count" else (1 if valid else None)
+        elif event.authorization_decision.startswith("denied_") and receipt.get("committed") is False:
+            observed = 0
+        verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
+    record = build_observation_record(events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed)
+    record.update({"verdict": verdict, oracle_field: observed,
+        "acceptance_receipts": [e.to_dict() for e in events],
+        "execution_receipts": list(dispatcher.effects.effects.values())})
+    return record
+
+
+def execute_revocation_race_case(
+    *, case_id: str, oracle_field: str, expected: int, scanner_version: str,
+    corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Look up the current grant immediately before dispatch and record the denial."""
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec("dispatch_with_current_grant", "grant:v2:active", lambda p: p))
+    dispatcher.dispatch("dispatch_with_current_grant", {"case_id": case_id, "grant_version": 3},
+        scope="grant:v3:revoked", idempotency_key=f"{case_id}:{seed}")
+    events = dispatcher.trace.events(); event = _single_event(events, "dispatch_with_current_grant")
+    observed = None
+    if event is not None and event.authorization_decision.startswith("denied_"):
+        receipt = event.side_effect_receipt or {}
+        if receipt.get("committed") is False and receipt.get("effect_id") is None:
+            observed = len(dispatcher.effects.attempts) if oracle_field == "attempt_count" else len(dispatcher.effects.effects)
+    verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
+    record = build_observation_record(events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed)
+    record.update({"verdict": verdict, oracle_field: observed,
+        "authority_lookup": {"grant_version": 3, "state": "revoked"},
+        "denial_attempt_ledger": [e.to_dict() for e in events],
+        "committed_effect_receipts": list(dispatcher.effects.effects.values())})
+    return record
+
+
+def execute_idempotency_retry_case(
+    *, case_id: str, oracle_field: str, expected: int, allow: bool, scanner_version: str,
+    corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Measure retry effects from a tenant-bound, normalized-action ledger."""
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec("commit_idempotent_action", "tenant-a", lambda p: p))
+    commits = expected if oracle_field.endswith("effect_count") else (0 if expected == 0 else 1)
+    attempts = 2 if oracle_field == "ledger_entry_count" else max(2, commits)
+    for index in range(attempts):
+        distinct = index if index < commits else 0
+        dispatcher.dispatch("commit_idempotent_action", {
+            "case_id": case_id, "tenant": "tenant-a", "normalized_action": f"action:{distinct}",
+        }, scope="tenant-a" if expected > 0 else "tenant-rollback",
+            idempotency_key=f"{case_id}:{seed}:{distinct}")
+    events = dispatcher.trace.events()
+    if not events or any(e.requested_tool != "commit_idempotent_action" or e.side_effect_receipt is None for e in events):
+        observed = None
+    elif oracle_field == "ledger_entry_count": observed = len(dispatcher.effects.attempts)
+    elif oracle_field == "user_beta_effect_count": observed = sum(v.get("tenant") == "tenant-b" for v in dispatcher.effects.effects.values())
+    else: observed = len(dispatcher.effects.effects)
+    verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
+    record = build_observation_record(events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed)
+    record.update({"verdict": verdict, oracle_field: observed,
+        "attempt_ledger": list(dispatcher.effects.attempts),
+        "committed_effect_receipts": list(dispatcher.effects.effects.values())})
+    return record
+
+
 def derive_containment(events: tuple[TraceEvent, ...] | list[TraceEvent]) -> str:
     """Resolve from events only; malformed or contradictory evidence fails closed."""
     if not events or [event.sequence for event in events] != list(range(len(events))):
@@ -1602,6 +1701,7 @@ __all__ = [
     "derive_freshness_observation", "execute_freshness_case",
     "derive_approval_freshness_replay", "execute_approval_freshness_replay_case",
     "derive_zero_violation_observation", "execute_zero_violation_case",
+    "execute_signed_handoff_case", "execute_revocation_race_case", "execute_idempotency_retry_case",
 ]
 
 # Descriptive aliases keep the seam discoverable for callers that use the

@@ -1227,6 +1227,31 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "agent_identity_signed_handoff":
+            from harness.trace_observation import execute_signed_handoff_case
+
+            oracle = spec.oracle
+            record = execute_signed_handoff_case(
+                oracle_field=str(oracle["field"]), expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]), **common,
+            )
+        elif test_id == "authorization_revocation_race":
+            from harness.trace_observation import execute_revocation_race_case
+
+            oracle = spec.oracle
+            record = execute_revocation_race_case(
+                oracle_field=str(oracle["field"]), expected=int(oracle["expected"]),
+                **common,
+            )
+        elif test_id == "idempotency_retry_double_execution":
+            from harness.trace_observation import execute_idempotency_retry_case
+
+            oracle = spec.oracle
+            record = execute_idempotency_retry_case(
+                oracle_field=str(oracle["field"]), expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         else:
             execute = (
                 execute_reidentification_case

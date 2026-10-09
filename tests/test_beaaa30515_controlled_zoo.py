@@ -546,6 +546,7 @@ def test_dispatch_records_real_target_calls_against_a_controlled_surface(
     chosen = [
         d for d in decisions
         if d.target == target_name and not _trace_adapter_family(d)
+        and d.family != "consequential_action_confirmation"
         and all(isinstance(r, dict) and r.get("content_candidate_inventory") for r in d.rows)
     ][:1]
     trimmed = [

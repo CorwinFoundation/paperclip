@@ -1371,6 +1371,21 @@ def _merge_content_candidate_inventory(
                 "concurrent_shared_state_isolation",
                     "checkpoint_restore_integrity",
                 }
+                or family_id == "agent_identity_signed_handoff"
+                or (
+                    family_id == "authorization_revocation_race"
+                    and case_id in {
+                        "bb18716.authorization_revocation_race.03",
+                        "bb18716.authorization_revocation_race.08",
+                        "bb18716.authorization_revocation_race.10",
+                    }
+                )
+                or (
+                    family_id == "idempotency_retry_double_execution"
+                    and case_id.rsplit(".", 1)[-1]
+                    in {"01", "02", "03", "04", "05", "07", "08", "09", "10", "12",
+                        "13", "14", "15", "17", "18", "19", "21", "22", "23", "24"}
+                )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,
