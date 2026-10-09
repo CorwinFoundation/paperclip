@@ -13,9 +13,14 @@ def test_installer_restarts_both_units_and_records_runtime_version():
     assert "runtime_backup" in text and "rollback" in text
 
 
-def test_transport_probe_arming_imports_from_the_staged_candidate():
+def test_transport_probe_arming_imports_installed_package_as_service_user_from_unrelated_cwd():
     text = (ROOT / "ops/stage-b-inbound/install.sh").read_text()
-    assert 'env PYTHONPATH="$repo_root" /usr/bin/python3 -c' in text
+    assert 'PYTHONPATH="$repo_root"' not in text
+    assert 'runuser -u backbond-stage-b' in text
+    assert "cd / && env PYTHONPATH=\"$1\"" in text
+    assert 'sh "$app_dir" "$state_dir/history.sqlite3"' in text
+    assert "probe_preflight_db=$state_dir/transport-probe-preflight.sqlite3" in text
+    assert "print(s.issue_transport_probe())" in text
 
 
 def test_installer_protects_mutable_state_and_credentials_for_rollback():

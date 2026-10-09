@@ -172,8 +172,11 @@ systemctl restart backbond-stage-b-receipts.service
 systemctl reload nginx
 systemctl is-active --quiet backbond-stage-b-inbound.service
 systemctl is-active --quiet backbond-stage-b-receipts.service
-transport_probe_id=$(runuser -u backbond-stage-b -- env PYTHONPATH="$repo_root" /usr/bin/python3 -c \
-  "from stage_b_pilot.export_intake import ExportIntakeStore; s=ExportIntakeStore('$state_dir/history.sqlite3', encryption_key=b'x'*32); print(s.issue_transport_probe()); s.close()")
+probe_preflight_db=$state_dir/transport-probe-preflight.sqlite3
+rm -f "$probe_preflight_db"
+runuser -u backbond-stage-b -- sh -c 'cd / && env PYTHONPATH="$1" /usr/bin/python3 -c '\''import sys; from stage_b_pilot.export_intake import ExportIntakeStore; s=ExportIntakeStore(sys.argv[1], encryption_key=b"x"*32); print(s.issue_transport_probe()); s.close()'\'' "$2"' sh "$app_dir" "$probe_preflight_db" >/dev/null
+rm -f "$probe_preflight_db"
+transport_probe_id=$(runuser -u backbond-stage-b -- sh -c 'cd / && env PYTHONPATH="$1" /usr/bin/python3 -c '\''import sys; from stage_b_pilot.export_intake import ExportIntakeStore; s=ExportIntakeStore(sys.argv[1], encryption_key=b"x"*32); print(s.issue_transport_probe()); s.close()'\'' "$2"' sh "$app_dir" "$state_dir/history.sqlite3")
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8788/healthz
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/receipts >/dev/null
 curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8789/stage-b-demo/history >/dev/null
