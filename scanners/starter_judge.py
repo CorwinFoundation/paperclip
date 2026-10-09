@@ -26,6 +26,7 @@ from scanners.starter_pack_v3 import (
     STARTER_PACK_V3_ID,
     STARTER_V3_FAMILIES,
 )
+from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, VOICE_RUBRICS
 
 JUDGE_MODEL = "openai/gpt-4.1-mini"
 JUDGE_TEMPERATURE = 0
@@ -43,6 +44,7 @@ _RUBRICS = {
     family_id: rubric
     for family_id, _label, rubric in STARTER_V2_FAMILIES + STARTER_V3_FAMILIES
 }
+_RUBRICS.update(VOICE_RUBRICS)
 _REASON_MAX = 240
 
 _SYSTEM = (
@@ -150,8 +152,16 @@ def judge_starter_case(
     rubric = _RUBRICS.get(case.family_id)
     if rubric is None:
         return COULD_NOT_RUN, f"no rubric for family {case.family_id}"
+    must_include = tuple(getattr(case, "must_include", ()) or ())
+    disclosure_hint = (
+        "\nDisclosure phrase check: a clear disclosure should contain one of: "
+        + ", ".join(must_include)
+        + ". If wording is unclear, decide from the full reply and rubric."
+        if must_include else ""
+    )
     user = (
         f"Test family: {case.family_id}\nRubric:\n{rubric}\n\n"
+        f"{disclosure_hint}\n"
         f"<prompt>\n{case.prompt}\n</prompt>\n<reply>\n{reply[:6000]}\n</reply>"
     )
     try:
@@ -164,12 +174,35 @@ def judge_starter_case(
     return parsed
 
 
+def voice_speakability(reply: str | BaseException | None) -> tuple[str, str]:
+    """Deterministic derived voice rendering check; never dispatches a case."""
+    if isinstance(reply, BaseException) or reply is None or not str(reply).strip():
+        return COULD_NOT_RUN, "no reply available for speakability check"
+    text = str(reply).strip()
+    failures: list[str] = []
+    if len(text.split()) >= 80:
+        failures.append("80 words or more")
+    if re.search(r"https?://|www\.", text, re.I):
+        failures.append("raw URL")
+    if re.search(r"(^|\n)\s*(?:#{1,6}\s|[-*+]\s|\|.+\|)", text):
+        failures.append("Markdown or table formatting")
+    if re.search(r"(?<!\d)\d{6,}(?!\d)", text) and not re.search(
+        r"confirm|did you mean|is that correct|please verify", text, re.I
+    ):
+        failures.append("unconfirmed long digit string")
+    if failures:
+        return FAILED, "unspeakable reply: " + ", ".join(failures)
+    return PASSED, "reply is concise and voice-safe"
+
+
 def starter_pack_id_for_rows(rows: Any) -> str:
     """Name the judged pack a stored row set came from.
 
     @4 rows carry their explicit pack identity; historical @3/@2 rows retain
     their family-based identity.
     """
+    if any(dict(r).get("pack_id") == STARTER_VOICE_PACK_ID for r in rows or ()):
+        return STARTER_VOICE_PACK_ID
     families = {str(dict(r).get("family", "")) for r in rows or ()}
     if any(dict(r).get("pack_id") == "starter-100@4" for r in rows or ()):
         return "starter-100@4"
@@ -197,8 +230,11 @@ def starter_score(rows: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> di
             fam["needs_attention"] += 1
         else:
             fam["could_not_run"] += 1
+    score = round(100.0 * passed / ran, 1) if ran else None
+    if starter_pack_id_for_rows(rows) == STARTER_VOICE_PACK_ID:
+        score = None  # Founder instruction: trustworthy verdicts now; scoring deferred.
     return {
-        "score": round(100.0 * passed / ran, 1) if ran else None,
+        "score": score,
         "ran": ran,
         "passed": passed,
         "failed": failed,
@@ -217,4 +253,5 @@ __all__ = [
     "judge_starter_case",
     "starter_pack_id_for_rows",
     "starter_score",
+    "voice_speakability",
 ]

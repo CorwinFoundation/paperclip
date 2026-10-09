@@ -484,10 +484,15 @@ class _CustomerAgentHttpRunner(ModelRunner):
         even when result rows are off, so the Starter score always rides the
         payload. Prompt/reply text still needs ``include_result_rows``.
         """
-        variable_pack = getattr(self, "pack_id", None) == "starter-100@4"
-        metadata = {}
+        pack_id = getattr(self, "pack_id", None)
+        variable_pack = pack_id == "starter-100@4"
+        metadata = (
+            {"pack_id": pack_id}
+            if pack_id in {"starter-100@4", "starter-voice-50@1"}
+            else {}
+        )
         if variable_pack:
-            metadata = {"pack_id": "starter-100@4", "form_id": getattr(self, "starter_form_summary", {}).get("form_id", "")}
+            metadata["form_id"] = getattr(self, "starter_form_summary", {}).get("form_id", "")
         if not self._result_rows_enabled or self._pending_exchange is None:
             if reason:
                 self._starter_rows.append({

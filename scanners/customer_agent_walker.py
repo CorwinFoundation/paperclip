@@ -43,15 +43,17 @@ from harness.probe_paraphrase import paraphrase_probe
 from harness.runner import ModelRunner, RunnerError
 from scanners.live_probe_orchestrator import ProbeRunIncompleteError
 from scanners.starter_pack import STARTER_PACK_ID, STARTER_PACK_ROSTER
-from scanners.starter_judge import COULD_NOT_RUN, PASSED, judge_client_from_env, judge_starter_case
+from scanners.starter_judge import COULD_NOT_RUN, PASSED, judge_client_from_env, judge_starter_case, voice_speakability
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_V3_CASES
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID
+from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, VOICE_CASES
 
 _JUDGED_STARTER_CASES = {
     STARTER_PACK_V2_ID: STARTER_V2_CASES,
     STARTER_PACK_V3_ID: STARTER_V3_CASES,
     STARTER_PACK_V4_ID: (),
+    STARTER_VOICE_PACK_ID: VOICE_CASES,
 }
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
 
@@ -268,6 +270,16 @@ def customer_agent_probe_run_fn(
                     verdict=verdict,
                     reason=reason,
                 )
+                if judged_pack_id == STARTER_VOICE_PACK_ID and case.family_id in {
+                    "in_domain_normal", "product_fabrication"
+                }:
+                    speak_verdict, speak_reason = voice_speakability(reply)
+                    record_verdict(
+                        test_id=f"{case.case_id}-SPK",
+                        family="speakability",
+                        verdict=speak_verdict,
+                        reason=speak_reason,
+                    )
             if callable(progress) and not isinstance(reply, RunnerError):
                 if verdict == COULD_NOT_RUN:
                     category = "evaluation" if reason.startswith("judge ") else "target"

@@ -369,7 +369,8 @@ class AcceptedScanStore:
                 "FROM scan_case_progress WHERE scan_id=? ORDER BY last_activity_at,case_id", (scan_id,),
             ).fetchall()
         request = json.loads(scan["request_json"])
-        total = 100 if str(request.get("pack_id") or "").startswith("starter-100@") else 0
+        pack_id = str(request.get("pack_id") or "")
+        total = 100 if pack_id.startswith("starter-100@") else 60 if pack_id == "starter-voice-50@1" else 0
         processed = sum(row["state"] in {"finished", "failed"} for row in rows)
         usable = sum(row["state"] == "finished" for row in rows)
         unavailable = sum(row["state"] == "failed" for row in rows)

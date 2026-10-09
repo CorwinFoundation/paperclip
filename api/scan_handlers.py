@@ -116,21 +116,23 @@ from scanners.starter_judge import starter_pack_id_for_rows, starter_score
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_COUNT
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_PACK_V3_TEST_COUNT
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID, STARTER_PACK_V4_TEST_COUNT
+from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, STARTER_VOICE_TEST_COUNT
 
 # New Starter intakes use variable @4 forms, including clients naming older
 # packs. Historical results retain their original identities. The existing
 # operator rollback flag can still select an explicitly requested legacy pack.
-_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID, STARTER_PACK_V4_ID)
+_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID, STARTER_PACK_V4_ID, STARTER_VOICE_PACK_ID)
 _STARTER_PACK_TEST_COUNTS = {
     STARTER_PACK_ID: STARTER_PACK_TEST_COUNT,
     STARTER_PACK_V2_ID: STARTER_PACK_V2_TEST_COUNT,
     STARTER_PACK_V3_ID: STARTER_PACK_V3_TEST_COUNT,
     STARTER_PACK_V4_ID: STARTER_PACK_V4_TEST_COUNT,
+    STARTER_VOICE_PACK_ID: STARTER_VOICE_TEST_COUNT,
 }
 
 
 def _effective_starter_pack_id(pack_id: str) -> str:
-    if pack_id in _STARTER_PACK_IDS and os.environ.get(
+    if pack_id in _STARTER_PACK_IDS and pack_id != STARTER_VOICE_PACK_ID and os.environ.get(
         "BACKBOND_STARTER_PACK_LEGACY_V1", ""
     ).strip() != "1":
         return STARTER_PACK_V4_ID
