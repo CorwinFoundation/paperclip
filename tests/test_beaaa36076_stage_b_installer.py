@@ -21,6 +21,9 @@ def test_transport_probe_arming_imports_installed_package_as_service_user_from_u
     assert 'sh "$app_dir" "$state_dir/history.sqlite3"' in text
     assert "probe_preflight_db=$state_dir/transport-probe-preflight.sqlite3" in text
     assert "print(s.issue_transport_probe())" in text
+    assert text.index("probe_preflight_db=") < text.rindex(
+        "systemctl restart backbond-stage-b-inbound.service"
+    )
 
 
 def test_installer_protects_mutable_state_and_credentials_for_rollback():
