@@ -3,6 +3,7 @@ set -euo pipefail
 
 deploy_key=${1:?deploy key path required}
 known_hosts=${2:?known-hosts path required}
+deploy_host=${3:?deploy host required}
 
 normalized_key=${DEPLOY_SSH_PRIVATE_KEY//$'\r'/}
 normalized_key=${normalized_key//\\n/$'\n'}
@@ -82,3 +83,7 @@ fi
 
 printf '%s\n' "$normalized_hosts" > "$known_hosts"
 chmod 0600 "$deploy_key" "$known_hosts"
+if ! ssh-keygen -F "$deploy_host" -f "$known_hosts" >/dev/null; then
+  echo "deploy known-hosts pin does not contain the configured deploy host" >&2
+  exit 1
+fi

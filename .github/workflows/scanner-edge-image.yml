@@ -599,7 +599,7 @@ jobs:
           # Keep materialization visible for the workflow contract, then normalize
           # raw PEM/OpenSSH or whole-value base64 secrets without logging key bytes.
           printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
-          scripts/deploy/install_ssh_identity.sh "$deploy_key" "$known_hosts"
+          scripts/deploy/install_ssh_identity.sh "$deploy_key" "$known_hosts" "$DEPLOY_HOST"
           chmod 0600 "$deploy_key" "$known_hosts"
           test -s "$deploy_key"
           test -s "$known_hosts"
