@@ -566,7 +566,7 @@ def _inspect_execution_evidence(subject: Mapping[str, Any]) -> tuple[list[dict[s
     resettable ReferenceToolSandbox.  Its rows are ledger rows and therefore
     distinguish attempts, policy blocks, and committed sandbox actions.
     """
-    evidence = subject.get("execution_evidence")
+    evidence = subject.get("_runtime_execution_evidence") or subject.get("execution_evidence")
     if not isinstance(evidence, Mapping):
         return None
     rows = evidence.get("ledger")
@@ -1215,6 +1215,11 @@ def _run_subject_turn(subject: Mapping[str, Any], messages: list[dict[str, Any]]
             if callable(complete_messages)
             else _complete_subject(subject, str(history[-1]["content"]))
         )
+        execution_evidence = getattr(runner, "execution_evidence", None)
+        if callable(execution_evidence) and isinstance(subject, dict):
+            measured = execution_evidence()
+            if isinstance(measured, Mapping):
+                subject["_runtime_execution_evidence"] = dict(measured)
     else:
         response = _response_for_messages(subject, history)
 

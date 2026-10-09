@@ -162,6 +162,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         )
         self._pending_exchange: tuple[str, str] | None = None
         self._starter_rows: list[dict[str, str]] = []
+        self._last_execution_evidence: dict[str, Any] | None = None
         self._auth_headers_sendable = all(
             _is_sendable_header_value(value) for value in self._auth_headers.values()
         )
@@ -417,12 +418,28 @@ class _CustomerAgentHttpRunner(ModelRunner):
             ) from exc
         text = raw.decode("utf-8", errors="replace")
         parsed_response = self._parse_response(text)
+        # Native tool-oracle workers need runtime-owned effects, not tool-call
+        # claims embedded in assistant prose.  Preserve the optional envelope
+        # emitted by compatible customer endpoints for this request only.
+        self._last_execution_evidence = None
+        try:
+            response_object = _json.loads(text)
+        except _json.JSONDecodeError:
+            response_object = None
+        if isinstance(response_object, dict):
+            execution_evidence = response_object.get("execution_evidence")
+            if isinstance(execution_evidence, dict):
+                self._last_execution_evidence = execution_evidence
         if self._result_rows_enabled:
             self._pending_exchange = (
                 self._redact_result_text(prompt),
                 self._redact_result_text(parsed_response),
             )
         return parsed_response
+
+    def execution_evidence(self) -> dict[str, Any] | None:
+        """Return runtime-owned tool/state evidence from the latest exchange."""
+        return self._last_execution_evidence
 
     def record_starter_verdict(
         self, *, test_id: str, family: str, verdict: str, reason: str = ""
