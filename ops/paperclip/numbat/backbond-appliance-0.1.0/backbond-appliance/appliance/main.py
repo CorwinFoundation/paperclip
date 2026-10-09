@@ -18,7 +18,8 @@ from appliance.readers import get_reader, available as readers_available
 from appliance.pipeline import normalize, redact, ContentLeak
 from appliance.rules.engine import RuleSet, Allowlist
 from appliance.rules.cel_engine import CelRuleSet, CelAllowlist, is_cel_pack
-from appliance.batch import DEFAULT_MAX_BATCH_BYTES, BatchBuilder, Signer
+from appliance.batch import DEFAULT_MAX_BATCH_BYTES, BatchBuilder, Signer, verify_batch
+from appliance.replay_manifest import build_replay_manifest, canonical_manifest_bytes
 
 
 EXIT_OK = 0
@@ -357,11 +358,30 @@ def cmd_selftest(cfg):
     return _admission_probe(cfg)
 
 
+def cmd_export_replay(cfg, batch_dir, output, start_seq=None, end_seq=None):
+    paths = sorted(glob.glob(os.path.join(os.path.expanduser(batch_dir), "batch-*.json")))
+    with_signatures = [json.load(open(path, encoding="utf-8")) for path in paths]
+    with_signatures = [batch for batch in with_signatures
+                       if (start_seq is None or batch.get("batch_seq", -1) >= start_seq)
+                       and (end_seq is None or batch.get("batch_seq", -1) <= end_seq)]
+    signer = Signer(os.path.expanduser(cfg["signing"]["key_path"]), cfg["signing"]["key_id"])
+    manifest = build_replay_manifest(with_signatures, signer.public_pem(), verify_batch)
+    with open(output, "wb") as fh:
+        fh.write(canonical_manifest_bytes(manifest))
+    print(json.dumps({"manifest": output, "batches": len(manifest["batches"]),
+                      "artifact_sha256": manifest["artifact_sha256"]}, sort_keys=True))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="backbond-appliance")
-    ap.add_argument("command", choices=["enroll", "run", "selftest"])
+    ap.add_argument("command", choices=["enroll", "run", "selftest", "export-replay"])
     ap.add_argument("-c", "--config", default=os.environ.get("BACKBOND_CONFIG", "config.yaml"))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--batch-dir")
+    ap.add_argument("--output")
+    ap.add_argument("--start-seq", type=int)
+    ap.add_argument("--end-seq", type=int)
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
     if args.command == "enroll":
@@ -370,6 +390,10 @@ def main(argv=None):
         return cmd_run(cfg, dry=args.dry_run)
     if args.command == "selftest":
         return cmd_selftest(cfg)
+    if args.command == "export-replay":
+        if not args.batch_dir or not args.output:
+            ap.error("export-replay requires --batch-dir and --output")
+        return cmd_export_replay(cfg, args.batch_dir, args.output, args.start_seq, args.end_seq)
 
 
 if __name__ == "__main__":
