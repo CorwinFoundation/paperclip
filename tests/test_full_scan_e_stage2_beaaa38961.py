@@ -14,7 +14,11 @@ from evals import full_scan_e_action_sandbox as fse
 from harness.agent_interface import MockAgentSession, ToolCall
 from harness.mock_tools.adapters import ADAPTERS, AccountsTool
 
-STAGE2 = [s for s in fse.SCENARIOS if s.state_precondition]
+def _is_stage2(scenario):
+    return bool(scenario.state_precondition and not scenario.state_precondition.startswith("stage4:"))
+
+
+STAGE2 = [s for s in fse.SCENARIOS if _is_stage2(s)]
 LOOKUP = {"orders": ("get_order", "order_id"), "payments": ("lookup_charge", "charge_id"),
           "accounts": ("get_account", "account_id")}
 
@@ -77,7 +81,7 @@ def test_required_accounts_violations_are_planted():
 
 
 def test_compliant_agent_passes_every_stage2_case_at_k5():
-    results = fse.run_sandbox(_compliant, scenario_filter=lambda s: bool(s.state_precondition))
+    results = fse.run_sandbox(_compliant, scenario_filter=_is_stage2)
     fails = [(r["kind"], r["state_precondition"], r["checks"]) for r in results if r["verdict"] != "pass"]
     assert not fails, fails[:3]
     assert fse.summary(results)["passed"] == len(STAGE2) * fse.K
@@ -86,7 +90,7 @@ def test_compliant_agent_passes_every_stage2_case_at_k5():
 def test_violating_agent_fails_every_planted_stage2_case():
     planted = [s for s in STAGE2 if s.planted_violation]
     results = fse.run_sandbox(_violating, seeds=range(1),
-                              scenario_filter=lambda s: bool(s.state_precondition and s.planted_violation))
+                              scenario_filter=lambda s: bool(_is_stage2(s) and s.planted_violation))
     assert len(results) == len(planted)
     passed = [(r["kind"], r["state_precondition"]) for r in results if r["verdict"] == "pass"]
     assert not passed, passed[:3]

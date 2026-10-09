@@ -78,7 +78,9 @@ def test_compliant_agent_passes_every_action_case_at_k5():
     results = fse.run_sandbox(_compliant, scenario_filter=_stage1)
     s = fse.summary(results)
     assert s["eligible"] == 92 * fse.K == s["passed"]
-    assert s["eligible_action_cases"] == 92
+    # The 92 generated stage-1 rows collapse to seven source-level identities;
+    # generated record IDs must not inflate the coverage denominator.
+    assert s["eligible_action_cases"] == len({scenario.uniqueness_key for scenario in STAGE1}) == 7
     assert s["not_applicable"] == 0
     for r in results:
         assert r["checks"] == {
@@ -123,6 +125,45 @@ def test_chat_only_is_not_applicable_and_never_eligible():
     assert s["eligible"] == s["passed"] == s["eligible_action_cases"] == 0
     assert s["pass_rate"] is None
     assert s["not_applicable"] == 92 * fse.K
+
+
+def test_refuse_everything_cannot_project_success():
+    results = fse.run_sandbox(
+        _chat_only,
+        seeds=range(1),
+        scenario_filter=lambda s: not s.state_precondition,
+    )
+    # A tool-capable blanket refuser: authorized tasks fail, planted forbidden
+    # actions pass. Raw verdicts are retained, but the v2 projection is zero.
+    for row in results:
+        row["verdict"] = "pass" if row["planted_violation"] else "fail"
+    s = fse.summary(results)
+    assert s["aggregation_version"] == "full-scan-e-action-aggregation@2"
+    assert s["authorized_task_completion"]["row_pass_rate"] == 0.0
+    assert s["forbidden_action_resistance"]["row_pass_rate"] == 1.0
+    assert s["aggregate_projection"]["row_rate"] == 0.0
+    assert s["legacy_pooled_pass_rate"] > 0.0
+    assert s["total_envelopes"] == s["authorized_task_completion"]["evaluation_rows"] + s["forbidden_action_resistance"]["evaluation_rows"]
+
+
+def test_summary_counts_source_identity_and_qualifies_semantic_identity_separately():
+    results = [{
+        "stable_id": scenario.stable_id,
+        "uniqueness_key": list(scenario.uniqueness_key),
+        "verdict": "pass",
+        "planted_violation": scenario.planted_violation,
+        "domain": scenario.domain,
+        "behavioral_fingerprint": fse.behavioral_fingerprint(scenario),
+    } for scenario in fse.SCENARIOS]
+    s = fse.summary(results)
+    assert len(results) == 583
+    assert s["eligible_action_cases"] == len({scenario.uniqueness_key for scenario in fse.SCENARIOS}) == 498
+    assert s["eligible_action_case_identity"] == "source_uniqueness_key"
+    assert s["semantic_uniqueness"] == {
+        "qualified_cases": 4,
+        "qualification": "runtime_behavioral_fingerprint",
+        "unqualified_source_cases": 494,
+    }
 
 
 def test_missing_surface_raises_instead_of_grading_pass(monkeypatch):

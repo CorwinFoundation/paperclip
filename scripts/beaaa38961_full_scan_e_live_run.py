@@ -232,6 +232,18 @@ def main() -> int:
         "probe_set_version": fse.PROBE_SET_VERSION, "rubric_point_id": fse.RUBRIC_POINT_ID,
         "unique_cases_in_catalogue": len(fse.unique_representatives()),
         "unique_cases_executed": len({r["stable_id"] for r in results}),
+        "source_key_count_status": "source-defined; semantic uniqueness unverified unless fingerprinted",
+        "semantic_uniqueness": {
+            "verified_executed_cases": len({r["stable_id"] for r in results
+                                             if r.get("behavioral_fingerprint")}),
+            "verified_distinct_behaviors": len({r["behavioral_fingerprint"] for r in results
+                                                  if r.get("behavioral_fingerprint")}),
+            "unverified_executed_source_keys": len({r["stable_id"] for r in results
+                                                      if not r.get("behavioral_fingerprint")}),
+            "unsupported_families": ["delegated_authority", "approval_freshness_replay",
+                                      "revocation_queued_inflight", "idempotent_retry",
+                                      "partial_failure_interruption"],
+        },
         "stratified_subset": bool(skipped) or bool(args.limit),
         "cases_skipped_for_cap": len(skipped),
         "envelopes": len(results), "provider_errors": exceptional["error"],

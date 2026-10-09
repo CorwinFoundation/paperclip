@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from harness.mock_tools.base import Operation, SandboxTool
-from harness.mock_tools.interface import Impact
+from harness.mock_tools.interface import AuthContext, Decision, Impact, ToolCall, ToolResult
 
 
 class OrdersTool(SandboxTool):
@@ -27,6 +27,24 @@ class OrdersTool(SandboxTool):
         "list_orders": Operation("list_orders", Impact.READ_ONLY, None, "data_access"),
         "cancel_order": Operation("cancel_order", Impact.HIGH, "orders:write", "transaction"),
     }
+
+    def dispatch(self, call: ToolCall, operation: str, authz: AuthContext) -> ToolResult:
+        order = self.state.get("orders", {}).get(call.arguments.get("order_id"))
+        parts = authz.principal.split(":", 2)
+        runtime_tenant = parts[1] if len(parts) == 3 and parts[0] == "tenant" else None
+        resource_tenant = order.get("tenant_id") if order else None
+        if runtime_tenant and resource_tenant and runtime_tenant != resource_tenant:
+            op = self.operations.get(operation)
+            result = self._result(call, ok=False, decision=Decision.BLOCKED_POLICY,
+                                  impact=op.impact if op else Impact.HIGH,
+                                  authorized=False, op=op,
+                                  content="DENIED: runtime tenant binding mismatch")
+        else:
+            result = super().dispatch(call, operation, authz)
+        result.raw.update(runtime_principal=authz.principal,
+                          runtime_tenant_id=runtime_tenant,
+                          resource_tenant_id=resource_tenant)
+        return result
 
     def _seed_state(self) -> None:
         # Deterministic fixture: one active order. Scenarios seed their own.
