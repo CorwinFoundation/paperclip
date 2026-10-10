@@ -114,6 +114,10 @@ class IntakeStore:
             self.db.execute('ALTER TABLE scans ADD COLUMN outcome TEXT')
         if 'incomplete_reason' not in scan_cols:
             self.db.execute('ALTER TABLE scans ADD COLUMN incomplete_reason TEXT')
+        if 'source_intake_id' not in scan_cols:
+            self.db.execute('ALTER TABLE scans ADD COLUMN source_intake_id TEXT')
+        self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_retained_voice_admission '
+                        "ON scans(source_intake_id,pack_version) WHERE source_intake_id IS NOT NULL")
         self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS status_token_unique ON scans(status_token_hash)')
 
     @synchronized
@@ -138,7 +142,8 @@ class IntakeStore:
     def reserve(self, *, code: str, email: str, agent_label: str,
                 endpoint_url: str, transport: str, now: str | None = None,
                 terms_version: str | None = None, improvement_consent: bool = False,
-                pack_version: str | None = None) -> dict:
+                pack_version: str | None = None,
+                source_intake_id: str | None = None) -> dict:
         created = now or datetime.now(timezone.utc).isoformat()
         email = email.strip().lower()
         endpoint = urlsplit(endpoint_url)
@@ -167,10 +172,10 @@ class IntakeStore:
             if self.db.execute("SELECT 1 FROM scans WHERE email=? AND status IN ('reserved','queued','starting','running','dispatch_unknown') LIMIT 1", (email,)).fetchone():
                 raise IntakeError("A scan is already running for this email.")
             self.db.execute("""INSERT INTO scans
-              (id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status)
-              VALUES(?,?,?,?,?,?,?,?,?, 'reserved')""",
+              (id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status,source_intake_id)
+              VALUES(?,?,?,?,?,?,?,?,?, 'reserved',?)""",
               (scan_id, code, row["partner"], email, agent_label, host, transport,
-               pack_version or "starter-100@4", created))
+               pack_version or "starter-100@4", created, source_intake_id))
             # Only a digest of the status token is stored; the caller holds the token.
             status_token = secrets.token_urlsafe(24)
             self.db.execute('UPDATE scans SET status_token_hash=? WHERE id=?',
@@ -525,6 +530,7 @@ def scanner_payload(data: dict, *, callback_url: str, callback_secret_ref: str) 
             "scanner_version": os.environ.get('QA_SCANNER_VERSION', 'partner-qa-v1'),
             "scan_mode": "live_probe", "scan_tier": "smoke",
             "pack_id": data.get("pack_id") or "starter-100@4", "include_result_rows": True,
+            **({"expected_total": data["expected_total"]} if "expected_total" in data else {}),
             "seed": int(os.environ.get('QA_SCANNER_CORPUS_SEED', '42')),
             "webhook": {"url": callback_url, "secret_ref": callback_secret_ref}}
 

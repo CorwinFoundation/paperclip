@@ -19,6 +19,7 @@ for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/qa_
   install -o root -g root -m 0644 "$src" "$DEST/$name"
   echo "updated $name"; changed=1
 done
+install -o root -g root -m 0755 "$HERE"/admit_retained_voice.py /usr/local/sbin/backbond-admit-retained-voice
 if [ "$changed" = 1 ]; then
   systemctl restart backbond-scan-intake.service
   echo "backup: $BACKUP (diffs of the replaced live files are there)"
