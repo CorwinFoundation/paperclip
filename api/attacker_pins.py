@@ -45,7 +45,7 @@ ATTACKER_BASE_URL = "https://openrouter.ai/api/v1"
 ATTACKER_PINS: dict[str, dict[str, Any]] = {
     "goat": {
         "red_team_model_type": "openai.OpenAIGenerator",
-        "red_team_model_name": "qwen/qwen-plus-2025-07-28",
+        "red_team_model_name": "qwen/qwen3.7-plus-20260602",
         "red_team_model_config": {
             "max_tokens": 512,
             "temperature": 0.0,
@@ -60,7 +60,7 @@ ATTACKER_PINS: dict[str, dict[str, Any]] = {
     # resolved to, which is already demonstrated to load (BEAAA-31910 receipt).
     "agent_breaker": {
         "red_team_model_type": "openai.OpenAIGenerator",
-        "red_team_model_name": "qwen/qwen-plus-2025-07-28",
+        "red_team_model_name": "qwen/qwen3.7-plus-20260602",
         "red_team_model_config": {
             "max_tokens": 512,
             "temperature": 0.0,

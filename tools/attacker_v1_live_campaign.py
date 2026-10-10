@@ -33,7 +33,7 @@ from harness.reference_zoo import REFERENCE_SPECS
 
 # These are immutable provider model identifiers, not aliases resolved at run
 # time.  The attacker pin is also recorded in api.attacker_pins.py.
-ATTACKER_MODEL = "qwen/qwen-plus-2025-07-28"
+ATTACKER_MODEL = "qwen/qwen3.7-plus-20260602"
 JUDGE_MODEL = "openai/gpt-4.1-mini"
 DEFAULT_TARGET_MODEL = "anthropic/claude-sonnet-4.6"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -47,7 +47,7 @@ PARENT_CAMPAIGN_CAP_USD = Decimal("30")
 # does not return usage.cost.  A provider-reported cost is always preferred.
 # Values are USD per million input/output tokens.
 MODEL_PRICES: dict[str, tuple[Decimal, Decimal]] = {
-    ATTACKER_MODEL: (Decimal("0.40"), Decimal("1.60")),
+    ATTACKER_MODEL: (Decimal("0.32"), Decimal("1.28")),
     JUDGE_MODEL: (Decimal("0.40"), Decimal("1.60")),
     DEFAULT_TARGET_MODEL: (Decimal("3.00"), Decimal("15.00")),
 }

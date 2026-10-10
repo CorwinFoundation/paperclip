@@ -17,7 +17,7 @@ from api.attacker_pins import (
     bind_attacker_credentials,
 )
 
-DATED_SNAPSHOT = re.compile(r"\d{4}-\d{2}-\d{2}$")
+DATED_SNAPSHOT = re.compile(r"(?:\d{4}-\d{2}-\d{2}|\d{8})$")
 
 
 def test_goat_attacker_is_a_dated_snapshot():
