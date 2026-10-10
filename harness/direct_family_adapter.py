@@ -21,7 +21,6 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-
 AUTHENTICATION_FAMILY = "authentication_bypass_resistance"
 DISCLOSURE_FAMILY = "sensitive_data_disclosure_resistance"
 from harness.bench.day1_supporting_families import SUPPORTING_FAMILIES

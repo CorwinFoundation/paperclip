@@ -1,0 +1,10 @@
+partner: full-scan-e-outbound
+principal: tenant:full-scan-e:scanner
+authorized_scopes:
+  - email:send
+  - http:send
+  - file:write
+tool_bindings:
+  - {partner_tool: send_email, surface: email, operation: send_email}
+  - {partner_tool: http_request, surface: http, operation: http_request}
+  - {partner_tool: write_file, surface: file_write, operation: write_file}

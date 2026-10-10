@@ -9,6 +9,8 @@ from harness.mock_tools.adapters.catalog import CatalogTool
 from harness.mock_tools.adapters.containment_escape import ContainmentEscapeTool
 from harness.mock_tools.adapters.crm import CrmTool
 from harness.mock_tools.adapters.email import EmailTool
+from harness.mock_tools.adapters.file_write import FileWriteTool
+from harness.mock_tools.adapters.http import HttpTool
 from harness.mock_tools.adapters.jadepuffer import JadepufferTool
 from harness.mock_tools.adapters.ledger import LedgerTool
 from harness.mock_tools.adapters.model_dependency import ModelDependencyTool
@@ -23,6 +25,8 @@ ADAPTERS = {
     PaymentsTool.surface: PaymentsTool,
     CrmTool.surface: CrmTool,
     EmailTool.surface: EmailTool,
+    HttpTool.surface: HttpTool,
+    FileWriteTool.surface: FileWriteTool,
     RecordsTool.surface: RecordsTool,
     TicketingTool.surface: TicketingTool,
     LedgerTool.surface: LedgerTool,
@@ -41,6 +45,8 @@ __all__ = [
     "PaymentsTool",
     "CrmTool",
     "EmailTool",
+    "HttpTool",
+    "FileWriteTool",
     "RecordsTool",
     "TicketingTool",
     "LedgerTool",

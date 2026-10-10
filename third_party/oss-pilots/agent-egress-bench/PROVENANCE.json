@@ -3,8 +3,11 @@
   "source_commit": "e19efee4894994c887f6ae69bcdfbc05b93b56db",
   "source_path": "cases/",
   "source_cases_tree": "d1d50c8d3e5a920311c53686f0d2fc3fdbe33d33",
+  "vendored_file_count": 214,
   "logical_case_count": 197,
   "category_count": 18,
+  "supporting_fixture_file_count": 17,
+  "supporting_fixture_scope": "cases/mcp-drift/**/{before.json,after.json,expected.json,notes.md} plus cases/mcp-drift/README.md; these files describe four logical drift cases and are not executable case definitions",
   "license": "Apache-2.0",
   "notice": "Upstream has no NOTICE file at the pinned commit.",
   "cto_cosign_ref": "BEAAA-19106"
