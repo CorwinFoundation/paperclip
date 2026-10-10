@@ -80,6 +80,34 @@ def _price(model: str, input_tokens: int, output_tokens: int) -> Decimal:
     return (input_rate * Decimal(input_tokens) + output_rate * Decimal(output_tokens)) / Decimal(1_000_000)
 
 
+def _message_text(message: Mapping[str, Any]) -> str:
+    """Return usable text from OpenAI/OpenRouter chat message variants.
+
+    Reasoning models can spend their whole output allowance in a provider-
+    specific reasoning field and return ``content: null``.  Treating that as a
+    generated empty turn obscures the provider response as an attacker budget
+    failure and prevents any attempt evidence from being persisted.
+    """
+    for key in ("content", "reasoning", "reasoning_content"):
+        value = message.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    details = message.get("reasoning_details")
+    if isinstance(details, Sequence) and not isinstance(details, (str, bytes)):
+        parts = []
+        for detail in details:
+            if not isinstance(detail, Mapping):
+                continue
+            for key in ("text", "content", "summary"):
+                value = detail.get(key)
+                if isinstance(value, str) and value.strip():
+                    parts.append(value.strip())
+                    break
+        if parts:
+            return "\n".join(parts)
+    raise ProviderError("provider returned no usable content or reasoning text")
+
+
 class OpenAICompatibleTransport:
     """Small OpenAI-compatible client with provider metering and no retries."""
 
@@ -103,6 +131,10 @@ class OpenAICompatibleTransport:
                 "seed": 0,
                 "max_tokens": max_tokens,
                 "usage": {"include": True},
+                # Keep the bounded attacker output available as message text.
+                # Some reasoning-class OpenRouter models otherwise consume the
+                # complete max_tokens allowance before producing content.
+                "reasoning": {"enabled": False},
             },
             timeout=self.timeout_s,
         )
@@ -111,9 +143,9 @@ class OpenAICompatibleTransport:
         try:
             payload = response.json()
             choice = payload["choices"][0]["message"]
-            content = str(choice.get("content") or "")
+            content = _message_text(choice)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
-            raise ProviderError("provider response omitted choices[0].message.content") from exc
+            raise ProviderError("provider response omitted choices[0].message") from exc
         usage = payload.get("usage") if isinstance(payload.get("usage"), Mapping) else {}
         provider_cost = usage.get("cost")
         if isinstance(provider_cost, (int, float, str)) and not isinstance(provider_cost, bool):

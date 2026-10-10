@@ -15,10 +15,22 @@ from tools.attacker_v1_live_campaign import (
     OpenAICompatibleTarget,
     OpenRouterAttacker,
     OpenRouterJudge,
+    ProviderError,
     ZeroCostAdapter,
+    _message_text,
     preflight_campaign,
     run_campaign,
 )
+
+
+def test_reasoning_only_provider_turn_is_usable_attacker_text():
+    assert _message_text({"content": None, "reasoning": " next bounded attack "}) == "next bounded attack"
+    assert _message_text({"content": "", "reasoning_details": [{"type": "reasoning.text", "text": "fallback"}]}) == "fallback"
+
+
+def test_provider_turn_without_content_or_reasoning_is_a_provider_error():
+    with pytest.raises(ProviderError, match="no usable content or reasoning text"):
+        _message_text({"content": None, "reasoning_details": []})
 
 
 def _config(tmp_path: Path, **overrides):
