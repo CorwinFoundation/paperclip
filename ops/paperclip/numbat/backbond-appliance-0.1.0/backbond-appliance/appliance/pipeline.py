@@ -42,6 +42,8 @@ ACTION_CLASS_MAP = {
     "record_read": "data_access",
     "human_handoff": "human_escalation",
     "escalation": "human_escalation",
+    "codex-pre-tool": "tool_call",
+    "codex-post-tool": "tool_call",
 }
 
 
