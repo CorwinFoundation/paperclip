@@ -1,0 +1,15 @@
+{
+  "issue": "BEAAA-39970",
+  "item": "3 - MHJ import with licence check",
+  "source": "https://huggingface.co/datasets/ScaleAI/mhj",
+  "pinned_commit": "ad6e928f5c2823f53fbb828f6d60dd4137fd43e7",
+  "source_last_modified": "2024-09-19T01:10:35Z",
+  "checked_on": "2026-10-10",
+  "licence": "cc-by-nc-4.0",
+  "access": "gated (auto-approve after a name/affiliation/purpose form)",
+  "decision": "not_imported",
+  "reason": "CC BY-NC 4.0 forbids commercial use. Full Scan is a paid product, so MHJ conversations cannot become tests in a paid pack. The dataset card grants no commercial exception; it also notes export-control redactions of some HarmBench behaviours and WMDP-bio responses.",
+  "rows_imported": 0,
+  "unique_tests_added": 0,
+  "revisit_if": "Scale AI grants BackBond written commercial-use permission, or the licence changes."
+}
