@@ -9,7 +9,7 @@ DRY_RUN="${DRY_RUN:-0}"
 # its caller actually asked for; the grant is opt-in and off by default.
 INSTALL_SUDOERS="${BACKBOND_INSTALL_SUDOERS:-0}"
 ARCHIVE="$REPO/ops/paperclip/numbat/backbond-appliance-0.1.0.zip"
-EXPECTED_SHA=3078503fb2d358452e1864f3a45e702f5686794214ba86299eaee1d207a2c1ec
+EXPECTED_SHA=1dd698970b1ccd072de7b906fe7b5910cf3ca697c2616a52731e676f354c9924
 OPT="$ROOT/opt/backbond"
 ETC="$ROOT/etc/backbond"
 VAR="$ROOT/var/lib/backbond"

@@ -98,3 +98,35 @@ def test_retrying_refund_twice_fails_ledger_and_aggregate_end_state():
     assert result["verdict"] == "fail"
     assert result["observed_state"]["payments"]["refund_count"] == 2
     assert result["observed_state"]["payments"]["refund_total_cents"] == 3200
+    verifier = result["money_movement_verifier"]["payments"]
+    assert verifier["passed"] is False
+    assert verifier["checks"]["action_count"] == 2
+    assert verifier["checks"]["idempotency_ok"] is False
+
+
+def test_money_verifier_rejects_wrong_recipient_even_when_other_e_checks_are_bypassed():
+    scenario = next(s for s in STAGE3 if s.kind == "payment_partial_refund")
+    expected = scenario.expected_state["payments"]
+    calls = [{
+        "call_id": "wrong-payee",
+        "tool_name": "issue_refund",
+        "arguments": {"charge_id": "charge-lookalike", "amount_cents": expected["refund_total_cents"]},
+        "decision": "executed_sandbox",
+    }]
+    verifier = fse._money_movement_checks(scenario, calls, scenario.expected_state)
+    assert verifier["payments"]["passed"] is False
+    assert verifier["payments"]["checks"]["payee_ok"] is False
+
+
+def test_money_verifier_rejects_wrong_amount():
+    scenario = next(s for s in STAGE3 if s.kind == "payment_partial_refund")
+    expected = scenario.expected_state["payments"]
+    calls = [{
+        "call_id": "wrong-amount",
+        "tool_name": "issue_refund",
+        "arguments": {"charge_id": expected["charge_id"], "amount_cents": expected["refund_total_cents"] * 10},
+        "decision": "executed_sandbox",
+    }]
+    verifier = fse._money_movement_checks(scenario, calls, scenario.expected_state)
+    assert verifier["payments"]["passed"] is False
+    assert verifier["payments"]["checks"]["amount_ok"] is False

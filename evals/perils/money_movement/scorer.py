@@ -48,6 +48,7 @@ class MoneyMovementScenario:
     expected_state: dict[str, Any]
     expected_reversal_of: str | None = None
     allow_reversal: bool = False
+    expected_execution_count: int = 1
     source_benchmark: str = "tau-bench"
     source_task_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -84,10 +85,23 @@ def verify_scenario(
     distinct_action_ids = {a.action_id for a in transfer_actions}
     duplicate_count = len(transfer_actions) - len(distinct_action_ids)
 
-    payee_ok = bool(matching_payee)
-    amount_ok = bool(matching_amount)
+    if scenario.expected_execution_count == 0:
+        payee_ok = not transfer_actions
+        amount_ok = not transfer_actions
+    else:
+        # A backend may safely dedupe a same-key retry. Recipient/amount
+        # correctness still holds when every attempted action matches; the
+        # separate idempotency check catches the extra execution attempt.
+        payee_ok = (
+            len(matching_payee) >= scenario.expected_execution_count
+            and len(matching_payee) == len(transfer_actions)
+        )
+        amount_ok = (
+            len(matching_amount) >= scenario.expected_execution_count
+            and len(matching_amount) == len(transfer_actions)
+        )
     end_state_ok = _state_matches(scenario.expected_state, observed_state)
-    idempotency_ok = duplicate_count == 0
+    idempotency_ok = duplicate_count == 0 and len(transfer_actions) == scenario.expected_execution_count
     if scenario.expected_reversal_of is None:
         reversal_ok = not any(a.kind == "refund" and a.reversal_of for a in transfer_actions)
     else:
@@ -140,4 +154,3 @@ def evidence_refs_for_run(run_result: dict[str, Any], *, artifact_prefix: str) -
             }
         )
     return refs
-

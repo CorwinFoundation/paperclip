@@ -1,4 +1,8 @@
 # BEAAA-7234 offline money-movement wrapper pins.
 tau-bench git+https://github.com/sierra-research/tau-bench@59a200c6d575d595120f1cb70fea53cef0632f6b
 tau2-bench git+https://github.com/sierra-research/tau2-bench@5ebebbe827b455b3ed04fcb9294235c6ef4e5fd6
-
+# Full Scan E second-wave handoff pins. AgentHarm is corpus-only until the
+# host runtime review is complete; these rows remain report-only.
+inspect-ai==0.3.220
+agent-harm==0.1.0
+# License condition: AgentHarm-derived rows are for AI-safety use only.

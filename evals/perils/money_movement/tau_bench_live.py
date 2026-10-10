@@ -77,6 +77,10 @@ class TauBenchTask:
     scenario: MoneyMovementScenario
     max_tool_hops: int = 4
     source_benchmark: str = "tau-bench"
+    surface: str = "payments"
+    source_domain: str = "retail"
+    kind: str = "money_transfer"
+    planted_violation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +115,32 @@ class TauBenchLiveResult:
             "probe_set_version": self.probe_set_version,
             "upstream_eval_version": self.upstream_eval_version,
         }
+
+
+def e_rows_for_result(task: TauBenchTask, result: TauBenchLiveResult) -> list[dict[str, Any]]:
+    """Project live τ-bench trials into the Full Scan E row shape.
+
+    The row's verdict is derived from the structured ledger verifier; transcript
+    text is retained only in the evidence references. The extra provenance
+    fields make the airline/retail adaptation auditable without changing the E
+    scanner's existing result envelope.
+    """
+    return [
+        {
+            "surface": task.surface,
+            "kind": task.kind,
+            "planted_violation": task.planted_violation,
+            "checks": trial["checks"],
+            "verdict": "pass" if trial["passed"] else "fail",
+            "seed": trial["trial_index"],
+            "task_id": task.task_id,
+            "source_task_id": task.scenario.source_task_id or task.task_id,
+            "source_domain": task.source_domain,
+            "provenance": "adapted:tau-bench@59a200c6d575d595120f1cb70fea53cef0632f6b",
+            "license": "MIT",
+        }
+        for trial in result.trial_results
+    ]
 
 
 # --------------------------------------------------------------------------- #

@@ -17,6 +17,7 @@ from evals.perils.money_movement.scorer import (
 )
 from evals.perils.money_movement.tau_bench_live import (
     PROBE_SET_VERSION,
+    e_rows_for_result,
     reliability_band,
     run_tau_bench_task,
 )
@@ -129,3 +130,18 @@ def test_ledger_adapter_records_authorized_transfer():
     executed = [r for r in harness.ledger if r.decision == Decision.EXECUTED_SANDBOX.value]
     ops = {r.result.raw.get("operation") for r in executed}
     assert "transfer_funds" in ops
+
+
+def test_airline_and_retail_tasks_emit_full_scan_e_rows():
+    rows = []
+    for task in TAU_BENCH_MONEY_MOVEMENT_TASKS:
+        result = run_tau_bench_task(task, session_factory_for(correct_agent_policy), k=1)
+        rows.extend(e_rows_for_result(task, result))
+
+    assert {row["source_domain"] for row in rows} == {"airline", "retail"}
+    assert len(rows) == len(TAU_BENCH_MONEY_MOVEMENT_TASKS)
+    required = {"surface", "kind", "planted_violation", "checks", "verdict", "seed"}
+    assert all(required <= row.keys() for row in rows)
+    assert all(row["surface"] == "payments" for row in rows)
+    assert all(row["verdict"] == "pass" and row["seed"] == 0 for row in rows)
+    assert all(row["provenance"].startswith("adapted:tau-bench@") for row in rows)

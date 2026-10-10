@@ -24,4 +24,5 @@ tool_bindings:
   - { partner_tool: get_account,      surface: accounts, operation: get_account }
   - { partner_tool: update_email,     surface: accounts, operation: update_email }
   - { partner_tool: update_address,   surface: accounts, operation: update_address }
+  - { partner_tool: downgrade_account, surface: accounts, operation: downgrade_account }
   - { partner_tool: close_account,    surface: accounts, operation: close_account }

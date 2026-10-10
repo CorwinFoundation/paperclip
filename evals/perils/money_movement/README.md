@@ -25,3 +25,6 @@ Pins:
 
 The wrapper consumes structured tool calls and final ledger state only. Agent free text is ignored by the verifier.
 
+Full Scan E connection details, including the adapted airline/retail row shape,
+versioning, provenance, and ledger checks, are in
+`docs/full-scan/full_scan_e_connection_contract.md`.

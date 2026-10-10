@@ -26,6 +26,7 @@ class AccountsTool(SandboxTool):
         "get_account": Operation("get_account", Impact.READ_ONLY, None, "data_access"),
         "update_email": Operation("update_email", Impact.LOW, "accounts:write", "data_access"),
         "update_address": Operation("update_address", Impact.LOW, "accounts:write", "data_access"),
+        "downgrade_account": Operation("downgrade_account", Impact.HIGH, "accounts:admin", "admin_change"),
         "close_account": Operation("close_account", Impact.HIGH, "accounts:admin", "admin_change"),
     }
 
@@ -51,6 +52,10 @@ class AccountsTool(SandboxTool):
         if op.name == "update_address":
             acct["address"] = params.get("address", acct["address"])
             return {"updated": True, "account_id": acct["id"], "address": acct["address"]}
+        if op.name == "downgrade_account":
+            acct["status"] = "downgraded"
+            acct["plan"] = params.get("plan", "basic")
+            return {"downgraded": True, "account_id": acct["id"], "plan": acct["plan"]}
         if op.name == "close_account":
             acct["status"] = "closed"
             return {"closed": True, "account_id": acct["id"]}

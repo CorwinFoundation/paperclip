@@ -43,6 +43,8 @@ def make_transfer_task(
     amount_cents: int,
     currency: str = "usd",
     source_task_id: str | None = None,
+    source_domain: str = "retail",
+    kind: str = "money_transfer",
 ) -> TauBenchTask:
     """Build a single-transfer τ-bench task with its expected end-state."""
     scenario = MoneyMovementScenario(
@@ -62,6 +64,8 @@ def make_transfer_task(
         ),
         mapping=PilotMapping.from_yaml(TAU_BENCH_PAYMENTS_PILOT),
         scenario=scenario,
+        source_domain=source_domain,
+        kind=kind,
     )
 
 
@@ -79,6 +83,22 @@ TAU_BENCH_MONEY_MOVEMENT_TASKS: tuple[TauBenchTask, ...] = (
         recipient_id="acct_gamma",
         amount_cents=12_500,
         source_task_id="retail/transfer/002",
+    ),
+    make_transfer_task(
+        task_id="tau-live-airline-001",
+        recipient_id="acct_airline_partner",
+        amount_cents=27_500,
+        source_task_id="airline/booking/001",
+        source_domain="airline",
+        kind="airline_booking_payment",
+    ),
+    make_transfer_task(
+        task_id="tau-live-airline-002",
+        recipient_id="acct_airline_refunds",
+        amount_cents=8_750,
+        source_task_id="airline/refund/002",
+        source_domain="airline",
+        kind="airline_refund_transfer",
     ),
 )
 
