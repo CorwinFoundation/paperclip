@@ -58,6 +58,30 @@ def _write_receipt(path: Path, value: dict) -> None:
         handle.write("\n")
 
 
+def _supports_source_binding(store: IntakeStore) -> bool:
+    """Return whether the installed intake schema can persist source binding."""
+    return "source_intake_id" in {
+        row[1] for row in store.db.execute("PRAGMA table_info(scans)")
+    }
+
+
+def _duplicate_admission(store: IntakeStore, source_intake_id: str, endpoint_host: str):
+    # AriClaw's surgically upgraded intake intentionally retains its legacy DB
+    # schema.  Host + frozen pack is sufficient there because this helper is
+    # hard-bound to the one approved Kaltura target.  Newer installs also use
+    # the stronger retained-source binding.
+    if _supports_source_binding(store):
+        return store.db.execute(
+            "SELECT id FROM scans WHERE source_intake_id=? "
+            "OR (endpoint_host=? AND pack_version=?) LIMIT 1",
+            (source_intake_id, endpoint_host, PACK),
+        ).fetchone()
+    return store.db.execute(
+        "SELECT id FROM scans WHERE endpoint_host=? AND pack_version=? LIMIT 1",
+        (endpoint_host, PACK),
+    ).fetchone()
+
+
 def main(argv=None) -> int:
     args = _args(argv)
     if args.pack_id != PACK or args.expected_total != TOTAL or not args.reuse_recipient or not args.reuse_consent:
@@ -76,20 +100,20 @@ def main(argv=None) -> int:
         raise SystemExit("refusing admission: retained recipient or consent is absent")
     if source["endpoint_host"] != "learning.kaltura.com" or source["transport"] != TRANSPORT:
         raise SystemExit("refusing admission: retained target or transport is not approved")
-    duplicate = store.db.execute(
-        "SELECT id FROM scans WHERE source_intake_id=? OR (endpoint_host=? AND pack_version=?) LIMIT 1",
-        (args.source_intake_id, source["endpoint_host"], PACK),
-    ).fetchone()
+    supports_source_binding = _supports_source_binding(store)
+    duplicate = _duplicate_admission(store, args.source_intake_id, source["endpoint_host"])
     if duplicate:
         raise SystemExit("refusing admission: prior or active voice admission exists without this receipt")
 
     try:
-        reservation = store.reserve(
+        reserve_args = dict(
             code=source["code"], email=source["email"], agent_label=source["agent_label"],
             endpoint_url=TARGET, transport=TRANSPORT, terms_version=consent["terms_version"],
             improvement_consent=bool(consent["improvement_consent"]), pack_version=PACK,
-            source_intake_id=args.source_intake_id,
         )
+        if supports_source_binding:
+            reserve_args["source_intake_id"] = args.source_intake_id
+        reservation = store.reserve(**reserve_args)
     except (IntakeError, sqlite3.IntegrityError) as exc:
         raise SystemExit(f"refusing admission: {type(exc).__name__}") from None
 

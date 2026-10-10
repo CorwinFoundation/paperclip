@@ -50,3 +50,25 @@ def test_helper_has_no_third_party_runtime_dependency():
     source = (ROOT / "backbond/scan-intake/admit_retained_voice.py").read_text()
     assert "import httpx" not in source
     assert "from urllib.request import Request, urlopen" in source
+
+
+def test_duplicate_check_supports_legacy_schema_without_source_binding():
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE scans(id TEXT, endpoint_host TEXT, pack_version TEXT)")
+    db.execute("INSERT INTO scans VALUES('old', 'learning.kaltura.com', ?)", (admit.PACK,))
+    store = type("LegacyStore", (), {"db": db})()
+
+    assert not admit._supports_source_binding(store)
+    assert admit._duplicate_admission(store, "source", "learning.kaltura.com")[0] == "old"
+
+
+def test_duplicate_check_uses_source_binding_when_available():
+    db = sqlite3.connect(":memory:")
+    db.execute(
+        "CREATE TABLE scans(id TEXT, endpoint_host TEXT, pack_version TEXT, source_intake_id TEXT)"
+    )
+    db.execute("INSERT INTO scans VALUES('old', 'other.example', 'other-pack', 'source')")
+    store = type("CurrentStore", (), {"db": db})()
+
+    assert admit._supports_source_binding(store)
+    assert admit._duplicate_admission(store, "source", "learning.kaltura.com")[0] == "old"
