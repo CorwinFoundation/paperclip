@@ -28,7 +28,7 @@ from harness.attacker_engine import (
     run_attack,
 )
 from harness.attacker_evidence import FrozenCaseError, FrozenCaseStore, summarize_zoo, write_zoo_measurements
-from harness.reference_zoo import REFERENCE_SPECS
+from harness.reference_zoo import REFERENCE_SPECS, ReferenceSpec
 
 
 # These are immutable provider model identifiers, not aliases resolved at run
@@ -197,11 +197,12 @@ class OpenRouterAttacker:
 class OpenAICompatibleTarget:
     """Target adapter for a reference-zoo subject behind an OpenAI-compatible API."""
 
-    def __init__(self, model_id: str, *, transport: ChatTransport | None = None, api_key: str | None = None, identity: str | None = None) -> None:
+    def __init__(self, model_id: str, *, transport: ChatTransport | None = None, api_key: str | None = None, identity: str | None = None, system_prompt: str | None = None) -> None:
         if not model_id.strip():
             raise ValueError("target model identity is required")
         self.model_id = model_id.strip()
         self.identity = identity.strip() if identity else f"target:{self.model_id}"
+        self.system_prompt = system_prompt.strip() if system_prompt else None
         key = api_key or os.environ.get("OPENAI_API_KEY", "").strip()
         self.credential_available = bool(key) or transport is not None
         self._transport = transport or (OpenAICompatibleTransport(api_key=key, url=os.environ.get("OPENAI_BASE_URL", OPENAI_URL).rstrip("/") + "/chat/completions") if key else None)
@@ -212,8 +213,30 @@ class OpenAICompatibleTarget:
     def send(self, prompt: str) -> TargetReply:
         if self._transport is None:
             raise ProviderError("target credentials are absent")
-        result = self._transport.chat(model=self.model_id, messages=[{"role": "user", "content": prompt}], max_tokens=256)
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        result = self._transport.chat(model=self.model_id, messages=messages, max_tokens=256)
         return TargetReply(result.content, result.cost_usd)
+
+
+def build_reference_zoo_target(agent_id: str, *, transport: ChatTransport | None = None, api_key: str | None = None) -> OpenAICompatibleTarget:
+    """Resolve a zoo identity to its pinned provider model and behavior profile."""
+    specs = {spec.agent_id: spec for spec in REFERENCE_SPECS}
+    try:
+        spec: ReferenceSpec = specs[agent_id]
+    except KeyError as exc:
+        raise CampaignPreflightError((f"unknown reference-zoo agent: {agent_id}",)) from exc
+    key = api_key or os.environ.get("OPENROUTER_API_KEY", "").strip()
+    resolved_transport = transport or (OpenAICompatibleTransport(api_key=key, url=OPENROUTER_URL) if key else None)
+    return OpenAICompatibleTarget(
+        spec.provider_model,
+        transport=resolved_transport,
+        api_key=key,
+        identity=f"reference-zoo:{spec.agent_id}",
+        system_prompt=spec.system_prompt,
+    )
 
 
 class OpenRouterJudge:
@@ -471,7 +494,6 @@ def load_goal_pack(path: Path) -> tuple[AttackGoal, ...]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--goal-pack", "--goals", dest="goal_pack", type=Path, required=True)
-    parser.add_argument("--target-binding", action="append", required=True, metavar="AGENT_ID=MODEL_ID")
     parser.add_argument("--per-attack-cap-usd", type=Decimal, required=True)
     parser.add_argument("--campaign-cap-usd", type=Decimal, required=True)
     parser.add_argument("--run-count", "--runs", type=int, default=1)
@@ -487,14 +509,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     goals = load_goal_pack(args.goal_pack)
-    bindings = dict(binding.split("=", 1) for binding in args.target_binding)
     if args.mock:
         attacker = ZeroCostAdapter(args.attacker_model)
-        targets = {agent_id: ZeroCostAdapter(model_id) for agent_id, model_id in bindings.items()}
+        targets = {spec.agent_id: ZeroCostAdapter(spec.agent_id) for spec in REFERENCE_SPECS}
         judge = ZeroCostAdapter(args.judge_model)
     else:
         attacker = OpenRouterAttacker()
-        targets = {agent_id: OpenAICompatibleTarget(model_id, identity=agent_id) for agent_id, model_id in bindings.items()}
+        targets = {spec.agent_id: build_reference_zoo_target(spec.agent_id) for spec in REFERENCE_SPECS}
         judge = OpenRouterJudge()
         # CLI overrides remain explicit and are part of the identity preflight.
         attacker.model_id = args.attacker_model  # type: ignore[misc]

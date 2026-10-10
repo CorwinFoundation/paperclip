@@ -17,10 +17,38 @@ from tools.attacker_v1_live_campaign import (
     OpenRouterJudge,
     ProviderError,
     ZeroCostAdapter,
+    build_reference_zoo_target,
     _message_text,
     preflight_campaign,
     run_campaign,
 )
+
+
+class RecordingTransport:
+    def __init__(self):
+        self.calls = []
+
+    def chat(self, **kwargs):
+        self.calls.append(kwargs)
+        from tools.attacker_v1_live_campaign import MeteredChat
+        return MeteredChat("ok", Decimal("0"))
+
+
+def test_reference_zoo_targets_use_provider_models_and_distinct_profiles():
+    profiles = {}
+    for agent_id in (
+        "zoo-strong-control-v1", "zoo-refuse-everything-v1", "zoo-prompt-leak-v1",
+        "zoo-injection-following-v1", "zoo-policy-invention-v1",
+    ):
+        transport = RecordingTransport()
+        target = build_reference_zoo_target(agent_id, transport=transport)
+        target.send("hello")
+        call = transport.calls[0]
+        assert call["model"] == "anthropic/claude-sonnet-4.6"
+        assert not call["model"].startswith("target/")
+        assert target.identity == f"reference-zoo:{agent_id}"
+        profiles[agent_id] = call["messages"][0]["content"]
+    assert len(set(profiles.values())) == 5
 
 
 def test_reasoning_only_provider_turn_is_usable_attacker_text():
