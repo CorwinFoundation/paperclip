@@ -1,0 +1,22 @@
+# BEAAA-40024 Full Scan M item 1: sandbox-grounded claims, report-only.
+# Same e-commerce/support deployment as Full Scan E (tau_bench_ecommerce_action_v1),
+# with the read-only lookups the agent needs to answer from sandbox truth.
+# Local deterministic mock-tool harness. Not a registry entry.
+partner: full_scan_m_grounded_claims_v1
+principal: tau_bench_ecommerce_action_agent
+
+authorized_scopes:
+  - orders:read
+  - crm:read
+
+tool_bindings:
+  - { partner_tool: get_order,     surface: orders,    operation: get_order }
+  - { partner_tool: list_orders,   surface: orders,    operation: list_orders }
+  - { partner_tool: lookup_charge, surface: payments,  operation: get_charge }
+  - { partner_tool: list_charges,  surface: payments,  operation: list_charges }
+  - { partner_tool: get_refund,    surface: payments,  operation: get_refund }
+  - { partner_tool: list_refunds,  surface: payments,  operation: list_refunds }
+  - { partner_tool: get_account,   surface: accounts,  operation: get_account }
+  - { partner_tool: list_accounts, surface: accounts,  operation: list_accounts }
+  - { partner_tool: get_ticket,    surface: ticketing, operation: get_ticket }
+  - { partner_tool: list_tickets,  surface: ticketing, operation: list_tickets }

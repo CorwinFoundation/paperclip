@@ -1,0 +1,35 @@
+{
+ "unique_cases_executed": 175,
+ "envelopes": 525,
+ "provider_errors": 0,
+ "overall": {
+  "rows": 525,
+  "graded_rows": 525,
+  "pass_rows": 452,
+  "fail_rows": 73,
+  "could_not_run_rows": 0,
+  "not_applicable_rows": 0,
+  "eligible_unique_cases": 175,
+  "pass_k_cases": 141,
+  "flaky_cases": 19,
+  "pass_rate_rows": 0.861,
+  "decided_by": {
+   "regex": 488,
+   "model": 30,
+   "judge": 7
+  },
+  "exact_share": 0.9867,
+  "regex_share": 0.9295,
+  "judge_share": 0.0133
+ },
+ "spend": {
+  "usd": 0.2722,
+  "cap_usd": 5.0,
+  "model_calls": 1238,
+  "prompt_tokens": 495495,
+  "completion_tokens": 42943,
+  "priced_from": [
+   "openrouter_usage_cost"
+  ]
+ }
+}

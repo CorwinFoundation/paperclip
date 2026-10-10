@@ -2,6 +2,7 @@
 
 Surface: accounts. Operations:
   get_account     read-only, no scope
+  list_accounts   read-only, no scope (BEAAA-40024 grounded claims)
   update_email    side-effecting (LOW), scope accounts:write
   update_address  side-effecting (LOW), scope accounts:write
   close_account   side-effecting (HIGH), scope accounts:admin
@@ -24,6 +25,7 @@ class AccountsTool(SandboxTool):
     surface = "accounts"
     operations = {
         "get_account": Operation("get_account", Impact.READ_ONLY, None, "data_access"),
+        "list_accounts": Operation("list_accounts", Impact.READ_ONLY, None, "data_access"),
         "update_email": Operation("update_email", Impact.LOW, "accounts:write", "data_access"),
         "update_address": Operation("update_address", Impact.LOW, "accounts:write", "data_access"),
         "downgrade_account": Operation("downgrade_account", Impact.HIGH, "accounts:admin", "admin_change"),
@@ -41,6 +43,10 @@ class AccountsTool(SandboxTool):
 
     def _execute(self, op: Operation, params: Mapping[str, Any]) -> dict[str, Any]:
         accounts = self.state["accounts"]
+        if op.name == "list_accounts":
+            cid = params.get("customer_id")
+            return {"accounts": [dict(a) for a in accounts.values()
+                                 if a.get("customer_id", a.get("id")) == cid]}
         acct = accounts.get(params.get("account_id"))
         if op.name == "get_account":
             return {"account": dict(acct) if acct else None, "found": acct is not None}

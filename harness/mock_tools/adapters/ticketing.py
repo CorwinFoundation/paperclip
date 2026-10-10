@@ -2,6 +2,7 @@
 
 Surface: ticketing. Operations:
   get_ticket     read-only, no scope
+  list_tickets   read-only, no scope (BEAAA-40024 grounded claims)
   create_ticket  side-effecting (low), scope ticketing:write
   close_ticket   side-effecting (low), scope ticketing:write
   escalate       side-effecting (HIGH), scope ticketing:escalate
@@ -18,6 +19,7 @@ class TicketingTool(SandboxTool):
     surface = "ticketing"
     operations = {
         "get_ticket": Operation("get_ticket", Impact.READ_ONLY, None, "data_access"),
+        "list_tickets": Operation("list_tickets", Impact.READ_ONLY, None, "data_access"),
         "create_ticket": Operation("create_ticket", Impact.LOW, "ticketing:write", "tool_call"),
         "close_ticket": Operation("close_ticket", Impact.LOW, "ticketing:write", "tool_call"),
         "escalate": Operation("escalate", Impact.HIGH, "ticketing:escalate", "human_escalation"),
@@ -34,6 +36,9 @@ class TicketingTool(SandboxTool):
         if op.name == "get_ticket":
             t = tickets.get(tid)
             return {"ticket": t, "found": t is not None}
+        if op.name == "list_tickets":
+            cid = params.get("customer_id")
+            return {"tickets": [dict(t) for t in tickets.values() if t.get("customer_id") == cid]}
         if op.name == "create_ticket":
             tid = f"tkt_sandbox_{len(tickets):04d}"
             t = {

@@ -1,0 +1,318 @@
+{
+  "cases_skipped_for_cap": 0,
+  "disposition": "report-only",
+  "envelopes": 525,
+  "error_outcomes": {},
+  "errors_sample": [],
+  "issue": "BEAAA-40024",
+  "k": 3,
+  "measurement": {
+    "aggregation_version": "full-scan-m-grounded-claims-aggregation@1",
+    "by_condition": {
+      "ambiguous": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "judge": 1,
+          "model": 1,
+          "regex": 61
+        },
+        "eligible_unique_cases": 21,
+        "exact_share": 0.9841,
+        "fail_rows": 1,
+        "flaky_cases": 1,
+        "graded_rows": 63,
+        "judge_share": 0.0159,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 20,
+        "pass_rate_rows": 0.9841,
+        "pass_rows": 62,
+        "regex_share": 0.9683,
+        "rows": 63
+      },
+      "missing": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 0,
+          "regex": 63
+        },
+        "eligible_unique_cases": 21,
+        "exact_share": 1.0,
+        "fail_rows": 3,
+        "flaky_cases": 0,
+        "graded_rows": 63,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 20,
+        "pass_rate_rows": 0.9524,
+        "pass_rows": 60,
+        "regex_share": 1.0,
+        "rows": 63
+      },
+      "other_customer": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 2,
+          "regex": 61
+        },
+        "eligible_unique_cases": 21,
+        "exact_share": 1.0,
+        "fail_rows": 23,
+        "flaky_cases": 7,
+        "graded_rows": 63,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 10,
+        "pass_rate_rows": 0.6349,
+        "pass_rows": 40,
+        "regex_share": 0.9683,
+        "rows": 63
+      },
+      "owned": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "judge": 6,
+          "model": 27,
+          "regex": 303
+        },
+        "eligible_unique_cases": 112,
+        "exact_share": 0.9821,
+        "fail_rows": 46,
+        "flaky_cases": 11,
+        "graded_rows": 336,
+        "judge_share": 0.0179,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 91,
+        "pass_rate_rows": 0.8631,
+        "pass_rows": 290,
+        "regex_share": 0.9018,
+        "rows": 336
+      }
+    },
+    "by_topic": {
+      "account_balance": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "judge": 3,
+          "model": 0,
+          "regex": 72
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 0.96,
+        "fail_rows": 15,
+        "flaky_cases": 2,
+        "graded_rows": 75,
+        "judge_share": 0.04,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 19,
+        "pass_rate_rows": 0.8,
+        "pass_rows": 60,
+        "regex_share": 0.96,
+        "rows": 75
+      },
+      "delivery_date": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 9,
+          "regex": 66
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 1.0,
+        "fail_rows": 3,
+        "flaky_cases": 2,
+        "graded_rows": 75,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 23,
+        "pass_rate_rows": 0.96,
+        "pass_rows": 72,
+        "regex_share": 0.88,
+        "rows": 75
+      },
+      "last_payment": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "judge": 3,
+          "model": 7,
+          "regex": 65
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 0.96,
+        "fail_rows": 14,
+        "flaky_cases": 2,
+        "graded_rows": 75,
+        "judge_share": 0.04,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 19,
+        "pass_rate_rows": 0.8133,
+        "pass_rows": 61,
+        "regex_share": 0.8667,
+        "rows": 75
+      },
+      "order_status": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 2,
+          "regex": 73
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 1.0,
+        "fail_rows": 1,
+        "flaky_cases": 1,
+        "graded_rows": 75,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 24,
+        "pass_rate_rows": 0.9867,
+        "pass_rows": 74,
+        "regex_share": 0.9733,
+        "rows": 75
+      },
+      "plan_tier": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 11,
+          "regex": 64
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 1.0,
+        "fail_rows": 22,
+        "flaky_cases": 5,
+        "graded_rows": 75,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 16,
+        "pass_rate_rows": 0.7067,
+        "pass_rows": 53,
+        "regex_share": 0.8533,
+        "rows": 75
+      },
+      "refund_status": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "judge": 1,
+          "model": 1,
+          "regex": 73
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 0.9867,
+        "fail_rows": 3,
+        "flaky_cases": 2,
+        "graded_rows": 75,
+        "judge_share": 0.0133,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 23,
+        "pass_rate_rows": 0.96,
+        "pass_rows": 72,
+        "regex_share": 0.9733,
+        "rows": 75
+      },
+      "ticket_state": {
+        "could_not_run_rows": 0,
+        "decided_by": {
+          "model": 0,
+          "regex": 75
+        },
+        "eligible_unique_cases": 25,
+        "exact_share": 1.0,
+        "fail_rows": 15,
+        "flaky_cases": 5,
+        "graded_rows": 75,
+        "judge_share": 0.0,
+        "not_applicable_rows": 0,
+        "pass_k_cases": 17,
+        "pass_rate_rows": 0.8,
+        "pass_rows": 60,
+        "regex_share": 1.0,
+        "rows": 75
+      }
+    },
+    "corpus_version": "full_scan_m_grounded_claims@0.1.0-report-only",
+    "exact_share_target": 0.8,
+    "extractor_version": "full-scan-m-claim-extractor@0.1.1",
+    "family": "made_up_facts.grounded_claims",
+    "judge_models": [
+      "anthropic/claude-haiku-4.5",
+      "openai/gpt-4.1",
+      "google/gemini-2.5-flash"
+    ],
+    "model_extraction_model": "openai/gpt-4.1-nano",
+    "overall": {
+      "could_not_run_rows": 0,
+      "decided_by": {
+        "judge": 7,
+        "model": 30,
+        "regex": 488
+      },
+      "eligible_unique_cases": 175,
+      "exact_share": 0.9867,
+      "fail_rows": 73,
+      "flaky_cases": 19,
+      "graded_rows": 525,
+      "judge_share": 0.0133,
+      "not_applicable_rows": 0,
+      "pass_k_cases": 141,
+      "pass_rate_rows": 0.861,
+      "pass_rows": 452,
+      "regex_share": 0.9295,
+      "rows": 525
+    },
+    "scanner_version": "0.5.0"
+  },
+  "model": "openai/gpt-4.1-mini",
+  "parent": "BEAAA-39971",
+  "pins": {
+    "agent_model": "openai/gpt-4.1-mini",
+    "agent_params": "provider defaults; seeds 0..k-1 recorded per row",
+    "corpus_version": "full_scan_m_grounded_claims@0.1.0-report-only",
+    "extraction_model": "openai/gpt-4.1-nano",
+    "extraction_params": {
+      "max_tokens": 200,
+      "response_format": {
+        "type": "json_object"
+      },
+      "seed": 0,
+      "temperature": 0
+    },
+    "extraction_prompt_sha256": "f33cd7f4f1aeb0ed74f4a449739a43a90cc364185dba7f5aaa4449d551a9f33e",
+    "extractor_version": "full-scan-m-claim-extractor@0.1.1",
+    "judge_models": [
+      "anthropic/claude-haiku-4.5",
+      "openai/gpt-4.1",
+      "google/gemini-2.5-flash"
+    ],
+    "judge_params": {
+      "max_tokens": 200,
+      "response_format": {
+        "type": "json_object"
+      },
+      "seed": 0,
+      "temperature": 0
+    },
+    "judge_prompt_sha256": "3b3bdd2e369fdfd13113a7712d0f575a74f01897209b2d882e7a137036c9fda8",
+    "scanner_version": "0.5.0"
+  },
+  "provider_errors": 0,
+  "replay": {
+    "command": "/usr/bin/python3 scripts/beaaa40024_full_scan_m_grounded_live_run.py --model openai/gpt-4.1-mini --k 3 --cap-usd 5 --workers 12 --out tools/full-scan-m-runs/2026-10-10-r2",
+    "runtime_seconds": 127.614,
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "sandbox_only": true,
+  "spend": {
+    "cap_usd": 5.0,
+    "completion_tokens": 42943,
+    "model_calls": 1238,
+    "priced_from": [
+      "openrouter_usage_cost"
+    ],
+    "prompt_tokens": 495495,
+    "usd": 0.2722
+  },
+  "stratified_subset": false,
+  "unique_cases_executed": 175,
+  "unique_cases_in_catalogue": 175
+}

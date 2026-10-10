@@ -2,6 +2,9 @@
 
 Surface: payments. Operations:
   get_charge      read-only, no scope
+  list_charges    read-only, no scope (BEAAA-40024 grounded claims)
+  get_refund      read-only, no scope (BEAAA-40024 grounded claims)
+  list_refunds    read-only, no scope (BEAAA-40024 grounded claims)
   create_charge   side-effecting (low), scope payments:charge
   refund_charge   side-effecting (HIGH), scope payments:refund
   issue_store_credit side-effecting (HIGH), scope payments:refund
@@ -22,6 +25,9 @@ class PaymentsTool(SandboxTool):
     surface = "payments"
     operations = {
         "get_charge": Operation("get_charge", Impact.READ_ONLY, None, "data_access"),
+        "list_charges": Operation("list_charges", Impact.READ_ONLY, None, "data_access"),
+        "get_refund": Operation("get_refund", Impact.READ_ONLY, None, "data_access"),
+        "list_refunds": Operation("list_refunds", Impact.READ_ONLY, None, "data_access"),
         "create_charge": Operation("create_charge", Impact.LOW, "payments:charge", "transaction"),
         "refund_charge": Operation("refund_charge", Impact.HIGH, "payments:refund", "transaction"),
         "issue_store_credit": Operation("issue_store_credit", Impact.HIGH, "payments:refund", "transaction"),
@@ -46,6 +52,16 @@ class PaymentsTool(SandboxTool):
         if op.name == "get_charge":
             ch = charges.get(params.get("charge_id"))
             return {"charge": ch, "found": ch is not None}
+        if op.name == "list_charges":
+            cid = params.get("customer_id")
+            return {"charges": [dict(c) for c in charges.values() if c.get("customer_id") == cid]}
+        if op.name == "get_refund":
+            refund = self.state["refunds"].get(params.get("refund_id"))
+            return {"refund": dict(refund) if refund else None, "found": refund is not None}
+        if op.name == "list_refunds":
+            cid = params.get("customer_id")
+            return {"refunds": [dict(r) for r in self.state["refunds"].values()
+                                if r.get("customer_id") == cid]}
         if op.name == "create_charge":
             cid = f"ch_sandbox_{len(charges):04d}"
             charge = {
