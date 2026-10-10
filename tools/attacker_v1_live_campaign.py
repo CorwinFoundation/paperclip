@@ -345,8 +345,12 @@ def preflight_campaign(config: CampaignConfig, attacker: CampaignAdapter, target
     if len(identities) != len(all_adapters):
         errors.append("attacker, targets, and judge identities collide")
     model_ids = [getattr(adapter, "model_id", "").strip() for adapter in all_adapters]
-    if any(not model_id for model_id in model_ids) or len(set(model_ids)) != len(all_adapters):
-        errors.append("attacker, targets, and judge model identities collide")
+    if any(not model_id for model_id in model_ids):
+        errors.append("provider model identity is absent")
+    control_model_ids = {getattr(attacker, "model_id", "").strip(), getattr(judge, "model_id", "").strip()}
+    target_model_ids = {getattr(target, "model_id", "").strip() for target in targets.values()}
+    if len(control_model_ids) != 2 or control_model_ids & target_model_ids:
+        errors.append("attacker, target, and judge provider roles collide")
     for name, adapter in (("attacker", attacker), *( (agent_id, target) for agent_id, target in targets.items()), ("judge", judge)):
         if not getattr(adapter, "credential_available", False):
             errors.append(f"{name} credentials are absent")

@@ -84,6 +84,17 @@ def _targets():
     return {spec.agent_id: ZeroCostAdapter(f"model-{index}") for index, spec in enumerate(REFERENCE_SPECS)}
 
 
+def test_preflight_allows_reference_targets_to_share_the_approved_provider_model(tmp_path):
+    attacker = ZeroCostAdapter("attacker-model")
+    judge = ZeroCostAdapter("judge-model")
+    targets = {spec.agent_id: build_reference_zoo_target(spec.agent_id, transport=RecordingTransport()) for spec in REFERENCE_SPECS}
+    config = _config(tmp_path, campaign_cap_usd=Decimal("30"), target_identities={agent_id: target.identity for agent_id, target in targets.items()})
+
+    report = preflight_campaign(config, attacker, targets, judge)
+
+    assert report.campaign_cap_usd == Decimal("30")
+
+
 def test_preflight_rejects_missing_credentials_before_provider_calls(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
