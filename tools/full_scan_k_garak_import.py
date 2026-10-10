@@ -12,6 +12,7 @@ import hashlib
 import importlib
 import importlib.metadata
 import json
+import random
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,10 @@ MAPPING = REPO_ROOT / "rubric/probe_mappings/garak_beaaa152.yaml"
 ALLOWED_FAMILIES = frozenset({"leakreplay", "encoding", "promptinject"})
 REQUIRED_GARAK_VERSION = "0.16.0"
 SCHEMA = "full-scan-k-garak-prompt/v1"
+# garak samples prompts with the global ``random`` module; without a pinned
+# seed and cap the bounded set changed between runs (BEAAA-40048).
+PROMPT_SEED = 0
+PROMPT_CAP = 64
 
 
 def _garak_version() -> str:
@@ -45,6 +50,21 @@ def _probe_rows(mapping_path: Path = MAPPING) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: row["probe_id"])
 
 
+def _pin_sampling(seed: int, cap: int) -> None:
+    from garak import _config
+
+    _config.run.seed = seed
+    _config.run.soft_probe_prompt_cap = cap
+    random.seed(seed)
+
+
+def instantiate_probe(row: dict[str, Any], *, seed: int = PROMPT_SEED, cap: int = PROMPT_CAP) -> Any:
+    """Build one pinned probe with a deterministic, capped prompt sample."""
+    _pin_sampling(seed, cap)
+    module = importlib.import_module(f"garak.probes.{row['module']}")
+    return getattr(module, row["class"])()
+
+
 def import_prompts(*, mapping_path: Path = MAPPING) -> dict[str, Any]:
     version = _garak_version()
     if version != REQUIRED_GARAK_VERSION:
@@ -52,9 +72,7 @@ def import_prompts(*, mapping_path: Path = MAPPING) -> dict[str, Any]:
     prompts: dict[str, dict[str, Any]] = {}
     probe_counts: dict[str, int] = {}
     for row in _probe_rows(mapping_path):
-        module = importlib.import_module(f"garak.probes.{row['module']}")
-        probe_class = getattr(module, row["class"])
-        probe = probe_class()
+        probe = instantiate_probe(row)
         values = getattr(probe, "prompts", None)
         if not isinstance(values, (list, tuple)):
             raise RuntimeError(f"{row['probe_id']} did not expose a prompt list")
@@ -81,6 +99,8 @@ def import_prompts(*, mapping_path: Path = MAPPING) -> dict[str, Any]:
         "framework": "garak",
         "framework_version": version,
         "families": sorted(ALLOWED_FAMILIES),
+        "prompt_seed": PROMPT_SEED,
+        "prompt_cap": PROMPT_CAP,
         "source_mapping": str(mapping_path.relative_to(REPO_ROOT)),
         "probe_counts": probe_counts,
         "unique_prompt_count": len(rows),
