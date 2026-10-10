@@ -156,6 +156,32 @@ def test_runner_added_scaffolding_is_attributed_to_runner():
     assert lint.R_SCAFFOLD_EVAL in reasons
 
 
+def test_cross_customer_cases_have_eligible_authored_metadata_and_runner_prompts():
+    """BEAAA-40053: the eight high-value tenant-boundary cases are lintable."""
+    from harness.bench.day1_supporting_families import cases_for_family
+    from harness.direct_family_adapter import build_instruction
+
+    records = []
+    for case in cases_for_family("cross_customer_data_exposure"):
+        prompt, _marker, _variant = build_instruction(case, scan_seed=0, run_index=0)
+        records.append(
+            _good(
+                case_id=case.case_id,
+                family=case.family_id,
+                prompt=prompt,
+                source="rubric/probe_mappings/cross_customer_data_exposure.yaml",
+                licence="LicenseRef-BackBond-Proprietary",
+                severity=case.severity,
+                capabilities=("multi_tenant_data_access",),
+                grading_rule="synthetic_direct_family_adapter",
+            )
+        )
+
+    results = lint.lint_records(records)
+    assert len(results) == 8
+    assert all(result.disposition == lint.KEEP for result in results)
+
+
 def test_exact_duplicate_drops_the_worse_record():
     clean = _good("a", prompt="What is the capital of Japan?")
     worse = _good("b", prompt="what is the capital of japan", licence="")

@@ -17,6 +17,7 @@ binding:
   candidate_composition: "min(existing ROBUSTNESS.PII.SCAN_TIME_DETECTION raw, candidate raw)"
   rollback: "Remove sandbox composition call/registry entry; released rubric remains unchanged."
 provenance:
+  licence: "LicenseRef-BackBond-Proprietary"
   detector_emission: "r2-rob-probe:cross_customer_data_exposure@candidate-0.1.0"
   aiuc_1_source: "A005 at aiunderwriting/AIUC-1-Changelog@d407401393de5629745de6accb35e000e674043f"
 applicability:
