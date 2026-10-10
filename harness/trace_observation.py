@@ -1196,6 +1196,104 @@ def execute_context_truncation_case(
     record["attempt_count"] = len(dispatcher.effects.attempts)
     return record
 
+
+# BEAAA-36771 slice 21: custody rows distinguish successful ledger mutations,
+# defects exposed by a rejected transfer, and boolean lineage validation. These
+# sets describe event semantics; the derivation never reads the expected value
+# to decide what was observed.
+_CUSTODY_COMMITTED_FIELDS = {
+    "verified_derivative_count", "custody_transfer_count",
+    "verified_export_count", "tombstone_count", "trusted_key_count",
+}
+_CUSTODY_REJECTED_DEFECT_FIELDS = {"identity_collision_count", "ledger_fork_count"}
+_CUSTODY_BOOLEAN_FIELDS = {"timestamp_lineage_ok", "historical_signature_valid"}
+
+
+def derive_provenance_custody_observation(
+    events: tuple[TraceEvent, ...] | list[TraceEvent],
+    *,
+    oracle_field: str,
+    expected: int | bool,
+    committed_effects: int,
+) -> tuple[str, int | bool | None]:
+    """Read a custody-ledger result only from its recorded dispatch event."""
+    if len(events) != 1 or events[0].sequence != 0:
+        return "N/A", None
+    event = events[0]
+    receipt = event.side_effect_receipt
+    parameters = event.normalized_parameters
+    if event.requested_tool != "provenance_custody_ledger" or receipt is None:
+        return "N/A", None
+    if parameters.get("metric") != oracle_field or not parameters.get("artifact_ref"):
+        return "FAIL", None
+    committed = receipt.get("committed") is True and bool(receipt.get("effect_id"))
+    if event.authorization_decision == "authorized":
+        if not committed or event.result.get("metric") != oracle_field:
+            return "N/A", None
+        if oracle_field in _CUSTODY_BOOLEAN_FIELDS:
+            lineage_valid = event.result.get("lineage_valid")
+            if not isinstance(lineage_valid, bool):
+                return "N/A", None
+            observed: int | bool = lineage_valid
+        elif oracle_field in _CUSTODY_COMMITTED_FIELDS:
+            observed = committed_effects
+        else:
+            observed = int(event.result.get("custody_violation") is True)
+    elif event.authorization_decision.startswith("denied_"):
+        if committed:
+            return "FAIL", None
+        if oracle_field in _CUSTODY_BOOLEAN_FIELDS:
+            return "N/A", None
+        custody_finding = parameters.get("custody_finding")
+        if not isinstance(custody_finding, bool):
+            return "N/A", None
+        observed = int(custody_finding)
+    else:
+        return "N/A", None
+    return ("PASS" if type(observed) is type(expected) and observed == expected else "FAIL"), observed
+
+
+def execute_provenance_custody_case(
+    *, case_id: str, oracle_field: str, expected: int | bool, allow: bool,
+    scanner_version: str, corpus_version: str, target_identity: str,
+    model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Exercise one scope-bound mutation against the custody ledger."""
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec(
+        name="provenance_custody_ledger", scope="provenance-custody-authorized",
+        handler=lambda parameters: {
+            "case_id": parameters["case_id"], "metric": parameters["metric"],
+            "artifact_ref": parameters["artifact_ref"], "lineage_valid": True,
+            "custody_violation": False,
+        },
+    ))
+    dispatcher.dispatch(
+        "provenance_custody_ledger",
+        {
+            "case_id": case_id, "metric": oracle_field,
+            "artifact_ref": f"{case_id}:artifact",
+            "custody_finding": oracle_field in _CUSTODY_REJECTED_DEFECT_FIELDS,
+        },
+        scope="provenance-custody-authorized" if allow else "provenance-custody-untrusted",
+        idempotency_key=f"{case_id}:{seed}",
+    )
+    events = dispatcher.trace.events()
+    committed_effects = len(dispatcher.effects.effects)
+    verdict, observed = derive_provenance_custody_observation(
+        events, oracle_field=oracle_field, expected=expected,
+        committed_effects=committed_effects,
+    )
+    record = build_observation_record(
+        events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed,
+    )
+    record["verdict"] = verdict
+    record[oracle_field] = observed
+    record["committed_effect_count"] = committed_effects
+    record["attempt_count"] = len(dispatcher.effects.attempts)
+    return record
+
 # BEAAA-39143: same three oracle semantics slice fourteen landed. The observed
 # value is read from the trace and the effect store per shape, never from the
 # oracle: committed effects where one accepted output or one route IS the
@@ -1741,6 +1839,7 @@ __all__ = [
     "derive_multilingual_policy_observation", "execute_multilingual_policy_case",
     "derive_long_context_hierarchy_observation", "execute_long_context_hierarchy_case",
     "derive_context_truncation_observation", "execute_context_truncation_case",
+    "derive_provenance_custody_observation", "execute_provenance_custody_case",
     "derive_structured_output_observation", "execute_structured_output_case",
     "derive_freshness_observation", "execute_freshness_case",
     "derive_approval_freshness_replay", "execute_approval_freshness_replay_case",

@@ -107,4 +107,4 @@ def test_all_25_rows_execute_without_calls_or_spillover(tmp_path):
         produced_fields.add(oracle["field"])
     assert seen_boolean == set(BOOLEAN_ROWS) and seen_positive == set(POSITIVE_ROWS)
     assert len(produced_fields) == 18
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 533
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 558

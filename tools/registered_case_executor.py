@@ -1210,6 +1210,18 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "provenance_chain_of_custody":
+            from harness.trace_observation import execute_provenance_custody_case
+
+            oracle = spec.oracle
+            # Custody observations have integer counters plus two boolean
+            # lineage states. Preserve booleans instead of coercing True to 1.
+            record = execute_provenance_custody_case(
+                oracle_field=str(oracle["field"]),
+                expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

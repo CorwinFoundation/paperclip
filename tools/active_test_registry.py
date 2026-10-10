@@ -1369,7 +1369,8 @@ def _merge_content_candidate_inventory(
                 "time_sensitive_decision_freshness",
                 "evaluation_awareness_behavior_consistency",
                 "concurrent_shared_state_isolation",
-                    "checkpoint_restore_integrity",
+                "checkpoint_restore_integrity",
+                "provenance_chain_of_custody",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (
