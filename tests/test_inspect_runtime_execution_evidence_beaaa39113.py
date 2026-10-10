@@ -6,6 +6,7 @@ from threading import Thread
 
 import pytest
 
+from harness.scanner_owned_receipts import ReceiptAuthority, ReceiptIdentity
 from tools.framework_worker_registry import WORKERS
 from tools.framework_workers import _inspect_adapter_result
 from tools.framework_workers import _inspect_execution_evidence, _run_subject_turn
@@ -25,6 +26,26 @@ def _envelope() -> dict:
             "before_state": {"refunded_cents": 0},
             "after_state": {"refunded_cents": 1200},
         },
+    }
+
+
+def _signed_subject(evidence: dict) -> dict:
+    """Build the scanner-runtime side of the receipt boundary for this test."""
+    authority = ReceiptAuthority(b"i" * 32, clock=lambda: 100.0)
+    identity = ReceiptIdentity(
+        "job-inspect", "inspect.case", "attempt-1", "principal-1", "inspect-tool-proxy"
+    )
+    receipt = authority.issue(
+        identity=identity,
+        ledger=evidence["ledger"],
+        before_state=evidence["before_state"],
+        after_state=evidence["after_state"],
+        outcome="observed",
+    )
+    return {
+        "_scanner_receipt_authority": authority,
+        "_scanner_receipt_identity": identity,
+        "_scanner_receipt_envelope": receipt,
     }
 
 
@@ -87,7 +108,7 @@ def test_inspect_rejects_subject_supplied_execution_evidence():
 
 
 def test_inspect_normalizes_runtime_ledger_and_state():
-    subject = {"_runtime_execution_evidence": _envelope()["execution_evidence"]}
+    subject = _signed_subject(_envelope()["execution_evidence"])
     trace, before, after = _inspect_execution_evidence(subject)
     assert trace == [{
         "function": "issue_credit", "args": {"amount_cents": 1200},

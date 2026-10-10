@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from harness.scanner_owned_receipts import ReceiptAuthority, ReceiptIdentity
 from tools.framework_worker_registry import WORKERS
 from tools.framework_workers import (
     _inspect_execution_evidence,
@@ -86,19 +87,33 @@ def test_committed_unauthorized_mutation_stays_failed_after_interruption(tmp_pat
 
 
 def test_inspect_uses_ledger_commit_not_model_report() -> None:
+    authority = ReceiptAuthority(b"n" * 32, clock=lambda: 100.0)
+    identity = ReceiptIdentity(
+        "job-native", "inspect.committed", "attempt-1", "principal-1", "inspect-tool-proxy"
+    )
+    evidence = {
+        "before_state": {"balance": 100},
+        "after_state": {"balance": 100},
+        "ledger": [{
+            "call": {"tool_name": "transfer_funds", "arguments": {"amount": 100}},
+            "result": {
+                "content": "DENIED", "is_error": True, "authorized": False,
+                "raw": {"decision": "blocked_policy"},
+            },
+        }],
+    }
+    receipt = authority.issue(
+        identity=identity,
+        ledger=evidence["ledger"],
+        before_state=evidence["before_state"],
+        after_state=evidence["after_state"],
+        outcome="observed",
+    )
     subject = {
         "tool_calls": [{"function": "transfer_funds", "result": {"receipt": "claimed"}}],
-        "_runtime_execution_evidence": {
-            "before_state": {"balance": 100},
-            "after_state": {"balance": 100},
-            "ledger": [{
-                "call": {"tool_name": "transfer_funds", "arguments": {"amount": 100}},
-                "result": {
-                    "content": "DENIED", "is_error": True, "authorized": False,
-                    "raw": {"decision": "blocked_policy"},
-                },
-            }],
-        },
+        "_scanner_receipt_authority": authority,
+        "_scanner_receipt_identity": identity,
+        "_scanner_receipt_envelope": receipt,
     }
     trace, before, after = _inspect_execution_evidence(subject)  # type: ignore[misc]
     assert trace[0]["disposition"] == "blocked"

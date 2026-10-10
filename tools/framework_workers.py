@@ -17,6 +17,7 @@ from api.attacker_pins import attacker_pin, bind_attacker_credentials
 import itertools
 import json
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,9 @@ if str(REPO_ROOT) not in sys.path:
 from tools.framework_worker_registry import WORKERS, WorkerDefinition
 from scanners.eval_framework_venv import venv_python
 from scanners.native_oracle import classify_canary_response, non_substantive_reason
+from harness.scanner_owned_receipts import (
+    ReceiptAuthority, ReceiptIdentity, evidence_from_receipt,
+)
 
 # inspect_ai's @modelapi registry is global and silently ignores duplicate
 # names.  Use a per-process counter so every _inspect_adapter_result call
@@ -514,6 +518,39 @@ def _tau_bench_adapter_result(
             model_version=model_version,
         )
     duration_ms = max(1, int((time.monotonic() - started) * 1000))
+    receipt_authority = ReceiptAuthority(secrets.token_bytes(32))
+    receipt_identity = ReceiptIdentity(
+        job_id=str(job.get("job_id") or "scan"),
+        scenario_id=case_id,
+        attempt_id=f"{job.get('job_id') or 'scan'}:{case_id}:{int(job.get('seed') or 0)}",
+        principal_id=str(job.get("agent_id") or model_version),
+        tool_id="tau-native-tool-proxy",
+    )
+    receipt_ledger = [
+        {
+            "tool": row["name"], "arguments": row["arguments"],
+            "observation": row["observation"], "disposition": "committed",
+        }
+        for row in tool_trace
+    ]
+    scanner_receipt = receipt_authority.issue(
+        identity=receipt_identity, ledger=receipt_ledger,
+        before_state=before_state, after_state=after_state, outcome="observed",
+    )
+    # Grade only the observations that round-trip through the scanner-owned
+    # authority. This should be unreachable unless local memory is corrupted,
+    # but the boundary remains fail closed.
+    verified_receipt = evidence_from_receipt(
+        receipt_authority, scanner_receipt, receipt_identity
+    )
+    if verified_receipt is None:
+        return _result_dict(
+            status="incomplete", evidence_ref=None,
+            incomplete_reason=f"worker_runtime_evidence_rejected:{worker.worker_id}",
+            model_version=model_version, target_calls=target_calls,
+        )
+    before_state = verified_receipt["before_state"]
+    after_state = verified_receipt["after_state"]
     outcome = {
         "environment": "retail", "task_index": int(getattr(env, "task_index")),
         "task": _native_state_snapshot(env.task), "transcript": transcript,
@@ -523,6 +560,7 @@ def _tau_bench_adapter_result(
         "verdict": "pass" if reward == 1.0 else "fail",
         "duration_ms": duration_ms,
         "spend": _native_state_snapshot(subject.get("_runtime_execution_evidence", {})),
+        "scanner_receipt": scanner_receipt,
     }
     evidence_ref = _persist_tau_evidence(worker, registry_row, job, outcome)
     return _result_dict(
@@ -617,6 +655,7 @@ def _persist_tau_evidence(
         "reason": "native tau-bench database end-state oracle",
         "duration_ms": outcome.get("duration_ms"),
         "spend": spend,
+        "scanner_receipt": outcome.get("scanner_receipt"),
         "replay_payload": replay_payload_path.resolve().as_uri(),
         "replay_command": (
             f"python3 -m tools.framework_workers run < {replay_payload_path.resolve()}"
@@ -630,6 +669,7 @@ def _persist_native_evidence(
     *, framework: str, worker: WorkerDefinition, registry_row: Mapping[str, Any],
     job: Mapping[str, Any], model_version: str, tool_trace: list[dict[str, Any]],
     before_state: Any, after_state: Any, oracle: Mapping[str, Any],
+    scanner_receipt: Mapping[str, Any] | None = None,
 ) -> str:
     evidence_root = Path(str(job.get("evidence_dir") or REPO_ROOT / "artifacts" / "framework-workers"))
     safe_job = re.sub(r"[^A-Za-z0-9_.-]", "_", str(job.get("job_id") or "scan"))
@@ -663,6 +703,7 @@ def _persist_native_evidence(
         "before_state": before_state,
         "after_state": after_state,
         "oracle": dict(oracle),
+        "scanner_receipt": dict(scanner_receipt) if scanner_receipt is not None else None,
         "replay_payload": replay_payload_path.resolve().as_uri(),
         "replay_command": (
             f"python3 -m tools.framework_workers run < {replay_payload_path.resolve()}"
@@ -734,7 +775,22 @@ def _inspect_execution_evidence(subject: Mapping[str, Any]) -> tuple[list[dict[s
     resettable ReferenceToolSandbox.  Its rows are ledger rows and therefore
     distinguish attempts, policy blocks, and committed sandbox actions.
     """
-    evidence = subject.get("_runtime_execution_evidence")
+    # New controlled-target path: the scanner runtime keeps both the authority
+    # and expected identity out of the target response.  A target-provided
+    # envelope therefore cannot authenticate itself.
+    authority = subject.get("_scanner_receipt_authority")
+    identity = subject.get("_scanner_receipt_identity")
+    envelope = subject.get("_scanner_receipt_envelope")
+    if isinstance(authority, ReceiptAuthority) and isinstance(identity, ReceiptIdentity):
+        if not isinstance(envelope, Mapping):
+            return None
+        evidence = evidence_from_receipt(authority, envelope, identity)
+        if evidence is None:
+            return None
+    else:
+        # The old mutable dictionary was caller supplied and had no identity,
+        # freshness, or issuer binding. It is deliberately no longer gradeable.
+        return None
     if not isinstance(evidence, Mapping):
         return None
     rows = evidence.get("ledger")
