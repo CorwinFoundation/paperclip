@@ -4,10 +4,12 @@ from pathlib import Path
 import pytest
 
 from harness.attacker_engine import AttackGoal
+from harness.reference_zoo import REFERENCE_SPECS
 from tools.attacker_v1_live_campaign import (
     ATTACKER_MODEL,
     FIVE_FAMILIES,
     JUDGE_MODEL,
+    PARENT_CAMPAIGN_CAP_USD,
     CampaignConfig,
     CampaignPreflightError,
     OpenAICompatibleTarget,
@@ -26,61 +28,88 @@ def _config(tmp_path: Path, **overrides):
     )
     values = dict(
         goals=goals,
-        target_identity="target:reference-zoo-v1",
+        target_identities={spec.agent_id: f"mock:model-{index}" for index, spec in enumerate(REFERENCE_SPECS)},
         per_attack_cap_usd=Decimal("1"),
         campaign_cap_usd=Decimal("20"),
         max_turns=1,
         run_count=1,
+        strong_control_repetitions=3,
         output_dir=tmp_path,
     )
     values.update(overrides)
     return CampaignConfig(**values)
 
 
+def _targets():
+    return {spec.agent_id: ZeroCostAdapter(f"model-{index}") for index, spec in enumerate(REFERENCE_SPECS)}
+
+
 def test_preflight_rejects_missing_credentials_before_provider_calls(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     attacker = OpenRouterAttacker()
-    target = OpenAICompatibleTarget("target-model")
+    targets = {spec.agent_id: OpenAICompatibleTarget(f"target-model-{index}", identity=spec.agent_id) for index, spec in enumerate(REFERENCE_SPECS)}
     judge = OpenRouterJudge()
 
     with pytest.raises(CampaignPreflightError, match="credentials are absent"):
-        preflight_campaign(_config(tmp_path), attacker, target, judge)
+        preflight_campaign(_config(tmp_path, target_identities={spec.agent_id: spec.agent_id for spec in REFERENCE_SPECS}), attacker, targets, judge)
 
 
 def test_preflight_rejects_identity_collision_and_over_cap(tmp_path):
     adapter = ZeroCostAdapter("same")
     with pytest.raises(CampaignPreflightError, match="identities collide"):
-        preflight_campaign(_config(tmp_path, campaign_cap_usd=Decimal("0.01")), adapter, adapter, adapter)
+        preflight_campaign(_config(tmp_path, campaign_cap_usd=Decimal("0.01"), target_identities={spec.agent_id: adapter.identity for spec in REFERENCE_SPECS}), adapter, {spec.agent_id: adapter for spec in REFERENCE_SPECS}, adapter)
+
+
+def test_preflight_enforces_the_usd_30_parent_cap(tmp_path):
+    with pytest.raises(CampaignPreflightError, match=f"parent cap {PARENT_CAMPAIGN_CAP_USD}"):
+        preflight_campaign(
+            _config(tmp_path, campaign_cap_usd=Decimal("30.01")),
+            ZeroCostAdapter(ATTACKER_MODEL),
+            _targets(),
+            ZeroCostAdapter(JUDGE_MODEL),
+        )
 
 
 def test_zero_cost_end_to_end_writes_attempts_frozen_metrics_and_transcripts(tmp_path):
     result = run_campaign(
         _config(tmp_path),
         attacker=ZeroCostAdapter(ATTACKER_MODEL),
-        target=ZeroCostAdapter("target:reference-zoo-v1"),
+        targets=_targets(),
         judge=ZeroCostAdapter(JUDGE_MODEL),
         commit="test-commit",
     )
 
-    assert result.attempts == 5
-    assert result.successes == 5
-    assert result.attempts_path.read_text().count("\n") == 5
+    assert result.attempts == 35
+    assert result.successes == 35
+    rows = [__import__("json").loads(line) for line in result.attempts_path.read_text().splitlines()]
+    assert {row["agent_id"] for row in rows} == {spec.agent_id for spec in REFERENCE_SPECS}
+    assert sum(row["agent_id"] == "zoo-strong-control-v1" for row in rows) == 15
     assert result.frozen_successes_path.read_text().count("\n") == 5
-    assert len(list(result.transcript_dir.glob("*.md"))) == 5
+    assert len(list(result.transcript_dir.glob("*.md"))) == 35
     assert len(result.metrics_path.read_text().splitlines()) > 1
 
 
 def test_strong_controls_are_bounded_and_resume_without_duplicate_attempts(tmp_path):
     adapters = {
         "attacker": ZeroCostAdapter(ATTACKER_MODEL),
-        "target": ZeroCostAdapter("target:reference-zoo-v1"),
+        "targets": _targets(),
         "judge": ZeroCostAdapter(JUDGE_MODEL),
     }
-    config = _config(tmp_path, strong_control_repetitions=2, run_count=2)
+    config = _config(tmp_path, strong_control_repetitions=3, run_count=2)
     first = run_campaign(config, **adapters)
     second = run_campaign(config, **adapters)
 
-    assert first.attempts == 12
+    assert first.attempts == 55
     assert second.attempts == 0
-    assert first.attempts_path.read_text().count("\n") == 12
+    assert first.attempts_path.read_text().count("\n") == 55
+    assert len(__import__("json").loads(second.metrics_path.read_text())) == 25
+
+
+def test_generic_target_cannot_masquerade_as_reference_zoo(tmp_path):
+    generic = ZeroCostAdapter("generic")
+    targets = {spec.agent_id: generic for spec in REFERENCE_SPECS}
+    config = _config(tmp_path, target_identities={spec.agent_id: generic.identity for spec in REFERENCE_SPECS})
+
+    with pytest.raises(CampaignPreflightError, match="identities collide"):
+        preflight_campaign(config, ZeroCostAdapter(ATTACKER_MODEL), targets, ZeroCostAdapter(JUDGE_MODEL))

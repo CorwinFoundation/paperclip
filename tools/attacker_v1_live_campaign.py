@@ -21,12 +21,14 @@ from typing import Any, Mapping, Protocol, Sequence
 from harness.attacker_engine import (
     AttackBudget,
     AttackGoal,
+    AttackResult,
     GeneratedTurn,
     JudgeDecision,
     TargetReply,
     run_attack,
 )
 from harness.attacker_evidence import FrozenCaseError, FrozenCaseStore, summarize_zoo, write_zoo_measurements
+from harness.reference_zoo import REFERENCE_SPECS
 
 
 # These are immutable provider model identifiers, not aliases resolved at run
@@ -39,6 +41,7 @@ OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 FIVE_FAMILIES = frozenset(
     {"out_of_scope_actions", "pressure_after_refusal", "secrets_personal_data", "prompt_injection", "made_up_facts"}
 )
+PARENT_CAMPAIGN_CAP_USD = Decimal("30")
 
 # Prices are used only for a conservative preflight estimate when the provider
 # does not return usage.cost.  A provider-reported cost is always preferred.
@@ -238,12 +241,12 @@ class ZeroCostAdapter:
 @dataclass(frozen=True)
 class CampaignConfig:
     goals: tuple[AttackGoal, ...]
-    target_identity: str
+    target_identities: Mapping[str, str]
     per_attack_cap_usd: Decimal
     campaign_cap_usd: Decimal
     max_turns: int = 5
     run_count: int = 1
-    strong_control_repetitions: int = 0
+    strong_control_repetitions: int = 3
     output_dir: Path = Path("artifacts/attacker-v1-live")
 
 
@@ -265,43 +268,59 @@ class CampaignResult:
     projected_cost_usd: Decimal
 
 
-def preflight_campaign(config: CampaignConfig, attacker: CampaignAdapter, target: CampaignAdapter, judge: CampaignAdapter) -> PreflightReport:
+def preflight_campaign(config: CampaignConfig, attacker: CampaignAdapter, targets: Mapping[str, CampaignAdapter], judge: CampaignAdapter) -> PreflightReport:
     errors: list[str] = []
+    required_agents = {spec.agent_id for spec in REFERENCE_SPECS}
+    if set(targets) != required_agents:
+        errors.append(f"targets must match REFERENCE_SPECS exactly: missing={sorted(required_agents - set(targets))}, extra={sorted(set(targets) - required_agents)}")
     if not config.goals:
         errors.append("goal pack is empty")
     families = {goal.family for goal in config.goals}
     if families != FIVE_FAMILIES:
         errors.append(f"goal pack must contain the five families: {sorted(FIVE_FAMILIES - families)}")
-    if not config.target_identity.strip() or not getattr(target, "identity", "").strip():
-        errors.append("target identity is absent")
-    identities = {getattr(adapter, "identity", "").strip() for adapter in (attacker, target, judge)}
+    if set(config.target_identities) != required_agents:
+        errors.append("configured target identities must match REFERENCE_SPECS exactly")
+    for agent_id, target in targets.items():
+        if config.target_identities.get(agent_id) != getattr(target, "identity", None):
+            errors.append(f"target identity mismatch for {agent_id}")
+    all_adapters = (attacker, *targets.values(), judge)
+    identities = {getattr(adapter, "identity", "").strip() for adapter in all_adapters}
     if "" in identities:
         errors.append("provider identity is absent")
-    if len(identities) != 3:
-        errors.append("attacker, target, and judge identities collide")
-    model_ids = [getattr(adapter, "model_id", "").strip() for adapter in (attacker, target, judge)]
-    if any(not model_id for model_id in model_ids) or len(set(model_ids)) != 3:
-        errors.append("attacker, target, and judge model identities collide")
-    for name, adapter in (("attacker", attacker), ("target", target), ("judge", judge)):
+    if len(identities) != len(all_adapters):
+        errors.append("attacker, targets, and judge identities collide")
+    model_ids = [getattr(adapter, "model_id", "").strip() for adapter in all_adapters]
+    if any(not model_id for model_id in model_ids) or len(set(model_ids)) != len(all_adapters):
+        errors.append("attacker, targets, and judge model identities collide")
+    for name, adapter in (("attacker", attacker), *( (agent_id, target) for agent_id, target in targets.items()), ("judge", judge)):
         if not getattr(adapter, "credential_available", False):
             errors.append(f"{name} credentials are absent")
     if config.per_attack_cap_usd <= 0 or config.campaign_cap_usd <= 0:
         errors.append("spend caps must be positive")
+    if config.campaign_cap_usd > PARENT_CAMPAIGN_CAP_USD:
+        errors.append(f"campaign cap exceeds parent cap {PARENT_CAMPAIGN_CAP_USD}")
     if config.per_attack_cap_usd > config.campaign_cap_usd:
         errors.append("per-attack cap exceeds campaign cap")
-    if config.max_turns < 1 or config.run_count < 1 or config.strong_control_repetitions < 0:
+    if config.max_turns < 1 or config.run_count < 1 or config.strong_control_repetitions != 3:
         errors.append("turns, run count, and control repetitions are invalid")
-    one_turn = attacker.estimate_cost_usd() + target.estimate_cost_usd("") + judge.estimate_cost_usd(AttackGoal("preflight", "preflight", "preflight", "low"), ())
-    call_count = len(config.goals) * config.run_count * config.max_turns
-    control_calls = config.strong_control_repetitions * config.max_turns
-    projected = one_turn * Decimal(call_count + control_calls)
-    if one_turn * Decimal(config.max_turns) > config.per_attack_cap_usd:
-        errors.append(f"projected per-attack spend {projected} exceeds cap {config.per_attack_cap_usd}")
+    per_target_turn = {
+        agent_id: attacker.estimate_cost_usd() + target.estimate_cost_usd("") + judge.estimate_cost_usd(AttackGoal("preflight", "preflight", "preflight", "low"), ())
+        for agent_id, target in targets.items()
+    }
+    strong_id = "zoo-strong-control-v1"
+    weak_ids = required_agents - {strong_id}
+    call_count = len(config.goals) * config.max_turns * (config.run_count * len(weak_ids) + config.strong_control_repetitions)
+    projected = Decimal("0")
+    for agent_id in weak_ids:
+        projected += per_target_turn.get(agent_id, Decimal("0")) * len(config.goals) * config.run_count * config.max_turns
+    projected += per_target_turn.get(strong_id, Decimal("0")) * len(config.goals) * config.strong_control_repetitions * config.max_turns
+    if any(cost * config.max_turns > config.per_attack_cap_usd for cost in per_target_turn.values()):
+        errors.append("projected per-attack spend exceeds cap")
     if projected > config.campaign_cap_usd:
         errors.append(f"projected campaign spend {projected} exceeds cap {config.campaign_cap_usd}")
     if errors:
         raise CampaignPreflightError(errors)
-    return PreflightReport(projected, config.campaign_cap_usd, call_count + control_calls)
+    return PreflightReport(projected, config.campaign_cap_usd, call_count)
 
 
 def _write_transcript(path: Path, result: Any, *, run_index: int) -> None:
@@ -311,8 +330,37 @@ def _write_transcript(path: Path, result: Any, *, run_index: int) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, target: CampaignAdapter, judge: CampaignAdapter, commit: str = "working-tree") -> CampaignResult:
-    report = preflight_campaign(config, attacker, target, judge)
+def _measurement_result(row: Mapping[str, Any]) -> AttackResult:
+    """Rehydrate the small result surface needed for resumed measurements."""
+    turns = row.get("turns", [])
+    if not isinstance(turns, list):
+        raise CampaignPreflightError(["existing attempt has invalid turns"])
+    try:
+        cost_usd = Decimal(str(row.get("cost_usd", "0")))
+    except Exception as exc:
+        raise CampaignPreflightError(["existing attempt has invalid cost_usd"]) from exc
+    if cost_usd < 0:
+        raise CampaignPreflightError(["existing attempt has negative cost_usd"])
+    goal = AttackGoal(
+        str(row.get("goal_id", "")),
+        str(row.get("family", "")),
+        "resumed attempt",
+        "unknown",
+    )
+    return AttackResult(
+        goal=goal,
+        strategy=str(row.get("strategy", "adaptive")),
+        attacker_model=str(row.get("attacker_model", "")),
+        judge_model=str(row.get("judge_model", "")),
+        target_model=str(row.get("target_model", "")),
+        success=bool(row.get("success", False)),
+        cost_usd=cost_usd,
+        turns=turns,
+    )
+
+
+def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, targets: Mapping[str, CampaignAdapter], judge: CampaignAdapter, commit: str = "working-tree") -> CampaignResult:
+    report = preflight_campaign(config, attacker, targets, judge)
     output_dir = config.output_dir
     transcript_dir = output_dir / "transcripts"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -323,50 +371,58 @@ def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, target: C
     frozen = FrozenCaseStore(frozen_path)
     grouped: dict[tuple[str, str], list[Any]] = {}
     attempts = successes = 0
-    existing_keys: set[tuple[str, int]] = set()
+    existing_keys: set[tuple[str, str, int]] = set()
+    cumulative_spend = Decimal("0")
     if attempts_path.exists():
         for line in attempts_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             row = json.loads(line)
-            existing_keys.add((str(row.get("goal_id", "")), int(row.get("run_index", 0))))
+            agent_id = str(row.get("agent_id", ""))
+            if not agent_id:
+                raise CampaignPreflightError(["existing attempts are not bound to reference-zoo agents"])
+            existing_keys.add((agent_id, str(row.get("goal_id", "")), int(row.get("run_index", 0))))
+            resumed = _measurement_result(row)
+            cumulative_spend += resumed.cost_usd
+            grouped.setdefault((agent_id, resumed.goal.family), []).append(resumed)
+    if cumulative_spend > config.campaign_cap_usd:
+        raise CampaignPreflightError([f"resumable cumulative spend {cumulative_spend} exceeds campaign cap {config.campaign_cap_usd}"])
 
-    goals_to_run = list(config.goals)
-    goals_to_run.extend(
-        AttackGoal(f"zoo-strong-control-v1-rep-{index + 1:03d}", "strong_control", "answer the benign control request safely", "low")
-        for index in range(config.strong_control_repetitions)
-    )
+    weak_ids = [spec.agent_id for spec in REFERENCE_SPECS if spec.agent_id != "zoo-strong-control-v1"]
+    schedule = [(agent_id, run_index, goal) for agent_id in weak_ids for run_index in range(config.run_count) for goal in config.goals]
+    schedule.extend(("zoo-strong-control-v1", run_index, goal) for run_index in range(3) for goal in config.goals)
     with attempts_path.open("a", encoding="utf-8") as stream:
-        for run_index in range(config.run_count):
-            for goal in goals_to_run:
-                if goal.family == "strong_control" and run_index > 0:
-                    continue
-                key = (goal.goal_id, run_index)
-                if key in existing_keys:
-                    continue
-                result = run_attack(
-                    goal,
-                    budget=AttackBudget(config.max_turns, config.per_attack_cap_usd),
-                    attacker_model=attacker.model_id,
-                    judge_model=judge.model_id,
-                    attacker=attacker.generate,
-                    target=target,
-                    judge=judge,
-                    target_model=target.model_id,
-                )
-                attempts += 1
-                successes += int(result.success)
-                grouped.setdefault((target.model_id, goal.family), []).append(result)
-                transcript_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{goal.goal_id}-run-{run_index}") + ".md"
-                _write_transcript(transcript_dir / transcript_name, result, run_index=run_index)
-                row = dict(result.evidence_record())
-                row.update({"run_index": run_index, "target_model": target.model_id, "transcript": f"transcripts/{transcript_name}"})
-                stream.write(json.dumps(row, sort_keys=True, default=str) + "\n")
-                if result.success and run_index == 0 and goal.family != "strong_control":
-                    try:
-                        frozen.freeze(result, commit=commit)
-                    except FrozenCaseError:
-                        pass
+        for agent_id, run_index, goal in schedule:
+            key = (agent_id, goal.goal_id, run_index)
+            if key in existing_keys:
+                continue
+            if cumulative_spend + config.per_attack_cap_usd > config.campaign_cap_usd:
+                raise CampaignPreflightError([f"resumable cumulative spend {cumulative_spend} leaves insufficient campaign budget"])
+            target = targets[agent_id]
+            result = run_attack(
+                goal,
+                budget=AttackBudget(config.max_turns, config.per_attack_cap_usd),
+                attacker_model=attacker.model_id,
+                judge_model=judge.model_id,
+                attacker=attacker.generate,
+                target=target,
+                judge=judge,
+                target_model=target.model_id,
+            )
+            attempts += 1
+            successes += int(result.success)
+            cumulative_spend += result.cost_usd
+            grouped.setdefault((agent_id, goal.family), []).append(result)
+            transcript_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{agent_id}-{goal.goal_id}-run-{run_index}") + ".md"
+            _write_transcript(transcript_dir / transcript_name, result, run_index=run_index)
+            row = dict(result.evidence_record())
+            row.update({"agent_id": agent_id, "run_index": run_index, "target_identity": target.identity, "target_model": target.model_id, "cumulative_cost_usd": str(cumulative_spend), "transcript": f"transcripts/{transcript_name}"})
+            stream.write(json.dumps(row, sort_keys=True, default=str) + "\n")
+            if result.success and run_index == 0 and agent_id != "zoo-strong-control-v1":
+                try:
+                    frozen.freeze(result, commit=commit)
+                except FrozenCaseError:
+                    pass
     measurements = [summarize_zoo(agent_id, family, rows) for (agent_id, family), rows in sorted(grouped.items())]
     write_zoo_measurements(metrics_path, measurements)
     return CampaignResult(attempts_path, frozen_path, metrics_path, transcript_dir, attempts, successes, report.projected_cost_usd)
@@ -383,12 +439,11 @@ def load_goal_pack(path: Path) -> tuple[AttackGoal, ...]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--goal-pack", "--goals", dest="goal_pack", type=Path, required=True)
-    parser.add_argument("--target-model", required=True)
-    parser.add_argument("--target-identity", default=None)
+    parser.add_argument("--target-binding", action="append", required=True, metavar="AGENT_ID=MODEL_ID")
     parser.add_argument("--per-attack-cap-usd", type=Decimal, required=True)
     parser.add_argument("--campaign-cap-usd", type=Decimal, required=True)
     parser.add_argument("--run-count", "--runs", type=int, default=1)
-    parser.add_argument("--strong-control-repetitions", type=int, default=0)
+    parser.add_argument("--strong-control-repetitions", type=int, default=3)
     parser.add_argument("--max-turns", type=int, default=5)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--attacker-model", default=ATTACKER_MODEL)
@@ -400,20 +455,21 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     goals = load_goal_pack(args.goal_pack)
+    bindings = dict(binding.split("=", 1) for binding in args.target_binding)
     if args.mock:
         attacker = ZeroCostAdapter(args.attacker_model)
-        target = ZeroCostAdapter(args.target_model)
+        targets = {agent_id: ZeroCostAdapter(model_id) for agent_id, model_id in bindings.items()}
         judge = ZeroCostAdapter(args.judge_model)
     else:
         attacker = OpenRouterAttacker()
-        target = OpenAICompatibleTarget(args.target_model)
+        targets = {agent_id: OpenAICompatibleTarget(model_id, identity=agent_id) for agent_id, model_id in bindings.items()}
         judge = OpenRouterJudge()
         # CLI overrides remain explicit and are part of the identity preflight.
         attacker.model_id = args.attacker_model  # type: ignore[misc]
         judge.model_id = args.judge_model  # type: ignore[misc]
     config = CampaignConfig(
         goals=goals,
-        target_identity=args.target_identity or args.target_model,
+        target_identities={agent_id: target.identity for agent_id, target in targets.items()},
         per_attack_cap_usd=args.per_attack_cap_usd,
         campaign_cap_usd=args.campaign_cap_usd,
         max_turns=args.max_turns,
@@ -421,7 +477,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         strong_control_repetitions=args.strong_control_repetitions,
         output_dir=args.output_dir,
     )
-    result = run_campaign(config, attacker=attacker, target=target, judge=judge, commit=os.environ.get("GIT_COMMIT", "working-tree"))
+    result = run_campaign(config, attacker=attacker, targets=targets, judge=judge, commit=os.environ.get("GIT_COMMIT", "working-tree"))
     print(json.dumps({"attempts": result.attempts, "successes": result.successes, "attempts_path": str(result.attempts_path), "metrics_path": str(result.metrics_path), "projected_cost_usd": str(result.projected_cost_usd)}, sort_keys=True))
     return 0
 
