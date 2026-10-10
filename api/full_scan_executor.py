@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 import re
+import time
 import uuid
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from threading import RLock
+from threading import RLock, Semaphore
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from api.attacker_pins import attacker_pins_manifest_block
@@ -38,6 +41,7 @@ TERMINAL_JOB_STATUSES = {"complete", "incomplete", "failed", "cancelled", "incom
 COULD_NOT_RUN_PROBE_STATUS = "could_not_run"
 COST_CAP_REACHED_REASON = "cost_cap_reached"
 DEFAULT_MAX_RUNNING_JOBS_PER_TARGET = 1
+DEFAULT_MAX_INFLIGHT_CASES_PER_TARGET = 3
 TERMINAL_PROBE_STATUSES = {"complete", "skipped", "failed"}
 # Rows flushed per store write during a dispatch. A process killed mid-dispatch
 # loses at most this many paid target/judge attempts.
@@ -132,7 +136,9 @@ class UpstreamQuotaAbort(Exception):
 
 
 _UPSTREAM_QUOTA_ABORT_THRESHOLD = 8
-_UPSTREAM_QUOTA_RE = re.compile(r"^upstream_http_(401|402|403|429)")
+_UPSTREAM_QUOTA_RE = re.compile(
+    r"^(?:transport_retry_exhausted:)?upstream_http_(401|402|403|429)"
+)
 
 
 @dataclass(frozen=True)
@@ -260,6 +266,104 @@ class WorkerAttemptResult:
     judge_model: str | None = None
 
 
+_MAX_CASE_TRANSPORT_RETRIES = 3
+_MAX_CASE_BACKOFF_SECONDS = 8.0
+
+
+def _transport_status(value: Any) -> int | None:
+    """Extract a provider HTTP status without retaining provider payloads."""
+    for candidate in (
+        getattr(value, "status_code", None),
+        getattr(getattr(value, "response", None), "status_code", None),
+    ):
+        try:
+            status = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        if status in {429, 503}:
+            return status
+    text = str(value or "")
+    match = re.search(r"(?:upstream_http_|http\s*)(429|503)", text, re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def _retry_after_seconds(value: Any) -> float | None:
+    headers = getattr(value, "headers", None)
+    if headers is None:
+        headers = getattr(getattr(value, "response", None), "headers", None)
+    if not isinstance(headers, Mapping):
+        return None
+    for name in ("Retry-After", "retry-after", "X-RateLimit-Reset", "x-ratelimit-reset"):
+        raw = headers.get(name)
+        if raw is None:
+            continue
+        try:
+            delay = float(raw)
+        except (TypeError, ValueError):
+            continue
+        # Reset headers are commonly epoch seconds; keep the result bounded.
+        if delay > 1_000_000_000:
+            delay = max(0.0, delay - time.time())
+        return max(0.0, min(_MAX_CASE_BACKOFF_SECONDS, delay))
+    return None
+
+
+def _transport_result(status: int, *, attempts: int) -> WorkerAttemptResult:
+    return WorkerAttemptResult(
+        status=COULD_NOT_RUN_PROBE_STATUS,
+        evidence_ref=None,
+        incomplete_reason=f"transport_retry_exhausted:upstream_http_{status}:attempts={attempts}",
+    )
+
+
+def _invoke_worker_with_retry(
+    worker: FrameworkWorker,
+    registry_row: Mapping[str, Any],
+    job: FullScanJob,
+    *,
+    limiter: Semaphore,
+    sleep: Callable[[float], None] | None = None,
+    random_value: Callable[[], float] | None = None,
+) -> WorkerAttemptResult:
+    """Run one case under target pressure and bounded 429/503 backoff."""
+    last_status: int | None = None
+    sleep = sleep or time.sleep
+    random_value = random_value or random.random
+    for attempt in range(_MAX_CASE_TRANSPORT_RETRIES + 1):
+        with limiter:
+            try:
+                result = worker(registry_row, job)
+            except Exception as exc:  # noqa: BLE001 - normalize transport failures
+                status = _transport_status(exc)
+                if status is None:
+                    raise
+                last_status = status
+                result = None
+                retry_after = _retry_after_seconds(exc)
+            else:
+                status = _transport_status(result.incomplete_reason)
+                if status is None and result.status == COULD_NOT_RUN_PROBE_STATUS:
+                    status = _transport_status(result)
+                if status is None:
+                    return result
+                last_status = status
+                retry_after = _retry_after_seconds(result)
+                if attempt == _MAX_CASE_TRANSPORT_RETRIES:
+                    return _transport_result(status, attempts=attempt + 1)
+
+        if attempt >= _MAX_CASE_TRANSPORT_RETRIES:
+            break
+        base = retry_after if retry_after is not None else min(
+            _MAX_CASE_BACKOFF_SECONDS, 0.5 * (2**attempt)
+        )
+        # Full jitter keeps concurrent cases from retrying in lockstep.  A
+        # provider Retry-After remains the upper bound requested by the peer.
+        delay = min(_MAX_CASE_BACKOFF_SECONDS, base * (0.5 + random_value()))
+        if delay > 0:
+            sleep(delay)
+    return _transport_result(last_status or 503, attempts=_MAX_CASE_TRANSPORT_RETRIES + 1)
+
+
 @dataclass(frozen=True)
 class ControlledFamilyRun:
     """N=5 controlled-agent family result for release-band validation."""
@@ -334,6 +438,13 @@ class FullScanJob:
     # BEAAA-38987 — durable variable-form id from FormStore; None for legacy runs
     # without form-based scenario selection.
     form_id: str | None = None
+    # BEAAA-39990 — case-level target pressure is independent from the number
+    # of worker slots.  A customer may run N cases while a provider target is
+    # held to a lower, explicit in-flight cap.
+    max_concurrent_per_target: int = DEFAULT_MAX_INFLIGHT_CASES_PER_TARGET
+    # Durable live-progress projection.  These are case identities only; no
+    # prompt, response, credential, or evidence content crosses this boundary.
+    in_flight_case_ids: tuple[str, ...] = ()
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
@@ -370,6 +481,7 @@ class FullScanJobStore:
         # BEAAA-38957: maps job_id -> target_id for per-target concurrency.
         self._job_target_ids: dict[str, str | None] = {}
         self._lock = RLock()
+        self._case_limiters: dict[tuple[str, int], Semaphore] = {}
         self._persistence = persistence
         # BEAAA-38957 — ``api.full_scan_entitlement.FullScanEntitlementStore``.
         # A paid-pack job is only accepted against an unconsumed entitlement.
@@ -393,6 +505,18 @@ class FullScanJobStore:
                 record=_job_to_record(job),
             )
 
+    def case_limiter(self, target_id: str | None, limit: int) -> Semaphore:
+        """Return a process-local semaphore shared by jobs for one target."""
+        if limit <= 0:
+            raise FullScanExecutorError("case in-flight limit must be positive")
+        key = (str(target_id or "__unbound_target__"), int(limit))
+        with self._lock:
+            limiter = self._case_limiters.get(key)
+            if limiter is None:
+                limiter = Semaphore(limit)
+                self._case_limiters[key] = limiter
+            return limiter
+
     def submit(
         self,
         *,
@@ -414,7 +538,7 @@ class FullScanJobStore:
         max_cost_usd: float | None = None,
         tenant_id: str | None = None,
         entitlement_store: "Any | None" = None,
-        max_concurrent_per_target: int = 1,
+        max_concurrent_per_target: int = DEFAULT_MAX_INFLIGHT_CASES_PER_TARGET,
         target_id: str | None = None,
         # BEAAA-38987 — optional FormStore for private scenario reservation.
         form_store: "Any | None" = None,
@@ -431,6 +555,8 @@ class FullScanJobStore:
                 raise FullScanExecutorError("rate_limit_per_minute must be positive")
             if max_cost_usd is not None and not float(max_cost_usd) > 0:
                 raise FullScanExecutorError("max_cost_usd must be positive")
+            if max_concurrent_per_target <= 0:
+                raise FullScanExecutorError("max_concurrent_per_target must be positive")
             if idempotency_key and idempotency_key in self._idempotency_index:
                 return self._jobs[self._idempotency_index[idempotency_key]]
 
@@ -602,6 +728,7 @@ class FullScanJobStore:
                 target_id=target_id,
                 entitlement_id=entitlement_id,
                 form_id=resolved_form_id,
+                max_concurrent_per_target=max_concurrent_per_target,
             )
             self._jobs[job.job_id] = job
             self._job_target_ids[job.job_id] = target_id
@@ -679,6 +806,28 @@ class FullScanJobStore:
             )
             remaining = max(0, total - observed)
             eta_seconds = remaining / observed_rate if observed_rate else None
+            family_totals: Counter[str] = Counter()
+            family_done: Counter[str] = Counter()
+            family_in_flight: Counter[str] = Counter()
+            case_families: dict[str, str] = {}
+            for case in job.registry_cases:
+                family = _progress_family(case.case_id, None)
+                case_families[case.case_id] = family
+                family_totals[family] += 1
+            for row in job.evidence_rows:
+                family = _progress_family(row.probe_id, row.test_id or row.framework)
+                if row.probe_id in accepted and row.status in RECONCILED_TERMINAL_PROBE_STATUSES:
+                    family_done[family] += 1
+            for case_id in job.in_flight_case_ids:
+                family_in_flight[case_families.get(case_id, _progress_family(case_id, None))] += 1
+            families = {
+                family: {
+                    "done": family_done[family],
+                    "total": family_totals[family],
+                    "in_flight": family_in_flight[family],
+                }
+                for family in sorted(family_totals)
+            }
             state = {
                 "queued": "queued",
                 "running": "running",
@@ -699,6 +848,10 @@ class FullScanJobStore:
                     "Waiting for capacity" if job.status == "queued" else "Evidence checks"
                 ),
                 "counts": {**counts, "observed": observed, "total": total},
+                "rows_done": observed,
+                "rows_total": total,
+                "in_flight": len(job.in_flight_case_ids),
+                "families": families,
                 "processed_count": observed,
                 "accepted_pack_total": total,
                 "usable_count": counts["completed"],
@@ -866,6 +1019,24 @@ class FullScanJobStore:
             self._persist(updated)
             return updated
 
+    def set_in_flight(
+        self,
+        job_id: str,
+        *,
+        attempt_id: str,
+        case_ids: Iterable[str],
+    ) -> FullScanJob:
+        """Persist the bounded case set currently occupying worker slots."""
+        with self._lock:
+            job = self._get(job_id)
+            if job.status in TERMINAL_JOB_STATUSES:
+                raise FullScanExecutorError("cannot update terminal job progress")
+            self._require_active_lease(job, attempt_id=attempt_id)
+            normalized = tuple(sorted({str(case_id) for case_id in case_ids if case_id}))
+            updated = replace(job, in_flight_case_ids=normalized, updated_at=self._clock())
+            self._persist(updated)
+            return updated
+
     def resume(self, job_id: str) -> dict[str, Any]:
         with self._lock:
             job = self._get(job_id)
@@ -907,6 +1078,7 @@ class FullScanJobStore:
                 status=final_status,
                 active_attempt_id=None,
                 lease_expires_at=None,
+                in_flight_case_ids=(),
                 final_manifest=manifest,
                 final_manifest_hash=manifest_hash,
                 bind_eligibility=bind_eligibility,
@@ -936,6 +1108,7 @@ class FullScanJobStore:
                 status="incomplete_cost_cap",
                 active_attempt_id=None,
                 lease_expires_at=None,
+                in_flight_case_ids=(),
                 final_manifest=manifest,
                 final_manifest_hash=manifest_hash,
                 bind_eligibility="blocked_base_suite_incomplete",
@@ -990,6 +1163,7 @@ class FullScanJobStore:
                     status="queued",
                     active_attempt_id=None,
                     lease_expires_at=None,
+                    in_flight_case_ids=(),
                     recovery_count=job.recovery_count + 1,
                     updated_at=self._clock(),
                 )
@@ -1038,6 +1212,7 @@ class FullScanJobStore:
             status="failed",
             active_attempt_id=None,
             lease_expires_at=None,
+            in_flight_case_ids=(),
             final_manifest=manifest,
             final_manifest_hash=manifest_content_hash(manifest),
             bind_eligibility=_bind_eligibility(job, manifest),
@@ -1607,6 +1782,7 @@ def dispatch_registry_attempt(
     workers: Mapping[str, FrameworkWorker] | None = None,
     execution_flag: str = "production_runner_executable",
     checkpoint_every: int = DEFAULT_DISPATCH_CHECKPOINT_ROWS,
+    max_workers: int = 1,
 ) -> FullScanJob:
     """Run one registry-driven attempt and checkpoint terminal evidence rows.
 
@@ -1620,6 +1796,8 @@ def dispatch_registry_attempt(
     flush is idempotent: :meth:`FullScanJobStore.checkpoint` merges on
     ``(probe_id, seed)``.
     """
+    if max_workers <= 0:
+        raise ValueError("max_workers must be positive")
     job = store.status(job_id)
     workers = workers if workers is not None else build_default_framework_workers()
     expected_case_ids = {case.case_id for case in job.registry_cases}
@@ -1647,6 +1825,127 @@ def dispatch_registry_attempt(
         if (case_id, job.seed) in _completed_before:
             continue
         _all_pending_rows.append(registry_row)
+
+    # Keep the scan-wide wall-clock guard authoritative before admitting a new
+    # batch. In-flight workers are allowed to finish and checkpoint; no new
+    # target work is started after the durable budget is breached.
+    if (
+        job.wall_clock_budget_seconds is not None
+        and job.started_at is not None
+        and (store._clock() - job.started_at).total_seconds()
+        >= job.wall_clock_budget_seconds
+        and _all_pending_rows
+    ):
+        cap_rows = [
+            EvidenceAttemptRow(
+                probe_id=_case_id_from_row(row),
+                rubric_point_id=str(row.get("risk_or_rubric_id") or row.get("rubric_point_id") or ""),
+                status="incomplete",
+                framework="wall_clock_cap",
+                corpus_version=job.corpus_version,
+                model_version=_primary_model_version(job.model_versions),
+                seed=job.seed,
+                evidence_ref=None,
+                incomplete_reason="wall_clock_cap_reached",
+            )
+            for row in _all_pending_rows
+        ]
+        store.checkpoint(job_id, attempt_id=attempt_id, rows=cap_rows)
+        return store.status(job_id)
+
+    # Execute independent cases concurrently, but reduce and checkpoint them
+    # below in registry order.  Keeping reduction single-threaded preserves
+    # stable evidence ordering and makes the existing durable cap checks the
+    # shared source of truth.  Cost-capped jobs stay sequential so a worker
+    # cannot spend past a known scan-wide cost boundary while queued futures
+    # are still running.
+    parallel_results: dict[str, WorkerAttemptResult] = {}
+    case_rows = {
+        _case_id_from_row(row): row for row in _all_pending_rows
+    }
+    case_limiter = store.case_limiter(
+        job.target_id, job.max_concurrent_per_target
+    )
+    callable_case_ids = tuple(
+        case_id
+        for case_id, row in case_rows.items()
+        if workers.get(worker_id_for_registry_row(dict(row))) is not None
+    )
+    if max_workers > 1 and job.max_cost_usd is None:
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                pending_case_ids = iter(callable_case_ids)
+                futures = {}
+
+                def submit_next() -> bool:
+                    try:
+                        case_id = next(pending_case_ids)
+                    except StopIteration:
+                        return False
+                    futures[executor.submit(
+                        _invoke_worker_with_retry,
+                        workers[worker_id_for_registry_row(dict(case_rows[case_id]))],
+                        case_rows[case_id],
+                        job,
+                        limiter=case_limiter,
+                    )] = case_id
+                    return True
+
+                for _ in range(min(max_workers, len(callable_case_ids))):
+                    submit_next()
+                store.set_in_flight(
+                    job_id, attempt_id=attempt_id, case_ids=futures.values()
+                )
+                while futures:
+                    completed, _ = wait(futures, return_when=FIRST_COMPLETED)
+                    for future in completed:
+                        case_id = futures.pop(future)
+                        try:
+                            parallel_results[case_id] = future.result()
+                        except TimeoutError:
+                            worker_id = worker_id_for_registry_row(dict(case_rows[case_id]))
+                            parallel_results[case_id] = WorkerAttemptResult(
+                                status="incomplete",
+                                evidence_ref=None,
+                                incomplete_reason=f"worker_timeout:{worker_id}",
+                            )
+                        except Exception as exc:
+                            worker_id = worker_id_for_registry_row(dict(case_rows[case_id]))
+                            parallel_results[case_id] = WorkerAttemptResult(
+                                status="incomplete",
+                                evidence_ref=None,
+                                incomplete_reason=f"worker_error:{worker_id}:{exc.__class__.__name__}",
+                            )
+
+                        wall_clock_breached = bool(
+                            job.wall_clock_budget_seconds is not None
+                            and job.started_at is not None
+                            and (store._clock() - job.started_at).total_seconds()
+                            >= job.wall_clock_budget_seconds
+                        )
+                        if not wall_clock_breached:
+                            submit_next()
+                        else:
+                            for pending_case_id in pending_case_ids:
+                                parallel_results[pending_case_id] = WorkerAttemptResult(
+                                    status="incomplete",
+                                    evidence_ref=None,
+                                    incomplete_reason="wall_clock_cap_reached",
+                                )
+                            pending_case_ids = iter(())
+                    try:
+                        store.set_in_flight(
+                            job_id, attempt_id=attempt_id, case_ids=futures.values()
+                        )
+                    except FullScanExecutorError:
+                        # A lease can be revoked by recovery only after this
+                        # dispatch returns; keep the original error if the
+                        # store is already terminal rather than masking it.
+                        if store.status(job_id).status not in TERMINAL_JOB_STATUSES:
+                            raise
+        finally:
+            if callable_case_ids and store.status(job_id).status not in TERMINAL_JOB_STATUSES:
+                store.set_in_flight(job_id, attempt_id=attempt_id, case_ids=())
 
     for registry_row in registry_rows:
         if registry_row.get("status") != "active":
@@ -1698,20 +1997,31 @@ def dispatch_registry_attempt(
             )
             continue
 
-        try:
-            result = worker(registry_row, job)
-        except TimeoutError:
-            result = WorkerAttemptResult(
-                status="incomplete",
-                evidence_ref=None,
-                incomplete_reason=f"worker_timeout:{worker_id}",
-            )
-        except Exception as exc:  # pragma: no cover - exercised by tests by type only
-            result = WorkerAttemptResult(
-                status="incomplete",
-                evidence_ref=None,
-                incomplete_reason=f"worker_error:{worker_id}:{exc.__class__.__name__}",
-            )
+        if case_id in parallel_results:
+            result = parallel_results[case_id]
+        else:
+            try:
+                store.set_in_flight(job_id, attempt_id=attempt_id, case_ids=(case_id,))
+                result = _invoke_worker_with_retry(
+                    worker,
+                    registry_row,
+                    job,
+                    limiter=case_limiter,
+                )
+            except TimeoutError:
+                result = WorkerAttemptResult(
+                    status="incomplete",
+                    evidence_ref=None,
+                    incomplete_reason=f"worker_timeout:{worker_id}",
+                )
+            except Exception as exc:  # pragma: no cover - exercised by tests by type only
+                result = WorkerAttemptResult(
+                    status="incomplete",
+                    evidence_ref=None,
+                    incomplete_reason=f"worker_error:{worker_id}:{exc.__class__.__name__}",
+                )
+            finally:
+                store.set_in_flight(job_id, attempt_id=attempt_id, case_ids=())
 
         required_capability = (
             str(applicability.get("required_capability") or "")
@@ -1930,6 +2240,7 @@ def dispatch_variable_form_attempt(
     form_store: Any,
     workers: Mapping[str, FrameworkWorker],
     case_ids: Iterable[str] | None = None,
+    max_workers: int = 1,
 ) -> FullScanJob:
     """Dispatch the exact private payloads reserved for a variable-pack job."""
     job = store.status(job_id)
@@ -1957,7 +2268,12 @@ def dispatch_variable_form_attempt(
         if selected is None or item["scenario_id"] in selected
     )
     return dispatch_registry_attempt(
-        store, job_id, attempt_id=attempt_id, registry_rows=rows, workers=workers
+        store,
+        job_id,
+        attempt_id=attempt_id,
+        registry_rows=rows,
+        workers=workers,
+        max_workers=max_workers,
     )
 
 
@@ -2307,6 +2623,16 @@ def _parse_iso(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
+def _progress_family(case_id: str, hint: str | None) -> str:
+    """Return a bounded, stable family label for live progress only."""
+    value = str(hint or "").strip()
+    if not value or value == "fixture":
+        value = re.split(r"[/.:]", str(case_id), maxsplit=1)[0]
+    if "@" in value:
+        value = value.split("@", 1)[0]
+    return value[:120] or "unclassified"
+
+
 def _job_to_record(job: FullScanJob) -> dict[str, Any]:
     """Serialize a ``FullScanJob`` to a JSON-safe record for durable storage.
 
@@ -2364,6 +2690,8 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "entitlement_id": job.entitlement_id,
         # BEAAA-38987 — variable-form identity.
         "form_id": job.form_id,
+        "max_concurrent_per_target": job.max_concurrent_per_target,
+        "in_flight_case_ids": list(job.in_flight_case_ids),
     }
 
 
@@ -2420,4 +2748,9 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         entitlement_id=record.get("entitlement_id"),
         # BEAAA-38987 — variable-form identity (backwards-compatible None default).
         form_id=record.get("form_id"),
+        max_concurrent_per_target=int(
+            record.get("max_concurrent_per_target")
+            or DEFAULT_MAX_INFLIGHT_CASES_PER_TARGET
+        ),
+        in_flight_case_ids=tuple(str(value) for value in record.get("in_flight_case_ids", ())),
     )

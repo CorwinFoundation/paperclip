@@ -23,7 +23,9 @@ envelope; every row stays ``report-only`` with ``score_contribution=False``.
 from __future__ import annotations
 
 import json
+import random
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
@@ -244,11 +246,28 @@ class OpenRouterChatClient:
         headers = {"Authorization": f"Bearer {self._api_key}"}
         backoff = 1.0
         response = None
-        for _ in range(self._max_retries):
+        for attempt in range(max(1, self._max_retries)):
             response = egress.post(self.URL, headers=headers, json=body, timeout=self._timeout)
             if response.status_code not in (429, 502, 503):
                 break
-            time.sleep(backoff)
+            if attempt + 1 >= max(1, self._max_retries):
+                break
+            retry_after = None
+            response_headers = getattr(response, "headers", {})
+            if isinstance(response_headers, Mapping):
+                for name in ("Retry-After", "retry-after", "X-RateLimit-Reset", "x-ratelimit-reset"):
+                    raw = response_headers.get(name)
+                    if raw is None:
+                        continue
+                    try:
+                        retry_after = float(raw)
+                    except (TypeError, ValueError):
+                        continue
+                    if retry_after > 1_000_000_000:
+                        retry_after = max(0.0, retry_after - time.time())
+                    break
+            delay = min(16.0, max(0.0, retry_after) if retry_after is not None else backoff)
+            time.sleep(min(16.0, delay * (0.5 + random.random())))
             backoff = min(backoff * 2, 16.0)
         if response is None or response.status_code >= 400:
             status = response.status_code if response is not None else "none"
@@ -455,24 +474,36 @@ def run_pack_attempt(
     runner: CaseRunner,
     max_cases: int | None = None,
     on_result: Callable[[ConversationCase, CaseRunResult], None] | None = None,
+    max_workers: int = 1,
 ) -> PackAttemptResult:
-    """Run pending pack cases one at a time under the job's hard cost cap.
+    """Run pending pack cases in bounded case-level parallelism.
 
     Each case is checkpointed alone. ``max_cases`` simulates worker death
     after that many cases (the job stays running with its lease; restart
     recovery then resumes only the pending cases).
     """
+    if max_workers <= 0:
+        raise ValueError("max_workers must be positive")
     processed = 0
     while True:
         job = store.status(job_id)
         pending = pending_pack_cases(job)
         if not pending:
             return PackAttemptResult(store.finalize(job_id, attempt_id=attempt_id), processed, True)
-        case = pending[0]
-        estimate = _runner_estimate(runner, case)
-        case_estimate = estimate["target_cost_usd"] + estimate["judge_cost_usd"]
+        remaining_case_budget = (
+            max_workers if max_cases is None else max(0, max_cases - processed)
+        )
+        if remaining_case_budget == 0:
+            return PackAttemptResult(store.status(job_id), processed, False)
+        batch = pending[:min(max_workers, remaining_case_budget)]
+        estimates = {case.case_id: _runner_estimate(runner, case) for case in batch}
+        batch_estimate = sum(
+            estimates[case.case_id]["target_cost_usd"]
+            + estimates[case.case_id]["judge_cost_usd"]
+            for case in batch
+        )
         if job.max_cost_usd is not None and (
-            job_observed_cost_usd(job) + case_estimate > job.max_cost_usd
+            job_observed_cost_usd(job) + batch_estimate > job.max_cost_usd
         ):
             store.checkpoint(
                 job_id,
@@ -480,11 +511,56 @@ def run_pack_attempt(
                 rows=[_cost_cap_row(job, c, runner) for c in pending],
             )
             return PackAttemptResult(store.finalize(job_id, attempt_id=attempt_id), processed, True)
-        result = runner.run(case, job)
-        if on_result is not None:
-            on_result(case, result)
-        store.checkpoint(job_id, attempt_id=attempt_id, rows=[_result_row(job, case, result, estimate)])
-        processed += 1
+        limiter = store.case_limiter(job.target_id, job.max_concurrent_per_target)
+        store.set_in_flight(
+            job_id, attempt_id=attempt_id, case_ids=(case.case_id for case in batch)
+        )
+        results: dict[str, CaseRunResult] = {}
+
+        def execute(case: ConversationCase) -> CaseRunResult:
+            with limiter:
+                try:
+                    return runner.run(case, job)
+                except Exception as exc:  # noqa: BLE001 - a case is evidence, not a worker crash
+                    return CaseRunResult(
+                        verdict="could_not_run",
+                        reason=f"transport_error:{type(exc).__name__}",
+                        target_calls=0,
+                        judge_calls=0,
+                        target_cost_usd=0.0,
+                        target_cost_basis="not_run",
+                        judge_cost_usd=0.0,
+                        judge_cost_basis="not_run",
+                    )
+
+        try:
+            if max_workers > 1:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(execute, case): case for case in batch}
+                    remaining = {case.case_id for case in batch}
+                    for future in as_completed(futures):
+                        case = futures[future]
+                        results[case.case_id] = future.result()
+                        remaining.discard(case.case_id)
+                        store.set_in_flight(
+                            job_id, attempt_id=attempt_id, case_ids=remaining
+                        )
+            else:
+                case = batch[0]
+                results[case.case_id] = execute(case)
+        finally:
+            store.set_in_flight(job_id, attempt_id=attempt_id, case_ids=())
+
+        # Reduce and checkpoint in pack order so concurrency cannot change the
+        # signed evidence row ordering or any downstream manifest bytes.
+        rows = []
+        for case in batch:
+            result = results[case.case_id]
+            if on_result is not None:
+                on_result(case, result)
+            rows.append(_result_row(job, case, result, estimates[case.case_id]))
+        store.checkpoint(job_id, attempt_id=attempt_id, rows=rows)
+        processed += len(batch)
         if max_cases is not None and processed >= max_cases:
             return PackAttemptResult(store.status(job_id), processed, False)
 

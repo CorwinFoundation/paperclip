@@ -327,10 +327,20 @@ def test_public_scan_api_accepts_v10_and_dispatches_saved_form(tmp_path, monkeyp
     job_id = runtime._full_scan_job_ids[response.json()["scan_id"]]
     job = runtime._full_scan_job_store.status(job_id)
     form = form_store.get(job.form_id, scope=SCOPE, product="full")
-    assert [row["case_id"] for row in seen] == [
+    deadline = time.monotonic() + 15
+    while len(job.evidence_rows) < len(form["cases"]) and time.monotonic() < deadline:
+        time.sleep(0.01)
+        job = runtime._full_scan_job_store.status(job_id)
+    # Case workers may finish in any order; the signed durable evidence
+    # projection, rather than invocation timing, is the stable contract.
+    assert {row["case_id"] for row in seen} == {
         item["scenario_id"] for item in form["cases"]
-    ]
+    }
+    assert [row.probe_id for row in job.evidence_rows] == sorted(
+        item["scenario_id"] for item in form["cases"]
+    )
+    seen_by_case = {row["case_id"]: row for row in seen}
     assert [
-        {key: row[key] for key in item["payload"]}
-        for row, item in zip(seen, form["cases"])
+        {key: seen_by_case[item["scenario_id"]][key] for key in item["payload"]}
+        for item in form["cases"]
     ] == [item["payload"] for item in form["cases"]]

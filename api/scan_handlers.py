@@ -414,7 +414,7 @@ _NON_TERMINAL_INCOMPLETE_REASONS: frozenset[str] = frozenset(
 )
 _NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
 _TERMINAL_FULL_SCAN_JOB_STATUSES: frozenset[str] = frozenset(
-    {"complete", "incomplete", "failed", "cancelled"}
+    {"complete", "incomplete", "incomplete_cost_cap", "failed", "cancelled"}
 )
 
 
@@ -1166,6 +1166,15 @@ class ScanRuntime:
             # BEAAA-38869 — a resumed scan whose durable job already finished
             # before the restart: reuse the terminal job, do not re-lease it.
             return self._full_scan_job_result(result, job, first_worker)
+        case_concurrency = (
+            1
+            if scan_request.pack_id == "starter-voice-50@1"
+            else 5
+            if job.pack_id
+            else 3
+            if job.tenant_id
+            else 8
+        )
         lease = self._full_scan_job_store.lease(job.job_id)
         attempt_id = lease.get("attempt_id") or lease.get("active_attempt_id")
         if not isinstance(attempt_id, str) or not attempt_id:
@@ -1178,6 +1187,7 @@ class ScanRuntime:
                     attempt_id=attempt_id,
                     form_store=self._full_scan_form_store,
                     workers=workers,
+                    max_workers=case_concurrency,
                 )
             else:
                 dispatch_registry_attempt(
@@ -1186,6 +1196,7 @@ class ScanRuntime:
                     attempt_id=attempt_id,
                     registry_rows=self._full_scan_registry_rows,
                     workers=workers,
+                    max_workers=case_concurrency,
                 )
             finalized = self._full_scan_job_store.finalize(job.job_id)
         return self._full_scan_job_result(result, finalized, first_worker)
@@ -1268,7 +1279,7 @@ class ScanRuntime:
         job_id = self._full_scan_job_ids.get(scan_id)
         if result is not None and job_id is not None:
             job = self._full_scan_job_store.status(job_id)
-            if job.status in {"complete", "incomplete", "failed", "cancelled"}:
+            if job.status in _TERMINAL_FULL_SCAN_JOB_STATUSES:
                 refreshed = replace(
                     result,
                     status=job.status,

@@ -74,6 +74,7 @@ class FullScanQueueWorker:
         webhook_secret_resolver: Callable[[str], str | bytes | None] | None = None,
         webhook_http_poster: Callable[[str, dict, bytes], None] | None = None,
         pack_case_runner: Any | None = None,
+        case_concurrency: int | None = None,
     ) -> None:
         if lease_ttl_seconds <= 0:
             raise ValueError("lease_ttl_seconds must be positive")
@@ -88,6 +89,9 @@ class FullScanQueueWorker:
         # BEAAA-38957 — ``api.full_scan_packs.CaseRunner`` for paid-pack jobs.
         # Without one, paid-pack jobs are left queued for a worker that has it.
         self._pack_case_runner = pack_case_runner
+        if case_concurrency is not None and case_concurrency <= 0:
+            raise ValueError("case_concurrency must be positive")
+        self._case_concurrency = case_concurrency
 
     def recover(self) -> dict[str, Any]:
         return self._store.recover(max_recovery_attempts=self._max_recovery_attempts)
@@ -142,6 +146,10 @@ class FullScanQueueWorker:
                 attempt_id=attempt_id,
                 runner=self._pack_case_runner,
                 max_cases=max_cases,
+                max_workers=(
+                    self._case_concurrency
+                    or (1 if self._store.status(job_id).pack_id == "starter-voice-50@1" else 5)
+                ),
             )
             if not outcome.finished:
                 return FullScanWorkerResult(
@@ -182,8 +190,27 @@ class FullScanQueueWorker:
                     final_manifest_hash=finalized.final_manifest_hash,
                 )
 
-            row = pending[0]
             job_now = self._store.status(job_id)
+            batch_size = self._case_concurrency
+            if batch_size is None:
+                # Customer Starter scans use N=3, paid Full Scan uses N=5,
+                # and internal registry/evidence runs use N=8.  Callers can
+                # override this explicitly for voice (N=1) or a provider cap.
+                batch_size = 5 if job_now.pack_id else 3 if job_now.tenant_id else 8
+            remaining_case_budget = (
+                batch_size
+                if max_cases is None
+                else max(0, max_cases - processed)
+            )
+            if remaining_case_budget == 0:
+                return FullScanWorkerResult(
+                    status="interrupted",
+                    job_id=job_id,
+                    attempt_id=attempt_id,
+                    processed_cases=processed,
+                )
+            batch = pending[:min(batch_size, remaining_case_budget)]
+            row = batch[0]
             if job_now.form_id:
                 if self._form_store is None:
                     raise RuntimeError("variable-pack job requires form_store")
@@ -193,17 +220,19 @@ class FullScanQueueWorker:
                     attempt_id=attempt_id,
                     form_store=self._form_store,
                     workers=self._workers,
-                    case_ids=(str(row["case_id"]),),
+                    case_ids=tuple(str(item["case_id"]) for item in batch),
+                    max_workers=batch_size,
                 )
             else:
                 dispatch_registry_attempt(
                     self._store,
                     job_id,
                     attempt_id=attempt_id,
-                    registry_rows=(row,),
+                    registry_rows=tuple(batch),
                     workers=self._workers,
+                    max_workers=batch_size,
                 )
-            processed += 1
+            processed += len(batch)
 
             # BEAAA-38957: cost cap check — if remaining rows have been marked
             # could_not_run, stop dispatching.
@@ -388,6 +417,7 @@ def build_default_full_scan_worker(
     worker_timeout_seconds: int = 120,
     webhook_secret_resolver: Callable[[str], str | bytes | None] | None = None,
     webhook_http_poster: Callable[[str, dict, bytes], None] | None = None,
+    case_concurrency: int | None = None,
 ) -> FullScanQueueWorker:
     if job_store_path is None:
         scan_log_path = ApiConfig.from_env().scan_log_path(ARE_SCAN_LOG_DEFAULT_PATH)
@@ -403,6 +433,7 @@ def build_default_full_scan_worker(
         lease_ttl_seconds=lease_ttl_seconds,
         webhook_secret_resolver=webhook_secret_resolver or _env_webhook_secret_resolver,
         webhook_http_poster=webhook_http_poster,
+        case_concurrency=case_concurrency,
     )
 
 
@@ -455,6 +486,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--lease-ttl-seconds", type=int, default=300)
     parser.add_argument("--poll-interval-seconds", type=float, default=FULL_SCAN_WORKER_POLL_INTERVAL_SECONDS)
     parser.add_argument("--worker-timeout-seconds", type=int, default=120)
+    parser.add_argument("--case-concurrency", type=int, default=None)
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -463,6 +495,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         registry_path=args.registry_path,
         lease_ttl_seconds=args.lease_ttl_seconds,
         worker_timeout_seconds=args.worker_timeout_seconds,
+        case_concurrency=args.case_concurrency,
     )
     recovery = worker.recover()
     if recovery["resumed"] or recovery["failed"]:

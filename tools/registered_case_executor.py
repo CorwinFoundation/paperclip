@@ -113,6 +113,20 @@ class ScanBudgetLedger:
         self.estimated_judge_input_tokens = 0
         self.estimated_judge_output_tokens = 0
         self.estimated_judge_cost_usd = 0.0
+        self._case_local = threading.local()
+
+    def _case_counts(self) -> dict[str, float | int]:
+        counts = getattr(self._case_local, "counts", None)
+        if counts is None:
+            counts = {
+                "target_calls": 0,
+                "judge_calls": 0,
+                "estimated_judge_input_tokens": 0,
+                "estimated_judge_output_tokens": 0,
+                "estimated_judge_cost_usd": 0.0,
+            }
+            self._case_local.counts = counts
+        return counts
 
     @staticmethod
     def _tokens(text: str) -> int:
@@ -128,6 +142,7 @@ class ScanBudgetLedger:
             if self.target_calls + 1 > self.budget.max_target_calls:
                 raise BudgetExceeded("max_target_calls")
             self.target_calls += 1
+            self._case_counts()["target_calls"] += 1
 
     def reserve_judge_call(self, prompt: str) -> float:
         with self._lock:
@@ -149,6 +164,11 @@ class ScanBudgetLedger:
             self.estimated_judge_input_tokens += input_tokens
             self.estimated_judge_output_tokens += output_tokens
             self.estimated_judge_cost_usd += cost
+            case_counts = self._case_counts()
+            case_counts["judge_calls"] += 1
+            case_counts["estimated_judge_input_tokens"] += input_tokens
+            case_counts["estimated_judge_output_tokens"] += output_tokens
+            case_counts["estimated_judge_cost_usd"] += cost
             return cost
 
     def reconcile_judge_cost(self, reserved_cost: float, actual_cost: float) -> None:
@@ -157,6 +177,17 @@ class ScanBudgetLedger:
             if revised > self.budget.max_estimated_judge_cost_usd:
                 raise BudgetExceeded("max_estimated_judge_cost_usd")
             self.estimated_judge_cost_usd = revised
+            self._case_counts()["estimated_judge_cost_usd"] += actual_cost - reserved_cost
+
+    def case_snapshot(self) -> dict[str, Any]:
+        """Return counters attributable to the current case worker thread."""
+        counts = self._case_counts()
+        return {
+            **counts,
+            "estimated_judge_cost_usd": round(
+                float(counts["estimated_judge_cost_usd"]), 6
+            ),
+        }
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -488,7 +519,7 @@ class RegisteredCaseExecutor:
     def __call__(self, registry_row: Mapping[str, Any], job: Any) -> Any:
         from api.full_scan_executor import WorkerAttemptResult
 
-        before = self.ledger.snapshot()
+        before = self.ledger.case_snapshot()
         started = time.monotonic()
         test_id = str(registry_row.get("test_id") or "")
         case_id = str(registry_row.get("case_id") or "")
@@ -581,9 +612,9 @@ class RegisteredCaseExecutor:
                 }
             )
 
-        after = self.ledger.snapshot()
-        delta = _budget_delta(before, after)
-        evidence["budget"] = {"case_delta": delta, "scan_total": after}
+        after_case = self.ledger.case_snapshot()
+        delta = _budget_delta(before, after_case)
+        evidence["budget"] = {"case_delta": delta, "scan_total": self.ledger.snapshot()}
         evidence["duration_ms"] = int((time.monotonic() - started) * 1000)
         evidence["payload_sha256"] = _content_hash(evidence.get("payloads", []))
         evidence["response_sha256"] = _content_hash(evidence.get("responses", []))
