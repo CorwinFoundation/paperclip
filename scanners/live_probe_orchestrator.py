@@ -102,7 +102,7 @@ from scanners.starter_pack import STARTER_PACK_ID
 #: BEAAA-38895 — wall-clock budget for one starter-100@2 (or @3) pass.
 STARTER_V2_SCAN_DEADLINE_SECONDS: float = 1500.0
 #: Judged starter packs: one pass of 100 sends + 100 judge calls.
-_JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3", "starter-100@4", "starter-voice-50@1")
+_JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3", "starter-100@4", "starter-100@5", "starter-voice-50@1")
 
 
 # ---------------------------------------------------------------------------

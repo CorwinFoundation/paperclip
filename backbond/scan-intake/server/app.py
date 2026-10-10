@@ -31,6 +31,7 @@ PUBLIC_PARTNER = "public"
 DEFAULT_STARTER_PACK_ID = "starter-100@4"
 STARTER_PACK_IDS = frozenset({
     "starter-100@1", "starter-100@2", "starter-100@3", "starter-100@4",
+    "starter-100@5",
     "starter-voice-50@1",
 })
 # are-scanner api/scan_handlers.py: pack starter-100@1 (100 messages) and one

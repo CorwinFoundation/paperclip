@@ -471,7 +471,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         variable_pack = pack_id == "starter-100@4"
         metadata = (
             {"pack_id": pack_id}
-            if pack_id in {"starter-100@4", "starter-voice-50@1"}
+            if pack_id in {"starter-100@4", "starter-100@5", "starter-voice-50@1"}
             else {}
         )
         if variable_pack:

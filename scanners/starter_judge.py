@@ -204,6 +204,8 @@ def starter_pack_id_for_rows(rows: Any) -> str:
     if any(dict(r).get("pack_id") == STARTER_VOICE_PACK_ID for r in rows or ()):
         return STARTER_VOICE_PACK_ID
     families = {str(dict(r).get("family", "")) for r in rows or ()}
+    if any(dict(r).get("pack_id") == "starter-100@5" for r in rows or ()):
+        return "starter-100@5"
     if any(dict(r).get("pack_id") == "starter-100@4" for r in rows or ()):
         return "starter-100@4"
     return STARTER_PACK_V3_ID if ANSWERS_NORMAL_REQUESTS in families else STARTER_PACK_V2_ID

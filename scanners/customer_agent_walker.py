@@ -47,12 +47,14 @@ from scanners.starter_judge import COULD_NOT_RUN, PASSED, judge_client_from_env,
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_CASES
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_V3_CASES
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID
+from scanners.starter_pack_v5 import STARTER_PACK_V5_ID, STARTER_V5_CASES, StarterCaseV5MT
 from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, VOICE_CASES
 
 _JUDGED_STARTER_CASES = {
     STARTER_PACK_V2_ID: STARTER_V2_CASES,
     STARTER_PACK_V3_ID: STARTER_V3_CASES,
     STARTER_PACK_V4_ID: (),
+    STARTER_PACK_V5_ID: STARTER_V5_CASES,
     STARTER_VOICE_PACK_ID: VOICE_CASES,
 }
 from scanners.wraps import inspect_section1_v0, real_adapter_asi_v0
@@ -169,6 +171,42 @@ def _rotate_probe_surface(runner: ModelRunner, probe_id: str, canonical: str) ->
     ).text
 
 
+def _dispatch_multiturn(runner: ModelRunner, case: StarterCaseV5MT) -> str:
+    """Send a multi-turn conversation and return the final reply.
+
+    Builds a messages list: optional system, then alternating user/assistant
+    turns.  Each user turn is sent in sequence; actual agent replies are used
+    as the assistant turns in the history (not pre-canned refusals).  The
+    runner's ``_messages_payload`` override is used so the existing HTTP path
+    is reused without modification.
+    """
+    system = getattr(case, "system", None)
+    messages: list[dict[str, Any]] = []
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    model = None
+    config = getattr(runner, "_config", None)
+    if config and isinstance(config, dict):
+        model = config.get("model")
+
+    reply = ""
+    for i, user_turn in enumerate(case.turns):
+        messages.append({"role": "user", "content": user_turn})
+        payload: dict[str, Any] = {"messages": list(messages)}
+        if model:
+            payload["model"] = model
+        runner._messages_payload = payload  # type: ignore[attr-defined]
+        try:
+            reply = runner.complete("")
+        finally:
+            runner._messages_payload = None  # type: ignore[attr-defined]
+        if i < len(case.turns) - 1:
+            messages.append({"role": "assistant", "content": reply})
+
+    return reply
+
+
 def customer_agent_probe_run_fn(
     runner: ModelRunner,
 ) -> Iterable[Tuple[str, dict[str, Any]]]:
@@ -228,9 +266,35 @@ def customer_agent_probe_run_fn(
                     "customer_endpoint_unreachable_transport",
                     "customer endpoint scan deadline exceeded",
                 )
+            # Out-of-scope actions: emit not_applicable for chat-only targets.
+            if (
+                case.family_id == "out_of_scope_actions"
+                and judged_pack_id == STARTER_PACK_V5_ID
+                and not getattr(runner, "has_tools", True)
+            ):
+                raw = 0.0
+                if callable(record_verdict):
+                    record_verdict(
+                        test_id=case.case_id,
+                        family=case.family_id,
+                        verdict="not_applicable",
+                        reason="not tested: this agent exposes no actions",
+                    )
+                if callable(progress):
+                    progress(case_id=case.case_id, family=case.family_id, state="finished")
+                yield case.rubric_point_id, {
+                    "raw": raw,
+                    "evidence_uri": _evidence_uri(case.family_id, judged_pack_id, case.case_id),
+                    "evidence_sha256": _evidence_sha256_bytes(""),
+                    "verdict": "not_applicable",
+                }
+                continue
             reply: Any
             try:
-                reply = runner.complete(case.prompt)
+                if isinstance(case, StarterCaseV5MT):
+                    reply = _dispatch_multiturn(runner, case)
+                else:
+                    reply = runner.complete(case.prompt)
             except RunnerError as exc:
                 if (
                     (deadline is not None and time.monotonic() >= deadline)
