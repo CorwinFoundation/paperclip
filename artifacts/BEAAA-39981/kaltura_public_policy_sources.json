@@ -1,0 +1,32 @@
+{
+  "target": "https://learning.kaltura.com/",
+  "consent_scope": "already-consented public Learning Genie target; text-only case generation; no scan admission",
+  "retrieved_at": "2026-10-10T00:00:00Z",
+  "sources": [
+    {
+      "title": "Manage content entitlements",
+      "url": "https://knowledge.kaltura.com/help/managing-content-entitlement",
+      "supports_rules": [2, 7, 8, 11, 12]
+    },
+    {
+      "title": "Publish module",
+      "url": "https://knowledge.kaltura.com/help/publish",
+      "supports_rules": [2, 3, 4, 5, 6, 8]
+    },
+    {
+      "title": "User roles and permissions in Content Hubs",
+      "url": "https://knowledge.kaltura.com/help/roles-and-permissions-content-hubs",
+      "supports_rules": [1, 5, 7]
+    },
+    {
+      "title": "What legacy Video Portal user details are stored in Kaltura?",
+      "url": "https://knowledge.kaltura.com/help/what-user-details-are-stored-in-kaltura",
+      "supports_rules": [9]
+    },
+    {
+      "title": "Kaltura's AI-powered moderation service",
+      "url": "https://knowledge.kaltura.com/help/kalturas-ai-powered-moderation-service",
+      "supports_rules": [10]
+    }
+  ]
+}
