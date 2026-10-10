@@ -24,13 +24,18 @@ def reconcile(db_path: Path, code: str, email: str):
         if known or used < code_row["max_emails"]:
             db.execute("ROLLBACK")
             return "already_admissible", used, code_row["max_emails"]
+        active = db.execute(f"""SELECT 1 FROM scans WHERE code=? AND email LIKE '%@backbond.ai'
+          AND status IN ('reserved','queued','starting','running','dispatch_unknown') AND {COUNTING}
+          LIMIT 1""", (code,)).fetchone()
+        if active:
+            raise ValueError("refusing to release an active internal scan")
         rows = db.execute(f"""SELECT id FROM scans WHERE code=? AND email LIKE '%@backbond.ai'
-          AND status IN ('reserved','queued','starting') AND scanner_id IS NULL AND {COUNTING}
+          AND status='finished' AND finished_at IS NOT NULL AND report_token IS NOT NULL AND {COUNTING}
           ORDER BY created_at""", (code,)).fetchall()
         if len(rows) != 1:
-            raise ValueError(f"expected exactly one stale unlaunched internal row; found {len(rows)}")
+            raise ValueError(f"expected exactly one completed internal row; found {len(rows)}")
         scan_id = rows[0]["id"]
-        changed = db.execute("UPDATE scans SET status='cancelled' WHERE id=? AND scanner_id IS NULL AND status IN ('reserved','queued','starting')", (scan_id,)).rowcount
+        changed = db.execute("UPDATE scans SET status='cancelled' WHERE id=? AND status='finished' AND finished_at IS NOT NULL AND report_token IS NOT NULL", (scan_id,)).rowcount
         if changed != 1:
             raise RuntimeError("candidate changed during reconciliation")
         after = db.execute(f"SELECT count(DISTINCT email) FROM scans WHERE code=? AND {COUNTING}", (code,)).fetchone()[0]

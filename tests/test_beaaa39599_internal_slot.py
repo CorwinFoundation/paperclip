@@ -20,16 +20,19 @@ def database(tmp_path):
     db.commit(); db.close(); return path
 
 
-def test_release_and_idempotence(tmp_path):
+def test_release_completed_row_and_idempotence(tmp_path):
     path = database(tmp_path)
+    db = sqlite3.connect(path)
+    db.execute("UPDATE scans SET status='finished', finished_at='2026-01-02', report_token='report', outcome='complete', scanner_id='remote'")
+    db.commit(); db.close()
     assert module.reconcile(path, 'INTERNAL-VERIFY-194F729D', 'ari@backbond.ai') == ('stale', 0, 1)
     assert module.reconcile(path, 'INTERNAL-VERIFY-194F729D', 'ari@backbond.ai') == ('already_admissible', 0, 1)
 
 
-def test_refuses_launched_or_external(tmp_path):
+def test_refuses_active_or_external(tmp_path):
     path = database(tmp_path)
     db = sqlite3.connect(path); db.execute("UPDATE scans SET scanner_id='remote'"); db.commit(); db.close()
-    with pytest.raises(ValueError, match='found 0'):
+    with pytest.raises(ValueError, match='active internal scan'):
         module.reconcile(path, 'INTERNAL-VERIFY-194F729D', 'ari@backbond.ai')
     with pytest.raises(ValueError, match='only INTERNAL'):
         module.reconcile(path, 'INTERNAL-VERIFY-194F729D', 'ari@example.com')
