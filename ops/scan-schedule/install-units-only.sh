@@ -33,6 +33,8 @@ unit_dir=${1:-$default_unit_dir}
 sudoers_dir=${2:-/etc/sudoers.d}
 sudoers_file=$sudoers_dir/backbond-scan-beaaa30934
 replay_unit=backbond-scan-vapi-beaaa30934.service
+zoo_diagnostic_sudoers_file=$sudoers_dir/backbond-scan-beaaa39322
+zoo_diagnostic_unit=backbond-scan-zoo-beaaa39322.service
 
 if [ "$unit_dir" = "$default_unit_dir" ]; then
   test "$(id -u)" -eq 0 || { echo 'run as root' >&2; exit 1; }
@@ -49,6 +51,7 @@ _install_file() {
 }
 
 test -f "$here/$replay_unit" || { echo "missing $replay_unit beside $0" >&2; exit 1; }
+test -f "$here/$zoo_diagnostic_unit" || { echo "missing $zoo_diagnostic_unit beside $0" >&2; exit 1; }
 
 found=0
 for src in "$here"/*.service "$here"/*.timer; do
@@ -81,6 +84,15 @@ else
 fi
 _install_file "$staged" "$sudoers_file" 0440
 echo "Installed sudoers drop-in $sudoers_file (start/status on $replay_unit only)."
+
+printf '%s\n' \
+  "beai-agent ALL=(root) NOPASSWD: /usr/bin/systemctl start $zoo_diagnostic_unit, /usr/bin/systemctl status $zoo_diagnostic_unit" \
+  > "$staged"
+if [ -n "$visudo_bin" ] && [ -x "$visudo_bin" ]; then
+  "$visudo_bin" -cf "$staged" >/dev/null
+fi
+_install_file "$staged" "$zoo_diagnostic_sudoers_file" 0440
+echo "Installed sudoers drop-in $zoo_diagnostic_sudoers_file (start/status on $zoo_diagnostic_unit only)."
 
 if [ "$unit_dir" = "$default_unit_dir" ]; then
   systemctl daemon-reload

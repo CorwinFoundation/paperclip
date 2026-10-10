@@ -103,7 +103,7 @@ def test_sudoers_dropin_is_narrow(dirs: tuple[Path, Path]) -> None:
     assert _run(unit_dir, sudoers_dir).returncode == 0
 
     written = sorted(p.name for p in sudoers_dir.iterdir())
-    assert written == ["backbond-scan-beaaa30934"], written
+    assert written == ["backbond-scan-beaaa30934", "backbond-scan-beaaa39322"], written
     # install.sh owns backbond-scan-schedule; clobbering it would drop the
     # grants this file does not restate.
     assert not (sudoers_dir / "backbond-scan-schedule").exists()
@@ -115,7 +115,8 @@ def test_sudoers_dropin_is_narrow(dirs: tuple[Path, Path]) -> None:
     assert f"/usr/bin/systemctl status {REPLAY_UNIT}" in body
     for verb in ("stop", "restart"):
         assert f"/usr/bin/systemctl {verb} " not in body
-    # A grant on any other unit would widen this past the replay lane.
+    # This drop-in remains scoped to the replay lane; the Zoo diagnostic has
+    # its own independently testable drop-in.
     for name in UNIT_NAMES:
         if name != REPLAY_UNIT:
             assert name not in body
