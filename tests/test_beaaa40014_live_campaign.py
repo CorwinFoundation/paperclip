@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from tools.attacker_v1_live_campaign import (
     PARENT_CAMPAIGN_CAP_USD,
     CampaignConfig,
     CampaignPreflightError,
+    DurableSpendTransport,
+    MeteredChat,
     OpenAICompatibleTarget,
     OpenRouterAttacker,
     OpenRouterJudge,
@@ -59,6 +62,54 @@ def test_reasoning_only_provider_turn_is_usable_attacker_text():
 def test_provider_turn_without_content_or_reasoning_is_a_provider_error():
     with pytest.raises(ProviderError, match="no usable content or reasoning text"):
         _message_text({"content": None, "reasoning_details": []})
+
+
+def test_provider_content_parts_and_fenced_judge_json_are_accepted():
+    assert _message_text({"content": [{"type": "text", "text": "hello"}]}) == "hello"
+
+    class Transport:
+        def chat(self, **kwargs):
+            from tools.attacker_v1_live_campaign import MeteredChat
+            return MeteredChat('```json\n{"reached": false, "reason": "held"}\n```', Decimal("0.02"))
+
+    decision = OpenRouterJudge(transport=Transport()).decide(AttackGoal("g", "f", "o", "high"), [])
+    assert decision.reached is False
+    assert decision.cost_usd == Decimal("0.02")
+
+
+def test_judge_schema_rejects_truthy_non_boolean():
+    class Transport:
+        def chat(self, **kwargs):
+            from tools.attacker_v1_live_campaign import MeteredChat
+            return MeteredChat('{"reached": "false"}', Decimal("0.02"))
+
+    with pytest.raises(ProviderError, match="pinned JSON shape"):
+        OpenRouterJudge(transport=Transport()).decide(AttackGoal("g", "f", "o", "high"), [])
+
+
+def test_spend_is_durable_before_judge_parse_failure(tmp_path):
+    class Transport:
+        def chat(self, **kwargs):
+            return MeteredChat("not json", Decimal("0.02"))
+
+    ledger = tmp_path / "spend_ledger.jsonl"
+    judge = OpenRouterJudge(transport=DurableSpendTransport(Transport(), ledger))
+    with pytest.raises(ProviderError, match="pinned JSON shape"):
+        judge.decide(AttackGoal("g", "f", "o", "high"), [])
+
+    assert json.loads(ledger.read_text())["cost_usd"] == "0.02"
+
+
+def test_resume_cap_counts_ledger_when_attempts_file_is_empty(tmp_path):
+    (tmp_path / "attempts.jsonl").write_text("")
+    (tmp_path / "spend_ledger.jsonl").write_text('{"kind":"provider_call","cost_usd":"20.01"}\n')
+    with pytest.raises(CampaignPreflightError, match="resumable cumulative spend 20.01 exceeds campaign cap 20"):
+        run_campaign(
+            _config(tmp_path),
+            attacker=ZeroCostAdapter(ATTACKER_MODEL),
+            targets=_targets(),
+            judge=ZeroCostAdapter(JUDGE_MODEL),
+        )
 
 
 def _config(tmp_path: Path, **overrides):

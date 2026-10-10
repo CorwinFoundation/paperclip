@@ -75,6 +75,31 @@ class MeteredChat:
     cost_usd: Decimal
 
 
+def _append_durable_jsonl(path: Path, row: Mapping[str, Any]) -> None:
+    """Append one accounting row and force it through the OS page cache."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(dict(row), sort_keys=True, default=str) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+class DurableSpendTransport:
+    """Persist provider-reported cost before callers can parse or fail."""
+
+    def __init__(self, transport: ChatTransport, ledger_path: Path) -> None:
+        self._transport = transport
+        self._ledger_path = ledger_path
+
+    def chat(self, *, model: str, messages: Sequence[Mapping[str, str]], max_tokens: int) -> MeteredChat:
+        result = self._transport.chat(model=model, messages=messages, max_tokens=max_tokens)
+        _append_durable_jsonl(
+            self._ledger_path,
+            {"kind": "provider_call", "model": model, "cost_usd": str(result.cost_usd)},
+        )
+        return result
+
+
 def _price(model: str, input_tokens: int, output_tokens: int) -> Decimal:
     input_rate, output_rate = MODEL_PRICES.get(model, (Decimal("10"), Decimal("30")))
     return (input_rate * Decimal(input_tokens) + output_rate * Decimal(output_tokens)) / Decimal(1_000_000)
@@ -92,6 +117,14 @@ def _message_text(message: Mapping[str, Any]) -> str:
         value = message.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            parts = [
+                str(part.get("text") or part.get("content")).strip()
+                for part in value
+                if isinstance(part, Mapping) and str(part.get("text") or part.get("content") or "").strip()
+            ]
+            if parts:
+                return "\n".join(parts)
     details = message.get("reasoning_details")
     if isinstance(details, Sequence) and not isinstance(details, (str, bytes)):
         parts = []
@@ -262,8 +295,16 @@ class OpenRouterJudge:
             raise ProviderError("judge credentials are absent")
         result = self._transport.chat(model=self.model_id, messages=[{"role": "user", "content": prompt}], max_tokens=80)
         try:
-            payload = json.loads(result.content)
-            reached = bool(payload["reached"])
+            text = result.content.strip()
+            fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+            if fenced:
+                text = fenced.group(1)
+            payload = json.loads(text)
+            if isinstance(payload, Mapping) and isinstance(payload.get("result"), Mapping):
+                payload = payload["result"]
+            if not isinstance(payload, Mapping) or not isinstance(payload.get("reached"), bool):
+                raise TypeError("reached must be boolean")
+            reached = payload["reached"]
             reason = str(payload.get("reason") or ("goal reached" if reached else "goal not reached"))
         except (ValueError, KeyError, TypeError) as exc:
             raise ProviderError("judge response was not the pinned JSON shape") from exc
@@ -425,13 +466,14 @@ def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, targets: 
     output_dir.mkdir(parents=True, exist_ok=True)
     transcript_dir.mkdir(parents=True, exist_ok=True)
     attempts_path = output_dir / "attempts.jsonl"
+    spend_path = output_dir / "spend_ledger.jsonl"
     frozen_path = output_dir / "frozen_successes.jsonl"
     metrics_path = output_dir / "zoo_metrics.json"
     frozen = FrozenCaseStore(frozen_path)
     grouped: dict[tuple[str, str], list[Any]] = {}
     attempts = successes = 0
     existing_keys: set[tuple[str, str, int]] = set()
-    cumulative_spend = Decimal("0")
+    attempts_spend = Decimal("0")
     if attempts_path.exists():
         for line in attempts_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
@@ -442,10 +484,30 @@ def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, targets: 
                 raise CampaignPreflightError(["existing attempts are not bound to reference-zoo agents"])
             existing_keys.add((agent_id, str(row.get("goal_id", "")), int(row.get("run_index", 0))))
             resumed = _measurement_result(row)
-            cumulative_spend += resumed.cost_usd
+            attempts_spend += resumed.cost_usd
             grouped.setdefault((agent_id, resumed.goal.family), []).append(resumed)
+    cumulative_spend = Decimal("0")
+    if spend_path.exists():
+        for line in spend_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                cost = Decimal(str(json.loads(line)["cost_usd"]))
+            except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+                raise CampaignPreflightError(["existing spend ledger is invalid"]) from exc
+            if cost < 0:
+                raise CampaignPreflightError(["existing spend ledger has negative cost_usd"])
+            cumulative_spend += cost
+    elif attempts_spend:
+        _append_durable_jsonl(spend_path, {"kind": "resume_baseline", "cost_usd": str(attempts_spend)})
+        cumulative_spend = attempts_spend
     if cumulative_spend > config.campaign_cap_usd:
         raise CampaignPreflightError([f"resumable cumulative spend {cumulative_spend} exceeds campaign cap {config.campaign_cap_usd}"])
+
+    for adapter in (attacker, *targets.values(), judge):
+        transport = getattr(adapter, "_transport", None)
+        if transport is not None and not isinstance(transport, DurableSpendTransport):
+            setattr(adapter, "_transport", DurableSpendTransport(transport, spend_path))
 
     weak_ids = [spec.agent_id for spec in REFERENCE_SPECS if spec.agent_id != "zoo-strong-control-v1"]
     schedule = [(agent_id, run_index, goal) for agent_id in weak_ids for run_index in range(config.run_count) for goal in config.goals]
@@ -468,15 +530,27 @@ def run_campaign(config: CampaignConfig, *, attacker: CampaignAdapter, targets: 
                 judge=judge,
                 target_model=target.model_id,
             )
+            # Provider calls were already forced to the spend ledger. Reload the
+            # total so the next cap check includes every paid call in this attempt.
+            if spend_path.exists():
+                cumulative_spend = sum(
+                    (Decimal(str(json.loads(line)["cost_usd"])) for line in spend_path.read_text(encoding="utf-8").splitlines() if line.strip()),
+                    Decimal("0"),
+                )
+            else:
+                # Offline/mock adapters do not issue provider calls through a
+                # transport, so preserve their declared result accounting.
+                cumulative_spend += result.cost_usd
             attempts += 1
             successes += int(result.success)
-            cumulative_spend += result.cost_usd
             grouped.setdefault((agent_id, goal.family), []).append(result)
             transcript_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{agent_id}-{goal.goal_id}-run-{run_index}") + ".md"
             _write_transcript(transcript_dir / transcript_name, result, run_index=run_index)
             row = dict(result.evidence_record())
             row.update({"agent_id": agent_id, "run_index": run_index, "target_identity": target.identity, "target_model": target.model_id, "cumulative_cost_usd": str(cumulative_spend), "transcript": f"transcripts/{transcript_name}"})
             stream.write(json.dumps(row, sort_keys=True, default=str) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
             if result.success and run_index == 0 and agent_id != "zoo-strong-control-v1":
                 try:
                     frozen.freeze(result, commit=commit)
