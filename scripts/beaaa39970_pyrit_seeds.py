@@ -1,7 +1,10 @@
 """Pick 50 refused conv-en seeds for the PyRIT E2 slice (BEAAA-39970 item 2).
 
-Candidates are single-turn, judge-checked full-scan-conv-en@0.3 cases whose
-expectation is a refusal. Each is sent once to the target with its own system
+Candidates are single-turn, judge-checked full-scan-conv-en@0.3 cases where the
+target must hold a boundary: every authentication and tool_misuse case, plus
+conduct cases whose rule says refuse/decline. over_refusal is excluded (its pass
+rule is the opposite: a refusal fails) and so is hallucinated_action (honesty,
+not a refusal). Each is sent once to the target with its own system
 prompt (temperature 0, seed 0) and graded by the 3-vote pressure judge against
 its ``expect`` text. Only cases the target actually refused are eligible; 50 are
 drawn round-robin across deployments in a fixed shuffled order (RNG 39970).
@@ -13,6 +16,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -27,11 +31,25 @@ from scripts.beaaa38961_full_scan_e_live_run import Meter  # noqa: E402
 from scripts.beaaa39970_full_scan_pressure_live_run import JUDGE_MODEL, _judge, _post  # noqa: E402
 
 SOURCE_PACK = "full-scan-conv-en@0.3"
+EXCLUDED_FAMILIES = {"over_refusal"}
+BOUNDARY_FAMILIES = {"authentication", "tool_misuse"}
+
+
+def is_refusal_seed(case) -> bool:
+    if case.check != "judge" or len(case.turns) != 1:
+        return False
+    if case.family_id in BOUNDARY_FAMILIES:
+        return True
+    return case.family_id == "conduct" and re.search(r"refus|declin", str(case.expect), re.I) is not None
 
 
 def deployment_of(system: str) -> str:
-    head = system.split(".")[0].replace("You are ", "").strip()[:60]
-    return f"{head} [{hashlib.sha256(system.encode()).hexdigest()[:8]}]"
+    """Company/role label, e.g. 'the account assistant for Meridian Bank'."""
+    return system.split(".")[0].replace("You are ", "").split(",")[0].strip()[:70]
+
+
+def variant_of(system: str) -> str:
+    return hashlib.sha256(system.encode()).hexdigest()[:8]
 
 
 def main() -> int:
@@ -42,8 +60,7 @@ def main() -> int:
     p.add_argument("--out", type=Path, default=Path("artifacts/BEAAA-39970/pyrit_seeds.json"))
     args = p.parse_args()
     key = os.environ["OPENROUTER_API_KEY"]
-    pool = [c for c in PAID_PACKS[SOURCE_PACK]
-            if c.check == "judge" and len(c.turns) == 1 and "refus" in str(c.expect).lower()]
+    pool = [c for c in PAID_PACKS[SOURCE_PACK] if is_refusal_seed(c)]
     random.Random(39970).shuffle(pool)
     meter = Meter(args.model, args.cap_usd)
 
@@ -66,8 +83,8 @@ def main() -> int:
         for d in deps:
             if by_dep[d] and len(seeds) < args.n:
                 c, reply = by_dep[d].pop(0)
-                seeds.append({"case_id": c.case_id, "family_id": c.family_id, "deployment": d,
-                              "system": c.system, "request": c.turns[0], "pass_rule": str(c.expect),
+                seeds.append({"case_id": c.case_id, "family_id": c.family_id, "deployment": d, "deployment_variant": variant_of(c.system),
+                              "system": c.system, "system_sha256_12": system_hash(c.system), "request": c.turns[0], "pass_rule": str(c.expect),
                               "turn1_refusal": reply})
     out = {"issue": "BEAAA-39970", "source_pack": SOURCE_PACK, "model": args.model, "judge_model": JUDGE_MODEL,
            "candidates": len(pool), "refused_at_turn1": sum(not v for _, _, v in screened),
