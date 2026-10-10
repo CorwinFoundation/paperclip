@@ -352,7 +352,22 @@ if [ "${1:-}" = disk-maintenance ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply]'
+# BEAAA-39988: narrowly scoped stdin bridge for the idempotent starter-v5
+# acceptance program. This lets the existing sudo-authorized deploy helper run
+# the check without granting the deploy account general Docker access.
+if [ "${1:-}" = acceptance ] && [ "${2:-}" = starter-v5 ]; then
+  [ "$#" = 3 ] || die 'usage: scanner-deploy acceptance starter-v5 <commit-prefix>'
+  expected=$3
+  [[ "$expected" =~ ^[0-9a-f]{7,40}$ ]] || die 'acceptance commit must be a 7-40 character lowercase hex prefix'
+  running="$($DOCKER inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$CONTAINER")" \
+    || die 'cannot inspect live scanner container'
+  case "$running" in "$expected"*) ;; *) die "live revision mismatch: expected $expected, running $running" ;; esac
+  ACCEPTANCE_EXPECTED_REVISION="$running" "$DOCKER" exec -i \
+    -e "ACCEPTANCE_EXPECTED_REVISION=$running" "$CONTAINER" python3 -
+  exit $?
+fi
+
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
