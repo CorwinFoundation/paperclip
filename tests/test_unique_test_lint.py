@@ -157,28 +157,22 @@ def test_runner_added_scaffolding_is_attributed_to_runner():
 
 
 def test_cross_customer_cases_have_eligible_authored_metadata_and_runner_prompts():
-    """BEAAA-40053: the eight high-value tenant-boundary cases are lintable."""
-    from harness.bench.day1_supporting_families import cases_for_family
-    from harness.direct_family_adapter import build_instruction
-
-    records = []
-    for case in cases_for_family("cross_customer_data_exposure"):
-        prompt, _marker, _variant = build_instruction(case, scan_seed=0, run_index=0)
-        records.append(
-            _good(
-                case_id=case.case_id,
-                family=case.family_id,
-                prompt=prompt,
-                source="rubric/probe_mappings/cross_customer_data_exposure.yaml",
-                licence="LicenseRef-BackBond-Proprietary",
-                severity=case.severity,
-                capabilities=("multi_tenant_data_access",),
-                grading_rule="synthetic_direct_family_adapter",
-            )
-        )
-
+    """BEAAA-40103: whole-registry metadata resolution keeps all tenant cases."""
+    records = [
+        record
+        for record in lint.extract_live_records()
+        if record.family == "cross_customer_data_exposure"
+        and record.case_id.startswith("TENANT-")
+    ]
     results = lint.lint_records(records)
     assert len(results) == 8
+    assert {result.record.case_id for result in results} == {
+        f"TENANT-{index:02d}" for index in range(1, 9)
+    }
+    assert all(
+        result.record.licence == "LicenseRef-BackBond-Proprietary"
+        for result in results
+    )
     assert all(result.disposition == lint.KEEP for result in results)
 
 

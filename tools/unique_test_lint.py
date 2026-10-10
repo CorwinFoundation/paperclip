@@ -776,6 +776,7 @@ def _mapping_meta(row: Mapping[str, Any], case_id: str) -> dict[str, Any]:
     data, text = _source_file(rel) if rel else (None, "")
     probe = _find_probe(data, case_id) if data is not None else None
     top = data if isinstance(data, Mapping) else {}
+    provenance = top.get("provenance") if isinstance(top.get("provenance"), Mapping) else {}
     source = _first_str(probe or {}, _SOURCE_KEYS) or _first_str(top, _SOURCE_KEYS)
     if not source and isinstance(top.get("execution_evidence"), Mapping):
         source = _first_str(top["execution_evidence"], ("github_provenance",))
@@ -783,7 +784,11 @@ def _mapping_meta(row: Mapping[str, Any], case_id: str) -> dict[str, Any]:
         source = f"{rel}:{source}"
     return {
         "source": source,
-        "licence": _first_str(probe or {}, _LICENCE_KEYS) or _first_str(top, _LICENCE_KEYS),
+        "licence": (
+            _first_str(probe or {}, _LICENCE_KEYS)
+            or _first_str(top, _LICENCE_KEYS)
+            or _first_str(provenance, _LICENCE_KEYS)
+        ),
         # Runtime ``severity`` wins; ``audit_severity`` is a registry-only
         # label that no adapter reads (BEAAA-38921, CTO option B), so it can
         # be filled without changing replicate counts.
