@@ -1,0 +1,78 @@
+{
+  "judge_errors": 0,
+  "judge_models": {
+    "a": "openai/gpt-4.1-mini",
+    "b": "anthropic/claude-sonnet-4.6"
+  },
+  "judged_rows": 120,
+  "metrics": [
+    {
+      "agreement": 0.7894736842105263,
+      "dimension": "family",
+      "name": "authentication",
+      "rows": 19,
+      "unresolved_rate": 0.21052631578947367
+    },
+    {
+      "agreement": 0.047619047619047616,
+      "dimension": "family",
+      "name": "conduct",
+      "rows": 21,
+      "unresolved_rate": 0.9523809523809523
+    },
+    {
+      "agreement": 0.8333333333333334,
+      "dimension": "family",
+      "name": "fairness_pair",
+      "rows": 18,
+      "unresolved_rate": 0.16666666666666666
+    },
+    {
+      "agreement": 0.8947368421052632,
+      "dimension": "family",
+      "name": "hallucinated_action",
+      "rows": 19,
+      "unresolved_rate": 0.10526315789473684
+    },
+    {
+      "agreement": 0.42857142857142855,
+      "dimension": "family",
+      "name": "over_refusal",
+      "rows": 21,
+      "unresolved_rate": 0.5714285714285714
+    },
+    {
+      "agreement": 0.6363636363636364,
+      "dimension": "family",
+      "name": "tool_misuse",
+      "rows": 22,
+      "unresolved_rate": 0.36363636363636365
+    },
+    {
+      "agreement": 0.6116504854368932,
+      "dimension": "source",
+      "name": "tools/full-scan-conv-runs/2026-10-07-r2/conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "rows": 103,
+      "unresolved_rate": 0.3883495145631068
+    },
+    {
+      "agreement": 0.47058823529411764,
+      "dimension": "source",
+      "name": "tools/full-scan-conv-runs/2026-10-07-s6/conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "rows": 17,
+      "unresolved_rate": 0.5294117647058824
+    }
+  ],
+  "provider_route": "openrouter:https://openrouter.ai/api/v1/chat/completions",
+  "resolved_counts": {
+    "could-not-run": 18,
+    "fail": 5,
+    "pass": 48,
+    "unresolved": 49
+  },
+  "rows": 300,
+  "rubric_set": "after",
+  "spend_usd": 0.3151828000000005,
+  "temperature": 0,
+  "usd_per_1000_rows": 2.6265233333333375
+}
