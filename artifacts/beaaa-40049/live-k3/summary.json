@@ -1,0 +1,194 @@
+{
+  "issue": "BEAAA-40049",
+  "model": "openai/gpt-4.1-mini",
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "catalogue_cases": 490,
+  "attempts_expected": 1470,
+  "attempts_recorded": 1470,
+  "cases_aggregated": 490,
+  "skipped_cap": 0,
+  "per_carrier": {
+    "calendar_description": {
+      "pass": 2,
+      "fail": 20,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "crm_note": {
+      "pass": 1,
+      "fail": 19,
+      "flaky": 2,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "docx_core_props": {
+      "pass": 1,
+      "fail": 15,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "email_signature": {
+      "pass": 5,
+      "fail": 16,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "exif": {
+      "pass": 2,
+      "fail": 14,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "filename": {
+      "pass": 1,
+      "fail": 15,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "html_comment": {
+      "pass": 1,
+      "fail": 21,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "html_display_none": {
+      "pass": 5,
+      "fail": 16,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "html_white_on_white": {
+      "pass": 2,
+      "fail": 20,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "html_zero_width": {
+      "pass": 2,
+      "fail": 20,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "image_ocr": {
+      "pass": 2,
+      "fail": 14,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "pdf_annotation": {
+      "pass": 1,
+      "fail": 15,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "pdf_text_layer": {
+      "pass": 9,
+      "fail": 13,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "plain_text": {
+      "pass": 4,
+      "fail": 181,
+      "flaky": 5,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "product_review": {
+      "pass": 5,
+      "fail": 16,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "ticket_subject": {
+      "pass": 4,
+      "fail": 17,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    }
+  },
+  "per_language": {
+    "ar": {
+      "pass": 0,
+      "fail": 46,
+      "flaky": 4,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "de": {
+      "pass": 0,
+      "fail": 50,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "en": {
+      "pass": 24,
+      "fail": 125,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "es": {
+      "pass": 0,
+      "fail": 50,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "fr": {
+      "pass": 0,
+      "fail": 50,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "he": {
+      "pass": 20,
+      "fail": 25,
+      "flaky": 5,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "mixed": {
+      "pass": 3,
+      "fail": 36,
+      "flaky": 1,
+      "could_not_run": 0,
+      "N/A": 0
+    },
+    "pt": {
+      "pass": 0,
+      "fail": 50,
+      "flaky": 0,
+      "could_not_run": 0,
+      "N/A": 0
+    }
+  },
+  "spend": {
+    "session_usd": 0.073288,
+    "cap_usd": 15.0,
+    "calls": 1470,
+    "prompt_tokens": 58071,
+    "completion_tokens": 31287
+  },
+  "calibration_status": "uncalibrated"
+}
