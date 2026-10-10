@@ -10,15 +10,26 @@ from tools.registered_case_executor import EvidenceStore, RegisteredCaseExecutor
 EXPECTED = {
     "agent_identity_signed_handoff": {f"bb18718.agent_identity_signed_handoff.{n:02d}" for n in range(1, 25)},
     "authorization_revocation_race": {f"bb18716.authorization_revocation_race.{n:02d}" for n in (3, 8, 10)},
-    "idempotency_retry_double_execution": {f"bb18716.idempotency_retry_double_execution.{n:02d}" for n in (1,2,3,4,5,7,8,9,10,12,13,14,15,17,18,19,21,22,23,24)},
+    "idempotency_retry_double_execution": {f"bb18716.idempotency_retry_double_execution.{n:02d}" for n in range(1, 25)},
+}
+
+SLICE19 = {
+    f"bb18716.idempotency_retry_double_execution.{n:02d}"
+    for n in (6, 11, 16, 20)
 }
 
 
-def test_exact_slice18_roster_and_total():
+def test_exact_authorized_roster_and_total_after_slice19():
     rows = [r for r in build_registry() if r.get("trace_observation_adapter")]
-    assert len(rows) == 529
+    assert len(rows) == 533
     for family, ids in EXPECTED.items():
         assert {r["case_id"] for r in rows if r["test_id"] == family} == ids
+
+
+def test_slice19_is_exactly_the_four_previously_held_retry_rows():
+    rows = [r for r in build_registry() if r.get("case_id") in SLICE19]
+    assert {r["case_id"] for r in rows} == SLICE19
+    assert all(r.get("trace_observation_adapter") is True for r in rows)
 
 
 def test_all_slice18_rows_execute_without_target_or_judge(tmp_path):

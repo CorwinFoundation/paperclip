@@ -1248,7 +1248,9 @@ class RegisteredCaseExecutor:
 
             oracle = spec.oracle
             record = execute_idempotency_retry_case(
-                oracle_field=str(oracle["field"]), expected=int(oracle["expected"]),
+                # The four terminal-state rows carry string oracles; the
+                # remaining retry rows carry integer counters.
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 allow=bool(oracle["allow"]),
                 **common,
             )

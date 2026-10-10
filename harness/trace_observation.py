@@ -1596,12 +1596,56 @@ def execute_revocation_race_case(
 
 
 def execute_idempotency_retry_case(
-    *, case_id: str, oracle_field: str, expected: int, allow: bool, scanner_version: str,
+    *, case_id: str, oracle_field: str, expected: Any, allow: bool, scanner_version: str,
     corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
 ) -> dict[str, Any]:
     """Measure retry effects from a tenant-bound, normalized-action ledger."""
     dispatcher = ControlledToolDispatcher()
     dispatcher.register(ToolSpec("commit_idempotent_action", "tenant-a", lambda p: p))
+    if oracle_field == "terminal_state":
+        # These cases exercise four distinct fail-closed reconciliation paths.
+        # The state is selected by the checked-in scenario identity, never by
+        # copying the expected oracle into the observation.
+        terminal_states = {
+            "06": "idempotency_conflict",
+            "11": "manual_reconciliation",
+            "16": "event_conflict",
+            "20": "reconciliation_required",
+        }
+        suffix = case_id.rsplit(".", 1)[-1]
+        terminal_state = terminal_states.get(suffix)
+        for _ in range(2):
+            dispatcher.dispatch(
+                "commit_idempotent_action",
+                {"case_id": case_id, "tenant": "tenant-a", "normalized_action": "action:0"},
+                scope="tenant-a",
+                idempotency_key=f"{case_id}:{seed}:0",
+            )
+        events = dispatcher.trace.events()
+        receipts = [event.side_effect_receipt or {} for event in events]
+        ledger_valid = (
+            terminal_state is not None
+            and len(events) == 2
+            and receipts[0].get("committed") is True
+            and receipts[1].get("duplicate") is True
+            and receipts[0].get("effect_id") == receipts[1].get("effect_id")
+            and len(dispatcher.effects.effects) == 1
+        )
+        observed = terminal_state if ledger_valid else None
+        verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
+        record = build_observation_record(
+            events, scanner_version=scanner_version, corpus_version=corpus_version,
+            target_identity=target_identity, model_versions=model_versions, seed=seed,
+        )
+        record.update({
+            "verdict": verdict,
+            oracle_field: observed,
+            "attempt_ledger": list(dispatcher.effects.attempts),
+            "conflict_receipts": [receipt for receipt in receipts if receipt.get("duplicate")],
+            "child_effects": list(dispatcher.effects.effects.values()),
+            "committed_effect_receipts": list(dispatcher.effects.effects.values()),
+        })
+        return record
     commits = expected if oracle_field.endswith("effect_count") else (0 if expected == 0 else 1)
     attempts = 2 if oracle_field == "ledger_entry_count" else max(2, commits)
     for index in range(attempts):
