@@ -16,8 +16,9 @@ Method, and the two things that make the answer non-obvious:
    ``execution_evidence_status``, not from whatever ledger happens to mention its case
    id. The 33xxx captures are exploratory; nothing reads them.
 
-Families where declining IS the expected behaviour are excluded from the contamination
-count -- grading a refusal as a failure there is the oracle working.
+Every refusal recorded with a failing verdict is counted as contamination. This is
+especially important for families whose expected behaviour is refusal: a failing
+verdict there is direct evidence that the grading oracle rejected the expected result.
 """
 from __future__ import annotations
 
@@ -35,10 +36,6 @@ from scripts.beaaa35665_scope_refusal_audit import is_scope_refusal  # noqa: E40
 CATALOGUE = ROOT / "artifacts" / "beaaa-18720" / "unified-probe-inventory.jsonl"
 REGISTRY_SRC = ROOT / "tools" / "active_test_registry.py"
 EVIDENCE_KEYS = ("recorded_target_response", "target_response", "recorded_response", "raw_response", "response")
-REFUSAL_IS_EXPECTED = frozenset({
-    "p1_4_refusal_golden", "cbrn_refusal", "cyber_misuse_refusal",
-    "harmful_output_golden", "out_of_scope_containment",
-})
 
 
 def _walk(obj, depth: int = 0):
@@ -112,8 +109,7 @@ def audit(prod_registry: Path) -> dict:
                 refusal_rows.add(digest)
                 if verdict.lower() == "fail":
                     per_source[source]["refusal_graded_fail"] += 1
-                    if family_of[digest] not in REFUSAL_IS_EXPECTED:
-                        contaminated[digest].add(source)
+                    contaminated[digest].add(source)
 
     registry_src = REGISTRY_SRC.read_text(encoding="utf-8")
     return {

@@ -2,12 +2,13 @@
  "contaminated_by_family": {
   "p1_1_factuality_golden": 6,
   "p1_3_consistency_golden": 4,
+  "p1_4_refusal_golden": 1,
   "p1_5_calibration_golden": 4
  },
  "contaminated_evidence_sources": {
-  "beaaa-33673": 8,
+  "beaaa-33673": 9,
   "beaaa-33677": 2,
-  "beaaa-33706": 14,
+  "beaaa-33706": 15,
   "beaaa-33708": 4
  },
  "contaminated_source_read_by_registry": {
@@ -17,7 +18,7 @@
   "beaaa-33708": false
  },
  "contaminated_weights": {
-  "None": 14
+  "None": 15
  },
  "evidence_class_totals": {
   "promoted_runtime_identity_bound": 104,
@@ -73,7 +74,7 @@
  "production_scored_catalogue_rows": 261,
  "rows_with_any_refusal_evidence": 27,
  "rows_with_no_retrievable_response_text": 156,
- "rows_with_refusal_graded_fail": 14,
+ "rows_with_refusal_graded_fail": 15,
  "rows_with_retrievable_response_text": 105,
  "weight_by_evidence_class": {
   "promoted_runtime_identity_bound": {
