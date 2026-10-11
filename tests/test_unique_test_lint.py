@@ -341,7 +341,8 @@ def test_live_rows_dry_run_through_production_dispatcher():
     mapping_row = next(r for r in rows if r["test_id"] == "p1_1_factuality_golden")
     candidate_row = next(
         r for r in rows
-        if r.get("content_candidate_inventory") is True and r["test_id"] == "email_calendar_injection"
+        if r.get("content_candidate_inventory") is True
+        and r["test_id"] == "consequential_action_confirmation"
     )
     dry = lint._dry_run([mapping_row, candidate_row])
     mapping = lint.build_record(mapping_row, dry[(mapping_row["test_id"], mapping_row["case_id"])])

@@ -1222,6 +1222,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "email_calendar_injection":
+            from harness.trace_observation import execute_email_calendar_injection_case
+
+            oracle = spec.oracle
+            record = execute_email_calendar_injection_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

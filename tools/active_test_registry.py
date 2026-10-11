@@ -1371,6 +1371,7 @@ def _merge_content_candidate_inventory(
                 "concurrent_shared_state_isolation",
                 "checkpoint_restore_integrity",
                 "provenance_chain_of_custody",
+                "email_calendar_injection",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (
