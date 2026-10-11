@@ -262,8 +262,26 @@ def _has_human_label(row: Mapping[str, Any]) -> bool:
     return value is not None and _text(value).strip() != ""
 
 
+def _truth(row: Mapping[str, Any]) -> tuple[str, str] | None:
+    """Return the reference verdict and its provenance.
+
+    Exact machine-observed truth takes precedence when present.  This keeps
+    sandbox/ledger/canary/detector verdicts distinct from human adjudication
+    while allowing both to flow through the same agreement report.
+    """
+    for field, source in (("exact_verdict", "exact"), ("human_label", "human")):
+        value = row.get(field)
+        if value is None or not _text(value).strip():
+            continue
+        verdict = _normalise_verdict(value)
+        if verdict not in VERDICTS:
+            raise ValueError(f"invalid {source} truth verdict: {verdict!r}")
+        return verdict, source
+    return None
+
+
 def agreement_metrics(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Return family and source metrics; accuracy is omitted without human labels."""
+    """Return family/source metrics against exact or human truth when present."""
     groups: dict[tuple[str, str], list[Mapping[str, Any]]] = defaultdict(list)
     for row in rows:
         if _row_is_judge_decided(row) and _row_is_in_scope(row):
@@ -278,13 +296,15 @@ def agreement_metrics(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]
             "agreement": (len(compared) - len(disagreements)) / len(compared) if compared else None,
             "unresolved_rate": len(disagreements) / len(compared) if compared else None,
         }
-        labelled = [r for r in compared if _has_human_label(r)]
+        labelled = [(r, _truth(r)) for r in compared if _truth(r) is not None]
         if labelled:
-            human = [_normalise_verdict(r["human_label"]) for r in labelled]
+            truth = [item[1][0] for item in labelled]
+            truth_sources = sorted({item[1][1] for item in labelled})
             metric.update({
-                "judge_a_accuracy": sum(_normalise_verdict(r["judge_a_verdict"]) == h for r, h in zip(labelled, human)) / len(labelled),
-                "judge_b_accuracy": sum(_normalise_verdict(r["judge_b_verdict"]) == h for r, h in zip(labelled, human)) / len(labelled),
-                "agreed_verdict_accuracy": sum(_normalise_verdict(r["judge_a_verdict"]) == h and _normalise_verdict(r["judge_b_verdict"]) == h for r, h in zip(labelled, human)) / len(labelled),
+                "truth_source": "+".join(truth_sources),
+                "judge_a_accuracy": sum(_normalise_verdict(r["judge_a_verdict"]) == h for (r, _), h in zip(labelled, truth)) / len(labelled),
+                "judge_b_accuracy": sum(_normalise_verdict(r["judge_b_verdict"]) == h for (r, _), h in zip(labelled, truth)) / len(labelled),
+                "agreed_verdict_accuracy": sum(_normalise_verdict(r["judge_a_verdict"]) == h and _normalise_verdict(r["judge_b_verdict"]) == h for (r, _), h in zip(labelled, truth)) / len(labelled),
                 "labelled_rows": len(labelled),
             })
         metrics.append(metric)
@@ -292,7 +312,7 @@ def agreement_metrics(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]
 
 
 def render_metrics(metrics: Iterable[Mapping[str, Any]]) -> str:
-    columns = ["dimension", "name", "rows", "agreement", "unresolved_rate", "judge_a_accuracy", "judge_b_accuracy", "agreed_verdict_accuracy"]
+    columns = ["dimension", "name", "truth_source", "rows", "agreement", "unresolved_rate", "judge_a_accuracy", "judge_b_accuracy", "agreed_verdict_accuracy"]
     lines = ["| " + " | ".join(columns) + " |", "|" + "---|" * len(columns)]
     for metric in metrics:
         lines.append("| " + " | ".join("" if metric.get(c) is None else str(metric.get(c)) for c in columns) + " |")
@@ -303,6 +323,7 @@ GRADED_FIELDS = (
     "case_id", "family", "underwriting_family", "source", "decision_method", "rubric_text",
     "judge_a_model", "judge_a_verdict", "judge_a_reason", "judge_b_model", "judge_b_verdict",
     "judge_b_reason", "resolved_verdict", "single_judge", "judge_spend_usd", "human_label",
+    "exact_verdict", "truth_source",
 )
 
 

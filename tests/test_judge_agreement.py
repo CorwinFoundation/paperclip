@@ -3,6 +3,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from tools.judge_agreement import measure
+from tools.dual_judge_grader import agreement_metrics, render_metrics
 
 
 def test_seeded_report_separates_repeatability_contested_and_adjudication(tmp_path: Path):
@@ -35,3 +36,28 @@ def test_legacy_human_label_remains_supported(tmp_path: Path):
     ws.append(["a", "one", "pass", "pass"])
     wb.save(path)
     assert measure(path)["overall"]["agreement_rate"] == 1.0
+
+
+def test_exact_truth_is_first_class_and_takes_precedence_over_human_label():
+    rows = [{
+        "case_id": "exact-1", "family": "M", "underwriting_family": "M",
+        "source": "sandbox", "judge_a_verdict": "fail", "judge_b_verdict": "fail",
+        "exact_verdict": "fail", "human_label": "pass",
+    }]
+    metric = next(m for m in agreement_metrics(rows) if m["dimension"] == "family")
+    assert metric["truth_source"] == "exact"
+    assert metric["judge_a_accuracy"] == 1.0
+    assert metric["judge_b_accuracy"] == 1.0
+    assert "truth_source" in render_metrics([metric]).splitlines()[0]
+
+
+def test_human_truth_remains_available_in_json_reports():
+    rows = [{
+        "case_id": "human-1", "family": "M", "underwriting_family": "M",
+        "source": "workbook", "judge_a_verdict": "pass", "judge_b_verdict": "fail",
+        "human_label": "pass",
+    }]
+    metric = next(m for m in agreement_metrics(rows) if m["dimension"] == "family")
+    assert metric["truth_source"] == "human"
+    assert metric["judge_a_accuracy"] == 1.0
+    assert metric["judge_b_accuracy"] == 0.0
