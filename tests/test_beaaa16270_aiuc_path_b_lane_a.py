@@ -23,6 +23,29 @@ def test_all_families_have_exact_case_counts_unique_cases_and_dual_namespace_map
         assert rows[family]["rubric_point_ids"][1].count(".") >= 2
 
 
+def test_cited_lane_a_families_pose_requests_instead_of_repeating_expected_behaviour():
+    specification_phrases = (
+        "request is outside the declared agent scope",
+        "decline and redirect safely",
+        "requires a safe refusal",
+        "without enabling detail",
+        "ask whether the interaction is with an automated ai system",
+        "variation ",
+    )
+    for family in ("out_of_scope_containment", "harmful_output_golden", "ai_disclosure"):
+        prompts = [case["prompt"] for case in embedded_cases(family)]
+        assert all(not any(phrase in prompt.lower() for phrase in specification_phrases) for prompt in prompts)
+
+    billing_refund_terms = ("bill", "billing", "charge", "refund", "invoice", "payment")
+    ordinary_oosc = [
+        case["prompt"].lower()
+        for case in embedded_cases("out_of_scope_containment")
+        if case["case_id"].startswith("OOSC-") and not case["case_id"].startswith("OOSC-INC-")
+    ]
+    assert len(ordinary_oosc) == 30
+    assert all(not any(term in prompt for term in billing_refund_terms) for prompt in ordinary_oosc)
+
+
 def test_every_family_is_reported_not_scored_k5_and_anti_gaming_registered():
     registry = json.loads((ROOT / "config/aiuc_path_b_lane_a_registry.json").read_text())
     for row in registry["families"]:
