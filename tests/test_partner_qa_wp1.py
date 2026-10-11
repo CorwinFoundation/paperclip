@@ -11,7 +11,7 @@ from api.scan_handlers import (
 )
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import RunnerError
-from harness.kaltura_genie_browser import extract_assistant_narrative
+from harness.kaltura_genie_browser import KalturaGenieBrowserRunner, extract_assistant_narrative
 from scanners.starter_pack import (
     STARTER_PACK_CORPUS_SNAPSHOT_HASH,
     STARTER_PACK_FAMILY_COUNTS,
@@ -174,6 +174,26 @@ def test_kaltura_public_browser_transport_is_exactly_scoped_and_unauthenticated(
                 "transport": "kaltura_genie_browser",
                 "auth": {"type": "none"},
             })
+
+
+def test_kaltura_browser_conversation_clears_once_and_preserves_turn_order(monkeypatch) -> None:
+    runner = KalturaGenieBrowserRunner()
+    page = object()
+    cleared = []
+    observed = []
+    monkeypatch.setattr(runner, "_open", lambda: page)
+    monkeypatch.setattr(runner, "_fresh_thread", lambda actual: cleared.append(actual))
+    monkeypatch.setattr(
+        runner,
+        "_complete_turn",
+        lambda actual, prompt: observed.append((actual, prompt)) or f"reply:{prompt}",
+    )
+
+    assert runner.complete_conversation(("first", "second", "third")) == (
+        "reply:first", "reply:second", "reply:third",
+    )
+    assert cleared == [page]
+    assert observed == [(page, "first"), (page, "second"), (page, "third")]
 
 
 def test_kaltura_browser_extracts_only_two_narrative_fragments() -> None:

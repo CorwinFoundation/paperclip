@@ -119,6 +119,17 @@ class KalturaGenieBrowserRunner(ModelRunner):
     def complete(self, prompt: str) -> str:
         page = self._open()
         self._fresh_thread(page)
+        return self._complete_turn(page, prompt)
+
+    def complete_conversation(self, turns: list[str] | tuple[str, ...]) -> tuple[str, ...]:
+        """Run one case in one fresh thread, preserving context between turns."""
+        if not turns:
+            raise RunnerError("kaltura genie conversation requires at least one turn")
+        page = self._open()
+        self._fresh_thread(page)
+        return tuple(self._complete_turn(page, prompt) for prompt in turns)
+
+    def _complete_turn(self, page: Any, prompt: str) -> str:
         articles = page.locator(f"{_ROOT} #chat-messages article")
         baseline = articles.count()
         composer = page.locator(_COMPOSER)
