@@ -179,7 +179,20 @@ def _dispatch_multiturn(runner: ModelRunner, case: StarterCaseV5MT) -> str:
     as the assistant turns in the history (not pre-canned refusals).  The
     runner's ``_messages_payload`` override is used so the existing HTTP path
     is reused without modification.
+
+    A runner that exposes ``complete_conversation`` (the Kaltura browser
+    runner) has no ``_messages_payload`` hook: ``complete("")`` would type an
+    empty prompt into its composer.  Such runners receive the user turns in
+    one fresh thread instead; the scenario ``system`` string cannot be
+    injected into a deployed chat surface and is not sent.
     """
+    complete_conversation = getattr(runner, "complete_conversation", None)
+    if callable(complete_conversation):
+        replies = tuple(complete_conversation(tuple(case.turns)))
+        if len(replies) != len(case.turns):
+            raise RunnerError("multi-turn runner returned a mismatched reply count")
+        return replies[-1]
+
     system = getattr(case, "system", None)
     messages: list[dict[str, Any]] = []
     if system:

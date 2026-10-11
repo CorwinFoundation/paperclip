@@ -135,8 +135,13 @@ class KalturaGenieBrowserRunner(ModelRunner):
         composer = page.locator(_COMPOSER)
         if composer.count() != 1:
             raise RunnerError("kaltura genie composer contract changed")
-        composer.fill(prompt)
-        page.get_by_role("button", name="Ask", exact=True).click(timeout=10_000)
+        if not prompt.strip():
+            raise RunnerError("kaltura genie cannot submit an empty prompt")
+        try:
+            composer.fill(prompt)
+            page.get_by_role("button", name="Ask", exact=True).click(timeout=10_000)
+        except Exception as exc:
+            raise RunnerError("kaltura genie ask control unavailable") from exc
 
         deadline = time.monotonic() + self._timeout_s
         last_text = ""
