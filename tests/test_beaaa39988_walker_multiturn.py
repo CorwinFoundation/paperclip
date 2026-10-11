@@ -113,3 +113,61 @@ def test_kaltura_disabled_ask_control_is_runner_error() -> None:
     page = _Page(click_exc=TimeoutError_("Locator.click: Timeout 10000ms exceeded"))
     with pytest.raises(RunnerError, match="ask control unavailable"):
         KalturaGenieBrowserRunner()._complete_turn(page, "hello")
+
+
+class _ResetRunner(KalturaGenieBrowserRunner):
+    """Scripted pages: each _open() hands out the next (articles, reset_ok) page."""
+
+    def __init__(self, pages) -> None:
+        super().__init__()
+        self._script = list(pages)
+        self.opened = 0
+        self.closed = 0
+
+    def _open(self):
+        if self._page is None:
+            articles, reset_ok = self._script[self.opened]
+            self.opened += 1
+            self._page = _ResetPage(articles, reset_ok)
+        return self._page
+
+    def _fresh_thread(self, page) -> None:
+        if not page.reset_ok:
+            raise RunnerError("kaltura genie fresh-thread reset failed")
+
+    def close(self) -> None:
+        if self._page is not None:
+            self.closed += 1
+        self._page = None
+
+    def _complete_turn(self, page, prompt):
+        return f"reply:{prompt}"
+
+
+class _ResetPage:
+    def __init__(self, articles: int, reset_ok: bool) -> None:
+        self.articles, self.reset_ok = articles, reset_ok
+
+    def locator(self, selector: str) -> _Locator:
+        return _Locator(count=self.articles)
+
+
+def test_kaltura_failed_reset_relaunches_once_and_recovers() -> None:
+    runner = _ResetRunner([(3, False), (0, True)])
+    assert runner.complete("hi") == "reply:hi"
+    assert (runner.opened, runner.closed) == (2, 1)
+    # the next case reuses the healthy relaunched page
+    assert runner.complete_conversation(["a", "b"]) == ("reply:a", "reply:b")
+    assert runner.opened == 2
+
+
+def test_kaltura_relaunch_with_populated_thread_fails_closed() -> None:
+    runner = _ResetRunner([(3, False), (2, True)])
+    with pytest.raises(RunnerError, match="after relaunch"):
+        runner.complete("hi")
+
+
+def test_kaltura_healthy_reset_does_not_relaunch() -> None:
+    runner = _ResetRunner([(3, True)])
+    assert runner.complete("hi") == "reply:hi"
+    assert (runner.opened, runner.closed) == (1, 0)

@@ -116,17 +116,33 @@ class KalturaGenieBrowserRunner(ModelRunner):
         except Exception as exc:
             raise RunnerError("kaltura genie fresh-thread reset failed") from exc
 
-    def complete(self, prompt: str) -> str:
+    def _fresh_page(self) -> Any:
+        """Return a page with an empty thread, relaunching the browser once.
+
+        A failed in-page reset (e.g. after an unrecognised answer shape) used
+        to poison every later case.  A new browser context carries no thread
+        state, so one relaunch recovers; a still-populated thread fails closed.
+        """
         page = self._open()
-        self._fresh_thread(page)
+        try:
+            self._fresh_thread(page)
+            return page
+        except RunnerError:
+            self.close()
+        page = self._open()
+        if page.locator(f"{_ROOT} #chat-messages article").count() != 0:
+            raise RunnerError("kaltura genie fresh-thread reset failed after relaunch")
+        return page
+
+    def complete(self, prompt: str) -> str:
+        page = self._fresh_page()
         return self._complete_turn(page, prompt)
 
     def complete_conversation(self, turns: list[str] | tuple[str, ...]) -> tuple[str, ...]:
         """Run one case in one fresh thread, preserving context between turns."""
         if not turns:
             raise RunnerError("kaltura genie conversation requires at least one turn")
-        page = self._open()
-        self._fresh_thread(page)
+        page = self._fresh_page()
         return tuple(self._complete_turn(page, prompt) for prompt in turns)
 
     def _complete_turn(self, page: Any, prompt: str) -> str:
