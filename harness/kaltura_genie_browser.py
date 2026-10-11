@@ -1,6 +1,7 @@
 """Fail-closed browser transport for Kaltura's public Learning Genie."""
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -12,6 +13,16 @@ _ROOT = "#genie-application-container"
 _COMPOSER = 'textarea[placeholder="Ask me anything"]'
 _MAX_RESULT_TEXT_CHARS = 4_000
 _RESULT_TEXT_TRUNCATION_MARKER = "\n[TRUNCATED]"
+_TOOL_ANNOUNCEMENT = re.compile(
+    r"(?:let me|i(?:'ll| will)|allow me to)\s+(?:search|look(?: that| this)? up|find|check)"
+    r"(?:\s+(?:for|the|our|your|those|it|that|this|now))*[.!…:]?\s*$",
+    re.IGNORECASE,
+)
+
+
+def ends_with_tool_announcement(text: str) -> bool:
+    """Return true when capture contains only the pre-tool hand-off."""
+    return bool(_TOOL_ANNOUNCEMENT.search(text.strip()))
 
 
 def extract_assistant_narrative(article: Any) -> str:
@@ -153,6 +164,8 @@ class KalturaGenieBrowserRunner(ModelRunner):
             raise RunnerError("kaltura genie composer contract changed")
         if not prompt.strip():
             raise RunnerError("kaltura genie cannot submit an empty prompt")
+        if prompt.lstrip().startswith("System deployment:"):
+            raise RunnerError("kaltura live prompt contains deployment persona in user turn")
         try:
             composer.fill(prompt)
             page.get_by_role("button", name="Ask", exact=True).click(timeout=10_000)
@@ -180,6 +193,9 @@ class KalturaGenieBrowserRunner(ModelRunner):
                 stable_since = time.monotonic()
                 continue
             if stable_since is not None and time.monotonic() - stable_since >= 2.0:
+                if ends_with_tool_announcement(answer):
+                    stable_since = None
+                    continue
                 if self._result_rows_enabled:
                     self._pending_exchange = (
                         self._redact_result_text(prompt),

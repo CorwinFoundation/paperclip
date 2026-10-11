@@ -307,7 +307,14 @@ def customer_agent_probe_run_fn(
                 if isinstance(case, StarterCaseV5MT):
                     reply = _dispatch_multiturn(runner, case)
                 else:
-                    reply = runner.complete(case.prompt)
+                    prompt = (
+                        case.user_message
+                        if judged_pack_id == STARTER_VOICE_PACK_ID
+                        and getattr(runner, "model_id", lambda: "")()
+                        == "kaltura-genie:public-learning-browser"
+                        else case.prompt
+                    )
+                    reply = runner.complete(prompt)
             except RunnerError as exc:
                 if (
                     (deadline is not None and time.monotonic() >= deadline)

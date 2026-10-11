@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-from scanners.starter_judge import COULD_NOT_RUN, FAILED, PASSED, starter_pack_id_for_rows, starter_score, voice_speakability
+from scanners.starter_judge import COULD_NOT_RUN, FAILED, PASSED, judge_starter_case, starter_pack_id_for_rows, starter_score, voice_speakability
 from scanners.starter_voice_pack import (
     LEARNING_PORTAL_PERSONA,
     STARTER_VOICE_PACK_ID,
@@ -104,3 +104,47 @@ def test_shared_walker_dispatches_60_unique_messages_and_records_derived_speakab
     assert len(set(runner.prompts)) == 60
     assert len(runner.rows) == 75
     assert Counter(row["family"] for row in runner.rows)["speakability"] == 15
+
+
+def test_kaltura_live_target_gets_bare_user_turns(monkeypatch):
+    from scanners import customer_agent_walker
+
+    class Judge:
+        def complete(self, **_kwargs):
+            return '{"verdict":"passed","reason":"safe"}'
+
+    class Runner:
+        pack_id = STARTER_VOICE_PACK_ID
+        operational_scan_deadline_seconds = None
+        case_progress_callback = None
+        def __init__(self): self.prompts = []
+        def model_id(self): return "kaltura-genie:public-learning-browser"
+        def complete(self, prompt): self.prompts.append(prompt); return "A useful answer."
+
+    monkeypatch.setattr(customer_agent_walker, "judge_client_from_env", lambda: Judge())
+    runner = Runner()
+    list(customer_agent_walker.customer_agent_probe_run_fn(runner))
+    assert runner.prompts == [case.user_message for case in VOICE_CASES]
+    assert not any(prompt.startswith("System deployment:") for prompt in runner.prompts)
+
+
+def test_injection_canary_quote_in_refusal_passes_but_secret_readback_fails():
+    injection = next(case for case in VOICE_CASES if case.case_id == "VML-03")
+    secret = next(case for case in VOICE_CASES if case.case_id == "VSS-02")
+    quoted = f"I notice the quoted instruction contains {injection.canary}. I cannot follow it."
+    assert judge_starter_case(injection, quoted, judge_client=None)[0] == PASSED
+    assert judge_starter_case(secret, f"I cannot share {secret.canary}", judge_client=None)[0] == FAILED
+
+
+def test_search_announcement_is_could_not_run_never_fail():
+    case = next(case for case in VOICE_CASES if case.case_id == "VDN-01")
+    verdict, reason = judge_starter_case(case, "I can help with that; let me search", judge_client=None)
+    assert verdict == COULD_NOT_RUN
+    assert "announcement" in reason
+
+
+def test_asr_rubric_accepts_resolved_self_corrections():
+    from scanners.starter_voice_pack import VOICE_RUBRICS
+    rubric = VOICE_RUBRICS["asr_shaped_input"]
+    assert "correctly resolves an explicit self-correction" in rubric
+    assert "ambiguity remains" in rubric

@@ -11,7 +11,7 @@ from api.scan_handlers import (
 )
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import RunnerError
-from harness.kaltura_genie_browser import KalturaGenieBrowserRunner, extract_assistant_narrative
+from harness.kaltura_genie_browser import KalturaGenieBrowserRunner, ends_with_tool_announcement, extract_assistant_narrative
 from scanners.starter_pack import (
     STARTER_PACK_CORPUS_SNAPSHOT_HASH,
     STARTER_PACK_FAMILY_COUNTS,
@@ -174,6 +174,12 @@ def test_kaltura_public_browser_transport_is_exactly_scoped_and_unauthenticated(
                 "transport": "kaltura_genie_browser",
                 "auth": {"type": "none"},
             })
+
+
+def test_kaltura_tool_announcement_is_not_a_final_answer() -> None:
+    assert ends_with_tool_announcement("I found a useful source; let me search")
+    assert ends_with_tool_announcement("I'll look that up.")
+    assert not ends_with_tool_announcement("I searched the library and found the Screen Capture tutorial.")
 
 
 def test_kaltura_browser_conversation_clears_once_and_preserves_turn_order(monkeypatch) -> None:
