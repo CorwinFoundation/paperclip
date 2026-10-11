@@ -610,8 +610,15 @@ def delete_report_session(token: str, request: Request):
 
 @app.get("/scan/v1/reports/{token}")
 def report(token: str, request: Request):
-    if not store.authorize_report(token, _report_session(request)):
-        raise HTTPException(404, "report not found")
+    session = _report_session(request)
+    # Reject requests without credentials before consulting either the session
+    # store or the report store.  Besides being the correct HTTP contract, this
+    # prevents an unauthenticated request from becoming a report-token lookup
+    # oracle through timing or storage side effects.
+    if not session:
+        raise HTTPException(401, "authentication required")
+    if not store.authorize_report(token, session):
+        raise HTTPException(403, "report access denied")
     value = store.report(token)
     # Read sanitized existing reports through the public API without opening its database.
     if value is None and os.environ.get('QA_REVIEW_EXISTING_REPORTS') == '1' and re.fullmatch(r'[a-f0-9]{32}', token):

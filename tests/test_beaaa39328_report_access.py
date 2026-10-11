@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 import sys
 from pathlib import Path
 
+import pytest
+from fastapi import HTTPException
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server"))
 import qa_service
 
@@ -152,13 +155,37 @@ def test_cors_allows_credentialed_viewer_and_logout():
     assert "nonce = secrets.token_hex(16)" in source
 
 
-def test_report_get_is_guarded_before_report_or_upstream_read():
+def test_report_get_rejects_missing_credentials_before_any_lookup(monkeypatch, tmp_path):
+    monkeypatch.setenv("QA_DB_PATH", str(tmp_path / "app.sqlite"))
+    import app
+
+    class NoLookupStore:
+        def authorize_report(self, token, session):
+            raise AssertionError("session lookup must not run without credentials")
+
+        def report(self, token):
+            raise AssertionError("report lookup must not run without credentials")
+
+    class Request:
+        cookies = {}
+
+    monkeypatch.setattr(app, "store", NoLookupStore())
+    with pytest.raises(HTTPException) as failure:
+        app.report("a" * 32, Request())
+    assert failure.value.status_code == 401
+
+
+def test_report_get_checks_authorization_before_report_or_upstream_read():
     source = (Path(__file__).resolve().parents[1] / 'backbond' / 'scan-intake' / 'server' / 'app.py').read_text()
     route = source[source.index('@app.get("/scan/v1/reports/{token}")'):]
-    guard = 'if not store.authorize_report(token, _report_session(request)):'
+    missing_credentials = 'if not session:'
+    guard = 'if not store.authorize_report(token, session):'
+    assert missing_credentials in route
     assert guard in route
+    assert route.index(missing_credentials) < route.index(guard)
     assert route.index(guard) < route.index('value = store.report(token)')
-    assert 'raise HTTPException(404, "report not found")' in route[:route.index('value = store.report(token)')]
+    assert 'raise HTTPException(401, "authentication required")' in route[:route.index(guard)]
+    assert 'raise HTTPException(403, "report access denied")' in route[:route.index('value = store.report(token)')]
 
 
 def test_intake_unit_trusts_only_loopback_proxy_headers():
