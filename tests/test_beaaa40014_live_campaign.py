@@ -54,6 +54,21 @@ def test_reference_zoo_targets_use_provider_models_and_distinct_profiles():
     assert len(set(profiles.values())) == 5
 
 
+def test_target_preflight_estimate_includes_system_profile_and_chat_overhead():
+    target = OpenAICompatibleTarget(
+        "anthropic/claude-sonnet-4.6",
+        transport=RecordingTransport(),
+        system_prompt="profile " * 800,
+    )
+
+    estimate = target.estimate_cost_usd("short user prompt")
+
+    prompt_only_estimate = Decimal("3.00") * Decimal(64) / Decimal(1_000_000) + Decimal("15.00") * Decimal(256) / Decimal(1_000_000)
+    # Reproduce the live failure shape: provider-reported actual cost exceeded
+    # the former prompt-only estimate after the paid request completed.
+    provider_actual_cost = prompt_only_estimate + Decimal("0.001")
+    assert provider_actual_cost > prompt_only_estimate
+    assert estimate >= provider_actual_cost
 def test_reasoning_only_provider_turn_is_usable_attacker_text():
     assert _message_text({"content": None, "reasoning": " next bounded attack "}) == "next bounded attack"
     assert _message_text({"content": "", "reasoning_details": [{"type": "reasoning.text", "text": "fallback"}]}) == "fallback"

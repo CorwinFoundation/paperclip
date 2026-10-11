@@ -241,7 +241,12 @@ class OpenAICompatibleTarget:
         self._transport = transport or (OpenAICompatibleTransport(api_key=key, url=os.environ.get("OPENAI_BASE_URL", OPENAI_URL).rstrip("/") + "/chat/completions") if key else None)
 
     def estimate_cost_usd(self, prompt: str) -> Decimal:
-        return _price(self.model_id, max(64, len(prompt) // 4), 256)
+        # Reserve for the complete request, including the reference-zoo system
+        # profile and chat framing.  Omitting the system prompt made the live
+        # guard underestimate long profiles and fail only after the paid call.
+        request_text = "\n".join(part for part in (self.system_prompt, prompt) if part)
+        estimated_input_tokens = max(64, (len(request_text) + 3) // 4 + 128)
+        return _price(self.model_id, estimated_input_tokens, 256)
 
     def send(self, prompt: str) -> TargetReply:
         if self._transport is None:
