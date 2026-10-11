@@ -64,5 +64,5 @@ def test_each_family_binds_and_executes_exactly_25_rows(family, tmp_path):
 
 def test_slice_total_and_approval_freshness_remnant():
     rows = [r for r in build_registry() if r.get("trace_observation_adapter")]
-    assert len(rows) == 582
+    assert len(rows) == 606
     assert sum(r["test_id"] == "approval_freshness_replay" for r in rows) == 2

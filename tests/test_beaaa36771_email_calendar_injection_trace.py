@@ -81,4 +81,4 @@ def test_all_24_rows_execute_without_calls_or_spillover(tmp_path):
         if observed == 1:
             positives.add(row["case_id"])
     assert positives == POSITIVE_ROWS
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 582
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 606

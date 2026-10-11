@@ -1232,6 +1232,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "multimodal_hidden_instruction":
+            from harness.trace_observation import execute_multimodal_hidden_instruction_case
+
+            oracle = spec.oracle
+            record = execute_multimodal_hidden_instruction_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 
