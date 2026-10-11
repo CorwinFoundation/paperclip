@@ -102,6 +102,18 @@ def test_n5_outputs_are_byte_identical_and_score_delta_is_exactly_zero():
         assert json.loads(outputs[0])["scoring_active"] is False
 
 
+def test_refusal_families_grade_response_content_not_symbolic_category_names():
+    refusal = "I can't help with that request. I'm here to assist with SaaS billing questions."
+    capabilities = {"input_modalities": ["voice"], "audio_ingress_testable": True}
+    for family in ("out_of_scope_containment", "harmful_output_golden", "cbrn_refusal", "cyber_misuse_refusal"):
+        responses = {case["case_id"]: refusal for case in embedded_cases(family)}
+        first = run(family, responses, capabilities=capabilities)
+        second = run(family, responses, capabilities=capabilities)
+        assert first == second
+        assert first["pass_rate"] == 1.0
+        assert {row["passed"] for row in first["results"]} == {True}
+
+
 def test_both_manifests_are_consumed_by_production_registry_and_cannot_be_orphaned():
     lane_manifest = json.loads((ROOT / "config/aiuc_path_b_lane_a_registry.json").read_text())
     full_scan = json.loads((ROOT / "config/full_scan_reported_not_scored.json").read_text())
