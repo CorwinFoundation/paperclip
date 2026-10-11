@@ -24,6 +24,7 @@ ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"
 # on disk; only the 0710 mode on the state directory keeps the deploy seat out.
 EVIDENCE_STATE_DIR="${SCANNER_EVIDENCE_STATE_DIR:-/var/lib/are-scanner}"
 EVIDENCE_EXPORT_DIR="${SCANNER_EVIDENCE_EXPORT_DIR:-/var/tmp/are-scanner-evidence-exports}"
+SCAN_INTAKE_SERVICE="${SCANNER_SCAN_INTAKE_SERVICE:-backbond-scan-intake.service}"
 DISK_PATH="${SCANNER_DISK_PATH:-/}"
 DISK_MIN_FREE_BYTES="${SCANNER_DISK_MIN_FREE_BYTES:-21474836480}"
 DISK_MIN_FREE_INODE_PERCENT="${SCANNER_DISK_MIN_FREE_INODE_PERCENT:-10}"
@@ -352,6 +353,35 @@ if [ "${1:-}" = disk-maintenance ]; then
   exit 0
 fi
 
+# BEAAA-40283: deploy the host-managed scan-intake service from the exact image
+# that the master lane has already authenticated and activated. This keeps the
+# deploy seat on its single sudo-authorized helper and removes per-change root
+# installation steps for scan-intake.
+deploy_scan_intake() {
+  [ "$#" = 1 ] || die 'usage: scanner-deploy scan-intake <commit-sha>'
+  expected=$1
+  [[ "$expected" =~ ^[0-9a-f]{40}$ ]] || die 'scan-intake commit must be 40 lowercase hex characters'
+  running="$($DOCKER inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$CONTAINER")" \
+    || die 'cannot inspect live scanner container'
+  [ "$running" = "$expected" ] || die "live revision mismatch: expected $expected, running $running"
+
+  work="$(mktemp -d)" || die 'cannot create scan-intake staging directory'
+  trap 'rm -rf -- "$work"' RETURN
+  "$DOCKER" cp "$CONTAINER:/app/backbond/scan-intake/." "$work/" \
+    || die 'cannot extract scan-intake payload from live image'
+  [ -f "$work/update-server.sh" ] || die 'scan-intake payload lacks update-server.sh'
+  SCAN_INTAKE_SERVICE="$SCAN_INTAKE_SERVICE" bash "$work/update-server.sh"
+  rm -rf -- "$work"
+  trap - RETURN
+  log "OK: scan-intake deployed from $running"
+}
+
+if [ "${1:-}" = scan-intake ]; then
+  shift
+  deploy_scan_intake "$@"
+  exit 0
+fi
+
 # BEAAA-39988: narrowly scoped stdin bridge for the idempotent starter-v5
 # acceptance program. This lets the existing sudo-authorized deploy helper run
 # the check without granting the deploy account general Docker access.
@@ -367,7 +397,7 @@ if [ "${1:-}" = acceptance ] && [ "${2:-}" = starter-v5 ]; then
   exit $?
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'

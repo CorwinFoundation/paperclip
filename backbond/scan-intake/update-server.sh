@@ -6,6 +6,15 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEST=/opt/backbond/scan-intake/server
 BACKUP="/var/backups/backbond-scan-intake/$(date -u +%Y%m%dT%H%M%SZ)"
+SERVICE="${SCAN_INTAKE_SERVICE:-backbond-scan-intake.service}"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
+
+# Bootstrap the one-step master deploy lane. The live sudo policy already
+# permits only this helper; installing it here makes this the final bespoke
+# root step needed for scan-intake releases.
+if [ -f "$REPO_ROOT/scripts/deploy/scanner-deploy.sh" ]; then
+  install -o root -g root -m 0755 "$REPO_ROOT/scripts/deploy/scanner-deploy.sh" /usr/local/sbin/scanner-deploy
+fi
 changed=0
 for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/report_extensions.py "$HERE"/server/qa_runtime.py \
            "$HERE"/server/improvement_store.py "$HERE"/server/purge_retention.py \
@@ -21,7 +30,7 @@ for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/rep
 done
 install -o root -g root -m 0755 "$HERE"/admit_retained_voice.py /usr/local/sbin/backbond-admit-retained-voice
 if [ "$changed" = 1 ]; then
-  systemctl restart backbond-scan-intake.service
+  systemctl restart "$SERVICE"
   echo "backup: $BACKUP (diffs of the replaced live files are there)"
 fi
-systemctl is-active backbond-scan-intake.service
+systemctl is-active "$SERVICE"
