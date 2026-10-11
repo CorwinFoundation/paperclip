@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><title>Agent assessment | BackBond</title>
+  <link rel="stylesheet" href="/scan/report-management.css"><script src="/scan/report.js" defer></script>
+</head>
+<body>
+  <header class="site-head"><a href="/" aria-label="BackBond home"><img src="/scan/brand/logo-on-white.png" width="160" alt="BackBond"></a><span>PRIVATE AGENT ASSESSMENT</span></header>
+  <main>
+    <div class="report-heading"><p class="eyebrow">MANAGEMENT BRIEF</p><h1 id="agent-name">Your agent</h1><p id="business-meta"></p><p id="report-error" role="status" hidden></p></div>
+    <div id="report" hidden>
+      <section class="executive" aria-labelledby="executive-outcome">
+        <p class="eyebrow" id="decision-label">RECOMMENDED NEXT STEP</p>
+        <h2 id="executive-outcome"></h2><p class="lead" id="executive-summary"></p>
+        <p class="caption" id="coverage-intro"></p>
+      </section>
+
+      <section class="priorities" aria-labelledby="priority-heading"><div class="section-heading"><h2 id="priority-heading">Where to focus</h2><span>BUSINESS IMPLICATION / ACTION</span></div><div id="business-priorities"></div><p class="caption" id="positive-evidence"></p></section>
+      <section class="next-step"><h2>Your next decision</h2><p id="next-action"></p></section>
+      <aside class="evidence-boundary"><h2>What this tells you</h2><p id="scope-short"></p><p>BackBond Score: N/A. This limited assessment is not an underwriting decision or insurance coverage.</p></aside>
+      <section class="supporting" aria-labelledby="support-heading"><h2 id="support-heading">Supporting detail</h2><p>Open only the level of detail you need.</p>
+        <details id="coverage-detail"><summary>Coverage and results <span id="coverage-count"></span></summary>
+        <dl class="result-strip"><div><dt id="total-label">Tests listed</dt><dd id="metric-total"></dd></div><div><dt>Met criteria</dt><dd id="metric-pass"></dd></div><div><dt>Need review</dt><dd id="metric-fail"></dd></div><div><dt id="gap-label">Unavailable</dt><dd id="metric-unavailable"></dd></div></dl>
+        <p class="caption" id="judgment-caption">Automated test results. Flagged responses need human review; counts do not measure severity or predict business losses.</p>
+      <div id="coverage-summary" hidden><h2>What was tested</h2><div id="coverage-sets"></div><p class="caption" id="coverage-accounting"></p></div>
+        </details>
+        <details id="results-detail"><summary>Results by test area <span id="area-count"></span></summary><div class="table-wrap"><table><thead><tr><th scope="col">Test area</th><th scope="col">Ran</th><th scope="col">Met criteria</th><th scope="col">Need review</th><th scope="col">Unavailable</th></tr></thead><tbody id="families"></tbody></table></div></details>
+        <details id="failure-detail"><summary>Responses to review <span id="failure-count"></span></summary><p id="review-method">These are automated flags, grouped by test area. Review the request, reply and grading explanation before confirming a defect.</p><div id="failures"></div></details>
+        <details id="connection-section" hidden><summary>Evidence that could not be judged</summary><div id="connections"></div></details>
+        <details id="pass-detail"><summary>Responses that met the criteria <span id="pass-count"></span></summary><div id="passes"></div></details>
+        <details id="assessment-detail"><summary>Scope, method and report information</summary><p id="report-meta"></p><p id="test-count"></p><p id="connection-count"></p><p id="method-summary"></p><p id="scope"></p><p>Each execution is listed separately; targeted scenarios have three repeats. The assessment does not establish how often a failure will occur in production. A result that could not run is never counted as a pass.</p><p>Free starter scans provide a limited, point-in-time assessment for informational purposes. Results may contain errors or omit issues and are not a guarantee of safety, security, accuracy, compliance or future performance. They do not constitute insurance coverage, a certification or professional advice. You are responsible for reviewing findings and deciding how to use them. This is not the full BackBond Score.</p></details>
+      </section>
+      <footer class="report-footer"><p>BackBond is the rating-and-insurance layer for AI agents.</p><p>To discuss the next assessment, contact <a id="contact" href="mailto:info@backbond.ai">info@backbond.ai</a>.</p></footer>
+    </div>
+  </main>
+</body></html>

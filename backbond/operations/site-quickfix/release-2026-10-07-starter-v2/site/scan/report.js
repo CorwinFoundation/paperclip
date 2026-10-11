@@ -53,6 +53,36 @@
   const FULL_SCAN_SCOPE_URL = partner => 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report-full-scan-scope') + '&subject=Full%20Scan%20scope';
   const API = 'https://api.backbond.ai/scan/v1/reports/';
   const request = (url, options = {}) => fetch(url, {...options, credentials:'include', cache:'no-store', referrerPolicy:'no-referrer'});
+  const combinedPacks = data => {
+    const base = {pack_id:'starter-100', pack_version:data.pack_version, status:'complete', tests:data.tests || []};
+    const supplied = Array.isArray(data.result_sets) ? data.result_sets : [base];
+    const expected = [
+      {pack_id:'starter-100', pack_version:'starter-100@3'},
+      {pack_id:'starter-voice-50', pack_version:'starter-voice-50@1'},
+      {pack_id:'codex-targeted-20', pack_version:'codex-targeted-20@1'}
+    ];
+    return expected.map(want => supplied.find(set => set.pack_id === want.pack_id) || {...want,status:'not_run',tests:[]});
+  };
+  const uniqueCombinedTests = packs => {
+    const seen = new Set();
+    return packs.flatMap(pack => (pack.tests || []).map(item => ({...item,pack_id:pack.pack_id,pack_version:pack.pack_version})))
+      .filter(item => { const id = String(item.id || item.test_id || ''); if (!id || seen.has(id)) return false; seen.add(id); return true; });
+  };
+  const validateVoicePack = data => {
+    const layout = [
+      ['VDN',10,'in_domain_normal'], ['VPF',5,'product_fabrication'],
+      ['VASR',5,'asr_shaped_input'], ['VML',15,'multilingual_guardrails'],
+      ['VSS',5,'screen_share_readback'], ['VSP',5,'summary_poisoning'],
+      ['VGD',5,'goals_data_collection'], ['VHD',5,'human_disclosure'],
+      ['VAA',5,'abuse_toward_agent']
+    ];
+    const expected = new Map(layout.flatMap(([prefix,count,family]) =>
+      Array.from({length:count}, (_,i) => [prefix + '-' + String(i+1).padStart(2,'0'),family])));
+    const ids = new Set(data.tests.map(item => item.id));
+    if (ids.size !== data.tests.length || data.tests.length > 60 ||
+        data.tests.some(item => !expected.has(item.id) || expected.get(item.id) !== item.family) ||
+        (data.outcome !== 'incomplete' && ids.size !== 60)) throw new Error('voice schema');
+  };
   function verification(token) {
     const host = $('report-error'); host.replaceChildren(); host.hidden = false;
     host.append(text('p','Verify that you are the report recipient to continue.'));
@@ -106,18 +136,30 @@
       if (!response.ok) { if (response.status === 404) verification(match[1]); else $('report-error').textContent = 'The report service is unavailable. Try again later.'; return; }
       const data = await response.json();
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');
+      const voice = data.pack_version === 'starter-voice-50@1';
+      if (voice) validateVoicePack(data);
+      const combined = data.report_kind === 'starter_extensions';
+      const packs = combinedPacks(data);
+      if (combined) data.tests = uniqueCombinedTests(packs);
       // could_not_run (starter-100@2 and @3) is its own verdict upstream; here it sits in the not-run bucket, never in fail.
       const tests = data.tests.map(item => ({...item, evidenceOmitted: data.pack_version === 'starter-100@4', verdict: ['pass','fail'].includes(item.verdict) ? item.verdict : 'connection_error'}));
       const when = new Date(data.created_at);
       if (!Number.isFinite(when.getTime())) throw new Error('date');
       const date = when.toISOString().replace('T',' ').replace(/\.\d{3}Z$/, ' UTC');
       $('agent-name').textContent = data.agent_label || 'Your agent';
+      if (combined) $('agent-name').textContent += ' / Starter scan + extensions';
       document.title = (data.agent_label || 'Your agent') + ' - QA scan report | BackBond';
       $('report-meta').textContent = String(data.endpoint_host || '') + ' / ' + date + ' / ' + data.pack_version;
       const notRun = tests.filter(t => t.verdict === 'connection_error');
       $('test-count').textContent = (tests.length - notRun.length) + ' tests ran out of ' + tests.length + ' listed tests.';
       const summary = document.createElement('p'); $('test-count').before(summary);
-      if (data.outcome === 'incomplete') {
+      if (combined) {
+        summary.textContent = 'Starter scan + extensions. Scoring is deferred; no Full Scan score or BackBond Score is published.';
+      } else if (voice) {
+        summary.textContent = data.outcome === 'incomplete'
+          ? 'This scan did not finish: ' + tests.length + ' of 60 tests have a result. No score is published for this pack.'
+          : '60 voice-related text/browser tests. Native audio, live screen sharing, spoken output, turn-taking and interruptions were not tested. No score is published for this pack.';
+      } else if (data.outcome === 'incomplete') {
         summary.textContent = 'This scan did not finish: ' + tests.length + ' of 100 tests have a result. Starter score: N/A. 10 areas, 100 tests. Not the full BackBond Score.';
       } else if (typeof data.starter_score === 'number') {
         summary.textContent = 'Starter score: ' + Math.round(data.starter_score) + '. 10 areas, 100 tests. Not the full BackBond Score.';
@@ -133,6 +175,28 @@
         if (passed.length) { const group = document.createElement('details'); group.append(text('summary',label(family) + ' - ' + passed.length + ' passed')); passed.forEach(t=>testDetail(t,group,false)); $('passes').append(group); }
       }
       const failed = tests.filter(t => t.verdict === 'fail');
+      if (combined) {
+        const lead = failed.findIndex(t => (t.id || t.test_id) === 'PI-29');
+        if (lead > 0) failed.unshift(failed.splice(lead, 1)[0]);
+        const table = document.createElement('table'); table.className = 'extension-family-table';
+        const head = document.createElement('thead'); const header = document.createElement('tr');
+        ['Pack','Family','Ran','Passed','Needs attention','Flaky','Could not run'].forEach(value => header.append(text('th',value))); head.append(header); table.append(head);
+        const body = document.createElement('tbody');
+        packs.forEach(pack => {
+          const grouped = new Map(); (pack.tests || []).forEach(item => { const key=String(item.family||'Other'); if(!grouped.has(key)) grouped.set(key,[]); grouped.get(key).push(item); });
+          if (!grouped.size) grouped.set('All families', []);
+          grouped.forEach((items,family) => {
+            const row=document.createElement('tr'); const status=pack.status === 'not_run';
+            const counts = status ? ['not run',0,0,0,0] : [items.filter(t=>t.verdict!=='could_not_run').length,items.filter(t=>['pass','passed'].includes(t.verdict)).length,items.filter(t=>['fail','failed'].includes(t.verdict)).length,items.filter(t=>t.verdict==='flaky').length,items.filter(t=>['could_not_run','connection_error'].includes(t.verdict)).length];
+            [pack.pack_version,label(family),...counts].forEach(value=>row.append(text('td',value))); body.append(row);
+          });
+          (pack.derived_families || []).forEach(derived => {
+            const row=document.createElement('tr');
+            [pack.pack_version,label(derived.family) + ' (derived overlay)',0,derived.passed || 0,derived.failed || 0,0,derived.could_not_run || 0].forEach(value=>row.append(text('td',value)));
+            body.append(row);
+          });
+        }); table.append(body); $('failures').before(table);
+      }
       if (!failed.length) $('failures').append(text('p','No tests with a usable result need attention. Review any tests that could not run.'));
       failed.forEach(t => testDetail(t,$('failures'),true));
       if (notRun.length) { $('connection-section').hidden = false; notRun.forEach(t=>testDetail(t,$('connections'),false)); }
@@ -141,7 +205,7 @@
       const partner = /^[a-z0-9-]{1,60}$/.test(data.partner || '') ? data.partner : 'partner';
       if (['starter-100@3','starter-100@4'].includes(data.pack_version)) starterScopeBlocks($('families').closest('table') || $('families'), partner, data.pack_version);
       $('contact').href = 'mailto:info@backbond.ai?source=' + encodeURIComponent(partner + '-report') + '&subject=Full%20agent%20scan';
-      $('report-error').hidden = true; $('report').hidden = false; logout(match[1]);
+      $('report-error').replaceChildren(); $('report-error').hidden = true; $('report').hidden = false; logout(match[1]);
     } catch { $('report-error').textContent = 'The report could not be loaded. Try again later.'; }
   }
   load();

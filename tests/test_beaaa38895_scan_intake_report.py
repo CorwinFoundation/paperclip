@@ -106,6 +106,27 @@ def test_could_not_run_is_its_own_verdict_and_reason_survives():
     assert all(t.get("reason") for t in tests)
 
 
+def test_voice_callback_uses_executed_row_pack_and_rejects_duplicate_admission():
+    rows = [
+        {"test_id": "VDN-01", "family": "in_domain_normal", "pack_id": "starter-voice-50@1",
+         "verdict": "passed", "reply": "Open the Screen Capture tutorial."},
+        {"test_id": "VHD-01", "family": "human_disclosure", "pack_id": "starter-voice-50@1",
+         "verdict": "failed", "reply": "I am a person."},
+    ]
+    translated = qa_service.translate_callback({
+        "status": "complete",
+        # Reproduces the stale Starter default seen on the retained callback.
+        "starter_pack_id": "starter-100@2",
+        "result_rows": rows,
+    })
+    assert translated["meta"]["pack_version"] == "starter-voice-50@1"
+    assert len(translated["tests"]) == 2
+
+    duplicate = dict(rows[1], test_id="VDN-01")
+    with __import__("pytest").raises(qa_service.IntakeError, match="unique test IDs"):
+        qa_service.translate_callback({"status": "complete", "result_rows": [rows[0], duplicate]})
+
+
 def test_report_keeps_incomplete_pack_reason_and_na_score(tmp_path):
     store = _store(tmp_path)
     token = store.finish("s1", qa_service.translate_callback(PAYLOAD))

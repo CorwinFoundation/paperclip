@@ -1,0 +1,44 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'scan/report.js'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'scan/r/index.html'),'utf8');
+const prerendered=fs.readdirSync(path.join(__dirname,'scan/r')).filter(f=>/^[a-f0-9]{32}\.html$/.test(f)).map(f=>fs.readFileSync(path.join(__dirname,'scan/r',f),'utf8'));
+class Node {
+  constructor(tag='div'){this.tag=tag;this.children=[];this.hidden=true;this.textContent='';this.beforeNodes=[];this.open=false;}
+  get firstChild(){return this.children[0];} append(...items){this.children.push(...items);} prepend(...items){this.children.unshift(...items);}
+  before(...items){this.beforeNodes.push(...items);} after(...items){this.children.push(...items);} closest(){return this;} remove(){this.removed=true;}
+  replaceChildren(...items){this.children=items;this.textContent='';}
+}
+const layout=[['VDN',10,'in_domain_normal',8],['VPF',5,'product_fabrication',0],['VASR',5,'asr_shaped_input',2],['VML',15,'multilingual_guardrails',3],['VSS',5,'screen_share_readback',1],['VSP',5,'summary_poisoning',1],['VGD',5,'goals_data_collection',0],['VHD',5,'human_disclosure',1],['VAA',5,'abuse_toward_agent',0]];
+const cases=layout.flatMap(([prefix,count,family,flags])=>Array.from({length:count},(_,i)=>({id:prefix+'-'+String(i+1).padStart(2,'0'),family,verdict:i<flags?'fail':'pass',prompt:'Synthetic request <script>',reply:'Synthetic reply',reason:'Synthetic explanation'})));
+const base={pack_version:'starter-voice-50@1',outcome:'complete',created_at:'2026-10-11T06:00:00Z',starter_score:999,agent_label:'Synthetic agent',tests:cases};
+async function render(data,page=html){
+  const nodes=new Map([...page.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Node()]));
+  const ctx=vm.createContext({document:{getElementById:id=>nodes.get(id)||null,createElement:tag=>new Node(tag),querySelectorAll:()=>[]},location:{pathname:'/scan/r/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'},fetch:async()=>({ok:true,json:async()=>structuredClone(data)})});
+  vm.runInContext(source,ctx,{importModuleDynamically:async()=>{throw new Error('No synthetic addendum');}});
+  for(let i=0;i<4;i++)await new Promise(resolve=>setImmediate(resolve));return nodes;
+}
+function strings(node){return [String(node.textContent),...node.children.flatMap(strings)].join(' ');}
+(async()=>{
+ // BEAAA-39654: served HTML has no loading placeholder; the status starts hidden and empty.
+ for(const page of [html,...prerendered]){assert.doesNotMatch(page,/Loading your report/);assert.match(page,/<p id="report-error" role="status" hidden><\/p>/);assert.doesNotMatch(page,/<script(?![^>]*\bsrc=)[^>]*>/);assert.doesNotMatch(page,/\sstyle=/);}
+ let n=await render(base);assert.equal(n.get('report').hidden,false);assert.equal(n.get('report-error').removed,true);assert.equal(n.get('metric-total').textContent,60);assert.equal(n.get('metric-pass').textContent,44);assert.equal(n.get('metric-fail').textContent,16);assert.equal(n.get('metric-unavailable').textContent,0);
+ assert.equal(n.get('business-priorities').children.length,3);assert.match(strings(n.get('business-priorities').children[0]),/8 flags across 10/);assert.match(strings(n.get('business-priorities').children[1]),/5 flags across 20/);assert.match(strings(n.get('business-priorities').children[2]),/3 flags across 15/);
+ assert.equal(n.get('families').children.length,9);assert.equal(n.get('failures').children.reduce((sum,group)=>sum+group.children.length-1,0),16);assert.ok(n.get('failures').children.every(group=>group.tag==='details'&&!group.open));assert.match(n.get('scope-short').textContent,/Native audio/);assert.doesNotMatch(n.get('executive-summary').textContent,/999|score/);
+ assert.match(n.get('positive-evidence').textContent,/product claims/);assert.ok(!/\sopen[\s=>]/.test(html));assert.match(html,/BackBond Score: N\/A/);
+ const unavailable=structuredClone(base);unavailable.tests[0].verdict='could_not_run';n=await render(unavailable);assert.equal(n.get('metric-pass').textContent,44);assert.equal(n.get('metric-fail').textContent,15);assert.equal(n.get('metric-unavailable').textContent,1);assert.equal(n.get('connection-section').hidden,false);
+ for(const mutate of [d=>d.tests.pop(),d=>d.tests[1].id=d.tests[0].id,d=>d.tests[0].family='wrong',d=>d.tests[0].id='UNKNOWN',d=>d.pack_version='unknown']){const d=structuredClone(base);mutate(d);n=await render(d);assert.equal(n.get('report').hidden,true);assert.match(n.get('report-error').textContent,/could not be loaded/);assert.equal(n.get('report-error').hidden,false);assert.equal(n.get('report-error').removed,undefined);}
+ const partial=structuredClone(base);partial.tests.pop();partial.outcome='incomplete';n=await render(partial);assert.match(n.get('executive-outcome').textContent,/Complete/);assert.match(n.get('scope-short').textContent,/59 of 60/);
+ const clear=structuredClone(base);clear.tests.forEach(t=>t.verdict='pass');n=await render(clear);assert.match(n.get('executive-outcome').textContent,/no responses to flag/);assert.doesNotMatch(n.get('executive-outcome').textContent,/ready|approved|safe/i);
+ const missing=structuredClone(clear);missing.tests[0].verdict='inconclusive';n=await render(missing);assert.equal(n.get('metric-pass').textContent,59);assert.equal(n.get('metric-unavailable').textContent,1);assert.match(n.get('executive-outcome').textContent,/missing evidence/);
+ for(const pack of ['starter-100@1','starter-100@2','starter-100@3','starter-100@4']){const d={...base,pack_version:pack,tests:Array.from({length:100},(_,i)=>({id:'T-'+i,family:'prompt_injection',verdict:i<2?'fail':'pass'}))};n=await render(d);assert.equal(n.get('report').hidden,false);assert.equal(n.get('metric-pass').textContent,98);assert.equal(n.get('metric-fail').textContent,2);}
+ const scenarios=[['S',6],['I',6],['U',4],['P',2],['F',2]].flatMap(([prefix,count])=>Array.from({length:count},(_,i)=>prefix+String(i+1).padStart(2,'0')));
+ const targeted=scenarios.flatMap(s=>[1,2,3].map(r=>({id:'KFR-'+s+'-R'+r,family:'Targeted synthetic',verdict:'pass'})));targeted.forEach((t,i)=>t.verdict=i<37?'pass':i<48?'fail':i<57?'inconclusive':'unverified');
+ const original=Array.from({length:100},(_,i)=>({id:i===0?'PI-29':'T-'+i,family:'prompt_injection',verdict:i<10?'fail':'pass'}));
+ const combined={...base,starter_score:null,endpoint_host:'learning.kaltura.com',pack_version:'starter-100@3',tests:original,report_kind:'starter_extensions',result_sets:[{pack_version:'starter-100@3',status:'complete',tests:original},{pack_version:'starter-voice-50@1',status:'complete',tests:cases},{pack_version:'codex-targeted-20@1',status:'complete',tests:targeted}]};
+ n=await render(combined);assert.equal(n.get('report').hidden,false);assert.equal(n.get('metric-total').textContent,220);assert.equal(n.get('metric-pass').textContent,171);assert.equal(n.get('metric-fail').textContent,37);assert.equal(n.get('metric-unavailable').textContent,12);assert.equal(n.get('method-summary').removed,undefined);assert.equal(n.get('coverage-detail').open,false);assert.ok(n.get('business-priorities').children.every(row=>row.children[1].children[0].children.some(child=>child.tag==='details'&&!child.open)));assert.equal(n.get('coverage-summary').hidden,false);assert.equal(n.get('coverage-sets').children.length,3);assert.match(n.get('coverage-accounting').textContent,/180 scenarios, 220/);assert.match(n.get('test-count').textContent,/208 of 220/);assert.match(strings(n.get('failures').children[0]),/PI-29/);
+ for(const mutate of [d=>d.result_sets.pop(),d=>d.result_sets[2].tests[0].id='PI-29',d=>d.result_sets[1].tests[0].family='wrong',d=>d.result_sets[2].tests[0].id='KFR-S99-R1',d=>d.endpoint_host='other.example']){const d=structuredClone(combined);mutate(d);n=await render(d);assert.equal(n.get('report').hidden,true);assert.match(n.get('report-error').textContent,/could not be loaded/);assert.equal(n.get('report-error').hidden,false);}
+ for(const page of prerendered){n=await render(combined,page);assert.equal(n.get('report').hidden,false);assert.equal(n.get('report-error').removed,true);assert.equal(n.get('prerender-summary').removed,true);assert.equal(n.get('metric-pass').textContent,171);
+  const bad=structuredClone(combined);bad.result_sets.pop();n=await render(bad,page);assert.equal(n.get('report').hidden,true);assert.equal(n.get('report-error').hidden,false);assert.equal(n.get('prerender-summary').removed,true);}
+ console.log('21 renderer scenarios passed, including combined 220/171/37/12 counts, three sources, unique IDs, repetitions, frozen roster and fail-closed missing/mismatched inputs. Status element removed on success and revealed on error; '+prerendered.length+' server-rendered page(s) hydrate. No target/model calls.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

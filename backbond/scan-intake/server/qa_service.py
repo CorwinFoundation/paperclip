@@ -18,6 +18,7 @@ from functools import wraps
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlsplit
+from report_extensions import ensure_schema, extend
 
 
 LIMIT_MESSAGE = ("You've used your {limit} free scans. For a full scan of your "
@@ -119,6 +120,7 @@ class IntakeStore:
         self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_retained_voice_admission '
                         "ON scans(source_intake_id,pack_version) WHERE source_intake_id IS NOT NULL")
         self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS status_token_unique ON scans(status_token_hash)')
+        ensure_schema(self.db)
 
     @synchronized
     def put_code(self, value: Code) -> None:
@@ -321,10 +323,11 @@ class IntakeStore:
             created = created.replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) >= created + timedelta(days=180):
             return None
-        return {"agent_label": row["agent_label"], "endpoint_host": row["endpoint_host"],
+        value = {"agent_label": row["agent_label"], "endpoint_host": row["endpoint_host"],
                 "pack_version": row["pack_version"], "created_at": row["created_at"],
                 "partner": row["partner"], "tests": json.loads(row["tests_json"]),
                 **report_outcome(row["outcome"], row["incomplete_reason"], json.loads(row["tests_json"]))}
+        return extend(self.db, row, value)
 
     @synchronized
     def report_recipient_hint(self, token: str) -> str | None:
@@ -568,7 +571,23 @@ def translate_callback(payload: dict) -> dict:
     """BEAAA-38895: tests plus the engine's terminal outcome and actual pack version."""
     status = str(payload.get("status") or "").lower()
     incomplete = bool(payload.get("incomplete")) or status in {"incomplete", "partial", "failed"}
-    pack = payload.get("pack_id") or payload.get("starter_pack_id")
+    source = payload.get("result_rows") or []
+    test_ids = [str(row.get("test_id") or row.get("id") or row.get("probe_id") or "") for row in source]
+    if any(not test_id for test_id in test_ids) or len(test_ids) != len(set(test_ids)):
+        raise IntakeError("callback result rows require unique test IDs")
+
+    # The rows describe the pack that actually executed.  Prefer that frozen
+    # identity over an envelope default (the voice callback exposed why this
+    # matters), while still rejecting internally contradictory callbacks.
+    row_packs = {str(row.get("pack_id")) for row in source if row.get("pack_id")}
+    if len(row_packs) > 1:
+        raise IntakeError("callback result rows contain conflicting pack identities")
+    envelope_packs = {
+        str(value) for value in (payload.get("pack_id"), payload.get("starter_pack_id")) if value
+    }
+    if len(envelope_packs) > 1:
+        raise IntakeError("callback envelope contains conflicting pack identities")
+    pack = next(iter(row_packs), None) or next(iter(envelope_packs), None)
     return {"tests": translate_tests(payload), "meta": {
         "outcome": "failed" if status == "failed" and not (payload.get("result_rows") or []) else "incomplete" if incomplete else "complete",
         "incomplete_reason": str(payload.get("incomplete_reason") or "")[:200] or None if incomplete else None,

@@ -84,6 +84,11 @@ corpus/wave0/*.jsonl text eol=lf
 # Accepted Paperclip candidate inventories are content-addressed artifacts.
 artifacts/beaaa-18715/** text eol=lf
 artifacts/beaaa-18720/** text eol=lf
+# BEAAA-39654: report_extensions.py pins targeted-adjudications.json by its git
+# blob id (4256106f...). These redacted evidence files were committed with CRLF;
+# keep their exact bytes (never renormalize) and skip whitespace checks on them.
+artifacts/BEAAA-39654/codex-targeted60/kaltura-targeted-results-2026-10-09.md -text -whitespace
+artifacts/BEAAA-39654/codex-targeted60/targeted-adjudications.json -text -whitespace
 .backbond-source-commit export-subst
 
 # ---------------------------------------------------------------------------
