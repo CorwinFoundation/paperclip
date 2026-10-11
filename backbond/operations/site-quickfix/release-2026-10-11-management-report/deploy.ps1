@@ -13,7 +13,7 @@ Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'scan') -Recurse -File | For
   $relative=$_.FullName.Substring($PSScriptRoot.Length).Replace('\','/')
   $overlay[$relative]=@{sha=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA1).Hash.ToLowerInvariant();local=$_.FullName}
 }
-if($overlay.Count -ne 10){throw 'Unexpected overlay inventory'}
+if($overlay.Count -ne 8){throw 'Unexpected overlay inventory'}
 $receiptPath=Join-Path $PSScriptRoot 'preview-private.json'
 if($Mode -eq 'Prepare'){
   $original=Invoke-RestMethod "$api/sites/$siteId/files" -Headers $headers
@@ -43,9 +43,9 @@ if($Mode -eq 'Prepare'){
     $actual=([BitConverter]::ToString($digest.ComputeHash($bytes))).Replace('-','').ToLowerInvariant()
     if($actual -ne $overlay[$asset].sha){throw 'Preview asset mismatch'}
   }
-  # BEAAA-39654: the first (non-JS) response for the Kaltura token must be the server-rendered page.
-  $firstResponse=(Invoke-WebRequest "$($ready.deploy_ssl_url)/scan/r/99c83595be4fd9087cc85ba8790c37fc" -UseBasicParsing).Content
-  if(-not $firstResponse.Contains('Starter scan + extensions') -or -not $firstResponse.Contains('learning.kaltura.com') -or $firstResponse.Contains('Loading your report')){throw 'Preview first response is not server-rendered'}
+  # BEAAA-39654: no report page is pre-rendered (Founder, 11 Oct 2026: the report stays private); the non-JS first response must not be the loading placeholder.
+  $firstResponse=(Invoke-WebRequest "$($ready.deploy_ssl_url)/scan/r/00000000000000000000000000000000" -UseBasicParsing).Content
+  if($firstResponse.Contains('Loading your report')){throw 'Preview first response still carries the loading placeholder'}
   $rows=@($original|ForEach-Object{@{path=$_.path;sha=$_.sha}})
   @{deploy_id=$deploy.id;baseline_id=$site.published_deploy.id;preview_url=$ready.deploy_ssl_url;original=$rows;files=$files;overlay=$overlay;production_unchanged=$true} | ConvertTo-Json -Depth 10 | Set-Content $receiptPath
   @{preview_ready=$true;deploy_id=$deploy.id;preview_url=$ready.deploy_ssl_url;changed_assets=$overlay.Count;production_unchanged=$true} | ConvertTo-Json

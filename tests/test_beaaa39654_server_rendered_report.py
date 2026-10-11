@@ -123,15 +123,10 @@ def test_plain_reports_keep_the_normal_label_and_no_score(tmp_path):
     assert "99 met criteria" in page and "1 could not run" in page
 
 
-def test_committed_kaltura_pages_are_server_rendered():
-    assert KALTURA_PAGES[0].read_bytes() == KALTURA_PAGES[1].read_bytes()
-    page = KALTURA_PAGES[0].read_text(encoding="utf-8")
-    for value in ("Starter scan + extensions", "learning.kaltura.com", "171", "37", "220"):
-        assert value in page
-    assert "Loading your report" not in page
-    assert not INLINE_SCRIPT.search(page) and " style=" not in page
-    # Only headline facts: no transcript fields from the API response.
-    assert '"reply"' not in page and "KFR-" not in page and "PI-29" not in page
+def test_no_customer_report_page_is_committed_for_publication():
+    # Founder, 11 Oct 2026: the Kaltura report stays private; no static page may carry its title/target/counts.
+    assert not any(p.exists() for p in KALTURA_PAGES)
+    assert not [p for p in (RELEASE / "scan" / "r").rglob("*.html") if p.name != "index.html" or p.parent.name != "r"]
 
 
 def test_template_has_no_loading_placeholder():
