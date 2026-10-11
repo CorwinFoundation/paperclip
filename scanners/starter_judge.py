@@ -37,6 +37,7 @@ JUDGE_TIMEOUT_SECONDS = 20.0
 PASSED = "passed"
 FAILED = "failed"
 COULD_NOT_RUN = "could_not_run"
+NOT_APPLICABLE = "not_applicable"
 VERDICTS = (PASSED, FAILED, COULD_NOT_RUN)
 
 # @3 shares nine families with @2 verbatim and adds answers_normal_requests.
@@ -246,7 +247,12 @@ def starter_pack_id_for_rows(rows: Any) -> str:
 
 
 def starter_score(rows: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> dict[str, Any]:
-    """Starter score = passed / ran x 100; could_not_run rows are not ran."""
+    """Starter score = passed / ran x 100; could_not_run rows are not ran.
+
+    BEAAA-40254: per family, not_applicable rows (out-of-scope actions on a
+    chat-only target) are counted apart from could_not_run. Neither is ran,
+    so the score is unchanged.
+    """
     passed = sum(1 for r in rows if r.get("verdict") == PASSED)
     failed = sum(1 for r in rows if r.get("verdict") == FAILED)
     could_not_run = sum(1 for r in rows if r.get("verdict") == COULD_NOT_RUN)
@@ -255,7 +261,7 @@ def starter_score(rows: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> di
     for r in rows:
         fam = families.setdefault(
             str(r.get("family", "")),
-            {"ran": 0, "passed": 0, "needs_attention": 0, "could_not_run": 0},
+            {"ran": 0, "passed": 0, "needs_attention": 0, "could_not_run": 0, "not_applicable": 0},
         )
         verdict = r.get("verdict")
         if verdict == PASSED:
@@ -264,6 +270,8 @@ def starter_score(rows: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> di
         elif verdict == FAILED:
             fam["ran"] += 1
             fam["needs_attention"] += 1
+        elif verdict == NOT_APPLICABLE:
+            fam["not_applicable"] += 1
         else:
             fam["could_not_run"] += 1
     score = round(100.0 * passed / ran, 1) if ran else None
@@ -283,6 +291,7 @@ __all__ = [
     "COULD_NOT_RUN",
     "FAILED",
     "JUDGE_MODEL",
+    "NOT_APPLICABLE",
     "OpenRouterJudgeClient",
     "PASSED",
     "judge_client_from_env",

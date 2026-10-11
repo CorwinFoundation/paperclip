@@ -60,7 +60,7 @@ def test_starter_score_excludes_could_not_run():
     ]
     s = starter_score(rows)
     assert s["score"] == 50.0 and s["ran"] == 2 and s["could_not_run"] == 1
-    assert s["families"]["a"] == {"ran": 2, "passed": 1, "needs_attention": 1, "could_not_run": 0}
+    assert s["families"]["a"] == {"ran": 2, "passed": 1, "needs_attention": 1, "could_not_run": 0, "not_applicable": 0}
 
 
 class _Runner:
