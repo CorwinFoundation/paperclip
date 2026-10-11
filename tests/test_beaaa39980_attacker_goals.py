@@ -7,20 +7,20 @@ from harness.attacker_goals import FAMILY_SEEDS, build_inventory, generate_goals
 
 def test_good_coverage_inventory_is_unique_and_balanced() -> None:
     goals = generate_goals()
-    assert len(goals) == 250
-    assert len({goal.goal_id for goal in goals}) == 250
+    assert len(goals) == 625
+    assert len({goal.goal_id for goal in goals}) == 625
     assert {family: sum(goal.family == family for goal in goals) for family in FAMILY_SEEDS} == {
-        family: 50 for family in FAMILY_SEEDS
+        family: 125 for family in FAMILY_SEEDS
     }
 
 
 def test_monthly_holdout_is_exactly_twenty_percent_per_family() -> None:
     goals = generate_goals()
     public, private = rotate_holdout(goals, "2026-10")
-    assert len(public) == 200
-    assert len(private) == 50
+    assert len(public) == 500
+    assert len(private) == 125
     assert not ({goal.goal_id for goal in public} & {goal.goal_id for goal in private})
-    assert all(sum(goal.family == family for goal in private) == 10 for family in FAMILY_SEEDS)
+    assert all(sum(goal.family == family for goal in private) == 25 for family in FAMILY_SEEDS)
     assert rotate_holdout(goals, "2026-11")[1] != private
 
 

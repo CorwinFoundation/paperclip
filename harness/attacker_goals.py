@@ -41,10 +41,10 @@ class GeneratedGoal:
     variant: int
 
 
-def generate_goals(per_family: int = 50) -> list[GeneratedGoal]:
-    """Return stable, unique goals with at least 50 variants per family."""
-    if per_family < 50:
-        raise ValueError("GOOD coverage requires at least 50 goals per family")
+def generate_goals(per_family: int = 125) -> list[GeneratedGoal]:
+    """Return stable, unique goals sized for at least 100 public variants per family."""
+    if per_family < 125:
+        raise ValueError("100-success campaign coverage requires at least 125 goals per family")
     goals: list[GeneratedGoal] = []
     for family, (seed, severity) in FAMILY_SEEDS.items():
         for variant in range(1, per_family + 1):
@@ -91,7 +91,7 @@ def write_jsonl(path: Path, goals: Iterable[GeneratedGoal]) -> None:
             stream.write(json.dumps(asdict(goal), sort_keys=True) + "\n")
 
 
-def build_inventory(root: Path, month: str, per_family: int = 50) -> tuple[Path, Path]:
+def build_inventory(root: Path, month: str, per_family: int = 125) -> tuple[Path, Path]:
     """Write reportable goals separately from the never-reportable hold-out."""
     public, private = rotate_holdout(generate_goals(per_family), month)
     public_path = root / "generated" / "attacker-v1" / month / "goals.jsonl"
