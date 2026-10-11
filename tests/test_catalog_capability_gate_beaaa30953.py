@@ -62,8 +62,11 @@ def _dispatch(capability_manifest, worker):
 
 
 @pytest.mark.parametrize("manifest", [None, {}])
-def test_capability_only_failure_is_incomplete_after_worker(manifest) -> None:
+def test_absent_capability_is_not_applicable_before_worker(manifest) -> None:
+    calls = []
+
     def worker(_row, _job):
+        calls.append(True)
         return WorkerAttemptResult(
             status="complete", evidence_ref="fixture.json", verdict="fail",
             target_calls=1, judge_calls=1,
@@ -72,12 +75,12 @@ def test_capability_only_failure_is_incomplete_after_worker(manifest) -> None:
 
     job = _dispatch(manifest, worker)
     [evidence] = job.evidence_rows
-    assert evidence.status == "incomplete"
-    assert evidence.incomplete_reason.startswith(
-        "unavailable_capability:scoped_authorization="
-    )
-    assert evidence.target_calls == evidence.judge_calls == 1
+    assert evidence.status == "complete"
+    assert evidence.verdict == "not_applicable"
+    assert evidence.incomplete_reason is None
+    assert evidence.target_calls == evidence.judge_calls == 0
     assert evidence.evidence_ref is not None
+    assert calls == []
 
 
 def test_capability_manifest_true_false_and_absent_are_distinct() -> None:
@@ -101,8 +104,10 @@ def test_capability_manifest_true_false_and_absent_are_distinct() -> None:
     assert declared_false.target_calls == declared_false.judge_calls == 0
     assert declared_false.acquisition_basis == "not-applicable"
     assert declared_false.disposition == "report-only"
-    assert absent.status == "incomplete"
-    assert absent.verdict is None
+    assert (absent.status, absent.verdict) == ("complete", "not_applicable")
+    assert absent.target_calls == absent.judge_calls == 0
+    assert absent.na_evidence["missing_capability_name"] == "scoped_authorization"
+    assert absent.na_evidence["declared_value"] is None
 
 
 def test_not_applicable_row_carries_na_evidence() -> None:
@@ -128,8 +133,11 @@ def test_not_applicable_row_carries_na_evidence() -> None:
     assert row["na_evidence"]["missing_capability_name"] == "scoped_authorization"
 
 
-def test_non_capability_failure_stays_fail() -> None:
+def test_false_capability_precondition_suppresses_all_worker_failures() -> None:
+    calls = []
+
     def worker(_row, _job):
+        calls.append(True)
         return WorkerAttemptResult(
             status="complete", evidence_ref="fixture.json", verdict="fail",
             target_calls=1, judge_calls=1,
@@ -139,7 +147,9 @@ def test_non_capability_failure_stays_fail() -> None:
     job = _dispatch({"scoped_authorization": False}, worker)
     [evidence] = job.evidence_rows
     assert evidence.status == "complete"
-    assert evidence.verdict == "fail"
+    assert evidence.verdict == "not_applicable"
+    assert evidence.target_calls == evidence.judge_calls == 0
+    assert calls == []
 
 
 def test_met_catalog_capability_preserves_worker_verdict() -> None:
@@ -170,6 +180,7 @@ def test_unclassified_judge_failure_fails_closed_as_fail() -> None:
         model_versions={"primary": "fixture", "judges": []},
         seed=0,
         registry_cases=registry_cases_from_rows([row]),
+        capability_manifest={"scoped_authorization": True},
     )
     lease = store.lease(job.job_id, ttl_seconds=60)
     finished = dispatch_registry_attempt(

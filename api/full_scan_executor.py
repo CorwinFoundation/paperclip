@@ -1866,9 +1866,43 @@ def dispatch_registry_attempt(
     case_limiter = store.case_limiter(
         job.target_id, job.max_concurrent_per_target
     )
+
+    def hard_gate_reason(row: Mapping[str, Any]) -> str | None:
+        """Return the deterministic N/A reason before admitting target work.
+
+        Capability-gated families are preconditions, not post-judge hints.  A
+        target must explicitly declare the required capability as ``True``;
+        otherwise dispatching the family would exercise a surface the target
+        does not have (and spend a target call before reaching the gate).
+        """
+        gate = row.get("applicability_gate")
+        if not isinstance(gate, Mapping):
+            gate = row.get("applicability")
+        if not isinstance(gate, Mapping):
+            return None
+        if gate.get("status") != "applicable_when_capability_declared":
+            return None
+        required = str(gate.get("required_capability") or "")
+        if not required:
+            return None
+        declared = (
+            job.capability_manifest.get(required)
+            if isinstance(job.capability_manifest, Mapping)
+            else None
+        )
+        if declared is True:
+            return None
+        return f"{required}={declared!r}"
+
+    hard_gated_cases = {
+        case_id: reason
+        for case_id, row in case_rows.items()
+        if (reason := hard_gate_reason(row)) is not None
+    }
     callable_case_ids = tuple(
         case_id
         for case_id, row in case_rows.items()
+        if case_id not in hard_gated_cases
         if workers.get(worker_id_for_registry_row(dict(row))) is not None
     )
     if max_workers > 1 and job.max_cost_usd is None:
@@ -1973,9 +2007,8 @@ def dispatch_registry_attempt(
         )
         model_version = _primary_model_version(job.model_versions)
 
-        # Keep the declared applicability contract for post-judge
-        # classification.  Capability absence must never suppress dispatch:
-        # the target may still fail a behavioral criterion.
+        # Keep the declared applicability contract for evidence classification.
+        # Capability-gated rows were already decided before dispatch above.
         applicability = registry_row.get("applicability_gate")
         if not isinstance(applicability, Mapping):
             applicability = registry_row.get("applicability")
@@ -1997,7 +2030,15 @@ def dispatch_registry_attempt(
             )
             continue
 
-        if case_id in parallel_results:
+        if case_id in hard_gated_cases:
+            result = WorkerAttemptResult(
+                status="complete",
+                evidence_ref=(
+                    f"applicability://{case_id}/{hard_gated_cases[case_id]}"
+                ),
+                verdict="not_applicable",
+            )
+        elif case_id in parallel_results:
             result = parallel_results[case_id]
         else:
             try:
@@ -2058,10 +2099,13 @@ def dispatch_registry_attempt(
             and unmet_criteria
             and unmet_criteria <= capability_criteria
         )
-        # An explicit False declaration is a deterministic applicability
-        # result. An absent key (or absent profile) remains an unknown gap and
-        # must stay incomplete. An explicit True declaration executes normally.
-        declared_not_applicable = capability_only_failure and declared_capability is False
+        # Capability-gated rows require an explicit True declaration. False or
+        # absent declarations are deterministic N/A; True executes normally.
+        hard_gate_not_applicable = case_id in hard_gated_cases
+        declared_not_applicable = (
+            hard_gate_not_applicable
+            or (capability_only_failure and declared_capability is False)
+        )
         result_status = "complete" if declared_not_applicable else (
             "incomplete" if capability_only_failure else result.status
         )
@@ -2070,7 +2114,24 @@ def dispatch_registry_attempt(
         )
         result_reason = result.incomplete_reason
         na_evidence: dict[str, Any] | None = None
-        if capability_only_failure:
+        if hard_gate_not_applicable:
+            result_reason = None
+            na_evidence = {
+                "profile_capability_manifest": (
+                    dict(job.capability_manifest)
+                    if isinstance(job.capability_manifest, Mapping)
+                    else None
+                ),
+                "missing_capability_name": required_capability,
+                "declared_value": declared_capability,
+                "capability_gate": (
+                    applicability.get("capability_gate")
+                    if isinstance(applicability, Mapping)
+                    else None
+                ),
+                "applicability_reason": hard_gated_cases[case_id],
+            }
+        elif capability_only_failure:
             if declared_not_applicable:
                 result_reason = None
                 na_evidence = {
