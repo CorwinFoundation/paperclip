@@ -7,11 +7,14 @@ version-control-preflight.yml using a separate BACKBOND_LOCAL_PREFLIGHT switch.
 The repository's September workflow usage metrics, inspected 2026-10-07, recorded
 3,919 hosted minutes for preflight. Together with tests.yml's 27,969 minutes,
 these workflows represented about 73% of September's 43,725.81 Linux minutes.
-That is historical usage coverage, not a promised bill reduction: forks and bots
-remain hosted, and future usage, storage and subscription costs may differ.
+That is historical usage coverage, not a promised bill reduction: forks and
+actors outside the trusted allowlist remain hosted, and future usage, storage
+and subscription costs may differ.
 
 Both jobs route to the dedicated backbond-ci runner only when the switch equals
-true, the actor is CorwinFoundation, and any PR head belongs to this repository.
+true, the actor is CorwinFoundation or backbond-qa, and any PR head belongs to
+this repository. Eligible jobs queue when the dedicated runner is busy or
+offline; there is no automatic paid overflow.
 The Python version, test commands, evidence generation, failure-only artifact
 upload, check names, permissions and triggers remain unchanged.
 

@@ -41,14 +41,11 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      actions: read
     outputs:
-      # Opt in only after the dedicated runner passes its smoke check. Forks
-      # and dependency bots stay on hosted runners; deploy runner is excluded
-      # by the dedicated backbond-ci label. When another tests run already
-      # holds or waits for the dedicated runner, fall back to hosted so this
-      # run starts now instead of queueing (BEAAA-39258).
-      runner: ${{ steps.pool.outputs.busy != 'true' && vars.BACKBOND_LOCAL_CI == 'true' && github.actor == 'CorwinFoundation' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
+      # Trusted same-repository work queues on the isolated runner, even when
+      # it is busy or offline. Forks and other actors retain hosted routing.
+      # The dedicated label excludes the credential-bearing deploy runner.
+      runner: ${{ vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
       selection_mode: ${{ steps.select.outputs.selection_mode }}
       tests: ${{ steps.select.outputs.tests }}
       code: ${{ steps.select.outputs.code }}
@@ -63,30 +60,6 @@ jobs:
       instinct: ${{ steps.solution.outputs.instinct }}
       reason: ${{ steps.select.outputs.reason }}
     steps:
-      - name: Check dedicated runner load
-        id: pool
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # The dedicated runner serializes everything, so any other run
-          # that is queued or in flight means this one would wait behind it.
-          # If the API call fails, keep the dedicated runner (previous behaviour).
-          # Counts every workflow that can route to backbond-ci.
-          busy=0
-          for wf in tests.yml version-control-preflight.yml local-ci-smoke.yml; do
-            for st in in_progress queued; do
-              n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/runs?status=${st}&per_page=100" \
-                    --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | length" 2>/dev/null) || n=0
-              busy=$((busy + ${n:-0}))
-            done
-          done
-          if [ "$busy" -gt 0 ]; then
-            echo "Dedicated runner busy ($busy other run(s) queued or in flight); using hosted runners." >> "$GITHUB_STEP_SUMMARY"
-            echo "busy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "busy=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -261,6 +234,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The isolated image lacks the node CLI used by frontend lifecycle tests.
+      - name: Setup Node for dedicated pytest jobs
+        if: contains(needs.changes.outputs.runner, 'backbond-ci')
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
       - name: Prepare dedicated Python runtime
         if: contains(needs.changes.outputs.runner, 'backbond-ci')
         run: bash scripts/ci/prepare-python-runtime.sh
@@ -403,6 +384,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq nginx
           command -v nginx
+          command -v ssh-keygen
+          command -v openssl
           python -m pip install --require-hashes -r requirements-dev.txt
       - name: Run edge integration coverage
         # These standalone modules use only stdlib and pytest, so the unrelated
@@ -411,7 +394,8 @@ jobs:
           python -m pytest --noconftest -v -ra --junitxml="$RUNNER_TEMP/native-integrations.xml" \
             tests/integration/test_edge_caddy_staging.py \
             tests/integration/test_edge_nginx_request_id_beaaa16230.py \
-            tests/integration/test_edge_nginx_topology_beaaa16331.py
+            tests/integration/test_edge_nginx_topology_beaaa16331.py \
+            tests/test_deploy_ssh_identity_beaaa39574.py
           python - <<'PY'
           import os
           import xml.etree.ElementTree as ET

@@ -57,13 +57,19 @@ subscription remain separately billable.
 ## Routing and operating behavior
 
 The six substantive jobs in tests.yml use the dedicated backbond-ci label only
-when BACKBOND_LOCAL_CI=true, the actor is CorwinFoundation, and any PR branch belongs
-to the same repository. Fork and bot runs stay on hosted runners. The selector and
+when BACKBOND_LOCAL_CI=true, the actor is CorwinFoundation or backbond-qa, and any
+PR branch belongs to the same repository. Forks and other actors stay on hosted
+runners. Eligible jobs queue when busy; there is no automatic paid overflow.
+The selector and
 required python pytest aggregate stay hosted. Test commands, shard selection,
 nightly full coverage and required check names remain unchanged.
 Docker/nginx edge coverage stays hosted and its result gates the same required
-aggregate. The dedicated runner prepares cached Python with a relative library
+aggregate. That hosted job also exercises SSH identity normalization with
+generated fixture keys; the isolated image lacks the native key tools.
+The dedicated runner prepares cached Python with a relative library
 lookup path so subprocess tests also work without LD_LIBRARY_PATH.
+Pytest jobs provision Node 22 for frontend lifecycle tests; the runner's internal
+JavaScript runtime is not a node CLI on the test PATH.
 Local dependency caches live in the container's named volume, outside checkout
 cleanup, with keys tied to Python and lock hashes. Hosted jobs retain their
 GitHub cache behavior. Pip dependency checks gate the local test cache marker;
@@ -74,7 +80,7 @@ and one matrix job at a time limit resource use; pytest's timeout becomes 30 min
 
 Keep this dedicated account free of deploy credentials and personal files. The
 rootless container reduces exposure but does not make untrusted code safe; routing
-is deliberately restricted to owner-triggered work. Changes to those restrictions
+is deliberately restricted to those two trusted actors. Changes to those restrictions
 require a separate review.
 
 When enabled, an offline dedicated runner causes its jobs to queue. GitHub does
