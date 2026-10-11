@@ -636,14 +636,6 @@ jobs:
             deployed-release-identity.json
           curl -fsS --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 "$SLA_URL" >/dev/null
 
-      - name: Deploy scan-intake from exact live revision
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh_opts=(-4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS")
-          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "sudo '${DEPLOY_HELPER}' scan-intake '${SHA}'"
-
       - name: Post Founder release-card receipt
         if: always()
         env:

@@ -142,6 +142,15 @@ def test_report_js_matches_build_output(tmp_path):
     assert (copy / "scan" / "report.js").read_bytes() == (RELEASE / "scan" / "report.js").read_bytes()
 
 
+def test_report_viewer_starts_recipient_verification_on_auth_challenge():
+    source = (RELEASE / "scan" / "report.js").read_text(encoding="utf-8")
+    assert "credentials:'include'" in source
+    assert "response.status === 401 || response.status === 403" in source
+    assert "verification(match[1])" in source
+    for required in ("'/verification'", "'/session'", "Email me a code", "Open report"):
+        assert required in source
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 def test_report_js_syntax_and_renderer_regressions():
     subprocess.run(["node", "--check", str(RELEASE / "scan" / "report.js")], check=True)

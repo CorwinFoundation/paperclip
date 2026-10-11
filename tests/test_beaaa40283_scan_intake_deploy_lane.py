@@ -17,10 +17,10 @@ def _exe(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
-def test_master_lane_deploys_scan_intake_through_existing_helper() -> None:
+def test_scanner_master_lane_does_not_target_scan_intake_host() -> None:
     text = WORKFLOW.read_text()
-    assert "Deploy scan-intake from exact live revision" in text
-    assert "sudo '${DEPLOY_HELPER}' scan-intake '${SHA}'" in text
+    assert "Deploy scan-intake from exact live revision" not in text
+    assert "sudo '${DEPLOY_HELPER}' scan-intake '${SHA}'" not in text
 
 
 def test_update_server_bootstraps_the_single_authorized_helper() -> None:

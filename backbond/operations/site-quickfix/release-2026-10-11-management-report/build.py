@@ -105,7 +105,7 @@ replace("  async function load() {", """  function clearPrerender() { const pre 
   function clearStatus() { clearPrerender(); const status = $('report-error'); if (status) status.remove(); }
   async function load() {""")
 replace("if (!match) { $('report-error').textContent = 'This report link is invalid. Open the complete link from your report email.'; return; }", "if (!match) { showError('This report link is invalid. Open the complete link from your report email.'); return; }")
-replace("if (!response.ok) { $('report-error').textContent = response.status", "if (!response.ok) { showError(response.status")
+replace("else $('report-error').textContent = response.status", "else showError(response.status")
 replace("'The report service is unavailable. Try again later.'; return; }", "'The report service is unavailable. Try again later.'); return; }")
 replace("} catch { $('report-error').textContent = 'The report could not be loaded. Try again later.'; }", "} catch { showError('The report could not be loaded. Try again later.'); }")
 replace("$('report-error').replaceChildren(); $('report-error').hidden = true; $('report').hidden = false;", "clearStatus(); $('report').hidden = false;")

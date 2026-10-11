@@ -45,6 +45,36 @@
     }
     parent.append(article);
   }
+
+  const API = 'https://api.backbond.ai/scan/v1/reports/';
+  const request = (url, options = {}) => fetch(url, {...options, credentials:'include', cache:'no-store', referrerPolicy:'no-referrer'});
+  function verification(token) {
+    const host = $('report-error'); host.replaceChildren(); host.hidden = false;
+    host.append(text('span','Verify that you are the report recipient to continue. '));
+    const requestButton = text('button','Email me a code'); requestButton.type = 'button';
+    const form = document.createElement('form'); form.hidden = true;
+    const input = document.createElement('input'); input.inputMode = 'numeric'; input.autocomplete = 'one-time-code'; input.pattern = '[0-9]{6}'; input.maxLength = 6; input.required = true; input.setAttribute('aria-label','Six-digit verification code');
+    const submit = text('button','Open report'); submit.type = 'submit';
+    const status = text('span',''); form.append(input, submit); host.append(requestButton, form, status);
+    requestButton.addEventListener('click', async () => {
+      requestButton.disabled = true;
+      try {
+        await request(API + token + '/verification', {method:'POST'});
+        status.textContent = 'If this report is available, a code was sent to its original recipient.';
+        form.hidden = false; input.focus();
+      } catch { status.textContent = 'Verification is temporarily unavailable. Try again later.'; }
+      finally { requestButton.disabled = false; }
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); submit.disabled = true;
+      try {
+        const response = await request(API + token + '/session', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:input.value})});
+        if (!response.ok) { status.textContent = 'That code is invalid or expired.'; return; }
+        await load();
+      } catch { status.textContent = 'Verification is temporarily unavailable. Try again later.'; }
+      finally { submit.disabled = false; }
+    });
+  }
   // BEAAA-38932: board-approved copy from BEAAA-38928 messaging-draft v0.2 (sections 1, 2, 4). starter-100@3 only.
   const STARTER_TESTED = ['This was a 100-message Starter scan (pack starter-100@3). We sent your agent ten single messages in each of ten areas and graded every reply with a fixed rubric:', 'prompt injection, system prompt leak, secrets and personal data leak, discrimination and bias, made-up facts, out-of-scope actions, harmful content, jailbreak by role-play, refusal under pressure, and answering normal requests.', 'The last area checks the other side: ten ordinary requests (a refund question with the policy pasted in, a seat-price calculation, an email rewrite). An agent that refuses everything fails it.', 'Your Starter score describes these 100 messages only. It is not the Full Scan score and it is not used for underwriting.'];
   const STARTER_OMITTED = ['Conversations. Every Starter test is one message and one reply. Attacks that build over several turns were not tried.', 'Actions. We read what your agent said, not what it did. Refunds, account changes, emails and other tool calls were not run against a sandbox.', 'Repeat behaviour. Each test ran once, so the Starter cannot tell you how often a failure happens.', 'Your own policy. The rubrics are generic. Your refund rules, escalation rules and product limits were not checked.', 'Voice, other languages, documents, memory and connected tools (MCP) were out of scope.'];
@@ -106,8 +136,8 @@
     const match = location.pathname.match(/^\/scan\/r\/([a-f0-9]{32})\/?$/i);
     if (!match) { $('report-error').textContent = 'This report link is invalid. Open the complete link from your report email.'; return; }
     try {
-      const response = await fetch('https://api.backbond.ai/scan/v1/reports/' + match[1], {credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
-      if (!response.ok) { $('report-error').textContent = response.status === 404 || response.status === 410 ? 'This report is unavailable or has expired. Reports stay viewable for 180 days.' : 'The report service is unavailable. Try again later.'; return; }
+      const response = await request(API + match[1]);
+      if (!response.ok) { if (response.status === 401 || response.status === 403) verification(match[1]); else $('report-error').textContent = response.status === 404 || response.status === 410 ? 'This report is unavailable or has expired. Reports stay viewable for 180 days.' : 'The report service is unavailable. Try again later.'; return; }
       const data = await response.json();
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');
       const voice = data.pack_version === 'starter-voice-50@1';
