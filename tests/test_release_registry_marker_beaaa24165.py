@@ -141,10 +141,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # below are unchanged at 2,361 / 2,361 / 2,360. Prior pin bc6bddc5...6ab3943
     # came from the BEAAA-33810 agent-escape tranche via BEAAA-35915.
     #
-    # Re-pinned for BEAAA-36771 after binding the 24 email/calendar-injection
+    # Re-pinned for BEAAA-40376 after binding 24 browser-surface action-integrity
     # rows as reported-not-scored trace observations. The executable census is
     # unchanged; only those rows' normalized registry metadata changes.
-    "0cb8ae45ae25e460cc7b5aaa8c2ae21b17068e453a68fcb363362642ab39443a"
+    "aa258d043e0dd0b3f65a299eb2ddf5c041d8b20018ff90807b90479f01dd0285"
 )
 
 

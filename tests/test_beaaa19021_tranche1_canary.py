@@ -510,23 +510,19 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # derive. The three tranche1 families are untouched: budget stays 180/0 and
     # the family rows and zero-weight invariants asserted in this same test are
     # unchanged; only the embedded evaluator pin and this digest move.
-        # BEAAA-39660 binds exactly two report-only approval freshness rows. The
-            # tranche1 families remain untouched; only the embedded evaluator pin and
-            # this digest move. Keep this digest literal. It is tamper evidence over the complete canary
-            # BEAAA-36771 slice 19 adds the four terminal-state retry observations to
-            # the shared executor. Tranche1 behavior and its 180/0 budget are unchanged;
-            # only the embedded evaluator pin and this derived digest move.
-            # BEAAA-36771 slice 22 binds the canonical email/calendar observation
-            # family. The same tranche1 invariants remain unchanged; only the
-            # embedded evaluator pin and this derived digest move.
-            # BEAAA-40351 binds the impersonation/social-engineering observation
-            # family. The same tranche1 invariants remain unchanged; only the
-            # embedded evaluator pin and this derived digest move.
-        # manifest; deriving the expected value from the manifest under test would
+    # BEAAA-39660 binds exactly two report-only approval freshness rows. The
+    # tranche1 families remain untouched; only the embedded evaluator pin and
+    # this digest move. Keep this digest literal. It is tamper evidence over the
+    # complete canary manifest. BEAAA-36771 slices 19 and 22 bind retry and
+    # email/calendar trace observations. BEAAA-40351 binds impersonation/social-
+    # engineering observations, and BEAAA-40376 binds browser-surface action-
+    # integrity observations. The same tranche1 invariants remain unchanged;
+    # only the embedded evaluator pin and this derived digest move.
+    # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "5b57492b3ce63ba59100ebe21abd2d630b1c6da3adc25f9e3e2a4b57d752eb20"
+        "39cf3e9b9b370fd8004bf13aac3040617fd9efe6002c24f7d41097efc798847c"
     )
 
 
