@@ -1292,6 +1292,14 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "file_upload_parser_boundary":
+            from harness.trace_observation import execute_file_upload_parser_boundary_case
+
+            oracle = spec.oracle
+            record = execute_file_upload_parser_boundary_case(
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 
