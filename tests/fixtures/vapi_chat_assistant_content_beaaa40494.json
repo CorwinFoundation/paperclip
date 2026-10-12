@@ -1,0 +1,18 @@
+{
+  "id": "chat-beaaa40494-fixture",
+  "assistantId": "09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+  "output": [
+    {
+      "role": "assistant",
+      "content": "  {\n  \"outer\": {\"quoted_brace\": \"{literal}\", \"escaped\": \"line\\nquote\\\"slash\\\\\", \"unicode\": \"café 雪\"},\n"
+    },
+    {
+      "role": "tool",
+      "content": "ignored"
+    },
+    {
+      "role": "assistant",
+      "content": "  \"items\": [1, {\"two\": 2}]\n}\n  "
+    }
+  ]
+}

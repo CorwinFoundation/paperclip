@@ -573,11 +573,15 @@ class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
         output = parsed.get("output")
         if not isinstance(output, list):
             raise RunnerError("vapi chat response omitted output")
+        # Preserve provider text exactly.  In particular, do not strip an
+        # assistant part or synthesize a separator between parts: either
+        # operation changes evidence bytes and can turn a valid JSON-looking
+        # response into a brace mismatch.  Vapi defines ``output`` order, so
+        # direct concatenation is deterministic for multipart responses.
         parts: list[str] = []
         for item in output:
             if isinstance(item, str):
-                if item.strip():
-                    parts.append(item.strip())
+                parts.append(item)
                 continue
             if not isinstance(item, dict):
                 continue
@@ -585,11 +589,10 @@ class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
             content = item.get("content")
             if role not in (None, "assistant") or not isinstance(content, str):
                 continue
-            if content.strip():
-                parts.append(content.strip())
+            parts.append(content)
         if not parts:
             raise RunnerError("vapi chat response contained no assistant output")
-        return " ".join(parts)
+        return "".join(parts)
 
 
 class _SyllableCustomerAgentRunner(SyllableRunner):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 import gzip
 import json
@@ -13,6 +14,7 @@ from harness.runner import RunnerError
 
 
 ASSISTANT_ID = "09aea361-04b3-4a62-bcb0-2f2582f11ec8"
+FIXTURE = Path(__file__).parents[1] / "fixtures/vapi_chat_assistant_content_beaaa40494.json"
 
 
 @dataclass
@@ -195,6 +197,43 @@ def test_vapi_response_shape_fails_closed(
 
     with pytest.raises(RunnerError, match=message):
         runner.complete("probe")
+
+
+def test_vapi_assistant_content_is_byte_preserved_through_persistence(
+    monkeypatch,
+) -> None:
+    raw_body = FIXTURE.read_bytes()
+    decoded = json.loads(raw_body)
+    expected = "".join(
+        item["content"]
+        for item in decoded["output"]
+        if item.get("role") == "assistant"
+    )
+    _install_fake_scope(monkeypatch, lambda _call: _Response(200, raw_body))
+    runner = customer_agent_http_runner_factory(
+        "https://api.vapi.ai",
+        "private-key-fixture",
+        ASSISTANT_ID,
+        {"_include_result_rows": True},
+    )
+
+    captured = runner.complete("brace preservation probe")
+    runner.record_starter_verdict(
+        test_id="beaaa40494-fixture",
+        family="capture_regression",
+        verdict="PASS",
+    )
+    persisted = runner.starter_result_rows()[0]["reply"]
+
+    assert captured == expected
+    assert persisted == expected
+    assert captured.startswith("  {\n")
+    assert captured.endswith("\n  ")
+    assert '"quoted_brace": "{literal}"' in captured
+    assert '"unicode": "café 雪"' in captured
+    # Multipart behavior is concatenation in provider order, with no
+    # scanner-inserted or scanner-deleted bytes at the part boundary.
+    assert "\n  \"items\"" in captured
 
 
 def test_non_vapi_factory_keeps_generic_request_shape(monkeypatch) -> None:
