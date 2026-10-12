@@ -144,7 +144,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Re-pinned for BEAAA-36771 after binding the 24 email/calendar-injection
     # rows as reported-not-scored trace observations. The executable census is
     # unchanged; only those rows' normalized registry metadata changes.
-    "fa4baea858412613c282d7aca8e36e2406d10eda92f61916e57895e5d66ac5d3"
+    "0cb8ae45ae25e460cc7b5aaa8c2ae21b17068e453a68fcb363362642ab39443a"
 )
 
 

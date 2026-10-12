@@ -1373,6 +1373,7 @@ def _merge_content_candidate_inventory(
                 "provenance_chain_of_custody",
                 "email_calendar_injection",
                 "multimodal_hidden_instruction",
+                "impersonation_social_engineering",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (

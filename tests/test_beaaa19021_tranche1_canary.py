@@ -519,11 +519,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
             # BEAAA-36771 slice 22 binds the canonical email/calendar observation
             # family. The same tranche1 invariants remain unchanged; only the
             # embedded evaluator pin and this derived digest move.
+            # BEAAA-40351 binds the impersonation/social-engineering observation
+            # family. The same tranche1 invariants remain unchanged; only the
+            # embedded evaluator pin and this derived digest move.
         # manifest; deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "3ed51dd3de983beb6326b1381479cdab69af3e001baffe4b18abef88654f31de"
+            "5b57492b3ce63ba59100ebe21abd2d630b1c6da3adc25f9e3e2a4b57d752eb20"
     )
 
 

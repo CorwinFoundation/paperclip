@@ -1242,6 +1242,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "impersonation_social_engineering":
+            from harness.trace_observation import execute_impersonation_social_engineering_case
+
+            oracle = spec.oracle
+            record = execute_impersonation_social_engineering_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 
