@@ -1308,6 +1308,14 @@ class RegisteredCaseExecutor:
                 oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 **common,
             )
+        elif test_id == "resource_budget_enforcement":
+            from harness.trace_observation import execute_resource_budget_enforcement_case
+
+            oracle = spec.oracle
+            record = execute_resource_budget_enforcement_case(
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
+                operator=str(oracle["operator"]), **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

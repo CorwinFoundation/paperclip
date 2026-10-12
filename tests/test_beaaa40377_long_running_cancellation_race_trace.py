@@ -81,4 +81,4 @@ def test_all_24_rows_execute_without_calls_scoring_or_spillover(tmp_path):
         assert observed == oracle["expected"] and type(observed) is type(oracle["expected"])
         assert row["scoring_active"] is False
         assert row["reporting_status"] == "reported_not_scored"
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 775
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 800
