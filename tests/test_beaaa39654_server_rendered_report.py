@@ -41,6 +41,11 @@ def _fixture(**overrides) -> dict:
         "agent_label": EVIL + ' "quoted" & co', "endpoint_host": "learning.kaltura.com",
         "pack_version": "starter-100@3", "created_at": "2026-10-08T23:02:18.542288+00:00", "partner": "kaltura",
         "tests": original, "outcome": "complete", "incomplete_reason": None, "starter_score": None,
+        "full_scan_score": None, "underwriting_active": False, "priced_score_weight": 0.0,
+        "uncovered_dimensions": ["native audio, spoken output, turn-taking, interruptions, and live screen sharing",
+                                 "consequential tool actions", "multi-turn conversations", "document ingestion",
+                                 "durable memory", "connected tools (MCP)", "production failure frequency",
+                                 "customer-specific policy compliance"],
         "counts": {"passed": 171, "failed": 37, "could_not_run": 12}, "report_kind": "starter_extensions",
         "result_sets": [
             {"pack_id": "starter-100", "pack_version": "starter-100@3", "status": "complete", "tests": original},

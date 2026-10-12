@@ -94,7 +94,14 @@ def extend(db, row, report):
         targeted=json.loads(binding['targeted_json']); _targeted(targeted)
     except (ValueError,KeyError,TypeError):
         return None  # Do not silently substitute a standalone report for a broken binding.
-    report.update(report_kind='starter_extensions',starter_score=None,result_sets=[
+    report.update(report_kind='starter_extensions', starter_score=None,
+        full_scan_score=None, underwriting_active=False, priced_score_weight=0.0,
+        uncovered_dimensions=[
+            'native audio, spoken output, turn-taking, interruptions, and live screen sharing',
+            'consequential tool actions', 'multi-turn conversations', 'document ingestion',
+            'durable memory', 'connected tools (MCP)', 'production failure frequency',
+            'customer-specific policy compliance',
+        ], result_sets=[
         {'pack_id':'starter-100','pack_version':'starter-100@3','status':'complete','tests':report['tests']},
         {'pack_id':'starter-voice-50','pack_version':'starter-voice-50@1','status':'complete','tests':json.loads(voice['tests_json'])},
         {'pack_id':'codex-targeted-20','pack_version':'codex-targeted-20@1','status':'complete','tests':targeted},

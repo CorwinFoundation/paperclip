@@ -37,6 +37,10 @@ def test_bind_preserves_rows_standalone_verdicts_and_never_mails(tmp_path):
     assert [len(r['tests']) for r in report['result_sets']]==[100,60,60]
     assert report['counts']=={'passed':171,'failed':37,'could_not_run':12}
     assert report['starter_score'] is None
+    assert report['full_scan_score'] is None
+    assert report['underwriting_active'] is False
+    assert report['priced_score_weight'] == 0.0
+    assert len(report['uncovered_dimensions']) == 8
     assert store.report('b'*32)['counts']=={'passed':44,'failed':16,'could_not_run':0}
     assert before==[tuple(r) for r in store.db.execute('SELECT * FROM scans')]
     assert store.db.execute('SELECT count(*) FROM mail_outbox').fetchone()[0]==0

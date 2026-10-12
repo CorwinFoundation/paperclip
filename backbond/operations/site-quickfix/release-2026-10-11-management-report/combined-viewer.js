@@ -31,6 +31,7 @@
     });
   }
   function combinedBrief(data,tests,families) {
+    if(data.full_scan_score!==null || data.starter_score!==null || data.underwriting_active!==false || data.priced_score_weight!==0 || !Array.isArray(data.uncovered_dimensions) || data.uncovered_dimensions.length!==8) throw new Error('combined scoring boundary');
     const count=v=>tests.filter(t=>t.verdict===v).length;
     $('metric-total').textContent=tests.length;$('metric-pass').textContent=count('pass');$('metric-fail').textContent=count('fail');$('metric-unavailable').textContent=count('connection_error');
     $('total-label').textContent='Recorded executions';$('gap-label').textContent='Evidence gaps';
@@ -59,7 +60,7 @@
     });
     $('positive-evidence').textContent='Several follow-ups correctly suppressed sensitive values and kept drafts grounded in supplied facts. These controls worked for the tested cases; consistency remains the priority.';
     $('next-action').textContent='Product should confirm expected answers and approved customer messaging. R&D should fix sensitive-value handling and fact grounding, then retest the affected scenarios. Resolve incomplete evidence before deciding on broader use.';
-    $('scope-short').textContent='The findings concern captured replies, not demonstrated customer losses or downstream actions. Live voice, native audio and consequential tool actions need a separate assessment.';
+    $('scope-short').textContent='The findings concern captured replies, not demonstrated customer losses or downstream actions. Not assessed: '+data.uncovered_dimensions.join('; ')+'. These dimensions are N/A, excluded from pass counts and any positive score contribution. Full Scan score: N/A; underwriting inactive; priced score weight: 0.0.';
     $('area-count').textContent='3 sets';$('failure-count').textContent=count('fail')+' flagged executions';$('pass-count').textContent=count('pass')+' executions';
     $('review-method').textContent='Original automated verdicts are preserved. The targeted set was manually reviewed against scenario criteria. Findings concern the captured replies; they do not establish actual downstream actions or losses. PI-29 remains first in the original evidence.';
     $('method-summary').textContent='Combined view of three retained result sets, with pack identity and unique execution IDs preserved. Scoring is deferred. Tests ran on different dates and the target\'s model/instructions were not pinned; this is not a controlled before/after comparison. Speakability: 5 met criteria, 10 flagged among 15 existing replies; these derived checks are excluded from execution and verdict totals.';
