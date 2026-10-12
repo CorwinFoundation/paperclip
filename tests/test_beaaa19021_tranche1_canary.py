@@ -516,13 +516,14 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # complete canary manifest. BEAAA-36771 slices 19 and 22 bind retry and
     # email/calendar trace observations. BEAAA-40351 binds impersonation/social-
     # engineering observations, and BEAAA-40376 binds browser-surface action-
-    # integrity observations. The same tranche1 invariants remain unchanged;
+        # integrity observations, and BEAAA-40377 binds cancellation-race lifecycle
+        # observations. The same tranche1 invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
     # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "39cf3e9b9b370fd8004bf13aac3040617fd9efe6002c24f7d41097efc798847c"
+        "043732f8e92d2882a9afa09592da5ff6c763523e0f137810007aa0ca550d08b2"
     )
 
 

@@ -144,7 +144,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Re-pinned for BEAAA-40376 after binding 24 browser-surface action-integrity
     # rows as reported-not-scored trace observations. The executable census is
     # unchanged; only those rows' normalized registry metadata changes.
-    "aa258d043e0dd0b3f65a299eb2ddf5c041d8b20018ff90807b90479f01dd0285"
+    # Re-pinned for BEAAA-40377 after binding 24 long-running cancellation-race
+    # rows under the same report-only contract. Counts and scoring stay unchanged.
+    "71a216a37390f7c07ed626105a3e92c868e733abcf6f450d79a210a50492559d"
 )
 
 
