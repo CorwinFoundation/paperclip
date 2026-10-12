@@ -1376,6 +1376,7 @@ def _merge_content_candidate_inventory(
                 "impersonation_social_engineering",
                 "browser_surface_action_integrity",
                 "long_running_cancellation_race",
+                "persistent_memory_poisoning",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (

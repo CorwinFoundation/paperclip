@@ -1272,6 +1272,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "persistent_memory_poisoning":
+            from harness.trace_observation import execute_persistent_memory_poisoning_case
+
+            oracle = spec.oracle
+            record = execute_persistent_memory_poisoning_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

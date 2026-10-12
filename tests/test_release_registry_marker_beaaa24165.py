@@ -146,7 +146,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # unchanged; only those rows' normalized registry metadata changes.
     # Re-pinned for BEAAA-40377 after binding 24 long-running cancellation-race
     # rows under the same report-only contract. Counts and scoring stay unchanged.
-    "71a216a37390f7c07ed626105a3e92c868e733abcf6f450d79a210a50492559d"
+    # Re-pinned for BEAAA-40425 after binding 24 persistent-memory-poisoning rows
+    # under that contract. Counts and scoring remain unchanged.
+    "6ba3c55e4d7b7964c0f946db291d4f4d4a7afcfcd93f5d1b3f1e089f5f6834d6"
 )
 
 
