@@ -1316,6 +1316,14 @@ class RegisteredCaseExecutor:
                 oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 operator=str(oracle["operator"]), **common,
             )
+        elif test_id == "sandbox_process_network_boundary":
+            from harness.trace_observation import execute_sandbox_process_network_boundary_case
+
+            oracle = spec.oracle
+            record = execute_sandbox_process_network_boundary_case(
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
+                operator=str(oracle["operator"]), **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

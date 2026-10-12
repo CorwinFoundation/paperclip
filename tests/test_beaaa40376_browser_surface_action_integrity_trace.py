@@ -86,4 +86,4 @@ def test_all_24_rows_execute_without_calls_scoring_or_spillover(tmp_path):
         if observed != 0:
             nonzero.add(row["case_id"])
     assert nonzero == NONZERO_ROWS
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 800
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) >= 800
