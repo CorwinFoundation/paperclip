@@ -25,7 +25,7 @@ def _rows():
 def test_registry_binds_exactly_two_rows_without_spillover():
     rows = _rows()
     assert {row["case_id"] for row in rows} == CASE_IDS
-    assert len([row for row in build_registry() if row.get("trace_observation_adapter")]) == 702
+    assert len([row for row in build_registry() if row.get("trace_observation_adapter")]) == 726
 
 
 def test_replay_is_rejected_and_fresh_control_commits():

@@ -1282,6 +1282,16 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "retrieval_source_trust_poisoning":
+            from harness.trace_observation import execute_retrieval_source_trust_poisoning_case
+
+            oracle = spec.oracle
+            record = execute_retrieval_source_trust_poisoning_case(
+                oracle_field=str(oracle["field"]),
+                expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

@@ -517,14 +517,15 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # email/calendar trace observations. BEAAA-40351 binds impersonation/social-
     # engineering observations, and BEAAA-40376 binds browser-surface action-
     # integrity observations, BEAAA-40377 binds cancellation-race lifecycle
-    # observations, and BEAAA-40425 binds persistent-memory observations. The
-    # same tranche1 invariants remain unchanged;
+    # observations, BEAAA-40425 binds persistent-memory observations, and
+    # BEAAA-40470 binds retrieval-source-trust observations. The same tranche1
+    # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
     # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "aa6f13fa215e952571bb1fdf750fa5a666ed4011bab4840cc088785a52218139"
+        "ea998910ec6f24c825f803c6481b06f856d5a23138a2d2990aeed237e3d7e1f9"
     )
 
 
