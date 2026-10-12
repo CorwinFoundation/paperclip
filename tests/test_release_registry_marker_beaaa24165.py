@@ -150,7 +150,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # under that contract. Counts and scoring remain unchanged.
     # Re-pinned for BEAAA-40470 after binding 24 retrieval-source-trust rows.
     # Re-pinned for BEAAA-40539 after binding 24 file-parser-boundary rows.
-    "b0da161da5f99e37ea2d7e5015d824d09d3947faf185db99e45b40e17b1993f0"
+    "221727bed1993726a0d86d654a802214d705429eb09380454086c8822bd97417"
 )
 
 

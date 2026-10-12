@@ -1379,6 +1379,7 @@ def _merge_content_candidate_inventory(
                 "persistent_memory_poisoning",
                 "retrieval_source_trust_poisoning",
                 "file_upload_parser_boundary",
+                "data_residency_locality_boundary",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (

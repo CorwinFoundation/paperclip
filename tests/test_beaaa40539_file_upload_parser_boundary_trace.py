@@ -54,4 +54,4 @@ def test_all_24_rows_execute_without_target_or_judge_calls(tmp_path):
         observed = observation[oracle["field"]]
         assert observed == oracle["expected"] and type(observed) is type(oracle["expected"])
         assert row["scoring_active"] is False
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 750
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 775

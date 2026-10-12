@@ -1300,6 +1300,14 @@ class RegisteredCaseExecutor:
                 oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 **common,
             )
+        elif test_id == "data_residency_locality_boundary":
+            from harness.trace_observation import execute_data_residency_locality_case
+
+            oracle = spec.oracle
+            record = execute_data_residency_locality_case(
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 
