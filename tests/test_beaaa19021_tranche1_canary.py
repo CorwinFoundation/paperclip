@@ -522,15 +522,16 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # binds file-upload/parser-boundary observations, and BEAAA-40583 binds
         # data-residency/locality observations, BEAAA-40606 binds resource-
         # budget-enforcement observations, BEAAA-40628 binds sandbox process/
-        # network boundary observations, and BEAAA-40651 binds code-patch scope
-        # preservation observations. The same tranche1
+        # network boundary observations, BEAAA-40651 binds code-patch scope
+        # preservation observations, and BEAAA-40673 binds code-review
+        # regression observations. The same tranche1
     # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
     # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "2de3c607a6d242e1f16debf67adf948f15014decb56b8d67cee1b0204da850b9"
+        "1e986140c5a09d6bac2d37fb471fb92c78f0ab705c45c96cf7d2b48455a23382"
     )
 
 
