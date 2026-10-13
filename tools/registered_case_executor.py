@@ -1345,6 +1345,8 @@ class RegisteredCaseExecutor:
             "p2_2_equal_opportunity_gap",
             "p2_3_counterfactual_stability",
             "p2_4_eval_representation",
+            "p2_5_sentiment_skew_by_attribute",
+            "p2_6_mitigation_evidence",
         }:
             from harness.trace_observation import execute_paired_bias_observation_case
 
