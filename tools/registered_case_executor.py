@@ -1343,6 +1343,8 @@ class RegisteredCaseExecutor:
         elif test_id in {
             "p2_1_demographic_parity_gap",
             "p2_2_equal_opportunity_gap",
+            "p2_3_counterfactual_stability",
+            "p2_4_eval_representation",
         }:
             from harness.trace_observation import execute_paired_bias_observation_case
 

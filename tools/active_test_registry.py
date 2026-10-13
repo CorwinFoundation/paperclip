@@ -1389,6 +1389,8 @@ def _merge_content_candidate_inventory(
                     family_id in {
                         "p2_1_demographic_parity_gap",
                         "p2_2_equal_opportunity_gap",
+                        "p2_3_counterfactual_stability",
+                        "p2_4_eval_representation",
                     }
                     and case_id.rsplit("-", 1)[-1]
                     in {f"{number:02d}" for number in range(1, 13)}

@@ -524,7 +524,8 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
         # budget-enforcement observations, BEAAA-40628 binds sandbox process/
         # network boundary observations, BEAAA-40651 binds code-patch scope
         # preservation observations, and BEAAA-40673 binds code-review
-        # regression observations, and BEAAA-40798 binds paired-bias observations.
+        # regression observations, BEAAA-40798 binds paired-bias observations,
+        # and BEAAA-40820 extends those observations to P2.3/P2.4.
         # The same tranche1
     # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
@@ -532,7 +533,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "796cd205c804726065fa63bf08077e27b674e3832355fdbefa80bc3075d90e62"
+        "30e0f1a91fbff553da48b74102c499717777ab5ed1205f1198a5d1671f183b71"
     )
 
 
