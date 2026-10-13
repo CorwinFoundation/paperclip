@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backbond" / "scan-intake" / "server"))
 import qa_service
@@ -173,6 +174,34 @@ def test_report_get_rejects_missing_credentials_before_any_lookup(monkeypatch, t
     with pytest.raises(HTTPException) as failure:
         app.report("a" * 32, Request())
     assert failure.value.status_code == 401
+
+
+def test_verified_browser_session_fetches_report_and_anonymous_get_is_rejected(monkeypatch, tmp_path):
+    """The browser's verification cookie must authorize the immediately following GET."""
+    monkeypatch.setenv("QA_DB_PATH", str(tmp_path / "app.sqlite"))
+    import app
+
+    report_store = store_with_report(tmp_path)
+    delivered = []
+    monkeypatch.setattr(app, "store", report_store)
+    monkeypatch.setattr(app, "_send_report_code", lambda recipient, code: delivered.append(code))
+    monkeypatch.setattr(app.report_issue_gate, "allow", lambda **kwargs: True)
+
+    token = "a" * 32
+    path = f"/scan/v1/reports/{token}"
+    origin = {"origin": "https://backbond.ai"}
+    anonymous = TestClient(app.app, base_url="https://api.backbond.ai")
+    assert anonymous.get(path).status_code == 401
+
+    browser = TestClient(app.app, base_url="https://api.backbond.ai")
+    requested = browser.post(path + "/verification", headers=origin)
+    assert requested.status_code == 200
+    assert len(delivered) == 1
+    verified = browser.post(path + "/session", headers=origin, json={"code": delivered[0]})
+    assert verified.status_code == 200
+    loaded = browser.get(path)
+    assert loaded.status_code == 200
+    assert loaded.json()["pack_version"] == "starter-100@4"
 
 
 def test_report_get_checks_authorization_before_report_or_upstream_read():

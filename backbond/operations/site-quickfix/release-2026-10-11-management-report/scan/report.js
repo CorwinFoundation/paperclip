@@ -135,18 +135,35 @@
   const request = (url, options = {}) => fetch(url, {...options, credentials:'include', cache:'no-store', referrerPolicy:'no-referrer'});
   function verification(token) {
     const host = $('report-error'); host.replaceChildren(); host.hidden = false;
-    host.append(text('span','Verify that you are the report recipient to continue. '));
+    $('agent-name').textContent = 'Open your private report';
+    const eyebrow = $('agent-name').previousElementSibling; if (eyebrow) eyebrow.hidden = true;
+    host.className = 'report-verification';
+    Object.assign(host.style, {maxWidth:'480px', marginTop:'24px', paddingTop:'24px', borderTop:'1px solid #d9dce3'});
+    host.append(text('p','Verify that you are the report recipient to continue. We will email a six-digit code to the original recipient.'));
     const requestButton = text('button','Email me a code'); requestButton.type = 'button';
     const form = document.createElement('form'); form.hidden = true;
     const input = document.createElement('input'); input.inputMode = 'numeric'; input.autocomplete = 'one-time-code'; input.pattern = '[0-9]{6}'; input.maxLength = 6; input.required = true; input.setAttribute('aria-label','Six-digit verification code');
+    input.id = 'verification-code'; input.type = 'text';
+    const codeLabel = text('label','Six-digit verification code'); codeLabel.htmlFor = input.id;
     const submit = text('button','Open report'); submit.type = 'submit';
-    const status = text('span',''); form.append(input, submit); host.append(requestButton, form, status);
+    const status = text('span',''); status.className = 'verification-status'; status.setAttribute('role','status'); status.setAttribute('aria-live','polite'); form.append(codeLabel, input, submit); host.append(requestButton, form, status);
+    Object.assign(host.children[0].style, {color:'#535E77', lineHeight:'1.6', margin:'0 0 24px'});
+    [requestButton, submit].forEach(button => Object.assign(button.style, {display:'block', minHeight:'48px', padding:'12px 24px', border:'1px solid #0B1A38', background:'#0B1A38', color:'#FCFBF8', font:'600 16px Inter, sans-serif', cursor:'pointer', maxWidth:'100%'}));
+    Object.assign(form.style, {marginTop:'28px'});
+    Object.assign(codeLabel.style, {display:'block', color:'#0B1A38', font:'600 14px Inter, sans-serif', marginBottom:'10px'});
+    Object.assign(input.style, {display:'block', boxSizing:'border-box', width:'100%', maxWidth:'280px', minHeight:'52px', padding:'12px 16px', marginBottom:'16px', border:'1px solid #535E77', background:'#FCFBF8', color:'#0B1A38', font:'24px monospace', letterSpacing:'.18em'});
+    Object.assign(status.style, {display:'block', marginTop:'20px', color:'#535E77', fontSize:'14px', lineHeight:'1.6'});
     requestButton.addEventListener('click', async () => {
-      requestButton.disabled = true;
+      requestButton.disabled = true; status.textContent = 'Requesting your code…';
       try {
         await request(API + token + '/verification', {method:'POST'});
         status.textContent = 'If this report is available, a code was sent to its original recipient.';
-        form.hidden = false; input.focus();
+        form.hidden = false;
+        $('agent-name').textContent = 'Enter your verification code';
+        host.children[0].textContent = 'Use the six-digit code from your email to open this private report.';
+        requestButton.textContent = 'Send a new code';
+        Object.assign(requestButton.style, {background:'transparent', color:'#535E77', border:'none', padding:'8px 0', minHeight:'44px', font:'400 14px Inter, sans-serif', textDecoration:'underline', marginTop:'12px'});
+        host.append(requestButton); input.focus();
       } catch { status.textContent = 'Verification is temporarily unavailable. Try again later.'; }
       finally { requestButton.disabled = false; }
     });
