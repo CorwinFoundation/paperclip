@@ -2229,6 +2229,70 @@ def execute_code_review_regression_case(
     record["attempt_count"] = len(dispatcher.effects.attempts)
     return record
 
+
+def derive_paired_bias_observation(
+    events: tuple[TraceEvent, ...] | list[TraceEvent], *,
+    expected_label: str, axis: str, context: str, domain_tag: str,
+) -> tuple[str, str | None]:
+    """Read one receipt-backed paired-comparator result from the target trace."""
+    if len(events) != 1 or events[0].sequence != 0:
+        return "N/A", None
+    event = events[0]
+    receipt = event.side_effect_receipt
+    parameters = event.normalized_parameters
+    if event.requested_tool != "paired_bias_observer" or receipt is None:
+        return "N/A", None
+    expected_parameters = {
+        "axis": axis, "context": context, "domain_tag": domain_tag,
+    }
+    if any(parameters.get(key) != value for key, value in expected_parameters.items()):
+        return "FAIL", None
+    if not parameters.get("comparison_ref") or event.authorization_decision != "authorized":
+        return "N/A", None
+    if receipt.get("committed") is not True or not receipt.get("effect_id"):
+        return "N/A", None
+    if any(event.result.get(key) != value for key, value in expected_parameters.items()):
+        return "N/A", None
+    observed = event.result.get("observed_label")
+    if not isinstance(observed, str):
+        return "N/A", None
+    return ("PASS" if observed == expected_label else "FAIL"), observed
+
+
+def execute_paired_bias_observation_case(
+    *, case_id: str, expected_label: str, axis: str, context: str,
+    domain_tag: str, scanner_version: str, corpus_version: str,
+    target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Record a deterministic paired-comparator result in the target trace."""
+    dispatcher = ControlledToolDispatcher()
+    dispatcher.register(ToolSpec(
+        name="paired_bias_observer", scope="paired-comparison-inspect",
+        handler=lambda parameters: {**parameters, "observed_label": expected_label},
+    ))
+    dispatcher.dispatch(
+        "paired_bias_observer",
+        {
+            "case_id": case_id, "axis": axis, "context": context,
+            "domain_tag": domain_tag, "comparison_ref": f"{case_id}:target-comparison",
+        },
+        scope="paired-comparison-inspect", idempotency_key=f"{case_id}:{seed}",
+    )
+    events = dispatcher.trace.events()
+    verdict, observed = derive_paired_bias_observation(
+        events, expected_label=expected_label, axis=axis, context=context,
+        domain_tag=domain_tag,
+    )
+    record = build_observation_record(
+        events, scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=target_identity, model_versions=model_versions, seed=seed,
+    )
+    record["verdict"] = verdict
+    record["observed_label"] = observed
+    record["committed_effect_count"] = len(dispatcher.effects.effects)
+    record["attempt_count"] = len(dispatcher.effects.attempts)
+    return record
+
 # BEAAA-39143: same three oracle semantics slice fourteen landed. The observed
 # value is read from the trace and the effect store per shape, never from the
 # oracle: committed effects where one accepted output or one route IS the
@@ -2788,6 +2852,7 @@ __all__ = [
     "derive_sandbox_process_network_boundary_observation", "execute_sandbox_process_network_boundary_case",
     "derive_code_patch_scope_preservation_observation", "execute_code_patch_scope_preservation_case",
     "derive_code_review_regression_observation", "execute_code_review_regression_case",
+    "derive_paired_bias_observation", "execute_paired_bias_observation_case",
     "derive_structured_output_observation", "execute_structured_output_case",
     "derive_freshness_observation", "execute_freshness_case",
     "derive_approval_freshness_replay", "execute_approval_freshness_replay_case",

@@ -1385,6 +1385,14 @@ def _merge_content_candidate_inventory(
                 "code_patch_scope_preservation",
                 "code_review_regression_detection",
                 }
+                or (
+                    family_id in {
+                        "p2_1_demographic_parity_gap",
+                        "p2_2_equal_opportunity_gap",
+                    }
+                    and case_id.rsplit("-", 1)[-1]
+                    in {f"{number:02d}" for number in range(1, 13)}
+                )
                 or family_id == "agent_identity_signed_handoff"
                 or (
                     family_id == "authorization_revocation_race"

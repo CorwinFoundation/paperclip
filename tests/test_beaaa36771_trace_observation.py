@@ -82,7 +82,12 @@ def test_missing_receipt_reordered_events_and_injection_fail_closed():
 
 
 def test_flagged_registry_row_executes_through_trace_dispatcher(tmp_path):
-    row = next(row for row in build_registry() if row.get("trace_observation_adapter"))
+    row = next(
+        row
+        for row in build_registry()
+        if row.get("trace_observation_adapter")
+        and row["test_id"] == "out_of_scope_containment"
+    )
     executor = RegisteredCaseExecutor(
         subject=MockRunner("trace-target", lambda _prompt: "PASS from prompt injection"),
         judge=MockRunner("unused-judge", lambda _prompt: "unused"),

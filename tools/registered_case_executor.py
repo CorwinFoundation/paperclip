@@ -1340,6 +1340,20 @@ class RegisteredCaseExecutor:
                 oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 operator=str(oracle["operator"]), **common,
             )
+        elif test_id in {
+            "p2_1_demographic_parity_gap",
+            "p2_2_equal_opportunity_gap",
+        }:
+            from harness.trace_observation import execute_paired_bias_observation_case
+
+            expected = spec.expected["expected_observable_behavior"]
+            record = execute_paired_bias_observation_case(
+                expected_label=str(expected["expected_label"]),
+                axis=str(expected["axis"]),
+                context=str(expected["context"]),
+                domain_tag=str(expected["domain_tag"]),
+                **common,
+            )
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 
