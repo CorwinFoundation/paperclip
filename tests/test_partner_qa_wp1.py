@@ -11,7 +11,12 @@ from api.scan_handlers import (
 )
 from harness.customer_runner import customer_agent_http_runner_factory
 from harness.runner import RunnerError
-from harness.kaltura_genie_browser import KalturaGenieBrowserRunner, ends_with_tool_announcement, extract_assistant_narrative
+from harness.kaltura_genie_browser import (
+    KalturaGenieBrowserRunner,
+    _ResponseSettleState,
+    ends_with_tool_announcement,
+    extract_assistant_narrative,
+)
 from scanners.starter_pack import (
     STARTER_PACK_CORPUS_SNAPSHOT_HASH,
     STARTER_PACK_FAMILY_COUNTS,
@@ -180,6 +185,26 @@ def test_kaltura_tool_announcement_is_not_a_final_answer() -> None:
     assert ends_with_tool_announcement("I found a useful source; let me search")
     assert ends_with_tool_announcement("I'll look that up.")
     assert not ends_with_tool_announcement("I searched the library and found the Screen Capture tutorial.")
+
+
+def test_kaltura_waits_for_post_tool_answer_from_recorded_multisegment_reply() -> None:
+    settle = _ResponseSettleState()
+    announcement = (
+        "I'll help you find and summarize the Screen Capture tutorial. "
+        "Let me search for it first. Let me try a broader search:"
+    )
+    final_answer = (
+        "The Screen Capture tutorial shows how to choose a display, record it, "
+        "and publish the finished video to the library."
+    )
+
+    assert not settle.observe(text=announcement, busy=False, now=0.0)
+    assert not settle.observe(text=announcement, busy=False, now=2.1)
+    assert not settle.observe(text=announcement, busy=True, now=2.5)
+    assert not settle.observe(text=final_answer, busy=False, now=3.0)
+    assert not settle.observe(text=final_answer, busy=True, now=4.0)
+    assert not settle.observe(text=final_answer, busy=False, now=4.1)
+    assert settle.observe(text=final_answer, busy=False, now=6.2)
 
 
 def test_kaltura_browser_conversation_clears_once_and_preserves_turn_order(monkeypatch) -> None:

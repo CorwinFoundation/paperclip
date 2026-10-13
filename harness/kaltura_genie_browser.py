@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from harness.runner import ModelRunner, RunnerError
@@ -14,15 +15,51 @@ _COMPOSER = 'textarea[placeholder="Ask me anything"]'
 _MAX_RESULT_TEXT_CHARS = 4_000
 _RESULT_TEXT_TRUNCATION_MARKER = "\n[TRUNCATED]"
 _TOOL_ANNOUNCEMENT = re.compile(
-    r"(?:let me|i(?:'ll| will)|allow me to)\s+(?:search|look(?: that| this)? up|find|check)"
-    r"(?:\s+(?:for|the|our|your|those|it|that|this|now))*[.!…:]?\s*$",
+    r"(?:let me|i(?:'ll| will)|allow me to)\s+"
+    r"(?:first\s+)?(?:try\s+)?(?:a\s+)?(?:broader\s+|more\s+specifically\s+)?"
+    r"(?:search|look(?: that| this)? up|find|check|retrieve|get)\b[^.!?]*[.!…:]?\s*$",
     re.IGNORECASE,
 )
+_STABLE_RESPONSE_S = 2.0
 
 
 def ends_with_tool_announcement(text: str) -> bool:
     """Return true when capture contains only the pre-tool hand-off."""
     return bool(_TOOL_ANNOUNCEMENT.search(text.strip()))
+
+
+@dataclass
+class _ResponseSettleState:
+    """Track a streamed answer without completing during its tool hand-off."""
+
+    last_text: str = ""
+    stable_since: float | None = None
+    waiting_for_post_tool_text: bool = False
+
+    def observe(self, *, text: str, busy: bool, now: float) -> bool:
+        if busy:
+            self.stable_since = None
+            return False
+        if text != self.last_text:
+            self.last_text = text
+            self.stable_since = now
+            if ends_with_tool_announcement(text):
+                self.waiting_for_post_tool_text = True
+            elif self.waiting_for_post_tool_text:
+                self.waiting_for_post_tool_text = False
+            return False
+        if ends_with_tool_announcement(text):
+            self.waiting_for_post_tool_text = True
+            self.stable_since = None
+            return False
+        if self.stable_since is None:
+            self.stable_since = now
+            return False
+        return (
+            not self.waiting_for_post_tool_text
+            and self.stable_since is not None
+            and now - self.stable_since >= _STABLE_RESPONSE_S
+        )
 
 
 def extract_assistant_narrative(article: Any) -> str:
@@ -173,8 +210,7 @@ class KalturaGenieBrowserRunner(ModelRunner):
             raise RunnerError("kaltura genie ask control unavailable") from exc
 
         deadline = time.monotonic() + self._timeout_s
-        last_text = ""
-        stable_since: float | None = None
+        settle = _ResponseSettleState()
         while time.monotonic() < deadline:
             page.wait_for_timeout(400)
             error = page.get_by_role("alert")
@@ -185,17 +221,10 @@ class KalturaGenieBrowserRunner(ModelRunner):
                 or page.get_by_role("button", name="Stop", exact=True).count()
             )
             if articles.count() != baseline + 1 or busy:
-                stable_since = None
+                settle.observe(text=settle.last_text, busy=True, now=time.monotonic())
                 continue
             answer = extract_assistant_narrative(articles.nth(baseline))
-            if answer != last_text:
-                last_text = answer
-                stable_since = time.monotonic()
-                continue
-            if stable_since is not None and time.monotonic() - stable_since >= 2.0:
-                if ends_with_tool_announcement(answer):
-                    stable_since = None
-                    continue
+            if settle.observe(text=answer, busy=False, now=time.monotonic()):
                 if self._result_rows_enabled:
                     self._pending_exchange = (
                         self._redact_result_text(prompt),
