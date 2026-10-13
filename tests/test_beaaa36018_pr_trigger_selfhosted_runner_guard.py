@@ -58,8 +58,7 @@ WHY = (
 )
 
 DEDICATED_ELIGIBILITY = (
-    "${{ steps.pool.outputs.use_hosted != 'true' && "
-    "vars.BACKBOND_LOCAL_CI == 'true' && "
+    "${{ vars.BACKBOND_LOCAL_CI == 'true' && "
     "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
     "(github.event_name != 'pull_request' || "
     "github.event.pull_request.head.repo.full_name == github.repository) && "
@@ -68,14 +67,9 @@ DEDICATED_ELIGIBILITY = (
 # Eligible jobs wait for dedicated capacity rather than buying hosted overflow.
 DEDICATED_OUTPUT = DEDICATED_ELIGIBILITY
 DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]') }}"
-DEDICATED_PREFLIGHT = (
-    "${{ fromJSON(vars.BACKBOND_LOCAL_PREFLIGHT == 'true' && "
-    "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
-    "(github.event_name != 'pull_request' || "
-    "github.event.pull_request.head.repo.full_name == github.repository) && "
-    "'[\"self-hosted\",\"linux\",\"x64\",\"backbond-ci\"]' || "
-    "'[\"ubuntu-latest\"]') }}"
-)
+DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3].replace(
+    "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
+) + ") }}"
 
 
 def is_isolated_route(job: dict, workflow: dict) -> bool:
@@ -95,12 +89,9 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
     if needs != "changes" and (not isinstance(needs, list) or "changes" not in needs):
         return False
     selector = workflow.get("jobs", {}).get("changes", {})
-    pool_steps = [step for step in selector.get("steps", []) if step.get("id") == "pool"]
     return (
         selector.get("runs-on") == "ubuntu-latest"
         and selector.get("outputs", {}).get("runner") == DEDICATED_OUTPUT
-        and selector.get("permissions", {}).get("actions") == "read"
-        and len(pool_steps) == 1
     )
 
 
@@ -399,11 +390,9 @@ def test_guarded_preflight_route_is_accepted_but_deploy_label_is_rejected() -> N
     assert self_hosted_findings(workflow)
 
 
-def test_trusted_jobs_fall_back_from_a_stale_or_phantom_busy_queue() -> None:
+def test_trusted_jobs_queue_without_paid_busy_overflow() -> None:
     workflow = load_workflow((WORKFLOW_DIR / "tests.yml").read_text(encoding="utf-8"))
     selector = workflow["jobs"]["changes"]
     assert selector["outputs"]["runner"] == DEDICATED_ELIGIBILITY
-    pool = next(step for step in selector["steps"] if step.get("id") == "pool")
-    assert selector["permissions"]["actions"] == "read"
-    assert "queued for at least 15 minutes" in pool["run"]
-    assert "reports busy with zero in-progress jobs" in pool["run"]
+    assert all(step.get("id") != "pool" for step in selector["steps"])
+    assert "actions" not in selector["permissions"]
