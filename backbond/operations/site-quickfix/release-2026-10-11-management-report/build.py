@@ -77,6 +77,17 @@ replace("const label = family =>", r"""Object.assign(names, {
   }
   const label = family =>""")
 replace("parent.append(article);", "const detail=document.createElement('details'); detail.className='test-evidence'; detail.append(text('summary',(test.id || 'Test') + ' / ' + (test.verdict==='pass' ? 'met criteria' : test.verdict==='fail' ? 'needs review' : 'unavailable')),article); parent.append(detail);")
+replace("    if (advice) {", """    const refs = [
+      ['Transcript', test.transcript_uri || test.transcript_url],
+      ['Tool-call log', test.tool_call_log_uri || test.tool_call_log_url],
+      ['Evidence artifact', test.evidence_uri || test.evidence_url]
+    ].filter(([,uri]) => typeof uri === 'string' && /^https:\\/\\//i.test(uri));
+    if (refs.length) {
+      const links=document.createElement('p'); links.className='evidence-links';
+      refs.forEach(([label,uri])=>{const link=text('a',label);link.href=uri;link.rel='noopener noreferrer';links.append(link);});
+      article.append(links);
+    }
+    if (advice) {""")
 replace("const section = document.createElement('section'); section.id = 'targeted-follow-up';", "const section = document.createElement('details'); section.id = 'targeted-follow-up'; section.append(text('summary','Separate targeted follow-up / 60 executions'));")
 replace("const heading = text('h2','Original 100-test Starter scan'); $('report').prepend(heading);", "// Keep the separate addendum closed beneath the management brief.")
 replace("document.title = (data.agent_label || 'Your agent') + ' - QA scan report | BackBond';", "document.title = (data.agent_label || 'Your agent') + ' - Agent assessment | BackBond';")
@@ -90,6 +101,17 @@ replace("failed.forEach(t => testDetail(t,$('failures'),true));", """for (const 
       managementBrief(data,tests,families,voice);""")
 replace("if (['starter-100@3','starter-100@4'].includes(data.pack_version)) starterScopeBlocks", "if (!$('business-priorities') && ['starter-100@3','starter-100@4'].includes(data.pack_version)) starterScopeBlocks")
 replace("  async function load() {", (root/'combined-viewer.js').read_text(encoding='utf-8')+'\n  async function load() {')
+replace("  async function load() {", """  function renderEvidenceRecord(data, when) {
+    const list=$('evidence-provenance'); if(!list) return;
+    const models=data.model_versions;
+    const modelText=models && typeof models==='object' ? Object.entries(models).map(([k,v])=>k+': '+(Array.isArray(v)?v.join(', '):String(v))).join('; ') : null;
+    const rows=[['Scanner version',data.scanner_version],['Test corpus',data.corpus_version || data.pack_version],['Model versions',modelText],['Seed',data.seed],['Run date',when.toISOString()]];
+    rows.forEach(([label,value])=>{const wrap=document.createElement('div');wrap.append(text('dt',label),text('dd',value===undefined||value===null||value===''?'Not recorded in this report':value));list.append(wrap);});
+    const days=Math.max(0,Math.floor((Date.now()-when.getTime())/86400000));
+    $('evidence-age').textContent='Evidence age: '+days+' day'+(days===1?'':'s')+' old. Rescan after material agent changes.';
+  }
+  async function load() {""")
+replace("      $('agent-name').textContent = data.agent_label || 'Your agent';", "      renderEvidenceRecord(data, when);\n      $('agent-name').textContent = data.agent_label || 'Your agent';")
 replace("const label = family => names[family] || String(family || 'Other').replaceAll('_', ' ');", "const label = family => String(family||'').includes('::') ? (PACK_NAMES[String(family).split('::')[0]]||'Test set')+' / '+label(String(family).split('::')[1]) : names[family] || String(family || 'Other').replaceAll('_', ' ');")
 replace("const tests = data.tests.map", "if(data.report_kind==='starter_extensions') data.tests=combinedTests(data);\n      const tests = data.tests.map")
 replace("guidance[test.family] ||", "guidance[test.source_family || test.family] ||")

@@ -138,6 +138,8 @@ def test_template_has_no_loading_placeholder():
     template = (RELEASE / "scan" / "r" / "index.html").read_text(encoding="utf-8")
     assert "Loading your report" not in template
     assert '<p id="report-error" role="status" hidden></p>' in template
+    assert 'id="evidence-provenance"' in template
+    assert 'id="evidence-age"' in template
 
 
 def test_report_js_matches_build_output(tmp_path):
@@ -162,3 +164,8 @@ def test_report_js_syntax_and_renderer_regressions():
     result = subprocess.run(["node", str(RELEASE / "verify.js")], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
     assert "Status element removed on success and revealed on error" in result.stdout
+    source = (RELEASE / "scan" / "report.js").read_text()
+    for field in ("scanner_version", "corpus_version", "model_versions", "seed", "Evidence age"):
+        assert field in source
+    for field in ("transcript_uri", "tool_call_log_uri", "evidence_uri"):
+        assert field in source

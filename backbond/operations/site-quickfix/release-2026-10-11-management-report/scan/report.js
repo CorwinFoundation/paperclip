@@ -108,6 +108,16 @@
     }
     if (test.verdict === 'connection_error') article.append(text('p', test.reason || test.error || 'No usable result was received.'));
     else if (test.reason) article.append(text('p', 'Why it was marked this way: ' + test.reason));
+    const refs = [
+      ['Transcript', test.transcript_uri || test.transcript_url],
+      ['Tool-call log', test.tool_call_log_uri || test.tool_call_log_url],
+      ['Evidence artifact', test.evidence_uri || test.evidence_url]
+    ].filter(([,uri]) => typeof uri === 'string' && /^https:\/\//i.test(uri));
+    if (refs.length) {
+      const links=document.createElement('p'); links.className='evidence-links';
+      refs.forEach(([label,uri])=>{const link=text('a',label);link.href=uri;link.rel='noopener noreferrer';links.append(link);});
+      article.append(links);
+    }
     if (advice) {
       const [why, fix] = guidance[test.source_family || test.family] || ['This response did not meet the test criteria.', 'Review the message and response, adjust the agent instructions or permissions, then rescan.'];
       article.append(text('p', 'Why it matters: ' + why),text('p','Fix hint: ' + fix));
@@ -272,6 +282,15 @@
     $('scope').textContent='Source: retained Starter report (8 October), retained starter-voice-50@1 report (11 October), and the merged Codex targeted-60 evidence (9 October), reconciled with company task BEAAA-39654. The three repeats per targeted scenario establish recurrence in this sample only. Rescan after confirmed fixes.';
   }
 
+  function renderEvidenceRecord(data, when) {
+    const list=$('evidence-provenance'); if(!list) return;
+    const models=data.model_versions;
+    const modelText=models && typeof models==='object' ? Object.entries(models).map(([k,v])=>k+': '+(Array.isArray(v)?v.join(', '):String(v))).join('; ') : null;
+    const rows=[['Scanner version',data.scanner_version],['Test corpus',data.corpus_version || data.pack_version],['Model versions',modelText],['Seed',data.seed],['Run date',when.toISOString()]];
+    rows.forEach(([label,value])=>{const wrap=document.createElement('div');wrap.append(text('dt',label),text('dd',value===undefined||value===null||value===''?'Not recorded in this report':value));list.append(wrap);});
+    const days=Math.max(0,Math.floor((Date.now()-when.getTime())/86400000));
+    $('evidence-age').textContent='Evidence age: '+days+' day'+(days===1?'':'s')+' old. Rescan after material agent changes.';
+  }
   function clearPrerender() { const pre = $('prerender-summary'); if (pre) pre.remove(); }
   function showError(message) { clearPrerender(); const status = $('report-error'); if (!status) return; status.textContent = message; status.hidden = false; }
   function clearStatus() { clearPrerender(); const status = $('report-error'); if (status) status.remove(); }
@@ -306,6 +325,7 @@
       const when = new Date(data.created_at);
       if (!Number.isFinite(when.getTime())) throw new Error('date');
       const date = when.toISOString().replace('T',' ').replace(/\.\d{3}Z$/, ' UTC');
+      renderEvidenceRecord(data, when);
       $('agent-name').textContent = data.agent_label || 'Your agent';
       document.title = (data.agent_label || 'Your agent') + ' - Agent assessment | BackBond';
       $('report-meta').textContent = String(data.endpoint_host || '') + ' / ' + date + ' / ' + data.pack_version;
