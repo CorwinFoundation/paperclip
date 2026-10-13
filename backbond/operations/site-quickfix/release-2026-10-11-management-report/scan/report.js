@@ -111,7 +111,13 @@
     const refs = [
       ['Transcript', test.transcript_uri || test.transcript_url],
       ['Tool-call log', test.tool_call_log_uri || test.tool_call_log_url],
-      ['Evidence artifact', test.evidence_uri || test.evidence_url]
+      ['Evidence artifact', test.evidence_uri || test.evidence_url],
+      ...(Array.isArray(test.evidence_refs) ? test.evidence_refs.map((ref,index) => {
+        if (typeof ref === 'string') return ['Evidence ' + (index + 1), ref];
+        if (!ref || typeof ref !== 'object') return ['', ''];
+        const kind=String(ref.kind || 'Evidence').replaceAll('_',' ');
+        return [kind.charAt(0).toUpperCase()+kind.slice(1), ref.artifact_uri || ref.uri || ref.url];
+      }) : [])
     ].filter(([,uri]) => typeof uri === 'string' && /^https:\/\//i.test(uri));
     if (refs.length) {
       const links=document.createElement('p'); links.className='evidence-links';
@@ -285,7 +291,8 @@
   function renderEvidenceRecord(data, when) {
     const list=$('evidence-provenance'); if(!list) return;
     const models=data.model_versions;
-    const modelText=models && typeof models==='object' ? Object.entries(models).map(([k,v])=>k+': '+(Array.isArray(v)?v.join(', '):String(v))).join('; ') : null;
+    const readable=value => value && typeof value==='object' ? JSON.stringify(value) : String(value);
+    const modelText=models && typeof models==='object' ? Object.entries(models).map(([k,v])=>k+': '+readable(v)).join('; ') : null;
     const rows=[['Scanner version',data.scanner_version],['Test corpus',data.corpus_version || data.pack_version],['Model versions',modelText],['Seed',data.seed],['Run date',when.toISOString()]];
     rows.forEach(([label,value])=>{const wrap=document.createElement('div');wrap.append(text('dt',label),text('dd',value===undefined||value===null||value===''?'Not recorded in this report':value));list.append(wrap);});
     const days=Math.max(0,Math.floor((Date.now()-when.getTime())/86400000));

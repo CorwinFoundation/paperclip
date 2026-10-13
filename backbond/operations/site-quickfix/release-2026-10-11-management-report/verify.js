@@ -11,7 +11,13 @@ class Node {
 }
 const layout=[['VDN',10,'in_domain_normal',8],['VPF',5,'product_fabrication',0],['VASR',5,'asr_shaped_input',2],['VML',15,'multilingual_guardrails',3],['VSS',5,'screen_share_readback',1],['VSP',5,'summary_poisoning',1],['VGD',5,'goals_data_collection',0],['VHD',5,'human_disclosure',1],['VAA',5,'abuse_toward_agent',0]];
 const cases=layout.flatMap(([prefix,count,family,flags])=>Array.from({length:count},(_,i)=>({id:prefix+'-'+String(i+1).padStart(2,'0'),family,verdict:i<flags?'fail':'pass',prompt:'Synthetic request <script>',reply:'Synthetic reply',reason:'Synthetic explanation'})));
-const base={pack_version:'starter-voice-50@1',outcome:'complete',created_at:'2026-10-11T06:00:00Z',starter_score:999,agent_label:'Synthetic agent',tests:cases};
+cases[0].evidence_refs=[
+  {kind:'transcript',artifact_uri:'https://evidence.example/transcript.json'},
+  {kind:'tool_call_log',artifact_uri:'https://evidence.example/tool-calls.json'}
+];
+const base={pack_version:'starter-voice-50@1',scanner_version:'0.5.0',corpus_version:'starter-voice-50@1',
+  model_versions:{primary:'voice-agent@2026-10-11',judges:[{name:'fixed-rubric',version:'1'}]},seed:17,
+  outcome:'complete',created_at:'2026-10-11T06:00:00Z',starter_score:999,agent_label:'Synthetic agent',tests:cases};
 async function render(data,page=html){
   const nodes=new Map([...page.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Node()]));
   const ctx=vm.createContext({document:{getElementById:id=>nodes.get(id)||null,createElement:tag=>new Node(tag),querySelectorAll:()=>[]},location:{pathname:'/scan/r/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'},fetch:async()=>({ok:true,json:async()=>structuredClone(data)})});
@@ -24,7 +30,10 @@ function strings(node){return [String(node.textContent),...node.children.flatMap
  for(const page of [html,...prerendered]){assert.doesNotMatch(page,/Loading your report/);assert.match(page,/<p id="report-error" role="status" hidden><\/p>/);assert.doesNotMatch(page,/<script(?![^>]*\bsrc=)[^>]*>/);assert.doesNotMatch(page,/\sstyle=/);}
  let n=await render(base);assert.equal(n.get('report').hidden,false);assert.equal(n.get('report-error').removed,true);assert.equal(n.get('metric-total').textContent,60);assert.equal(n.get('metric-pass').textContent,44);assert.equal(n.get('metric-fail').textContent,16);assert.equal(n.get('metric-unavailable').textContent,0);
  assert.equal(n.get('business-priorities').children.length,3);assert.match(strings(n.get('business-priorities').children[0]),/8 flags across 10/);assert.match(strings(n.get('business-priorities').children[1]),/5 flags across 20/);assert.match(strings(n.get('business-priorities').children[2]),/3 flags across 15/);
+ assert.match(strings(n.get('evidence-provenance')),/Scanner version\s+0.5.0\s+Test corpus\s+starter-voice-50@1\s+Model versions\s+primary: voice-agent@2026-10-11; judges: \[\{"name":"fixed-rubric","version":"1"\}\]\s+Seed\s+17\s+Run date\s+2026-10-11T06:00:00.000Z/);
+ assert.match(n.get('evidence-age').textContent,/^Evidence age: \d+ days? old\. Rescan after material agent changes\.$/);
  assert.equal(n.get('families').children.length,9);assert.equal(n.get('failures').children.reduce((sum,group)=>sum+group.children.length-1,0),16);assert.ok(n.get('failures').children.every(group=>group.tag==='details'&&!group.open));assert.match(n.get('scope-short').textContent,/Native audio/);assert.doesNotMatch(n.get('executive-summary').textContent,/999|score/);
+ const firstFailure=n.get('failures').children[0].children[1].children[1];assert.match(strings(firstFailure),/Transcript Tool call log/);assert.equal(firstFailure.children.find(child=>child.className==='evidence-links').children.length,2);
  assert.match(n.get('positive-evidence').textContent,/product claims/);assert.ok(!/\sopen[\s=>]/.test(html));assert.match(html,/BackBond Score: N\/A/);
  const unavailable=structuredClone(base);unavailable.tests[0].verdict='could_not_run';n=await render(unavailable);assert.equal(n.get('metric-pass').textContent,44);assert.equal(n.get('metric-fail').textContent,15);assert.equal(n.get('metric-unavailable').textContent,1);assert.equal(n.get('connection-section').hidden,false);
  for(const mutate of [d=>d.tests.pop(),d=>d.tests[1].id=d.tests[0].id,d=>d.tests[0].family='wrong',d=>d.tests[0].id='UNKNOWN',d=>d.pack_version='unknown']){const d=structuredClone(base);mutate(d);n=await render(d);assert.equal(n.get('report').hidden,true);assert.match(n.get('report-error').textContent,/could not be loaded/);assert.equal(n.get('report-error').hidden,false);assert.equal(n.get('report-error').removed,undefined);}
