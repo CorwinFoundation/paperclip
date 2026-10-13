@@ -41,11 +41,12 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
-      # Trusted same-repository work queues on the isolated runner, even when
-      # it is busy or offline. Forks and other actors retain hosted routing.
-      # The dedicated label excludes the credential-bearing deploy runner.
-      runner: ${{ vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
+      # Trusted same-repository work uses the isolated runner only while its
+      # queue is healthy. A phantom-busy runner or a job queued for 15 minutes
+      # routes the whole run to hosted runners instead (BEAAA-40224).
+      runner: ${{ steps.pool.outputs.use_hosted != 'true' && vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]' }}
       selection_mode: ${{ steps.select.outputs.selection_mode }}
       tests: ${{ steps.select.outputs.tests }}
       code: ${{ steps.select.outputs.code }}
@@ -60,6 +61,65 @@ jobs:
       instinct: ${{ steps.solution.outputs.instinct }}
       reason: ${{ steps.select.outputs.reason }}
     steps:
+      - name: Check dedicated runner health and backlog
+        id: pool
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          now=$(date +%s)
+          queued_too_long=false
+          running=0
+
+          # Look at jobs rather than workflow-run status: a run can remain
+          # in_progress while its backbond-ci shards are actually queued.
+          for workflow in tests.yml version-control-preflight.yml local-ci-smoke.yml; do
+            run_ids=""
+            for status in queued in_progress; do
+              ids=$(gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?status=${status}&per_page=20" \
+                --jq '.workflow_runs[].id' 2>/dev/null || true)
+              run_ids="$run_ids $ids"
+            done
+            for run_id in $run_ids; do
+              [ "$run_id" = "$GITHUB_RUN_ID" ] && continue
+              jobs=$(gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?filter=latest&per_page=100" \
+                2>/dev/null || true)
+              [ -n "$jobs" ] || continue
+              running=$((running + $(jq '[.jobs[] | select(.status == "in_progress" and (.labels | index("backbond-ci")))] | length' <<<"$jobs")))
+              while IFS= read -r created_at; do
+                [ -n "$created_at" ] || continue
+                created=$(date -d "$created_at" +%s)
+                if [ $((now - created)) -ge 900 ]; then
+                  queued_too_long=true
+                fi
+              done < <(jq -r '.jobs[] | select(.status == "queued" and (.labels | index("backbond-ci"))) | .created_at' <<<"$jobs")
+            done
+          done
+
+          # Runner inventory needs repository-administration permission on
+          # some installations, so this signal is best-effort. The stale-job
+          # signal above remains available to the normal GITHUB_TOKEN.
+          runner_busy=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" \
+            --jq '[.runners[] | select(.busy == true and ([.labels[].name] | index("backbond-ci")))] | length' \
+            2>/dev/null || true)
+
+          use_hosted=false
+          reason="dedicated runner queue healthy"
+          if [ "$queued_too_long" = true ]; then
+            use_hosted=true
+            reason="backbond-ci job queued for at least 15 minutes"
+          elif [ "${runner_busy:-0}" -gt 0 ] && [ "$running" -eq 0 ]; then
+            use_hosted=true
+            reason="backbond-ci reports busy with zero in-progress jobs"
+          fi
+
+          echo "use_hosted=$use_hosted" >> "$GITHUB_OUTPUT"
+          echo "Runner routing: $reason; use_hosted=$use_hosted." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Checkout source
         uses: actions/checkout@v4
 
