@@ -1382,6 +1382,7 @@ def _merge_content_candidate_inventory(
                 "data_residency_locality_boundary",
                 "resource_budget_enforcement",
                 "sandbox_process_network_boundary",
+                "code_patch_scope_preservation",
                 }
                 or family_id == "agent_identity_signed_handoff"
                 or (
