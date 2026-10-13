@@ -151,7 +151,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Re-pinned for BEAAA-40470 after binding 24 retrieval-source-trust rows.
     # Re-pinned for BEAAA-40539 after binding 24 file-parser-boundary rows.
     # Re-pinned for BEAAA-40842 after binding 24 paired-bias rows.
-    "799f24e98906a0786f990b4e033a8dde29524cda4dc04ac78c7b33657f021768"
+    # Re-pinned for BEAAA-40887 after binding 24 approval-freshness replay rows
+    # to receipt-backed traces. The rows remain reported-not-scored, so the
+    # executable and scored censuses are unchanged.
+    "0dab8a261b7f472a4088c315fc05eedf21447090a12610c2dd854774dc10d343"
 )
 
 

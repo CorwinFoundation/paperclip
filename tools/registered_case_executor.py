@@ -1389,6 +1389,7 @@ class RegisteredCaseExecutor:
             record = execute_approval_freshness_replay_case(
                 oracle_field=str(oracle["field"]),
                 expected=int(oracle["expected"]),
+                allow=bool(oracle["allow"]),
                 **common,
             )
         elif test_id in {
@@ -1419,7 +1420,7 @@ class RegisteredCaseExecutor:
 
             oracle = spec.oracle
             record = execute_revocation_race_case(
-                oracle_field=str(oracle["field"]), expected=int(oracle["expected"]),
+                oracle_field=str(oracle["field"]), expected=oracle["expected"],
                 **common,
             )
         elif test_id == "idempotency_retry_double_execution":

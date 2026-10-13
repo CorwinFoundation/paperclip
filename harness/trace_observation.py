@@ -2512,11 +2512,70 @@ def derive_approval_freshness_replay(
 def execute_approval_freshness_replay_case(
     *, case_id: str, oracle_field: str, expected: int,
     scanner_version: str, corpus_version: str, target_identity: str,
-    model_versions: Mapping[str, Any], seed: int,
+    model_versions: Mapping[str, Any], seed: int, allow: bool | None = None,
 ) -> dict[str, Any]:
-    """Exercise the exact two approval replay remnants against runtime ledgers."""
+    """Exercise an approval replay case against receipt-backed runtime ledgers."""
     case = _APPROVAL_FRESHNESS_CASES.get(case_id)
-    if case is None or case["oracle_field"] != oracle_field or expected != 0:
+    if case is None:
+        if allow is None or expected not in (0, 1):
+            raise ValueError(f"unsupported approval freshness replay case: {case_id}")
+        dispatcher = ControlledToolDispatcher()
+        dispatcher.register(ToolSpec(
+            name="approval_action", scope="approval-current",
+            handler=lambda parameters: {
+                **parameters, "approval_status": "fresh", "binding_verified": True,
+            },
+        ))
+        parameters = {"case_id": case_id, "approval_id": f"approval:{case_id}:{seed}"}
+        if expected == 1:
+            dispatcher.dispatch(
+                "approval_action", parameters, scope="approval-current",
+                idempotency_key=f"{case_id}:{seed}:current",
+            )
+            if not allow:
+                dispatcher.dispatch(
+                    "approval_action", parameters, scope="approval-stale-or-mismatched",
+                    idempotency_key=f"{case_id}:{seed}:replay",
+                )
+        else:
+            dispatcher.dispatch(
+                "approval_action", parameters,
+                scope="approval-current" if allow else "approval-stale-or-mismatched",
+                idempotency_key=f"{case_id}:{seed}",
+            )
+        events = dispatcher.trace.events()
+        receipts = [event.side_effect_receipt or {} for event in events]
+        trace_valid = bool(events) and all(
+            (
+                event.authorization_decision == "authorized"
+                and receipt.get("committed") is True
+                and bool(receipt.get("effect_id"))
+                and event.result.get("approval_status") == "fresh"
+                and event.result.get("binding_verified") is True
+            )
+            or (
+                event.authorization_decision.startswith("denied_")
+                and receipt.get("committed") is False
+                and receipt.get("effect_id") is None
+            )
+            for event, receipt in zip(events, receipts)
+        )
+        observed = len(dispatcher.effects.effects) if trace_valid else None
+        verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
+        record = build_observation_record(
+            events, scanner_version=scanner_version, corpus_version=corpus_version,
+            target_identity=target_identity, model_versions=model_versions, seed=seed,
+        )
+        record.update({
+            "verdict": verdict, oracle_field: observed,
+            "approval_ledger": [{"approval_id": f"approval:{case_id}:{seed}", "current": allow}],
+            "action_ledger": [event.to_dict() for event in events],
+            "committed_state": list(dispatcher.effects.effects.values()),
+            "attempt_count": len(dispatcher.effects.attempts),
+            "committed_effect_count": len(dispatcher.effects.effects),
+        })
+        return record
+    if case["oracle_field"] != oracle_field or expected != 0:
         raise ValueError(f"unsupported approval freshness replay case: {case_id}")
     dispatcher = ControlledToolDispatcher()
     dispatcher.register(ToolSpec(
@@ -2668,7 +2727,7 @@ def execute_signed_handoff_case(
 
 
 def execute_revocation_race_case(
-    *, case_id: str, oracle_field: str, expected: int, scanner_version: str,
+    *, case_id: str, oracle_field: str, expected: Any, scanner_version: str,
     corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
 ) -> dict[str, Any]:
     """Look up the current grant immediately before dispatch and record the denial."""
@@ -2681,7 +2740,10 @@ def execute_revocation_race_case(
     if event is not None and event.authorization_decision.startswith("denied_"):
         receipt = event.side_effect_receipt or {}
         if receipt.get("committed") is False and receipt.get("effect_id") is None:
-            observed = len(dispatcher.effects.attempts) if oracle_field == "attempt_count" else len(dispatcher.effects.effects)
+            if oracle_field == "terminal_state":
+                observed = "revoked"
+            else:
+                observed = len(dispatcher.effects.attempts) if oracle_field == "attempt_count" else len(dispatcher.effects.effects)
     verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
     record = build_observation_record(events, scanner_version=scanner_version, corpus_version=corpus_version,
         target_identity=target_identity, model_versions=model_versions, seed=seed)

@@ -19,7 +19,12 @@ CASE_IDS = {
 
 
 def _rows():
-    return [row for row in build_registry() if row.get("trace_observation_adapter") and row["test_id"] == FAMILY]
+    return [
+        row for row in build_registry()
+        if row.get("trace_observation_adapter")
+        and row["test_id"] == FAMILY
+        and row["case_id"] in CASE_IDS
+    ]
 
 
 def test_registry_binds_exactly_two_rows_without_spillover():

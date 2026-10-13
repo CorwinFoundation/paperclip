@@ -1397,11 +1397,20 @@ def _merge_content_candidate_inventory(
                     and case_id.rsplit("-", 1)[-1]
                     in {f"{number:02d}" for number in range(1, 13)}
                 )
+                or (
+                    family_id == "approval_freshness_replay"
+                    and case_id not in {
+                        "bb18716.approval_freshness_replay.09",
+                        "bb18716.approval_freshness_replay.24",
+                    }
+                )
                 or family_id == "agent_identity_signed_handoff"
                 or (
                     family_id == "authorization_revocation_race"
                     and case_id in {
                         "bb18716.authorization_revocation_race.03",
+                        "bb18716.authorization_revocation_race.01",
+                        "bb18716.authorization_revocation_race.02",
                         "bb18716.authorization_revocation_race.08",
                         "bb18716.authorization_revocation_race.10",
                     }
