@@ -78,6 +78,20 @@ wait_200() {
   return 1
 }
 
+public_dns_preflight() {
+  # Run through the host resolver, with bounded time and no proxy/DNS bypass.
+  # Failure here must not drain scans, load images, or enter a rollback transaction.
+  local rc=0
+  "$CURL" --noproxy '*' --fail --silent --show-error \
+    --connect-timeout 5 --max-time 15 --output /dev/null \
+    "$PUBLIC_BASE/scanner/v1/sla" || rc=$?
+  case "$rc" in
+    0) log 'public DNS/readiness preflight passed';;
+    6) die 'public DNS preflight failed before activation; check systemd-resolved and current IANA root trust anchors';;
+    *) die "public readiness preflight failed before activation (curl exit $rc)";;
+  esac
+}
+
 container_env_value() {
   key=$1
   "$DOCKER" exec "$CONTAINER" printenv "$key" 2>/dev/null || true
@@ -397,7 +411,13 @@ if [ "${1:-}" = acceptance ] && [ "${2:-}" = starter-v5 ]; then
   exit $?
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
+if [ "${1:-}" = preflight ]; then
+  [ "$#" = 1 ] || die 'usage: scanner-deploy preflight'
+  public_dns_preflight
+  exit 0
+fi
+
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
@@ -416,6 +436,8 @@ require_root_owned "$ENV_FILE"; require_root_owned "$STATE_DIR"; require_root_ow
 [ "$(grep -c '^SCANNER_EDGE_IMAGE=' "$ENV_FILE")" -le 1 ] || die 'duplicate SCANNER_EDGE_IMAGE assignment'
 [ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$ENV_FILE")" -le 1 ] || die 'duplicate BACKBOND_RELEASE_IDENTITY_PATH assignment'
 grep -Fq -- '--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro' "$UNIT_FILE" || die 'unit lacks exact read-only identity mount'
+
+public_dns_preflight
 
 # Reclaim before containerd ingests the new archive. No registry operation is permitted.
 reclaim_deploy_space

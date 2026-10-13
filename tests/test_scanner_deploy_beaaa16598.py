@@ -81,6 +81,7 @@ case "$*" in restart* ) n=$(grep -c '^systemctl restart' "{calls}"); [ -n "$STUB
 exit 0
 ''')
     _write_exe(bin_dir / "curl", '''#!/bin/sh
+if [ "$1" = --noproxy ]; then exit "${STUB_PREFLIGHT_EXIT:-0}"; fi
 out=/dev/null
 while [ $# -gt 0 ]; do case "$1" in -o) out=$2; shift 2;; *) shift;; esac; done
 if [ -n "$STUB_CURL_FAIL" ]; then printf 503; exit 0; fi
@@ -96,6 +97,40 @@ printf 200
 
 def run(e, archive, archive_sha, *, digest=DIGEST):
     return subprocess.run(["bash",str(HELPER),SHA,str(archive),digest,archive_sha,CANDIDATE],env=e,text=True,capture_output=True)
+
+
+@pytest.mark.parametrize("curl_exit", [6, 7, 22, 28])
+def test_public_preflight_failure_preserves_live_state_before_any_docker_call(tmp_path, curl_exit):
+    e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
+    e["STUB_PREFLIGHT_EXIT"] = str(curl_exit)
+    before = env_file.read_bytes()
+    result = run(e, archive, archive_sha)
+    assert result.returncode != 0
+    assert "preflight failed before activation" in result.stderr
+    if curl_exit == 6:
+        assert "IANA root trust anchors" in result.stderr
+    assert env_file.read_bytes() == before
+    assert not calls.exists()
+    assert not (state / "activation.lock").exists()
+    assert not (state / "transactions").exists()
+    assert "ROLLBACK" not in result.stderr
+
+
+def test_standalone_preflight_uses_bounded_host_resolution(tmp_path):
+    curl = tmp_path / "curl"
+    calls = tmp_path / "curl.args"
+    _write_exe(curl, f'#!/bin/sh\nprintf "%s\\n" "$@" >"{calls}"\n')
+    result = subprocess.run(
+        ["bash", str(HELPER), "preflight"],
+        env={**os.environ, "SCANNER_CURL": str(curl)}, text=True, capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    args = calls.read_text().splitlines()
+    assert args[:2] == ["--noproxy", "*"]
+    assert args[args.index("--max-time") + 1] == "15"
+    assert args[args.index("--connect-timeout") + 1] == "5"
+    assert "--fail" in args
+    assert args[-1] == "https://scanner.backbond.ai/scanner/v1/sla"
 
 
 def test_shell_syntax_and_exact_read_only_mount():

@@ -66,7 +66,9 @@ scp <stage>/backbond-scanner-<sha>.tar are-deploy@srv1749248:/var/tmp/backbond-s
   && ssh are-deploy@srv1749248 'set -euo pipefail; cleanup() { rm -f /var/tmp/backbond-scanner-<sha>.tar; }; trap cleanup EXIT; sudo /usr/local/sbin/scanner-deploy <sha> /var/tmp/backbond-scanner-<sha>.tar <repository@sha256:digest> <archive-sha256> <candidate-id>'
 ```
 
-A non-zero exit means the helper already rolled the box back to the prior image.
+A preflight failure leaves the live image, scan admissions, and activation state
+untouched. A failure after activation starts invokes rollback; check its recorded
+outcome rather than assuming rollback verification succeeded.
 
 ## Canonical c4a58caa repository reference
 
@@ -85,11 +87,55 @@ does not authorize promotion.
 
 ## Install / update the on-box helper
 
+Provision DNS trust anchors before installing or updating the helper. The host
+blocks outbound HTTPS, so fetch IANA's current XML on the operator machine over
+verified HTTPS and transfer it over SSH. The installer selects only currently
+valid root DS records, replaces its managed file atomically, restarts the resolver,
+and verifies root DNSKEY resolution. If verification fails, it restores the prior
+managed file and restarts the resolver again. DNSSEC settings remain unchanged.
+
+First check existing `*.positive` files. The installer rejects another root-anchor
+source before making changes: duplicate records can crash systemd-resolved 255.
+On the host repaired October 13, archive the recovery file under
+`/root/backbond-dns-provision/`, then rename
+`/etc/dnssec-trust-anchors.d/iana-root-2026.positive` to
+`/etc/dnssec-trust-anchors.d/iana-root.positive` before running the installer.
+Rename only when the destination does not already exist. The active resolver
+retains its in-memory anchors during this migration; restart and verify it after
+the installation completes.
+
+```bash
+# Operator machine, from the repository root. Fetch fresh data on every provision
+# or refresh; do not reuse a historical anchor snapshot for a replacement host.
+python3 scripts/deploy/provision_host_dns.py fetch --output root-anchors.xml
+ssh root@srv1749248 'install -d -m 0700 /root/backbond-dns-provision'
+scp root-anchors.xml scripts/deploy/provision_host_dns.py root@srv1749248:/root/backbond-dns-provision/
+ssh root@srv1749248 'python3 /root/backbond-dns-provision/provision_host_dns.py install --source /root/backbond-dns-provision/root-anchors.xml'
+```
+
+The managed host file is `/etc/dnssec-trust-anchors.d/iana-root.positive` (0644).
+Keep one managed root-anchor source so
+future refreshes do not leave obsolete keys in a second local file.
+
+Repeat the fetch/install procedure during host maintenance and before IANA root
+key rollovers. `systemd-resolved` 255 does not automatically acquire new trust
+anchors. Its current-key data must be maintained; a static recovery key is not an
+automatic update mechanism. IANA publishes rollover dates at
+<https://www.iana.org/dnssec/files>.
+
 ```bash
 sudo install -m 0755 -o root -g root scripts/deploy/scanner-deploy.sh /usr/local/sbin/scanner-deploy
 # sudoers whitelist:
 #   are-deploy ALL=(root) NOPASSWD: /usr/local/sbin/scanner-deploy
+sudo /usr/local/sbin/scanner-deploy preflight
 ```
+
+Every activation also runs this preflight before image cleanup/loading, acquiring
+the scan-admission lock, or creating a transaction. It makes a direct request to
+the public SLA endpoint through the host resolver with a 5-second connect timeout
+and 15-second total limit. A DNS failure names the resolver/trust-anchor check;
+HTTP, TLS, and timeout failures report the curl exit code. It does not repair DNS
+automatically, bypass TLS verification, or weaken DNSSEC.
 
 ## Rollback
 
