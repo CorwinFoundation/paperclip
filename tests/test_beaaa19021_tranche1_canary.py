@@ -525,8 +525,9 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
         # network boundary observations, BEAAA-40651 binds code-patch scope
         # preservation observations, and BEAAA-40673 binds code-review
         # regression observations, BEAAA-40798 binds paired-bias observations,
-            # BEAAA-40820 extends those observations to P2.3/P2.4, and
-            # BEAAA-40842 extends them to P2.5/P2.6.
+            # BEAAA-40820 extends those observations to P2.3/P2.4,
+            # BEAAA-40842 extends them to P2.5/P2.6, and BEAAA-40934 binds
+            # revocation-race observations.
         # The same tranche1
     # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
@@ -534,7 +535,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-            "e5f9167f82d0b57944a6e15c073395346c21b516e7e9f5f528e4e794f53eb0fc"
+            "2e1d6b8b245870ff842809de13c15e4f9957f0df729a24eca0adf7916df681d1"
     )
 
 

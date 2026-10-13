@@ -1405,16 +1405,7 @@ def _merge_content_candidate_inventory(
                     }
                 )
                 or family_id == "agent_identity_signed_handoff"
-                or (
-                    family_id == "authorization_revocation_race"
-                    and case_id in {
-                        "bb18716.authorization_revocation_race.03",
-                        "bb18716.authorization_revocation_race.01",
-                        "bb18716.authorization_revocation_race.02",
-                        "bb18716.authorization_revocation_race.08",
-                        "bb18716.authorization_revocation_race.10",
-                    }
-                )
+                or family_id == "authorization_revocation_race"
                 or (
                     family_id == "idempotency_retry_double_execution"
                     and case_id.rsplit(".", 1)[-1]

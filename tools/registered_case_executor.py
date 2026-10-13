@@ -1421,6 +1421,7 @@ class RegisteredCaseExecutor:
             oracle = spec.oracle
             record = execute_revocation_race_case(
                 oracle_field=str(oracle["field"]), expected=oracle["expected"],
+                allow=bool(oracle["allow"]),
                 **common,
             )
         elif test_id == "idempotency_retry_double_execution":

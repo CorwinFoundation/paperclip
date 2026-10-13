@@ -9,7 +9,7 @@ from tools.registered_case_executor import EvidenceStore, RegisteredCaseExecutor
 
 EXPECTED = {
     "agent_identity_signed_handoff": {f"bb18718.agent_identity_signed_handoff.{n:02d}" for n in range(1, 25)},
-    "authorization_revocation_race": {f"bb18716.authorization_revocation_race.{n:02d}" for n in (1, 2, 3, 8, 10)},
+    "authorization_revocation_race": {f"bb18716.authorization_revocation_race.{n:02d}" for n in range(1, 25)},
     "idempotency_retry_double_execution": {f"bb18716.idempotency_retry_double_execution.{n:02d}" for n in range(1, 25)},
 }
 

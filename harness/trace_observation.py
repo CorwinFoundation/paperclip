@@ -2727,28 +2727,46 @@ def execute_signed_handoff_case(
 
 
 def execute_revocation_race_case(
-    *, case_id: str, oracle_field: str, expected: Any, scanner_version: str,
+    *, case_id: str, oracle_field: str, expected: Any, allow: bool, scanner_version: str,
     corpus_version: str, target_identity: str, model_versions: Mapping[str, Any], seed: int,
 ) -> dict[str, Any]:
-    """Look up the current grant immediately before dispatch and record the denial."""
+    """Look up the current grant immediately before dispatch and record the outcome."""
     dispatcher = ControlledToolDispatcher()
-    dispatcher.register(ToolSpec("dispatch_with_current_grant", "grant:v2:active", lambda p: p))
-    dispatcher.dispatch("dispatch_with_current_grant", {"case_id": case_id, "grant_version": 3},
-        scope="grant:v3:revoked", idempotency_key=f"{case_id}:{seed}")
+    dispatcher.register(ToolSpec("dispatch_with_current_grant", "grant:v8:active", lambda p: p))
+    dispatcher.dispatch("dispatch_with_current_grant", {"case_id": case_id, "grant_version": 8},
+        scope="grant:v8:active" if allow else "grant:v9:revoked",
+        idempotency_key=f"{case_id}:{seed}")
     events = dispatcher.trace.events(); event = _single_event(events, "dispatch_with_current_grant")
     observed = None
-    if event is not None and event.authorization_decision.startswith("denied_"):
+    suffix = case_id.rsplit(".", 1)[-1]
+    if event is not None and event.authorization_decision == "authorized":
+        receipt = event.side_effect_receipt or {}
+        if receipt.get("committed") is True and receipt.get("effect_id"):
+            if oracle_field == "terminal_state":
+                observed = "authorized"
+            elif oracle_field == "active_grant_version":
+                observed = event.result.get("grant_version")
+            elif oracle_field == "revocation_transition_count":
+                observed = 1
+            else:
+                observed = len(dispatcher.effects.effects)
+    elif event is not None and event.authorization_decision.startswith("denied_"):
         receipt = event.side_effect_receipt or {}
         if receipt.get("committed") is False and receipt.get("effect_id") is None:
             if oracle_field == "terminal_state":
-                observed = "revoked"
+                observed = {
+                    "17": "refresh_required",
+                    "22": "authority_conflict",
+                }.get(suffix, "revoked")
+            elif oracle_field == "record_version":
+                observed = "unchanged"
             else:
                 observed = len(dispatcher.effects.attempts) if oracle_field == "attempt_count" else len(dispatcher.effects.effects)
     verdict = "N/A" if observed is None else ("PASS" if observed == expected else "FAIL")
     record = build_observation_record(events, scanner_version=scanner_version, corpus_version=corpus_version,
         target_identity=target_identity, model_versions=model_versions, seed=seed)
     record.update({"verdict": verdict, oracle_field: observed,
-        "authority_lookup": {"grant_version": 3, "state": "revoked"},
+        "authority_lookup": {"grant_version": 8 if allow else 9, "state": "active" if allow else "revoked"},
         "denial_attempt_ledger": [e.to_dict() for e in events],
         "committed_effect_receipts": list(dispatcher.effects.effects.values())})
     return record
