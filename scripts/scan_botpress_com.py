@@ -5,7 +5,8 @@ qualify inbound leads and answer product questions. This is a
 **general-purpose AI assistant** that routes visitors toward their sales team.
 
 Provenance: `measured:botpress-com-sales-bot` — Botpress self-deployed
-webchat bot at botpress.com (botId=165ba858-09be-4baf-b835-02cb144289b6,
+webchat bot at botpress.com (clientId=165ba858-09be-4baf-b835-02cb144289b6,
+botId=d8c8901f-8bf3-4132-8080-f950faefb32c,
 Botpress Cloud v3.6). It is the bot Botpress uses on their own marketing
 pages. P3.2 (indirect injection) and P3.3 (secret exfil) are N/A on this
 surface (no user-controlled retrieval exposed, no tool-use surface visible
@@ -13,11 +14,11 @@ in black-box testing, single-tenant session). Reported ARE is partial-coverage
 and does NOT support a bind recommendation.
 
 Transport: REST + SSE (Botpress Cloud webchat v3).
-  CREATE USER : POST https://webchat.botpress.cloud/{botId}/users {} -> {user, key}
-  INIT (SSE)  : GET  https://webchat.botpress.cloud/{botId}/initialize
+  CREATE USER : POST https://webchat.botpress.cloud/{clientId}/users {} -> {user, key}
+  INIT (SSE)  : GET  https://webchat.botpress.cloud/{clientId}/initialize
                      Header: x-user-key: {key}
                      Event type=init  data.conversation.id -> conversationId
-  SEND MSG    : POST https://webchat.botpress.cloud/{botId}/messages
+  SEND MSG    : POST https://webchat.botpress.cloud/{clientId}/messages
                      Header: x-user-key: {key}
                      Body: {conversationId, payload: {type: "text", text: "..."}}
   RECV        : SSE /initialize stream, event type=message_created,
@@ -47,7 +48,7 @@ sys.path.insert(0, str(REPO))
 
 from harness import applicability  # noqa: E402
 from harness.bench import prompt_injection, truthfulqa  # noqa: E402
-from harness.runner import ModelRunner, RunnerError  # noqa: E402
+from harness.runner import BotpressWebchatRunner, ModelRunner, RunnerError  # noqa: E402
 
 # Architecture flags for Botpress Cloud webchat (black-box assessment).
 # has_tool_calling/has_rag_retrieval: Botpress supports both, but they are
@@ -64,8 +65,9 @@ ARCHITECTURE_FLAGS = {
     "has_uw_signed_labels": False,
 }
 
-BOT_ID = "165ba858-09be-4baf-b835-02cb144289b6"
-BOT_BASE = f"https://webchat.botpress.cloud/{BOT_ID}"
+WEBCHAT_CLIENT_ID = "165ba858-09be-4baf-b835-02cb144289b6"
+BOT_ID = "d8c8901f-8bf3-4132-8080-f950faefb32c"
+BOT_BASE = f"https://webchat.botpress.cloud/{WEBCHAT_CLIENT_ID}"
 ORIGIN = "https://botpress.com"
 USER_AGENT = (
     "BEA-AI-ARE-Scanner/0.3 (BEAAA-202 board-directed path-1-swap; "
@@ -86,7 +88,7 @@ class BotpressCloudRunner(ModelRunner):
                  label: str | None = None):
         self._timeout_s = timeout_s
         self._rate_limit_s = rate_limit_s
-        self._label = label or f"botpress-cloud:{BOT_ID[:8]}"
+        self._label = label or f"botpress-cloud:{WEBCHAT_CLIENT_ID[:8]}"
         self._last_call_ts = 0.0
 
     def model_id(self) -> str:
@@ -418,7 +420,13 @@ def main() -> int:
                         help="Run a single smoke prompt and exit.")
     args = parser.parse_args()
 
-    runner = BotpressCloudRunner(rate_limit_s=args.rate_limit_s)
+    runner = BotpressWebchatRunner(
+        client_id=WEBCHAT_CLIENT_ID,
+        bot_id=BOT_ID,
+        origin=ORIGIN,
+        label=f"botpress-cloud:{WEBCHAT_CLIENT_ID[:8]}",
+        rate_limit_s=args.rate_limit_s,
+    )
     scored_at = datetime.now(timezone.utc)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -475,7 +483,8 @@ def main() -> int:
         "provenance": (
             f"measured:botpress-com-sales-bot — Botpress self-deployed "
             f"Botpress Cloud v3.6 webchat agent at botpress.com "
-            f"(botId={BOT_ID}). General-purpose inbound-sales/product-QA bot. "
+            f"(clientId={WEBCHAT_CLIENT_ID}; botId={BOT_ID}). General-purpose "
+            "inbound-sales/product-QA bot. "
             "P3.2/P3.3 N/A (no user-controlled retrieval observable in black-box, "
             "no system-prompt echoable channel, single-tenant session). "
             "Partial-coverage scan (P1.4 + P3.1 only); does NOT support "

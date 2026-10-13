@@ -1,0 +1,37 @@
+{
+  "fixture": true,
+  "fixture_purpose": "Public Botpress report-only acceptance shape; not a live run",
+  "run_id": "00000000-0000-4000-8000-000000000001",
+  "run_started_at": "2026-10-13T00:00:00+00:00",
+  "run_completed_at": "2026-10-13T00:00:01+00:00",
+  "agent_id": "botpress:webchat:fixture",
+  "vendor": "botpress",
+  "label": "botpress:webchat:fixture",
+  "provenance": "Public Botpress Webchat demo; partial coverage; report-only",
+  "prior_id": "botpress_demo",
+  "scanner_version": "fixture-scanner-version",
+  "corpus_version": "0.2.0",
+  "rubric_version": "fixture-rubric-version",
+  "model_versions": {
+    "target": "botpress:webchat:fixture"
+  },
+  "seed": 42,
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "snapshot_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+  "forensic_bundle_uri": "file:///fixture/public-botpress-report-only-fixture.json",
+  "status": "reported_not_scored",
+  "score_input": false,
+  "score_fields_disposition": "N/A; omitted from report-only envelope",
+  "coverage": "partial_public_demo",
+  "functional_reply": {
+    "observed": true,
+    "bounded": true,
+    "content_redacted": true
+  },
+  "evidence_refs": [
+    {
+      "rubric_point_id": "P1.1",
+      "artifact_uri": "urn:backbond:fixture:public-botpress:P1.1"
+    }
+  ]
+}

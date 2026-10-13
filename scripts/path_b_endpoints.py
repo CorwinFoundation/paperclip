@@ -3,7 +3,8 @@
 Scan-ready presets for the v2.1 Path B target vendors plus the public-chat
 connector slate added on BEAAA-130:
 
-  - botpress         — Botpress Cloud Chat API                    (customer-deployment)
+  - botpress         — Botpress public Webchat REST/SSE           (public demo)
+  - botpress-chat    — Botpress Chat Integration API              (owned deployment)
   - voiceflow        — Voiceflow general-runtime interact API     (customer-deployment)
   - rasa             — Rasa Pro / Rasa OSS REST channel webhook   (customer-deployment)
   - yellowai         — Yellow.ai integrations chat API            (customer-deployment)
@@ -30,10 +31,18 @@ Per-vendor env vars
 -------------------
 
 botpress:
-  BOTPRESS_CLIENT_ID            — webchat clientId (from the published webchat config JSON)
+  Optional: BOTPRESS_WEBCHAT_CLIENT_ID — Webchat clientId from published config
+                                        (defaults to botpress.com's current demo)
+  Optional: BOTPRESS_WEBCHAT_BOT_ID — config botId, recorded only to catch mixups
   Optional: BOTPRESS_LABEL      — readable label suffix (defaults to first 8 chars of client id)
-  Endpoint shape: chat.botpress.cloud/{clientId} — public Chat integration, 4-step protocol
-  Auth: none (the runner provisions its own user identity per scan)
+  Endpoint shape: webchat.botpress.cloud/{clientId} — public Webchat REST/SSE
+  Auth: none; a fresh user and conversation are created per prompt
+
+botpress-chat:
+  BOTPRESS_CHAT_WEBHOOK_ID       — Chat integration webhook ID for an owned or
+                                    explicitly consented deployment
+  Endpoint shape: chat.botpress.cloud/{webhookId}
+  A Webchat clientId, config botId, or wkspace_ identifier is not valid here.
 
 voiceflow:
   VOICEFLOW_PROJECT_ID          — projectID of the Voiceflow project
@@ -132,6 +141,7 @@ from harness.bench import indirect_injection, prompt_injection, secret_exfil, tr
 from harness.pipeline import load_priors, merge_measurements_with_priors  # noqa: E402
 from harness.runner import (  # noqa: E402
     BotpressChatRunner,
+    BotpressWebchatRunner,
     HTTPEndpointRunner,
     RunnerError,
     SyllableRunner,
@@ -161,6 +171,11 @@ BENCHES = [
 DIRECT_DEPLOYMENT_PROVENANCE = (
     "measured — direct-API scan of deployed customer-facing AI agent"
 )
+BOTPRESS_PUBLIC_DEMO_PROVENANCE = (
+    "measured:botpress-com-public-demo — Botpress-owned public website Webchat; "
+    "partial coverage only, no private tools/action/end-state evidence, and not "
+    "a substitute for an owned or consented customer deployment"
+)
 PUBLIC_CHAT_PROVENANCE_TEMPLATE = (
     "category-proxy:{path} — public-chat reference model {model}; "
     "NOT a wrapper-deployment scan, UW co-gate required for $-figure / band claims"
@@ -174,20 +189,30 @@ def _require_env(*keys: str) -> None:
         sys.exit(2)
 
 
-def _build_botpress() -> BotpressChatRunner:
-    """Botpress Cloud public Chat API (chat.botpress.cloud).
-
-    Set BOTPRESS_CLIENT_ID to the webchat clientId — visible in the published
-    webchat config JSON (e.g. files.bpcontent.cloud/.../*.json -> "clientId").
-    Public Chat integration needs no auth; the runner provisions its own
-    user identity via POST /users.
-    """
-    _require_env("BOTPRESS_CLIENT_ID")
-    client_id = os.environ["BOTPRESS_CLIENT_ID"]
+def _build_botpress() -> BotpressWebchatRunner:
+    """Botpress.com public Webchat demo over REST/SSE."""
+    client_id = os.environ.get(
+        "BOTPRESS_WEBCHAT_CLIENT_ID", "165ba858-09be-4baf-b835-02cb144289b6"
+    )
+    bot_id = os.environ.get(
+        "BOTPRESS_WEBCHAT_BOT_ID", "d8c8901f-8bf3-4132-8080-f950faefb32c"
+    )
     label_suffix = os.environ.get("BOTPRESS_LABEL", client_id[:8])
-    return BotpressChatRunner(
+    return BotpressWebchatRunner(
         client_id=client_id,
-        label=f"botpress:{label_suffix}",
+        bot_id=bot_id,
+        label=f"botpress-public-demo:{label_suffix}",
+    )
+
+
+def _build_botpress_chat() -> BotpressChatRunner:
+    """Owned/consented Botpress Chat integration deployment."""
+    _require_env("BOTPRESS_CHAT_WEBHOOK_ID")
+    webhook_id = os.environ["BOTPRESS_CHAT_WEBHOOK_ID"]
+    label_suffix = os.environ.get("BOTPRESS_LABEL", webhook_id[:8])
+    return BotpressChatRunner(
+        client_id=webhook_id,
+        label=f"botpress-chat:{label_suffix}",
     )
 
 
@@ -355,6 +380,7 @@ def _build_openai_compatible(model_override: str | None = None) -> tuple[HTTPEnd
 
 VENDOR_BUILDERS = {
     "botpress": (_build_botpress, "botpress_demo"),
+    "botpress-chat": (_build_botpress_chat, "botpress_demo"),
     "voiceflow": (_build_voiceflow, "voiceflow_demo"),
     "rasa": (_build_rasa, "rasa_demo"),
     "yellowai": (_build_yellowai, "yellowai_demo"),
@@ -364,6 +390,7 @@ VENDOR_BUILDERS = {
 }
 
 PUBLIC_CHAT_VENDORS = {"huggingchat", "openai-compat"}
+REPORT_ONLY_VENDORS = PUBLIC_CHAT_VENDORS | {"botpress"}
 
 # BEAAA-221: forensic_bundle_uri default for runs that have not yet been
 # uploaded as a Paperclip attachment. Distinct from the historical
@@ -440,6 +467,14 @@ def _render_only(args) -> int:
               file=sys.stderr)
         return 2
     record = json.loads(artifact_path.read_text())
+    if args.vendor in REPORT_ONLY_VENDORS or record.get("score_input") is False:
+        print(
+            f"{args.vendor} is report-only with partial public-demo coverage; "
+            "refusing to render a scored card. Use the JSON run artifact, whose "
+            "score and premium fields are N/A.",
+            file=sys.stderr,
+        )
+        return 2
     eval_outputs = record.get("eval_outputs")
     if eval_outputs is None:
         print(f"{artifact_path} predates BEAAA-221 (no eval_outputs); re-run scan",
@@ -538,6 +573,14 @@ def main() -> int:
 
     if args.render_only:
         return _render_only(args)
+    if args.card_out and args.vendor in REPORT_ONLY_VENDORS:
+        print(
+            f"{args.vendor} is report-only with partial public-demo coverage; "
+            "refusing --card-out because no scored card or premium quote may be "
+            "issued. Run without --card-out to write the N/A JSON artifact.",
+            file=sys.stderr,
+        )
+        return 2
 
     builder, default_prior = VENDOR_BUILDERS[args.vendor]
     prior_id = args.prior_id or default_prior
@@ -557,7 +600,11 @@ def main() -> int:
             runner, provenance = builder(args.model)
         else:
             runner = builder()
-            provenance = DIRECT_DEPLOYMENT_PROVENANCE
+            provenance = (
+                BOTPRESS_PUBLIC_DEMO_PROVENANCE
+                if args.vendor == "botpress"
+                else DIRECT_DEPLOYMENT_PROVENANCE
+            )
     except RunnerError as exc:
         print(f"runner build failed: {exc}", file=sys.stderr)
         return 3
@@ -644,15 +691,19 @@ def main() -> int:
         model_versions={"target": runner.model_id()},
         contract_version="are-scanner-api-v1@v1.3.0",
     )
-    try:
-        q = quote(result, customer, rates=rates)
-        annual = q["annual_premium_usd"]
-        total = q["total_with_endorsements_usd"]
-        premium_str = f"${annual:,}" if annual == total else f"${annual:,} (+${total - annual:,} = ${total:,})"
-        status = "indicative"
-    except ManualReferral as exc:
-        premium_str = f"manual referral — {exc.reason[:80]}"
-        status = "manual_referral"
+    if args.vendor in REPORT_ONLY_VENDORS:
+        premium_str = None
+        status = "reported_not_scored"
+    else:
+        try:
+            q = quote(result, customer, rates=rates)
+            annual = q["annual_premium_usd"]
+            total = q["total_with_endorsements_usd"]
+            premium_str = f"${annual:,}" if annual == total else f"${annual:,} (+${total - annual:,} = ${total:,})"
+            status = "indicative"
+        except ManualReferral as exc:
+            premium_str = f"manual referral — {exc.reason[:80]}"
+            status = "manual_referral"
 
     record = dict(result)
     record.update({
@@ -691,7 +742,7 @@ def main() -> int:
             for m in measurements
         ],
     })
-    if args.vendor in PUBLIC_CHAT_VENDORS:
+    if args.vendor in REPORT_ONLY_VENDORS:
         for field in ("are_total", "bmi", "band", "pillars", "subscores", "premium"):
             record.pop(field, None)
         record.update({"status": "reported_not_scored", "score_input": False})
@@ -718,7 +769,13 @@ def main() -> int:
     exf = f"{ms['P3.3']['n_resisted']}/{ms['P3.3']['n_items']}" if "P3.3" in ms else "-"
     print("| Vendor | TQA | Direct Inj | Indirect Inj | Exfil | ARE | Band | Premium |")
     print("|--------|----:|-----------:|-------------:|------:|----:|:----:|:--------|")
-    print(f"| **{record['label']}** | {tqa} | {inj} | {iinj} | {exf} | **{record['bmi']}** | **{record['band']}** | {record['premium']} |")
+    if args.vendor in REPORT_ONLY_VENDORS:
+        print(
+            f"| **{record['label']}** | {tqa} | {inj} | {iinj} | {exf} | "
+            "report-only | partial | not quoted |"
+        )
+    else:
+        print(f"| **{record['label']}** | {tqa} | {inj} | {iinj} | {exf} | **{record['bmi']}** | **{record['band']}** | {record['premium']} |")
     print()
     print(f"_Run artifact: {artifact}_")
     return 0

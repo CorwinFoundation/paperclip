@@ -13,6 +13,7 @@ import json as _json
 import hashlib
 import os
 import secrets
+import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Callable
@@ -493,7 +494,7 @@ def _resolve_dotted(obj: Any, path: str) -> Any:
 
 
 class BotpressChatRunner(ModelRunner):
-    """Botpress Cloud public Chat API — 4-step protocol per chat.botpress.cloud docs.
+    """Botpress Chat Integration API — 4-step protocol.
 
     Per-prompt flow uses a fresh conversation so multi-turn memory does not
     contaminate scan independence. The user identity is created once and
@@ -504,9 +505,8 @@ class BotpressChatRunner(ModelRunner):
       POST {base}/messages       (x-user-key)  -> message.id
       GET  {base}/conversations/{id}/messages  -> poll until bot reply
 
-    `client_id` is the Botpress webchat clientId (from the published webchat
-    config JSON). `auth` is None — this runner targets the public Chat
-    integration.
+    `client_id` is the Chat integration webhook ID.  It is deliberately not a
+    Webchat clientId; public Webchat deployments use ``BotpressWebchatRunner``.
     """
 
     def __init__(self, *, client_id: str, label: str | None = None,
@@ -515,6 +515,11 @@ class BotpressChatRunner(ModelRunner):
                  client_factory: Callable[..., Any] | None = None):
         if not client_id:
             raise RunnerError("BotpressChatRunner requires client_id")
+        if client_id.startswith("wkspace_"):
+            raise RunnerError(
+                "Botpress Chat webhook ID cannot be a workspace ID (wkspace_...); "
+                "use a Chat integration webhook ID"
+            )
         self._client_id = client_id
         self._base = f"https://chat.botpress.cloud/{client_id}"
         self._label = label or f"botpress:{client_id}"
@@ -544,8 +549,17 @@ class BotpressChatRunner(ModelRunner):
         if r.status_code >= 400:
             raise RunnerError(f"botpress POST /users failed: HTTP {r.status_code}: {r.text[:300]}")
         data = r.json()
-        self._user_key = data["key"]
-        self._user_id = data["user"]["id"]
+        try:
+            self._user_key = data["key"]
+            self._user_id = data["user"]["id"]
+        except (KeyError, TypeError) as exc:
+            keys = sorted(data) if isinstance(data, dict) else []
+            raise RunnerError(
+                "botpress Chat POST /users response missing key/user.id; "
+                f"received top-level keys={keys}. Verify that the configured "
+                "identifier is a Chat integration webhook ID, not a Webchat "
+                "clientId or workspace ID"
+            ) from exc
 
     def complete(self, prompt: str) -> str:
         return self.complete_observed(prompt)[0]
@@ -593,6 +607,186 @@ class BotpressChatRunner(ModelRunner):
                 if bot_text:
                     return str(bot_text[0].get("payload", {}).get("text", "")), bot_all
             raise RunnerError(f"botpress bot did not reply within {self._poll_max_s}s")
+
+
+class BotpressWebchatRunner(ModelRunner):
+    """Botpress public Webchat v3 REST/SSE transport.
+
+    A Webchat ``clientId`` addresses ``webchat.botpress.cloud``.  It is not the
+    config's ``botId`` and is not a Chat integration webhook ID.  Every call
+    creates a new user and conversation so scanner runs cannot share identity
+    or conversational state.
+    """
+
+    def __init__(self, *, client_id: str, bot_id: str | None = None,
+                 origin: str = "https://botpress.com",
+                 label: str | None = None, timeout_s: float = 30.0,
+                 rate_limit_s: float = 2.0,
+                 client_factory: Callable[..., Any] | None = None):
+        if not client_id:
+            raise RunnerError("BotpressWebchatRunner requires client_id")
+        if client_id.startswith("wkspace_"):
+            raise RunnerError(
+                "Botpress Webchat clientId cannot be a workspace ID (wkspace_...)"
+            )
+        if bot_id and client_id == bot_id:
+            raise RunnerError(
+                "Botpress Webchat clientId and botId must be distinct identifiers"
+            )
+        self._client_id = client_id
+        self._bot_id = bot_id
+        self._base = f"https://webchat.botpress.cloud/{client_id}"
+        self._origin = origin
+        self._label = label or f"botpress-webchat:{client_id[:8]}"
+        self._timeout_s = timeout_s
+        self._rate_limit_s = rate_limit_s
+        self._client_factory = client_factory
+        self._last_call_ts = 0.0
+
+    def model_id(self) -> str:
+        return self._label
+
+    def _client(self, session_id: str) -> Any:
+        if self._client_factory is not None:
+            return self._client_factory(timeout=self._timeout_s, session_id=session_id)
+        from harness import egress
+        return egress.client(timeout=self._timeout_s, session_id=session_id)
+
+    @staticmethod
+    def _shape_error(operation: str, data: Any, expected: str) -> RunnerError:
+        keys = sorted(data) if isinstance(data, dict) else []
+        return RunnerError(
+            f"botpress Webchat {operation} response missing {expected}; "
+            f"received top-level keys={keys}. Verify the published Webchat "
+            "clientId (not botId, Chat webhook ID, or workspace ID)"
+        )
+
+    @staticmethod
+    def _events(lines: Any) -> Any:
+        for line in lines:
+            if isinstance(line, bytes):
+                line = line.decode("utf-8", errors="replace")
+            if not line.startswith("data:"):
+                continue
+            try:
+                yield _json.loads(line[5:].strip())
+            except (ValueError, TypeError):
+                continue
+
+    def _headers(self, user_key: str | None = None) -> dict[str, str]:
+        headers = {
+            "Origin": self._origin,
+            "User-Agent": "BEA-AI-ARE-Scanner/1.3 Botpress-public-demo",
+        }
+        if user_key:
+            headers["x-user-key"] = user_key
+        return headers
+
+    def _polite_sleep(self) -> None:
+        elapsed = time.monotonic() - self._last_call_ts
+        if elapsed < self._rate_limit_s:
+            time.sleep(self._rate_limit_s - elapsed)
+        self._last_call_ts = time.monotonic()
+
+    def _initialize(self, client: Any, user_key: str) -> tuple[str, str]:
+        with client.stream(
+            "GET", f"{self._base}/initialize",
+            headers=self._headers(user_key),
+        ) as response:
+            if response.status_code >= 400:
+                raise RunnerError(
+                    f"botpress Webchat GET /initialize failed: HTTP {response.status_code}"
+                )
+            for event in self._events(response.iter_lines()):
+                if event.get("type") != "init":
+                    continue
+                data = event.get("data") or {}
+                conversation_id = (data.get("conversation") or {}).get("id")
+                refreshed_key = (data.get("user") or {}).get("userKey") or user_key
+                if not conversation_id:
+                    raise self._shape_error("GET /initialize", data, "conversation.id")
+                return str(conversation_id), str(refreshed_key)
+        raise RunnerError("botpress Webchat GET /initialize returned no init event")
+
+    def complete(self, prompt: str) -> str:
+        self._polite_sleep()
+        session_id = secrets.token_hex(12)
+        with self._client(session_id) as client:
+            response = client.post(
+                f"{self._base}/users", json={}, headers=self._headers()
+            )
+            if response.status_code >= 400:
+                raise RunnerError(
+                    f"botpress Webchat POST /users failed: HTTP {response.status_code}: "
+                    f"{response.text[:300]}"
+                )
+            data = response.json()
+            try:
+                user_id = str(data["user"]["id"])
+                user_key = str(data["key"])
+            except (KeyError, TypeError) as exc:
+                raise self._shape_error("POST /users", data, "key/user.id") from exc
+
+            conversation_id, user_key = self._initialize(client, user_key)
+            replies: list[str] = []
+            listener_errors: list[Exception] = []
+            ready = threading.Event()
+
+            def listen() -> None:
+                try:
+                    with client.stream(
+                        "GET", f"{self._base}/initialize",
+                        params={"conversationId": conversation_id},
+                        headers=self._headers(user_key),
+                    ) as stream:
+                        if stream.status_code >= 400:
+                            raise RunnerError(
+                                "botpress Webchat reply stream failed: "
+                                f"HTTP {stream.status_code}"
+                            )
+                        ready.set()
+                        for event in self._events(stream.iter_lines()):
+                            if event.get("type") != "message_created":
+                                continue
+                            message = event.get("data") or {}
+                            if message.get("userId") == user_id:
+                                continue
+                            payload = message.get("payload") or {}
+                            if payload.get("type") == "text" and payload.get("text"):
+                                replies.append(str(payload["text"]).strip())
+                                return
+                except Exception as exc:  # surfaced on the caller thread below
+                    listener_errors.append(exc)
+                    ready.set()
+
+            thread = threading.Thread(target=listen, daemon=True)
+            thread.start()
+            if not ready.wait(timeout=min(5.0, self._timeout_s)):
+                raise RunnerError("botpress Webchat reply stream did not become ready")
+            if listener_errors:
+                raise RunnerError(f"botpress Webchat reply stream error: {listener_errors[0]}")
+
+            sent = client.post(
+                f"{self._base}/messages",
+                json={
+                    "conversationId": conversation_id,
+                    "payload": {"type": "text", "text": prompt},
+                },
+                headers=self._headers(user_key),
+            )
+            if sent.status_code >= 400:
+                raise RunnerError(
+                    f"botpress Webchat POST /messages failed: HTTP {sent.status_code}: "
+                    f"{sent.text[:300]}"
+                )
+            thread.join(timeout=self._timeout_s)
+            if replies:
+                return replies[0]
+            if listener_errors:
+                raise RunnerError(f"botpress Webchat reply stream error: {listener_errors[0]}")
+            raise RunnerError(
+                f"botpress Webchat produced no functional reply within {self._timeout_s:g}s"
+            )
 
 
 class VoiceflowRunner(ModelRunner):
