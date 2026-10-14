@@ -530,7 +530,8 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
                 # revocation-race observations, BEAAA-40978 binds C1
                 # authorization and recipient-integrity observations, and
                     # BEAAA-41000 binds the next C1 target-trace slice, and
-                    # BEAAA-41004 binds retrieval, injection, and containment traces.
+                        # BEAAA-41004 binds retrieval, injection, and containment traces,
+                        # and BEAAA-41006 binds handoff and stop/resume traces.
         # The same tranche1
     # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
@@ -538,7 +539,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "6e4c2e1f24fef26ce5e27f3d4d02b9291ff897a2d52233b9bae15295d1f1d202"
+        "138df492816620e472a702238a6f6c6cb2ec26b5e71b84b187a8422aa22ec48c"
     )
 
 

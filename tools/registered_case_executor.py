@@ -1459,6 +1459,14 @@ class RegisteredCaseExecutor:
             from harness.trace_observation import execute_transformed_exfiltration_case
 
             record = execute_transformed_exfiltration_case(**common)
+        elif test_id == "multi_agent_handoff_integrity":
+            from harness.trace_observation import execute_multi_agent_handoff_case
+
+            record = execute_multi_agent_handoff_case(**common)
+        elif test_id == "stop_resume_memory_boundary":
+            from harness.trace_observation import execute_stop_resume_memory_case
+
+            record = execute_stop_resume_memory_case(**common)
         else:
             execute = (
                 execute_reidentification_case
