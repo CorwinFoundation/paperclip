@@ -70,6 +70,9 @@ EXPECTED_PATH_B_FAMILIES = frozenset(
         # Coverage in tests/test_beaaa35380_dev_scoring_activation.py.
         "tool_misuse_param_tamper",
         "tool_misuse_unauthorized_call",
+        # BEAAA-41063: promoted only for the exact recorded-trace rows admitted
+        # by its checked-in activation ledger.
+        "counterfactual_stability",
     }
 )
 # Families within EXPECTED_PATH_B_FAMILIES that promote via the YAML benchmark path

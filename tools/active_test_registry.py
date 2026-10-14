@@ -168,6 +168,10 @@ AIUC_PATH_B_FOUNDER_DEV_SCORING_ACTIVE_FAMILIES = frozenset(
         # non-countable partition so the flag-off production count never moves.
         "tool_misuse_param_tamper",
         "tool_misuse_unauthorized_call",
+        # BEAAA-41063: 60 recorded-trace rows demonstrate live-target verdict
+        # spread (33 PASS / 27 FAIL). The checked-in activation ledger is the
+        # fail-closed per-row gate; the family entry alone promotes nothing.
+        "counterfactual_stability",
     }
 )
 FOUNDER_DEV_LEGACY_SCORED_FAMILIES = frozenset(
@@ -1030,6 +1034,7 @@ BEAAA31092_LEDGER_RELPATH = "artifacts/beaaa-31092/rank2-ledger.json"
 BEAAA35380_LEDGER_RELPATH = "artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json"
 BEAAA35665_LEDGER_RELPATH = "artifacts/beaaa-35665/cc-dev-activation-ledger.json"
 BEAAA35938_LEDGER_RELPATH = "artifacts/beaaa-35938/hl-dev-activation-ledger.json"
+BEAAA41063_LEDGER_RELPATH = "artifacts/beaaa-41063/trace-dev-activation-ledger.json"
 
 
 @lru_cache(maxsize=1)
@@ -1313,6 +1318,43 @@ def _beaaa35938_dev_evidence_metadata(
     }
 
 
+@lru_cache(maxsize=1)
+def _beaaa41063_dev_scored_rows() -> Mapping[str, Mapping[str, Any]]:
+    """Rows admitted by the BEAAA-41063 recorded-trace spread gate."""
+    path = Path(__file__).resolve().parents[1] / BEAAA41063_LEDGER_RELPATH
+    if not path.exists():
+        return {}
+    ledger = _load_evidence_json(path, context="BEAAA-41063 trace activation ledger")
+    return {
+        str(row["dedupe_sha256"]): row
+        for row in ledger.get("rows", [])
+        if row.get("disposition") == "scored"
+        and row.get("terminal_verdict") in {"pass", "fail"}
+    }
+
+
+def _beaaa41063_dev_evidence_metadata(
+    ledger_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    rubric_point_id = str(ledger_row.get("rubric_point_id") or "")
+    verdict = str(ledger_row.get("terminal_verdict") or "").casefold()
+    evidence_ref = str(ledger_row.get("evidence_ref") or "")
+    if not rubric_point_id or verdict not in {"pass", "fail"} or not evidence_ref:
+        return {}
+    return {
+        "candidate_rubric_mapping_status": MAPPED_DEV_SCORED_ZERO_WEIGHT_STATUS,
+        "candidate_rubric_point_id": rubric_point_id,
+        "candidate_rubric_mapping_rationale": (
+            "BEAAA-41063 recorded live-target trace; family demonstrated both "
+            "PASS and FAIL terminal verdicts; priced weight remains zero"
+        ),
+        "execution_evidenced": True,
+        "execution_evidence_status": "beaaa41063_recorded_trace_target_measured",
+        "execution_evidence_ref": evidence_ref,
+        "execution_evidence_verdict": verdict,
+    }
+
+
 def _merge_content_candidate_inventory(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -1523,6 +1565,21 @@ def _merge_content_candidate_inventory(
                 candidate_metadata.update(_beaaa35938_dev_evidence_metadata(ledger_row_35938))
                 candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
                 candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
+        # BEAAA-41063: promote only exact rows present in the checked-in ledger.
+        # This is deliberately after earlier ledgers and never overrides them.
+        if (
+            ledger_row is None
+            and str(candidate["dedupe_sha256"]) not in _beaaa35380_dev_scored_digests()
+            and str(candidate["dedupe_sha256"]) not in _beaaa35665_dev_scored_digests()
+            and str(candidate["dedupe_sha256"]) not in _beaaa35938_dev_scored_digests()
+        ):
+            ledger_row_41063 = _beaaa41063_dev_scored_rows().get(str(candidate["dedupe_sha256"]))
+            if ledger_row_41063 is not None:
+                candidate_metadata["attestation_tier"] = ATTESTATION_FOUNDER_DEV
+                candidate_metadata["dev_scoring_active"] = True
+                candidate_metadata.update(_beaaa41063_dev_evidence_metadata(ledger_row_41063))
+                candidate_metadata["scoring_active"] = _scoring_active(candidate_metadata)
+                candidate_metadata["reporting_status"] = _reporting_status(candidate_metadata)
         current = existing.get(key)
         if current is not None and (
             current.get("production_runner_executable") is True
@@ -1635,12 +1692,14 @@ def _merge_content_candidate_inventory(
     _beaaa35380_scored = _beaaa35380_dev_scored_digests()
     _beaaa35665_scored = _beaaa35665_dev_scored_digests()
     _beaaa35938_scored = _beaaa35938_dev_scored_digests()
+    _beaaa41063_scored = frozenset(_beaaa41063_dev_scored_rows())
     for row in activated:
         digest = row.get("candidate_dedupe_sha256")
         if (
             digest in _beaaa35380_scored
             or digest in _beaaa35665_scored
             or digest in _beaaa35938_scored
+            or digest in _beaaa41063_scored
         ):
             row["scoring_active"] = _scoring_active(row)
             row["reporting_status"] = _reporting_status(row)

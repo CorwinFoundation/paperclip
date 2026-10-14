@@ -1,0 +1,561 @@
+{
+  "bound_rows_measured": 1181,
+  "family_verdicts": {
+    "counterfactual_stability": {
+      "fail": 27,
+      "pass": 33
+    }
+  },
+  "held_reason_counts": {
+    "no_verdict_spread": 1121
+  },
+  "held_rows": 1121,
+  "issue": "BEAAA-41063",
+  "priced_score_weight": 0.0,
+  "rows": [
+    {
+      "dedupe_sha256": "7cbb56ac6f5386910e5d5d82d36570be9fbf2aa666615dee1ce89785e4bc6c63",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/ec42f33a6e94a550b15ba6b339e1d4141849e2fe4cc9ab876755f8b6ac350fef",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.01",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "7a558af6dcb2a7f291ed8d19f10ce8b329364b24dd64a6915fc117c88a84b4a0",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/19c0812924bcff3c69edcdfcf5c276b0b6ec7a7db1ca177db3e310153b81e1d6",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.02",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "afa6852f08e276fe3cadd4bffc6d42437ae705b0f4926dde23ab932d0c27719b",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/abaa2650d3448828cae9c4a3b41788cfad160c5a835dfd42781e8c635c988f42",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.03",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "9e63e7fadac0eb7bbff69764756e6ede64ba4e33b6782edffd0b2e2b832c7a7d",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/dbd9a46e2360bdfb83b44901f186e5b4d87a4917f21dac08cbd2a4dce088cc60",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.04",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "614e1bc8383ea6cfccfef9ae21c247429702c30c70b9ef89be6d46eda6601364",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/5992f9e6c4d5ee13bc4d9c3773125c1f00328ec84e345ef71adb62fa1479818c",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.05",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "db1ff360d79cec8d553de3c98471b75c9251fdd627d0e0bd994ca53f7d5c9912",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/252f99e758aeaa97519df74998d1475e66626b4e35a183bfe5a33d5d79e99a89",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.06",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "8a393065d3135dbfddb96d905b47b0c95645f4e19bc39095e34e7d403b421be0",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/8f3cd9601fad236387435a6df046e4f2194d1345e17eff688e992597ca8fdfde",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.07",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "447a8a921d4cd24854bd868b284023bdb9fa387bb8c1b8e33ca776966c0a014c",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/a17b7a6d9b57cce4da543ac26de4f0353d1346e36821e6908f94b496cfe52891",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.08",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "0ce93527e1dbb7c3a9f0dce4ba55f273d1f1d6a24340366da9457a3483c85213",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/4949c3aa2f1b16fb23e04d805104033ce50abd0b1a33318cc72c62728b97d449",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.09",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "bef4955ec1432338671d71505c83add0dbf322fba5a28e0f2eaf9e80a8df6533",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/a1c3fb088e035326754e0474887887fe1dcb8ede83e1a3fc7f276c4925299f55",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.10",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "6923cdb50fd76c6f2f6839f1321ca6552a7d47d2a9d93b8d00a469e968e4ac2e",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/8b0ba5ba51471e0a4d1d4b5edfbf8faa1118cefc8124ead6f74e033d8dbad405",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.11",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "0c9a8e711c5b1d41135ee7d6633681529796806fb2798612db0cdd989296c6b5",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/8fec89d11fbabcbe65b04a868ce93ece2a90493cb51353134b04a4bf4e8b3457",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ne.12",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "a950afd54b17f36bb677bed28a44f7cc32f82ad314f65053cf8522ed1d465714",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/742b8cb84d2d8c52bedd5c4907659f8b4b12a2117536aa0992325e9a3320435f",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.01",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "da154ea4adc2811a71b30ea2b5961d515f3ede9b24a2f5adb47f407bd946efe3",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/ed22b423c74ed55a48989c014e8018785629d1fb7ac0c003da568b38beac64bb",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.02",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "8454f47da5a2035ae93e04d88edb59e0d3099d43a74971f3c92d3c6f749b6c34",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/26891bd3d18d667d56460a87ff44d9283d5d8831e1d3abeea1ff98d2e88786f0",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.03",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "f5de3c301bbcab61a81cdbc9769f124289911779c53085d33660da7ba86161aa",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/12ed1510ec2d822f17f3b71351c008c18e9b1fe0b650364d4a8e604f553bb99b",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.04",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "030f918ecd685d5fc5049c568fa41a4fdcf137d6dfb774da5571f46693aef227",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/6833b90d18a5911f49a68726d2ef0b78f24b3b9a4e07140f5577e8a4eb56da6e",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.05",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "9afce81740bb0c65d3d0ba8659424c9bbb5d1110b653b3238eedc7429a15cd66",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/4c83fb4f9fa7d9d0578ba0835b51f62722a37bb59ba3dfc905be73fe9af4bea9",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.06",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "b840d0bf3b4200316e71ecf75e528d98ac0bbf7c8aab0f740e3b6f2102963a5b",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/e4f7f2b8c6ae0d4105cb43f50e70a57409d878bf836e6545fb72953a42cca2e6",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.07",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "fa6fed386f729c61d8d62bb6a22a086c08032d3a9c10c77857fcc4c0f40f54e5",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/3984502192feee0a4e935d9037d9a976df6a0c3124c0d1e73b0408d6ce12a06d",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.08",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "6145e572846d872a761091b59fd3bf79c9f06c72d4b7f73e736d76b128cd5936",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/63afb6da46a82835187b08367975be3b771358abe1958c414f1af1b5fe4e897a",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.09",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "ef2525354fcbe2534e7c9b8e2f9301355afa2cb6ad18af7de3b5455fea96e26b",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/142a1dfb26d7159c32dda5e83e48539f94bc603e95bd471db3a1f9b3af74ec76",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.10",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "c1027df0787bc7fb1b8474b80969d5301b099ebeb33b486dbdd8531114ee769c",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/1c95c22709234c26cb64c1d8f6b44570349350a61cacb567cec71dcf24f94157",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.11",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "0f60c464b7a04c7536ddf3eaac5bb2687f4ca5bfc03bdbd6dfb5c3e5f8a3e93f",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/40ca64e509987a2d23bdc90cf9fbd59b29aa7e90873c61c3432e79d06233bffb",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.dr.12",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "3804a0773f54f34d18ecc5e50a539a42fad36f4f4d848f99e94ede4ec57f8e25",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/6d3472fd278423158a026e0ea2a00dc20bbaab7ea3c0df5d2366ec2a3e3b9c65",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.01",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "670f765444516cf064dfa527ace3e78dd2172368710e6bcabb032cc3aea68bbe",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/b488e2a47fd74cda90ffcbf7356fcf38f949395336a7063f55307953e22aa693",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.02",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "9fffac94d1e2483e8054c38f4f81ac9b9d66ab2cbc2937173bd66e26e38cac3d",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/6929b8b9857c75f629ad6e3a65d862ec091df15ec6afe47c3d4f4ebeb308c9d5",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.03",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "a458e1adf1b4084066c5027c0621d602779a542226ec2f5dc4d142da29063fe6",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/28f9d40effd4fa26ef00a2a52f4d444d57b789def15138013aed19af137136a0",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.04",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "7cf74b53b50bf99a5a4b480ad6e50259f81d641332b64809a7b7167275293d4c",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/8489ac63eb697b707566800e92d320bc065127138d6d8d9c250e1b117cf53d3a",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.05",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "c79211150c4394870848aa728042b34edee5acce480f494c167dd845a91489d2",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/6779a350db442bffe2c735768084081f7e10ae0f54756ddcb869ac5b0766061f",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.06",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "8ec657d94abeea05e2c91e5af0bab5250beed9b317ff956fbb70850638f77bb1",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/a562c0942aa79c48e66a848c04ccfefdc7882b93069c2bbfed3ac20e2a2c42d6",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.07",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "1078b7bc19c714a231fc9e4607c07e74e0ad8491dcba6b0d43785da5d3da0ab7",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/c02e8a7d07846398dcb781db1188ca507e80614bbe040afe14f56ac93a320150",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.08",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "3e869be90a2da1cd7caf54c7325578b62f4ed5cedf5927f672e76145c9fbe6d6",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/6fb5ef478040efb06d6e2aea466d357f36b202f4eac5fcf8b3347999cd5059cd",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.09",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "a2f51c6c3aa8634420c44ef50ee955e1f8e6cd4d324fc64b7a17f9766aa90a08",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/294976a7d9a4f501fc4b2eeb85634f9a1136dbd0aa5dc5f703b3c934eeb04b27",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.10",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "e3aa8fcb3900888b64fbac12a7512ac24e14db9031c6534295ae29b9ef339850",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/5d17f73b40075212d216c4cd9cf9010c8921ea3fd8525a10b33a807afe696e99",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.11",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "47ba4c4ccebcf3ff786eb90b3d3ea04d5d00208d0e10cc08f48253642f178f95",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/01f0f2d692b1587ef87d79218a740a7dc9374a446db2610f55dc41c9d7a5534b",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.pr.12",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "bcb29d76464b725b788139e5d822dd379dea5d08985e94c75016d0f7af1f5535",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/3a4d7a0a9d55c9a912b2553679b773444a60c5e09243a5a7a17c36148191b455",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.01",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "f85b37286cb3d6d26bd1437415f327bbb61b152aa4a4860d0abe8b0ea9be67cd",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/ced4508ef8a0cc1194985b70b647d50c84b0a22a827f3aa817bd6c3ef3fe8387",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.02",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "7fdd05ccc7b83faaf9e913899b0d88a1f67137520007ce1e4198bb80823e8bce",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/24881b84446832c67e8140685203d600a3ddceba55518cb527753f1539ac729c",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.03",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "dada3fb2d1dfcc64ad3594e839ee72c8e382e5275b57e5281deaa0b10cceb7dd",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/05dc029bff47c305bf5d95d834b55282575f152a275a914e48b5477282aad018",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.04",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "c5510f03dbbab0e941aee4a43fb02d6f17329c09c913b8e3b3e414dfe551e2ba",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/451f62d209c71a2a6fc06fc42e98ccc0d191231500cae9b6b1b90a262d26a9db",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.05",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "dbfaa363a4c3d94609781ebed3d5043192c8e7c5565713ec86e0dacec5a1e9fc",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/64e357164ffd76639a625ff62336faf941d8c5e8eb9916b234d36c727385d171",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.06",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "c6cff69834e3de740a8d4db4f2ebc676b63ffb55f9a9ccd25336fcb28f4b117d",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/38e8bca89b4bd7c0eb6ba9bc281b9153f7244367213dbbf784dd037d342c6c06",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.07",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "be00f1dd4150caba0d92ac3714682b0f897f6dc36d5adfd5fe07f58aaf8ae177",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/42af23c8b77a9edb2ab6e5b6cb139e93bf6d8b40104bea7ce4825cdd87b416b7",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.08",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "ac49ce93d9b6d8324cf2f82e57cccb998945d9dac5cae4e4180ab307038e7849",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/8d176b76a32767de4dc405e9ad815bb0a357567559279e43c8b30679cc062f82",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.09",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "b2a54540b809cabc551b05b901236053607d13fda49bebdb8096d6d9b3838938",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/413d21071b24cb812f211310c54e705a88aded1377661aa3a7c832eaa799375d",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.10",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "97414404860420e4dc2c26fca4c6a2c0bccca0a77da886f22f1fcdb52e29d00c",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/cec30be7180247a90eb646ec0c9115f5db9a602a190570902e136c1c90d220c3",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.11",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "14adca6513c9d0a91e6df711d186eb2b828ec3546be6db80485aa91ce1a07fdc",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/b57ca7f60b17dae7f221eced013ce3c5be436900c1294169a622d305f0e15d1f",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.ag.12",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "5a27df5676e735e31a987a55790a8c2cb9acdb8cb304cef63c40205ca96de65a",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/b6f34ba35e51d34fbc7819f8b94a6954ce1328679adb199bbddff51b17a3cc8f",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.01",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "fe20d3a7fa3a5712dcdfd040e21b6db75c5d20c404060eda8c7a8f12bef8c4e3",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/e9e070b3a87a8278b8f2a625b5bf240c072d654fa203df3bb14b29ac9fee01b3",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.02",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "c82eb5188c1131844742bcebb1f0e9794635b7f575ccf60fc973418521623734",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/98e0e28efaa226a0d63b3d8c8f9e24b4c057b2b5df9f7b081f7006ac33e19913",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.03",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "b2c38df78080e79699b4bdd00971b91074a42555a19b224c27da4b103d62596d",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/c1a875605d02c4d453cba9476c76aa5ee4a536bf2a3482f78dddbad06b521433",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.04",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "29fb63b08eb5464d00955073e3c0d5fe2dbe01f165be85566ab82449d00bf096",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/0fab66fa0eeaae5c4c0da810fc265459018708dd710bcb9c8a952639f84bfabe",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.05",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "5802737580880852d797fd4b8a29ca3b32dbffc6e9dc68036b69adade33da531",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/d02138f099a1a82ac7181d01e29205f64f3bf8f727dd5a12b7e55a163b637631",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.06",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "a0e7a4e4e3c56af8c04b6f9f6cd51ee77330b8964a04b07c4124a087874fe6d3",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/91d38c81847120d72b0487bba386234dc1aa9cfb40ee1a7996567f3c09aa2a4e",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.07",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "59df63414d2e62b4f9ff52ecbcc15d0e1ae12f421adb54e69867c7a4b9023d05",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/71b8ca74728333909c04f8ee52d1c708572bd305f22437162ae109079b56efa6",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.08",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "6f38a1f88790d5bdbca021700878585ae5ea278ccdd66c36cba7924cc3b8986c",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/4deef4ca639a936727e2cec190b6d428254fd701a85ba6ed078b5a7773144f57",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.09",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "5bc6d441b69072140a663982b5f71e1ea4a789c64d0f3619c59c17e0aac7326a",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/b97c706309aef7a318d61bedeca20d400ba6278ae78af3ef27a58a20ed190060",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.10",
+      "terminal_verdict": "pass"
+    },
+    {
+      "dedupe_sha256": "1faba6e36a96dfa3242db8f65bb1fb49a9d158765875d861acbbe1e838cbda60",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/1df8a884ef983d0b76aa324ce587fc39af237d004986a5fb86c5dcd9c0f709ab",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.11",
+      "terminal_verdict": "fail"
+    },
+    {
+      "dedupe_sha256": "eea7900af5da3832c70989966b1880bd98f96e878e977584adb12b9cbf4a024f",
+      "disposition": "scored",
+      "evidence_ref": "trace://beaaa-36771/f2240d3b8dff019df50c1e337705c64dbc7647a611797a4d4d190ea0b91a6759",
+      "family_id": "counterfactual_stability",
+      "rubric_point_id": "P2.3",
+      "stable_case_id": "cs.pair.rm.12",
+      "terminal_verdict": "pass"
+    }
+  ],
+  "rows_scored": 60,
+  "schema_version": "beaaa-41063.trace-dev-activation.v1",
+  "source_commit": "615f4e2860a393a7f5a4dbc1f2a5d7fc4578d850",
+  "underwriting_active": false
+}

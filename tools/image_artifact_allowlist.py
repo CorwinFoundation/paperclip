@@ -83,6 +83,10 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     # promoted row and is never opened.
     "artifacts/beaaa-35938/hl-dev-activation-ledger.json": "read_optional",
     "artifacts/beaaa-35938/hl_slice_capture.json": "reference_only",
+    # BEAAA-41063 follows the same fail-closed dev-only rollback contract: an
+    # absent ledger promotes no rows, while a present malformed ledger raises.
+    # It is intentionally not shipped in the production image.
+    "artifacts/beaaa-41063/trace-dev-activation-ledger.json": "read_optional",
     # BEAAA-41008 replays these immutable target/judge traces at runtime. This is
     # input data, so the scanner image must carry it rather than treating the
     # path as a reference-only receipt.

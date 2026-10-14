@@ -174,7 +174,11 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Re-pinned for BEAAA-41058 after binding the remaining 23 hallucination-
     # legal target traces. All 1,181 content-candidate rows are now bound, and
     # every newly bound row remains reported-not-scored.
-    "ebed231108d4d7697592b9a51645e85a00b1e375eb985e6fd6e9ce9aec8a9114"
+    # Re-pinned for BEAAA-41063 after activating development-mode scoring for
+    # the 100 spread-qualified, receipt-backed rows selected by the committed
+    # activation ledger. Production scoring remains disabled for these rows;
+    # the executable census asserted below is unchanged.
+    "cd26ffaebec47a468736ba49a6510f7eb9a87385fbbdfd41a25d7ec0d379e687"
 )
 
 
