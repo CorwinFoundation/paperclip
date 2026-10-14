@@ -10,15 +10,31 @@ import json
 from pathlib import PurePosixPath
 
 INSTINCT_PREFIXES = ("stage_b_pilot/", "ops/stage-b-inbound/")
-INSTINCT_TEST_PREFIXES = ("tests/test_instinct", "tests/test_stage_b", "tests/test_beaaa3607", "tests/test_beaaa379")
+INSTINCT_TEST_PREFIXES = (
+    "tests/test_instinct",
+    "tests/test_stage_b",
+    "tests/test_capture_instinct",
+    "tests/test_beaaa3607",
+    "tests/test_beaaa37906_",
+    "tests/test_beaaa37907_",
+    "tests/test_beaaa37962_",
+    "tests/test_beaaa38060",
+    "tests/test_beaaa38116",
+    "tests/test_beaaa38120",
+    "tests/test_beaaa38147",
+    "tests/test_beaaa38279",
+    "tests/test_beaaa38728",
+    "tests/test_beaaa38775",
+    "tests/test_beaaa38867",
+)
 SHARED_PREFIXES = ("locks/", "requirements", ".github/workflows/", "scripts/ci_")
 NON_PRODUCT_PREFIXES = ("docs/", "artifacts/", "decisions/")
 
 
 def classify(paths: list[str] | None) -> dict[str, bool | str]:
-    if paths is None:
+    if not paths:
         return {"scanner": True, "instinct": True, "reason": "changed paths unavailable"}
-    normalized = [PurePosixPath(p).as_posix().lstrip("./") for p in paths]
+    normalized = [PurePosixPath(p).as_posix().removeprefix("./") for p in paths]
     if any(not p or p.startswith("../") for p in normalized):
         return {"scanner": True, "instinct": True, "reason": "invalid changed path"}
     shared = any(p.startswith(SHARED_PREFIXES) for p in normalized)

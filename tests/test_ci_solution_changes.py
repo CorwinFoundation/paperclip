@@ -8,6 +8,46 @@ def test_instinct_only_does_not_activate_scanner():
     assert result["scanner"] is False
 
 
+def test_observed_instinct_merge_does_not_activate_scanner():
+    # Exact file set from master commit 6cfeb86 (PR #838). This merge exposed
+    # that an issue-numbered Instinct test was incorrectly treated as scanner.
+    result = classify([
+        "stage_b_pilot/history_import.py",
+        "stage_b_pilot/instinct_risk_checks.py",
+        "stage_b_pilot/instinct_standing.py",
+        "stage_b_pilot/mailgun.py",
+        "tests/test_beaaa37962_instinct_standing.py",
+        "tests/test_beaaa38060_instinct_risk_checks.py",
+    ])
+    assert result["instinct"] is True
+    assert result["scanner"] is False
+
+
+def test_all_current_instinct_test_families_do_not_activate_scanner():
+    paths = [
+        "tests/test_capture_instinct_acceptance.py",
+        "tests/test_beaaa38116_stage_b_v1_acceptance.py",
+        "tests/test_beaaa38120_muse_intake.py",
+        "tests/test_beaaa38147_reusable_onboarding.py",
+        "tests/test_beaaa38279_instinct_stop_relay.py",
+        "tests/test_beaaa38728_stage_b_status.py",
+        "tests/test_beaaa38775_stage_b_detail.py",
+        "tests/test_beaaa38867_stage_b_v2.py",
+    ]
+    result = classify(paths)
+    assert result["instinct"] is True
+    assert result["scanner"] is False
+
+
+def test_neighboring_issue_numbered_scanner_tests_stay_in_scanner_lane():
+    result = classify([
+        "tests/test_beaaa37931_tenant_account_boundary_trace.py",
+        "tests/test_beaaa37986_code_agent_supply_chain_trace.py",
+    ])
+    assert result["scanner"] is True
+    assert result["instinct"] is False
+
+
 def test_scanner_only_does_not_activate_instinct():
     assert classify(["rubric/scoring.py"]) == {
         "scanner": True, "instinct": False, "reason": "classified changed paths"
@@ -24,6 +64,11 @@ def test_shared_ci_dependency_activates_both():
     assert result["scanner"] is result["instinct"] is True
 
 
+def test_dot_prefixed_workflow_path_activates_both():
+    result = classify([".github/workflows/tests.yml"])
+    assert result["scanner"] is result["instinct"] is True
+
+
 def test_docs_only_activates_neither():
     result = classify(["docs/instinct.md"])
     assert result["scanner"] is result["instinct"] is False
@@ -36,6 +81,11 @@ def test_deleted_or_renamed_paths_are_classified_by_each_reported_path():
 
 def test_unavailable_selection_fails_closed():
     result = classify(None)
+    assert result["scanner"] is result["instinct"] is True
+
+
+def test_empty_selection_fails_closed():
+    result = classify([])
     assert result["scanner"] is result["instinct"] is True
 
 
