@@ -171,7 +171,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # stability target traces.
     # Re-pinned for BEAAA-41035 after binding the final 18 counterfactual-
     # stability rows and six hallucination-legal target traces.
-    "a7ba5c23a914bfca9ef3a7c3fc81c775256d88d148c0a0ea81d6877afdf49f93"
+    # Re-pinned for BEAAA-41058 after binding the remaining 23 hallucination-
+    # legal target traces. All 1,181 content-candidate rows are now bound, and
+    # every newly bound row remains reported-not-scored.
+    "ebed231108d4d7697592b9a51645e85a00b1e375eb985e6fd6e9ce9aec8a9114"
 )
 
 

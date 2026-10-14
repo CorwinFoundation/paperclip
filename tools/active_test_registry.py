@@ -1447,7 +1447,7 @@ def _merge_content_candidate_inventory(
                 )
                 or (
                     family_id == "hallucination_legal"
-                    and case_id in {f"hl.f3.sc.{number:02d}" for number in range(1, 7)}
+                    and case_id in {f"hl.f3.sc.{number:02d}" for number in range(1, 30)}
                 )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
