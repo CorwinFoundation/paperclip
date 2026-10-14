@@ -103,7 +103,11 @@ def test_sudoers_dropin_is_narrow(dirs: tuple[Path, Path]) -> None:
     assert _run(unit_dir, sudoers_dir).returncode == 0
 
     written = sorted(p.name for p in sudoers_dir.iterdir())
-    assert written == ["backbond-scan-beaaa30934", "backbond-scan-beaaa39322"], written
+    assert written == [
+        "backbond-scan-beaaa30934",
+        "backbond-scan-beaaa39322",
+        "backbond-scan-beaaa41227",
+    ], written
     # install.sh owns backbond-scan-schedule; clobbering it would drop the
     # grants this file does not restate.
     assert not (sudoers_dir / "backbond-scan-schedule").exists()

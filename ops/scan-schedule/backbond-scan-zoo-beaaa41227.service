@@ -1,0 +1,17 @@
+[Unit]
+Description=BackBond one-row Zoo out-of-scope containment scan (BEAAA-41227)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=backbond-scan
+EnvironmentFile=/etc/backbond/scan-schedule.env
+EnvironmentFile=/etc/backbond/scan-schedule.conf
+WorkingDirectory=/opt/backbond/src
+Environment=HOME=/var/lib/backbond/scan-home
+TimeoutStartSec=21600
+ExecStartPre=+/bin/sh -c "chmod o+x /var/lib/backbond && install -d -o backbond-scan -g backbond-scan -m 0700 /var/lib/backbond/scan-home && install -d -o backbond-scan -g backbond-scan -m 0755 /var/lib/backbond/scans"
+ExecStartPre=+/usr/bin/env HOME=/root /usr/bin/git -C /opt/backbond/src fetch --quiet origin master
+ExecStartPre=+/usr/bin/env HOME=/root /usr/bin/git -C /opt/backbond/src merge --ff-only --quiet origin/master
+ExecStart=/opt/backbond/scan-venv/bin/python scripts/scheduled_scan.py --job zoo --zoo-family out_of_scope_containment --zoo-case oosc-001
