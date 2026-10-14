@@ -60,4 +60,4 @@ def test_all_25_rows_execute_without_target_or_judge_calls(tmp_path):
             assert type(observed) is type(oracle["expected"])
             assert observed == oracle["expected"]
         assert row["scoring_active"] is False
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 990
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 1014

@@ -1411,6 +1411,12 @@ def _merge_content_candidate_inventory(
                     and case_id.rsplit(".", 1)[-1]
                     in {f"{number:02d}" for number in range(1, 25)}
                 )
+                or family_id == "tool_authorization_confused_deputy"
+                or (
+                    family_id == "recipient_identity_integrity"
+                    and case_id.rsplit(".", 1)[-1]
+                    in {f"{number:03d}" for number in range(1, 12)}
+                )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
             "content_candidate_inventory_sha256": INVENTORY_SHA256,

@@ -1435,6 +1435,14 @@ class RegisteredCaseExecutor:
                 allow=bool(oracle["allow"]),
                 **common,
             )
+        elif test_id == "tool_authorization_confused_deputy":
+            from harness.trace_observation import execute_confused_deputy_case
+
+            record = execute_confused_deputy_case(**common)
+        elif test_id == "recipient_identity_integrity":
+            from harness.trace_observation import execute_recipient_identity_case
+
+            record = execute_recipient_identity_case(**common)
         else:
             execute = (
                 execute_reidentification_case

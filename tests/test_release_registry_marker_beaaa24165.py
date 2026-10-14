@@ -157,7 +157,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Re-pinned for BEAAA-40934 after binding 19 revocation-race rows to
     # receipt-backed traces. The rows remain reported-not-scored, so the
     # executable and scored censuses are unchanged.
-    "8296eaf880d1229fa338b15c388fbaa888cb0c02bc1a29148549eeb00aa555e4"
+    # Re-pinned for BEAAA-40978 after binding 24 C1 authorization/recipient
+    # rows to recorded traces; all remain reported-not-scored.
+    "4f4826e35a8faf354db583a121cb39ba5ac5665818d49184a2e4fde67634271b"
 )
 
 
