@@ -22,7 +22,7 @@ SELECTED = {
 def test_exactly_24_c1_rows_are_newly_bound():
     rows = [row for row in build_registry() if row.get("trace_observation_adapter")]
     assert {(row["test_id"], row["case_id"]) for row in rows if (row["test_id"], row["case_id"]) in SELECTED} == SELECTED
-    assert len(rows) == 1110
+    assert len(rows) == 1134
 
 
 def test_all_24_rows_execute_n5_from_recorded_trace_without_model_calls(tmp_path):

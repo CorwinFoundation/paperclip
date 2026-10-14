@@ -167,7 +167,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # multi-agent-handoff, and stop/resume-memory target traces.
     # Re-pinned for BEAAA-41008 after binding 24 stop/resume-memory and
     # counterfactual-stability target traces.
-    "398aef2cea55b948211f7fc4a6b428999d174bc93df30300b5f8d799a77ea888"
+    # Re-pinned for BEAAA-41033 after binding the next 24 counterfactual-
+    # stability target traces.
+    "9448842573e49f46c391b3fa256cbcf52cc5ddee151c65564485f2cd742e4511"
 )
 
 

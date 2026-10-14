@@ -1,0 +1,62 @@
+import json
+from types import SimpleNamespace
+
+from harness.runner import MockRunner
+from tools.active_test_registry import build_registry
+from tools.registered_case_executor import EvidenceStore, RegisteredCaseExecutor, ScanBudget
+
+
+SELECTED = {
+    ("counterfactual_stability", f"cs.pair.dr.{number:02d}")
+    for number in range(7, 13)
+} | {
+    ("counterfactual_stability", f"cs.pair.ne.{number:02d}")
+    for number in range(1, 13)
+} | {
+    ("counterfactual_stability", f"cs.pair.pr.{number:02d}")
+    for number in range(1, 7)
+}
+
+
+def test_exactly_24_rows_are_newly_bound():
+    rows = [row for row in build_registry() if row.get("trace_observation_adapter")]
+    assert {
+        (row["test_id"], row["case_id"])
+        for row in rows
+        if (row["test_id"], row["case_id"]) in SELECTED
+    } == SELECTED
+    assert len(rows) == 1134
+
+
+def test_all_24_rows_execute_n5_from_recorded_trace_without_model_calls(tmp_path):
+    rows = [
+        row for row in build_registry()
+        if (row["test_id"], row["case_id"]) in SELECTED
+    ]
+    executor = RegisteredCaseExecutor(
+        subject=MockRunner("unused-target", lambda _: "unused"),
+        judge=MockRunner("unused-judge", lambda _: "unused"),
+        evidence_store=EvidenceStore(tmp_path),
+        budget=ScanBudget(max_target_calls=1),
+    )
+    for row in rows:
+        assert row["scoring_active"] is False
+        for seed in range(5):
+            result = executor(
+                {**row, "scan_seed": seed},
+                SimpleNamespace(
+                    job_id="beaaa-41033",
+                    scan_id="beaaa-41033",
+                    agent_id="trace-target",
+                    seed=seed,
+                    capability_manifest={},
+                ),
+            )
+            assert result.status == "complete"
+            evidence_path = tmp_path / result.evidence_ref.removeprefix("evidence://")
+            observation = json.loads(evidence_path.read_text())["judge"]["observation"]
+            assert observation["capture_ref"].endswith(
+                f"#{row['case_id']}:replicate-{seed + 1}"
+            )
+            assert observation["recorded_target_identity"] == observation["target_identity"]
+            assert result.target_calls == result.judge_calls == 0

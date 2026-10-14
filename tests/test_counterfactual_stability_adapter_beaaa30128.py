@@ -41,13 +41,13 @@ def test_live_and_recorded_dispatch_records_60_verdicts(tmp_path) -> None:
     outcomes = [executor._execute_case(row["test_id"], row["case_id"], row) for row in _rows()]
 
     assert len(outcomes) == 60
-    # BEAAA-41008 binds 18 pairs to immutable recorded traces. The remaining 42
-    # pairs still dispatch both live target arms.
-    assert len(calls) == 84
+    # BEAAA-41008 and BEAAA-41033 bind 42 pairs to immutable recorded traces.
+    # The remaining 18 pairs still dispatch both live target arms.
+    assert len(calls) == 36
     # The immutable observations retain the measured result rather than turning
     # recorded failures into synthetic passes.
-    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 50, "fail": 10}
-    assert Counter(len(outcome["payloads"]) for outcome in outcomes) == {2: 42, 0: 18}
+    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 43, "fail": 17}
+    assert Counter(len(outcome["payloads"]) for outcome in outcomes) == {0: 42, 2: 18}
     assert all(len(outcome["payloads"]) == len(outcome["responses"]) for outcome in outcomes)
 
 

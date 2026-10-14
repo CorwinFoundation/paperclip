@@ -65,4 +65,4 @@ def test_all_24_rows_execute_from_receipt_backed_trace_without_model_calls(tmp_p
             assert observation["observed_label"] == expected["expected_label"]
             assert observation["target_identity"] == "mock:trace-target"
             assert row["scoring_active"] is False
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 1110
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 1134

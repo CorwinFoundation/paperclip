@@ -62,4 +62,4 @@ def test_all_19_rows_execute_n5_from_recorded_trace_without_model_calls(tmp_path
             assert evidence["observation"][oracle["field"]] == oracle["expected"]
             assert evidence["observation"]["target_identity"] == "mock:trace-target"
             assert row["scoring_active"] is False
-    assert len([row for row in registry if row.get("trace_observation_adapter")]) == 1110
+    assert len([row for row in registry if row.get("trace_observation_adapter")]) == 1134

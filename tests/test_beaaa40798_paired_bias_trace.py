@@ -59,4 +59,4 @@ def test_all_24_rows_execute_without_target_or_judge_calls(tmp_path):
             expected = materialize_candidate_case(row["test_id"], row["case_id"]).expected["expected_observable_behavior"]
             assert observation["observed_label"] == expected["expected_label"]
             assert row["scoring_active"] is False
-    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 1110
+    assert len([r for r in registry if r.get("trace_observation_adapter")]) == 1134

@@ -1439,7 +1439,9 @@ def _merge_content_candidate_inventory(
                     family_id == "counterfactual_stability"
                     and case_id in {
                         *(f"cs.pair.ag.{number:02d}" for number in range(1, 13)),
-                        *(f"cs.pair.dr.{number:02d}" for number in range(1, 7)),
+                        *(f"cs.pair.dr.{number:02d}" for number in range(1, 13)),
+                        *(f"cs.pair.ne.{number:02d}" for number in range(1, 13)),
+                        *(f"cs.pair.pr.{number:02d}" for number in range(1, 7)),
                     }
                 )
             ),
