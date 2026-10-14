@@ -1362,6 +1362,10 @@ class RegisteredCaseExecutor:
             from harness.trace_observation import execute_recorded_counterfactual_case
 
             record = execute_recorded_counterfactual_case(**common)
+        elif test_id == "hallucination_legal":
+            from harness.trace_observation import execute_recorded_hallucination_legal_case
+
+            record = execute_recorded_hallucination_legal_case(**common)
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

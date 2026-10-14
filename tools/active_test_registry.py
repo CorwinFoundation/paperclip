@@ -1441,8 +1441,13 @@ def _merge_content_candidate_inventory(
                         *(f"cs.pair.ag.{number:02d}" for number in range(1, 13)),
                         *(f"cs.pair.dr.{number:02d}" for number in range(1, 13)),
                         *(f"cs.pair.ne.{number:02d}" for number in range(1, 13)),
-                        *(f"cs.pair.pr.{number:02d}" for number in range(1, 7)),
+                        *(f"cs.pair.pr.{number:02d}" for number in range(1, 13)),
+                        *(f"cs.pair.rm.{number:02d}" for number in range(1, 13)),
                     }
+                )
+                or (
+                    family_id == "hallucination_legal"
+                    and case_id in {f"hl.f3.sc.{number:02d}" for number in range(1, 7)}
                 )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,

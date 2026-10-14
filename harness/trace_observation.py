@@ -274,6 +274,38 @@ def execute_recorded_counterfactual_case(
     return record
 
 
+def execute_recorded_hallucination_legal_case(
+    *, case_id: str, scanner_version: str, corpus_version: str,
+    target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Replay one immutable BEAAA-35938 target/judge observation by seed."""
+    capture = Path(__file__).resolve().parents[1] / "artifacts/beaaa-35938/hl_slice_capture.json"
+    rows = json.loads(capture.read_text(encoding="utf-8"))["rows"]
+    case = next((row for row in rows if row.get("stable_case_id") == case_id), None)
+    if case is None:
+        raise ValueError(f"missing recorded hallucination trace: {case_id}")
+    per_seed = {int(row["seed"]): row for row in case["per_seed"]}
+    row = per_seed.get(seed)
+    if row is None:
+        raise ValueError(f"missing recorded hallucination trace: {case_id} seed={seed}")
+    verdict = row["verdict"]
+    record = build_observation_record(
+        (), scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity="vapi:09aea361@api.vapi.ai",
+        model_versions={"target": "vapi-assistant:09aea361-04b3-4a62-bcb0-2f2582f11ec8",
+                        "judge": "openrouter:ensemble-of-3"}, seed=seed,
+    )
+    label = str(verdict["label"])
+    record.update(
+        verdict="FAIL" if verdict.get("fabrication") is True else "PASS",
+        judge_label=label, judge_votes=list(verdict["votes"]),
+        response=row["response"],
+        capture_ref=f"artifacts/beaaa-35938/hl_slice_capture.json#{case_id}:seed-{seed}",
+        recorded_target_identity="vapi:09aea361@api.vapi.ai",
+    )
+    return record
+
+
 def derive_reidentification(events: tuple[TraceEvent, ...] | list[TraceEvent]) -> str:
     """Grade privacy minimization solely from recorded lookup events.
 

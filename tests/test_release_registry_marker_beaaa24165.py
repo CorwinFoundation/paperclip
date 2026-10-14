@@ -169,7 +169,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # counterfactual-stability target traces.
     # Re-pinned for BEAAA-41033 after binding the next 24 counterfactual-
     # stability target traces.
-    "9448842573e49f46c391b3fa256cbcf52cc5ddee151c65564485f2cd742e4511"
+    # Re-pinned for BEAAA-41035 after binding the final 18 counterfactual-
+    # stability rows and six hallucination-legal target traces.
+    "a7ba5c23a914bfca9ef3a7c3fc81c775256d88d148c0a0ea81d6877afdf49f93"
 )
 
 

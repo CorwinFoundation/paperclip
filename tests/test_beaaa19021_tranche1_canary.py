@@ -530,14 +530,16 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # recipient-integrity observations, BEAAA-41000 binds the next C1 target-
     # trace slice, BEAAA-41004 binds retrieval, injection, and containment
     # traces, BEAAA-41006 binds handoff and stop/resume traces, and BEAAA-41008
-    # binds the next stop/resume and counterfactual-stability traces. The same tranche1
-    # invariants remain unchanged;
+        # binds the next stop/resume and counterfactual-stability traces. BEAAA-41033
+        # extends the counterfactual-stability binding, and BEAAA-41035 completes
+        # that family plus six hallucination-legal target traces. The same tranche1
+        # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
     # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "3c604b88f918177f3f689568a1305b39c2d762777e5351861a1274dce0929dd2"
+            "31a7534f6d55966b843fb2ede525b2bd4ff96ba11c9e6d98efb2f430d02c0dcc"
     )
 
 

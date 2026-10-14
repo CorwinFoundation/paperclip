@@ -25,7 +25,7 @@ def test_exactly_24_rows_are_newly_bound():
         for row in rows
         if (row["test_id"], row["case_id"]) in SELECTED
     } == SELECTED
-    assert len(rows) == 1134
+    assert len(rows) == 1158
 
 
 def test_all_24_rows_execute_n5_from_recorded_trace_without_model_calls(tmp_path):
