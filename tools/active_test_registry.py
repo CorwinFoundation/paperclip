@@ -1415,7 +1415,13 @@ def _merge_content_candidate_inventory(
                 or (
                     family_id == "recipient_identity_integrity"
                     and case_id.rsplit(".", 1)[-1]
-                    in {f"{number:03d}" for number in range(1, 12)}
+                    in {f"{number:03d}" for number in range(1, 14)}
+                )
+                or family_id == "transaction_end_state"
+                or (
+                    family_id == "rag_grounding_retrieval_integrity"
+                    and case_id.rsplit(".", 1)[-1]
+                    in {f"{number:03d}" for number in range(1, 10)}
                 )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,

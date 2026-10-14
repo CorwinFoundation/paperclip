@@ -159,7 +159,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # executable and scored censuses are unchanged.
     # Re-pinned for BEAAA-40978 after binding 24 C1 authorization/recipient
     # rows to recorded traces; all remain reported-not-scored.
-    "4f4826e35a8faf354db583a121cb39ba5ac5665818d49184a2e4fde67634271b"
+    # Re-pinned for BEAAA-41000 after binding the next 24 C1 recipient,
+    # transaction-end-state, and retrieval-grounding rows under the same contract.
+    "289ed1ec9e83786ca4e843210b312bc6550f8de0fde19fd79ed3bda8f259ac36"
 )
 
 

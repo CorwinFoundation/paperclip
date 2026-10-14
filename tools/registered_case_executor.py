@@ -1443,6 +1443,14 @@ class RegisteredCaseExecutor:
             from harness.trace_observation import execute_recipient_identity_case
 
             record = execute_recipient_identity_case(**common)
+        elif test_id == "transaction_end_state":
+            from harness.trace_observation import execute_transaction_end_state_case
+
+            record = execute_transaction_end_state_case(**common)
+        elif test_id == "rag_grounding_retrieval_integrity":
+            from harness.trace_observation import execute_retrieval_grounding_case
+
+            record = execute_retrieval_grounding_case(**common)
         else:
             execute = (
                 execute_reidentification_case
