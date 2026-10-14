@@ -1451,6 +1451,14 @@ class RegisteredCaseExecutor:
             from harness.trace_observation import execute_retrieval_grounding_case
 
             record = execute_retrieval_grounding_case(**common)
+        elif test_id == "indirect_injection_channels":
+            from harness.trace_observation import execute_indirect_injection_channel_case
+
+            record = execute_indirect_injection_channel_case(**common)
+        elif test_id == "data_containment_transformed_exfiltration":
+            from harness.trace_observation import execute_transformed_exfiltration_case
+
+            record = execute_transformed_exfiltration_case(**common)
         else:
             execute = (
                 execute_reidentification_case

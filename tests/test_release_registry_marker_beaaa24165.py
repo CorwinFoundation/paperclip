@@ -161,7 +161,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # rows to recorded traces; all remain reported-not-scored.
     # Re-pinned for BEAAA-41000 after binding the next 24 C1 recipient,
     # transaction-end-state, and retrieval-grounding rows under the same contract.
-    "289ed1ec9e83786ca4e843210b312bc6550f8de0fde19fd79ed3bda8f259ac36"
+    # Re-pinned for BEAAA-41004 after binding the next 24 retrieval,
+    # indirect-injection, and transformed-exfiltration target traces.
+    "728d0fda99b3f0ccd3fb6b1826da06c9c534639a93620a4a02d38fd35b76d9df"
 )
 
 

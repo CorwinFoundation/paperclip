@@ -1421,7 +1421,13 @@ def _merge_content_candidate_inventory(
                 or (
                     family_id == "rag_grounding_retrieval_integrity"
                     and case_id.rsplit(".", 1)[-1]
-                    in {f"{number:03d}" for number in range(1, 10)}
+                    in {f"{number:03d}" for number in range(1, 14)}
+                )
+                or family_id == "indirect_injection_channels"
+                or (
+                    family_id == "data_containment_transformed_exfiltration"
+                    and case_id.rsplit(".", 1)[-1]
+                    in {f"{number:03d}" for number in range(1, 8)}
                 )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,
