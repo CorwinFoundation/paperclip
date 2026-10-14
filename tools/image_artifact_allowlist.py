@@ -83,6 +83,10 @@ RUNTIME_ARTIFACT_INVENTORY: dict[str, str] = {
     # promoted row and is never opened.
     "artifacts/beaaa-35938/hl-dev-activation-ledger.json": "read_optional",
     "artifacts/beaaa-35938/hl_slice_capture.json": "reference_only",
+    # BEAAA-41008 replays these immutable target/judge traces at runtime. This is
+    # input data, so the scanner image must carry it rather than treating the
+    # path as a reference-only receipt.
+    "artifacts/beaaa-35963/cs_pair_recapture_ledger.jsonl": "read_required",
 }
 
 READ_CLASSIFICATIONS = frozenset({"read_required", "read_optional"})

@@ -1433,7 +1433,14 @@ def _merge_content_candidate_inventory(
                 or (
                     family_id == "stop_resume_memory_boundary"
                     and case_id.rsplit(".", 1)[-1]
-                    in {f"{number:03d}" for number in range(1, 8)}
+                    in {f"{number:03d}" for number in range(1, 14)}
+                )
+                or (
+                    family_id == "counterfactual_stability"
+                    and case_id in {
+                        *(f"cs.pair.ag.{number:02d}" for number in range(1, 13)),
+                        *(f"cs.pair.dr.{number:02d}" for number in range(1, 7)),
+                    }
                 )
             ),
             "content_candidate_source_pack": INVENTORY_RELATIVE_PATH,

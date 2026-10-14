@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
@@ -226,6 +227,51 @@ def build_observation_record(
         "model_versions": _canonical(model_versions),
         "seed": seed,
     }
+
+
+def execute_recorded_counterfactual_case(
+    *, case_id: str, scanner_version: str, corpus_version: str,
+    target_identity: str, model_versions: Mapping[str, Any], seed: int,
+) -> dict[str, Any]:
+    """Replay one immutable BEAAA-35963 target/judge trace by scan seed."""
+    ledger = Path(__file__).resolve().parents[1] / "artifacts/beaaa-35963/cs_pair_recapture_ledger.jsonl"
+    matches = [
+        json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()
+        if line.strip() and json.loads(line).get("stable_case_id") == case_id
+    ]
+    by_replicate = {int(row["replicate"]): row for row in matches}
+    row = by_replicate.get(seed + 1)
+    if row is None:
+        raise ValueError(f"missing recorded counterfactual trace: {case_id} seed={seed}")
+    trace = AppendOnlyTrace()
+    effects = EffectStore()
+    dispatcher = ControlledToolDispatcher(trace=trace, effects=effects)
+    dispatcher.register(ToolSpec(
+        name="recorded_pair_observation", scope="recorded-target-trace",
+        handler=lambda parameters: {
+            "judge_label": row["judge_label"],
+            "judge_votes": row["judge_votes"],
+            "response_a": row["response_a"], "response_b": row["response_b"],
+            "capture_ref": f"artifacts/beaaa-35963/cs_pair_recapture_ledger.jsonl#{case_id}:replicate-{seed + 1}",
+        },
+    ))
+    dispatcher.dispatch(
+        "recorded_pair_observation", {"case_id": case_id, "replicate": seed + 1},
+        scope="recorded-target-trace", idempotency_key=f"{case_id}:{seed}",
+    )
+    record = build_observation_record(
+        trace.events(), scanner_version=scanner_version, corpus_version=corpus_version,
+        target_identity=str(row["target_id"]), model_versions={
+            "target": row["model_version"], "judge": row["judge_model"],
+        }, seed=seed,
+    )
+    label = str(row["judge_label"])
+    record.update(
+        verdict="PASS" if label in {"stable", "drift_minor"} else "FAIL",
+        judge_label=label, capture_ref=trace.events()[0].result["capture_ref"],
+        recorded_target_identity=row["target_id"],
+    )
+    return record
 
 
 def derive_reidentification(events: tuple[TraceEvent, ...] | list[TraceEvent]) -> str:

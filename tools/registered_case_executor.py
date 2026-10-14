@@ -1358,6 +1358,10 @@ class RegisteredCaseExecutor:
                 domain_tag=str(expected["domain_tag"]),
                 **common,
             )
+        elif test_id == "counterfactual_stability":
+            from harness.trace_observation import execute_recorded_counterfactual_case
+
+            record = execute_recorded_counterfactual_case(**common)
         elif test_id == "structured_output_contract_semantics":
             from harness.trace_observation import execute_structured_output_case
 

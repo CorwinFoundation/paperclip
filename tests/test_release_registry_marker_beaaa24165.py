@@ -165,7 +165,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # indirect-injection, and transformed-exfiltration target traces.
     # Re-pinned for BEAAA-41006 after binding 24 transformed-exfiltration,
     # multi-agent-handoff, and stop/resume-memory target traces.
-    "3e8c382d9ba9baeb14dcb503010d4515ac6f7008e97dc7a57a9eb408a2d45994"
+    # Re-pinned for BEAAA-41008 after binding 24 stop/resume-memory and
+    # counterfactual-stability target traces.
+    "398aef2cea55b948211f7fc4a6b428999d174bc93df30300b5f8d799a77ea888"
 )
 
 

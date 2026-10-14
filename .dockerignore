@@ -53,6 +53,9 @@ artifacts/BEAAA-33199/*
 !artifacts/beaaa-35380/
 artifacts/beaaa-35380/*
 !artifacts/beaaa-35380/tool-misuse-dev-activation-ledger.json
+!artifacts/beaaa-35963/
+artifacts/beaaa-35963/*
+!artifacts/beaaa-35963/cs_pair_recapture_ledger.jsonl
 !artifacts/beaaa-15436/
 !artifacts/beaaa-15436/BackBond-logo-on-white.png
 tmp/

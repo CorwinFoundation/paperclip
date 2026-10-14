@@ -518,28 +518,26 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # engineering observations, and BEAAA-40376 binds browser-surface action-
     # integrity observations, BEAAA-40377 binds cancellation-race lifecycle
     # observations, BEAAA-40425 binds persistent-memory observations, and
-    # BEAAA-40470 binds retrieval-source-trust observations, and BEAAA-40539
-    # binds file-upload/parser-boundary observations, and BEAAA-40583 binds
-        # data-residency/locality observations, BEAAA-40606 binds resource-
-        # budget-enforcement observations, BEAAA-40628 binds sandbox process/
-        # network boundary observations, BEAAA-40651 binds code-patch scope
-        # preservation observations, and BEAAA-40673 binds code-review
-        # regression observations, BEAAA-40798 binds paired-bias observations,
-            # BEAAA-40820 extends those observations to P2.3/P2.4,
-                # BEAAA-40842 extends them to P2.5/P2.6, BEAAA-40934 binds
-                # revocation-race observations, BEAAA-40978 binds C1
-                # authorization and recipient-integrity observations, and
-                    # BEAAA-41000 binds the next C1 target-trace slice, and
-                        # BEAAA-41004 binds retrieval, injection, and containment traces,
-                        # and BEAAA-41006 binds handoff and stop/resume traces.
-        # The same tranche1
+    # BEAAA-40470 binds retrieval-source-trust observations, BEAAA-40539 binds
+    # file-upload/parser-boundary observations, BEAAA-40583 binds data-residency/
+    # locality observations, BEAAA-40606 binds resource-budget-enforcement
+    # observations, BEAAA-40628 binds sandbox process/network boundary
+    # observations, BEAAA-40651 binds code-patch scope-preservation observations,
+    # BEAAA-40673 binds code-review regression observations, BEAAA-40798 binds
+    # paired-bias observations, BEAAA-40820 extends those observations to
+    # P2.3/P2.4, BEAAA-40842 extends them to P2.5/P2.6, BEAAA-40934 binds
+    # revocation-race observations, BEAAA-40978 binds C1 authorization and
+    # recipient-integrity observations, BEAAA-41000 binds the next C1 target-
+    # trace slice, BEAAA-41004 binds retrieval, injection, and containment
+    # traces, BEAAA-41006 binds handoff and stop/resume traces, and BEAAA-41008
+    # binds the next stop/resume and counterfactual-stability traces. The same tranche1
     # invariants remain unchanged;
     # only the embedded evaluator pin and this derived digest move.
     # Deriving the expected value from the manifest under test would
     # make the assertion self-fulfilling. After a legitimate evaluator change,
     # run this test once and review the observed digest before updating it.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "138df492816620e472a702238a6f6c6cb2ec26b5e71b84b187a8422aa22ec48c"
+        "3c604b88f918177f3f689568a1305b39c2d762777e5351861a1274dce0929dd2"
     )
 
 

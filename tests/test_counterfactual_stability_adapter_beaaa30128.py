@@ -25,7 +25,7 @@ def test_exact_counterfactual_roster_is_executable() -> None:
     assert count_active_executable(build_registry()) == 2_361
 
 
-def test_live_dispatch_records_60_verdicts_and_120_target_calls(tmp_path) -> None:
+def test_live_and_recorded_dispatch_records_60_verdicts(tmp_path) -> None:
     calls: list[str] = []
 
     def target(prompt: str) -> str:
@@ -41,9 +41,14 @@ def test_live_dispatch_records_60_verdicts_and_120_target_calls(tmp_path) -> Non
     outcomes = [executor._execute_case(row["test_id"], row["case_id"], row) for row in _rows()]
 
     assert len(outcomes) == 60
-    assert len(calls) == 120
-    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 60}
-    assert all(len(outcome["payloads"]) == len(outcome["responses"]) == 2 for outcome in outcomes)
+    # BEAAA-41008 binds 18 pairs to immutable recorded traces. The remaining 42
+    # pairs still dispatch both live target arms.
+    assert len(calls) == 84
+    # The immutable observations retain the measured result rather than turning
+    # recorded failures into synthetic passes.
+    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 50, "fail": 10}
+    assert Counter(len(outcome["payloads"]) for outcome in outcomes) == {2: 42, 0: 18}
+    assert all(len(outcome["payloads"]) == len(outcome["responses"]) for outcome in outcomes)
 
 
 def test_legacy_all_axes_executable_row_dispatches_without_candidate_lookup(tmp_path) -> None:
