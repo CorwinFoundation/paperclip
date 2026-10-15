@@ -147,6 +147,17 @@ def test_report_js_matches_build_output(tmp_path):
     shutil.copytree(RELEASE, copy, ignore=shutil.ignore_patterns("brand", "*.html"))
     subprocess.run([sys.executable, str(copy / "build.py")], check=True, capture_output=True)
     assert (copy / "scan" / "report.js").read_bytes() == (RELEASE / "scan" / "report.js").read_bytes()
+    source = (copy / "scan" / "report.js").read_text(encoding="utf-8")
+    # Rebased layout and verification are already in the baseline. Rebuilding
+    # must preserve them once, with evidence additions applied once as well.
+    for function in ("managementBrief", "combinedTests", "combinedBrief", "verification",
+                     "renderEvidenceRecord", "clearPrerender", "showError", "clearStatus"):
+        assert source.count(f"function {function}(") == 1, function
+    assert source.count("detail.className='test-evidence'") == 1
+    assert source.count("links.className='evidence-links'") == 1
+    assert "Unsupported incident statements are the clearest potential exposure." in source
+    assert "combined scoring boundary" in source
+
 
 
 def test_report_viewer_starts_recipient_verification_on_auth_challenge():

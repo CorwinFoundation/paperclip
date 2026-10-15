@@ -59,7 +59,15 @@ case "$1 $2" in
 esac
 case "$1" in
  create) [ -z "$STUB_CREATE_FAIL" ] || exit 71; : >"$STUB_CONTAINER_STATE"; echo manifest-inspection-container;;
- cp) [ -z "$STUB_CP_FAIL" ] || exit 72; [ -z "$STUB_PAUSE_CP" ] || sleep 30; cp "$STUB_MANIFEST_FILE" "$3";;
+ cp) [ -z "$STUB_CP_FAIL" ] || exit 72
+   if [ -n "$STUB_PAUSE_CP" ]; then
+     exec python3 -c 'import os, signal, sys; from pathlib import Path
+for sig in (signal.SIGINT, signal.SIGTERM):
+    signal.signal(sig, lambda signum, frame: sys.exit(128 + signum))
+Path(os.environ["STUB_CP_READY"]).touch()
+signal.pause()'
+   fi
+   cp "$STUB_MANIFEST_FILE" "$3";;
  rm) n=$(grep -c '^docker rm -f manifest-inspection-container' "{calls}"); [ -z "$STUB_RM_FAIL_PERSISTENT" ] || exit 74; [ -z "$STUB_RM_FAIL_ONCE" ] || [ "$n" -gt 1 ] || exit 74; rm -f "$STUB_CONTAINER_STATE";;
  tag) [ -z "$STUB_TAG_FAIL" ] || exit 76;;
 esac
@@ -307,6 +315,8 @@ def test_persistent_manifest_container_removal_failure_is_explicit(tmp_path):
 def test_manifest_preflight_signal_exits_nonzero_and_cleans_resources(tmp_path, sig, expected_rc):
     e, env_file, state, archive, archive_sha, calls = harness(tmp_path)
     e["STUB_PAUSE_CP"] = "1"
+    cp_ready = tmp_path / "cp.ready"
+    e["STUB_CP_READY"] = str(cp_ready)
     proc = subprocess.Popen(
         ["bash", str(HELPER), SHA, str(archive), DIGEST, archive_sha, CANDIDATE],
         env=e,
@@ -316,12 +326,24 @@ def test_manifest_preflight_signal_exits_nonzero_and_cleans_resources(tmp_path, 
         start_new_session=True,
     )
     container_state = Path(e["STUB_CONTAINER_STATE"])
-    deadline = time.monotonic() + 5
-    while not container_state.exists() and time.monotonic() < deadline:
-        time.sleep(0.02)
-    assert container_state.exists(), "inspection container was not allocated before signal"
-    os.killpg(proc.pid, sig)
-    _, stderr = proc.communicate(timeout=5)
+    try:
+        # Container allocation precedes command-substitution completion. Wait
+        # until extraction has installed its handlers so a later child cannot
+        # miss the process-group signal and keep the captured pipes open.
+        deadline = time.monotonic() + 5
+        while not cp_ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert cp_ready.exists(), "manifest extraction was not ready before signal"
+        assert container_state.exists()
+        os.killpg(proc.pid, sig)
+        _, stderr = proc.communicate(timeout=5)
+    finally:
+        # Also reap the whole test process group after an assertion or timeout.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.communicate(timeout=5)
     assert proc.returncode == expected_rc, stderr
     assert not container_state.exists()
     assert not list(tmp_path.glob("tmp.*"))
