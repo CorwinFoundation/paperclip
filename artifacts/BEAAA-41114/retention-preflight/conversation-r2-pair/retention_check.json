@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/conversation-r2-pair/conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "sha256": "2f7426a30f090a62fa1876aa1ec769525d50cf7145f412c6a03ae73a184eadf3"
+    },
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/conversation-r2-pair/oss_conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "sha256": "263e4446c058a04d16b3789ccc2e304a8cdb963728c3e4d56115f43224ba8401"
+    }
+  ],
+  "attempts": 6,
+  "attempts_ok": 6,
+  "replies_over_300_chars": 3,
+  "judge_records": 12,
+  "failures": []
+}

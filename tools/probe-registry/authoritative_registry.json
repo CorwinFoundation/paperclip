@@ -288,7 +288,7 @@
   "bucket_counts": {
     "attestation_only": 7,
     "declared_minimum_only": 208,
-    "fixture_test_only": 134,
+    "fixture_test_only": 136,
     "inactive_deferred": 8,
     "proxy_grade_non_customer_measured": 63,
     "report_only": 4,
@@ -309,10 +309,10 @@
     "executable": 2361,
     "executable_on_default_runtime": 119,
     "executed_in_latest_evidenced_run": 0,
-    "fixture_test_only": 134,
+    "fixture_test_only": 136,
     "inactive_deferred": 8,
     "proxy_grade": 63,
-    "registered": 2881,
+    "registered": 2883,
     "reported": 12,
     "scoring_active": 0
   },
@@ -80507,6 +80507,64 @@
         "version": "n/a"
       },
       "stable_id": "04a5ee7dce054719b861bb3ff34e2a658418c1fba7411d76f484967d788e6387"
+    },
+    {
+      "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "beaaa41114_count_gaps/jbb.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/beaaa41114_count_gaps/jbb.json",
+      "source_provenance": {
+        "path": "tests/fixtures/beaaa41114_count_gaps/jbb.json",
+        "version": "n/a"
+      },
+      "stable_id": "6a69a88f60333570927bf9f61d66c9fe9b01a1fdabaaa80d07537b914162414a"
+    },
+    {
+      "bucket": "fixture_test_only",
+      "case_id_or_probe_id": "beaaa41114_count_gaps/multijail.json",
+      "categories": {
+        "attestation_only": false,
+        "blocked_unsupported": false,
+        "executable": false,
+        "executable_on_default_runtime": false,
+        "executed_in_latest_evidenced_run": false,
+        "fixture_test_only": true,
+        "inactive_deferred": false,
+        "proxy_grade": false,
+        "registered": true,
+        "reported": false,
+        "scoring_active": false
+      },
+      "corpus_or_family": "tests/fixtures",
+      "framework": "fixture",
+      "framework_version": "n/a",
+      "mode": "fixture",
+      "reason": "fixture/test asset is not a production full-scan execution row",
+      "rubric_point_id": "n/a",
+      "source": "tests/fixtures/beaaa41114_count_gaps/multijail.json",
+      "source_provenance": {
+        "path": "tests/fixtures/beaaa41114_count_gaps/multijail.json",
+        "version": "n/a"
+      },
+      "stable_id": "259428f99a86b00c55556e035ebd9c885f2b97ca433a8be732240a6a44ae624a"
     },
     {
       "bucket": "fixture_test_only",

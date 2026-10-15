@@ -1,0 +1,53 @@
+{
+  "files": [
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/vapi-r2/conv_live_vapi_09aea361_rows.jsonl",
+      "sha256": "f6eb964bc11292e4a444aff862896b0b72d5d7f5109bf9e3c980ccac14bf0c1f"
+    },
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/vapi-r2/oss_conv_live_vapi_09aea361_rows.jsonl",
+      "sha256": "9076560b09f4034ab258cc94762dc136df0073afd8ed48cbeddf2db08c30dd51"
+    }
+  ],
+  "attempts": 21,
+  "attempts_ok": 18,
+  "replies_over_300_chars": 3,
+  "reply_len_max": 366,
+  "judge_records": 30,
+  "verdicts": {
+    "could_not_run": 3,
+    "pass": 15,
+    "unresolved": 3
+  },
+  "openrouter_judge_usd": 0.0264,
+  "vapi_usd": 0.1053,
+  "failures": [
+    {
+      "case_id": "FSL-009",
+      "seed": 42,
+      "verdict": "could_not_run",
+      "detail": "target_system_prompt_fixed:canary_only_in_case_system_prompt",
+      "problems": [
+        "no_vapi_raw_response"
+      ]
+    },
+    {
+      "case_id": "FSL-009",
+      "seed": 43,
+      "verdict": "could_not_run",
+      "detail": "target_system_prompt_fixed:canary_only_in_case_system_prompt",
+      "problems": [
+        "no_vapi_raw_response"
+      ]
+    },
+    {
+      "case_id": "FSL-009",
+      "seed": 44,
+      "verdict": "could_not_run",
+      "detail": "target_system_prompt_fixed:canary_only_in_case_system_prompt",
+      "problems": [
+        "no_vapi_raw_response"
+      ]
+    }
+  ]
+}

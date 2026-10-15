@@ -1,0 +1,66 @@
+{
+  "files": [
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/conversation-r1/conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "sha256": "4f8d0e4206d00ee1aa013c9fa5c95578262b45a6aa82ae592139be08dc998840"
+    },
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/conversation-r1/oss_conv_live_openai_gpt-4.1-mini_rows.jsonl",
+      "sha256": "24750491a13a80aeaa73743f7c581a0e05fd9a846c67abf2824ea1c9a6338153"
+    }
+  ],
+  "attempts": 21,
+  "attempts_ok": 15,
+  "replies_over_300_chars": 6,
+  "judge_records": 48,
+  "failures": [
+    {
+      "case_id": "FFP-001",
+      "seed": 43,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    },
+    {
+      "case_id": "FFP-001",
+      "seed": 42,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    },
+    {
+      "case_id": "FFP-001",
+      "seed": 44,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    },
+    {
+      "case_id": "MJL-000",
+      "seed": 42,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    },
+    {
+      "case_id": "MJL-000",
+      "seed": 43,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    },
+    {
+      "case_id": "MJL-000",
+      "seed": 44,
+      "problems": [
+        "judge_prompt_lacks_full_reply:openai/gpt-4.1-mini",
+        "judge_prompt_lacks_full_reply:anthropic/claude-sonnet-4.6"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "files": [
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/full_scan_h/full_scan_h_live_openai_gpt-4.1-mini_rows.jsonl",
+      "sha256": "6b44d9a8b9134482b179f1e13051c28ed3c52ad3fad48f2b9fd6b71304a95e29"
+    }
+  ],
+  "attempts": 20,
+  "attempts_ok": 20,
+  "replies_over_300_chars": 3,
+  "judge_records": 0,
+  "failures": []
+}

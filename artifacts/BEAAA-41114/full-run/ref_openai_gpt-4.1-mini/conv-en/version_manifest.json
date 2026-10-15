@@ -1,0 +1,35 @@
+{
+ "branch_head": "47e57267126110462bd8116cdb04e04f97d3dfaf",
+ "master_base": "e98c300218937d58494311fa6a1cd59c424cf97a",
+ "corpus": "conv-en",
+ "pack_ids": [
+  "full-scan-conv-en@0.1",
+  "full-scan-conv-en@0.2",
+  "full-scan-conv-en@0.3",
+  "full-scan-conv-en@0.4",
+  "full-scan-conv-en@0.5",
+  "full-scan-conv-en@0.6"
+ ],
+ "oss_pack_ids": [
+  "full-scan-oss-jbb@1.0",
+  "full-scan-oss-xstest@1.0",
+  "full-scan-oss-strongreject@1.0",
+  "full-scan-oss-harmbench@1.0",
+  "full-scan-oss-multijail@1.0",
+  "full-scan-oss-cyberseceval@1.0"
+ ],
+ "cases": 2350,
+ "oss_cases": 1734,
+ "target_model": "openai/gpt-4.1-mini",
+ "judge_models": [
+  "openai/gpt-4.1-mini",
+  "anthropic/claude-sonnet-4.6"
+ ],
+ "seeds": [
+  42,
+  43,
+  44
+ ],
+ "cap_usd": 16.0,
+ "workers": 12
+}

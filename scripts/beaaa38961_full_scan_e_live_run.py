@@ -114,20 +114,26 @@ def _surface(r: dict[str, Any]) -> str:
     return case.surfaces[0]
 
 
-fse_by_id = {s.stable_id: s for s in fse.SCENARIOS}
+fse_by_id = {s.stable_id: s for s in fse.FULL_SCAN_E_SCENARIOS}
 
 
-def _trim(env: dict[str, Any]) -> dict[str, Any]:
-    keep = ("stable_id", "kind", "domain", "planted_violation", "state_precondition", "verdict",
-            "model_versions", "seed", "checks", "before_state", "observed_state", "expected_state",
-            "mutating_calls", "expected_tool_calls", "evidence_refs")
-    out = {k: env.get(k) for k in keep}
-    turns = env.get("transcript", {}).get("turns", [])
-    out["transcript_excerpt"] = [
-        {"user": t.get("user_message", "")[:400], "assistant": (t.get("assistant_text") or "")[:400]}
-        for t in turns
-    ]
-    return out
+def _retained(env: dict[str, Any], corpus: str) -> dict[str, Any]:
+    """BEAAA-41114: keep the complete envelope (full transcript, tool calls, ledger, states)."""
+    return {"runner": "full_scan_e", "corpus": corpus, **env}
+
+
+# Only the first wave has a live driver. The second wave (Full Scan U,
+# evals.full_scan_e_second_wave) is grader-only: no user turns or tool surface,
+# host_runtime_required=True, so it cannot run through fse.run_scenario.
+CORPORA = {
+    "first-wave": lambda: fse.unique_representatives(),
+}
+
+
+def _done_keys(path: Path) -> set[tuple[str, int]]:
+    if not path.exists():
+        return set()
+    return {(r["stable_id"], r["seed"]) for r in map(json.loads, path.read_text().splitlines()) if r.get("stable_id")}
 
 
 def _exception_outcome(exc: Exception) -> str:
@@ -157,13 +163,20 @@ def main() -> int:
     ap.add_argument("--cap-usd", type=float, default=10.0)
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--limit", type=int, default=0, help="first N interleaved cases (smoke)")
+    ap.add_argument("--corpus", choices=sorted(CORPORA), default="first-wave")
+    ap.add_argument("--case-ids", nargs="*", default=None)
+    ap.add_argument("--resume", action="store_true",
+                    help="keep retained rows in --out and skip (stable_id, seed) already retained")
     ap.add_argument("--out", default="artifacts/BEAAA-38925")
     args = ap.parse_args()
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise SystemExit("OPENROUTER_API_KEY not set")
 
-    cases = _interleave(fse.unique_representatives())
+    cases = _interleave(CORPORA[args.corpus]())
+    if args.case_ids:
+        wanted = set(args.case_ids)
+        cases = [c for c in cases if c.stable_id in wanted]
     if args.limit:
         cases = cases[: args.limit]
     meter = Meter(args.model, args.cap_usd)
@@ -185,8 +198,10 @@ def main() -> int:
     tag = args.model.replace("/", "_")
     partial_rows = out / f"full_scan_e_live_{tag}_partial_rows.jsonl"
     partial_errors = out / f"full_scan_e_live_{tag}_partial_outcomes.jsonl"
-    partial_rows.write_text("", encoding="utf-8")
-    partial_errors.write_text("", encoding="utf-8")
+    done = _done_keys(partial_rows) if args.resume else set()
+    if not args.resume:
+        partial_rows.write_text("", encoding="utf-8")
+        partial_errors.write_text("", encoding="utf-8")
 
     def run_case(case):
         if meter.usd >= args.cap_usd - stop_margin:
@@ -194,6 +209,8 @@ def main() -> int:
                 skipped.append(case.stable_id)
             return
         for seed in range(args.k):
+            if (case.stable_id, seed) in done:
+                continue
             try:
                 env = fse.run_scenario(case, factory, seed=seed)
             except Exception as exc:  # network / provider errors are reported, never graded
@@ -205,7 +222,7 @@ def main() -> int:
                 continue
             with lock:
                 results.append(env)
-            _append_jsonl(partial_rows, _trim(env), lock)
+            _append_jsonl(partial_rows, _retained(env, args.corpus), lock)
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         list(pool.map(run_case, cases))
@@ -216,7 +233,7 @@ def main() -> int:
         surf = _surface(r)
         side = "planted" if r["planted_violation"] else "normal"
         row = by_surface.setdefault(surf, {}).setdefault(side, {"pass": 0, "fail": 0, "not_applicable": 0})
-        row[r["verdict"]] += 1
+        row[r["verdict"]] = row.get(r["verdict"], 0) + 1
         unique_by_surface[surf].add(r["stable_id"])
 
     fail = next((r for r in results if r["verdict"] == "fail" and r["planted_violation"]), None)
@@ -230,7 +247,7 @@ def main() -> int:
         "adapter": args.adapter, "model": args.model, "k": args.k,
         "scanner_version": fse.SCANNER_VERSION, "corpus_version": fse.CORPUS_VERSION,
         "probe_set_version": fse.PROBE_SET_VERSION, "rubric_point_id": fse.RUBRIC_POINT_ID,
-        "unique_cases_in_catalogue": len(fse.unique_representatives()),
+        "corpus": args.corpus, "unique_cases_in_catalogue": len(CORPORA[args.corpus]()),
         "unique_cases_executed": len({r["stable_id"] for r in results}),
         "source_key_count_status": "source-defined; semantic uniqueness unverified unless fingerprinted",
         "semantic_uniqueness": {
@@ -273,7 +290,7 @@ def main() -> int:
     (out / f"full_scan_e_live_{tag}_summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     if fail:
         (out / f"full_scan_e_live_{tag}_fail_envelope.json").write_text(
-            json.dumps(_trim(fail), indent=2, sort_keys=True, default=str) + "\n")
+            json.dumps(_retained(fail, args.corpus), indent=2, sort_keys=True, default=str) + "\n")
     rows = [{k: r.get(k) for k in ("stable_id", "kind", "domain", "planted_violation", "state_precondition",
                                     "seed", "verdict", "checks")} | {"surface": _surface(r),
             "mutating_tools": [c["tool_name"] for c in r["mutating_calls"]]} for r in results]

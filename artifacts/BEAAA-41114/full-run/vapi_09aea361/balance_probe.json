@@ -1,0 +1,4 @@
+{"probed_at_utc": "2026-10-15T14:01Z", "key": "VAPI_API_KEY (seat secret_ref, private key)",
+ "results": {"GET /assistant/09aea361-04b3-4a62-bcb0-2f2582f11ec8": 200, "GET /org": 401, "GET /org/{orgId}": 401,
+  "GET /subscription": 404, "GET /org/{orgId}/subscription": 404, "GET /org/{orgId}/credits": 404, "GET /credit": 404, "GET /billing": 404, "GET /account": 404, "GET /analytics": 404},
+ "conclusion": "The bound VAPI private key cannot read organisation or subscription data, so no before/after account balance is available via the API. VAPI spend is reported only from per-chat cost fields retained per row (vapi_cost_usd)."}

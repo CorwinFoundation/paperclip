@@ -1,0 +1,30 @@
+== 2026-10-15T19:27:50Z start artifacts/BEAAA-41114/full-run/vapi_09aea361/oss/oss_conv_live_vapi_09aea361_rows.jsonl cap=6.99
+{
+ "pending": 432,
+ "written": 432,
+ "verdicts": {
+  "pass": 274,
+  "unresolved": 149,
+  "fail": 9
+ },
+ "spend_usd": 1.1918,
+ "stopped_on_402": false,
+ "stopped_on_cap": false
+}
+== 2026-10-15T19:30:14Z done rc=0 artifacts/BEAAA-41114/full-run/vapi_09aea361/oss/oss_conv_live_vapi_09aea361_rows.jsonl
+== 2026-10-15T19:30:14Z start artifacts/BEAAA-41114/full-run/vapi_09aea361/conv-en/conv_live_vapi_09aea361_rows.jsonl cap=5.7982
+{
+ "pending": 2009,
+ "written": 2009,
+ "verdicts": {
+  "pass": 752,
+  "unresolved": 297,
+  "fail": 960
+ },
+ "spend_usd": 4.7533,
+ "stopped_on_402": false,
+ "stopped_on_cap": false
+}
+== 2026-10-15T19:39:40Z done rc=0 artifacts/BEAAA-41114/full-run/vapi_09aea361/conv-en/conv_live_vapi_09aea361_rows.jsonl
+== 2026-10-15T19:39:40Z FINISHED rc=0 left=1.0449
+comment posted

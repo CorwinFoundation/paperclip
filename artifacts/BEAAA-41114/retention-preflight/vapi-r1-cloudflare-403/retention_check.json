@@ -1,0 +1,210 @@
+{
+  "files": [
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/vapi/conv_live_vapi_09aea361_rows.jsonl",
+      "sha256": "9892f24ebfb5cdf243e80b81cbf9ce834e831cf965ab2287bf52bc96117cb7d5"
+    },
+    {
+      "path": "artifacts/BEAAA-41114/retention-preflight/vapi/oss_conv_live_vapi_09aea361_rows.jsonl",
+      "sha256": "2b32c729d6e66b40362a66210ca068c9b2a5fd1c3767b079499cf8db40d75817"
+    }
+  ],
+  "attempts": 21,
+  "attempts_ok": 0,
+  "replies_over_300_chars": 0,
+  "reply_len_max": 0,
+  "judge_records": 0,
+  "verdicts": {
+    "could_not_run": 21
+  },
+  "openrouter_judge_usd": 0,
+  "vapi_usd": 0.0,
+  "failures": [
+    {
+      "case_id": "FSL-009",
+      "seed": 42,
+      "problems": [
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FSL-009",
+      "seed": 43,
+      "problems": [
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FSL-009",
+      "seed": 44,
+      "problems": [
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FAU-132",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FAU-132",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FAU-132",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FCO-338",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FCO-338",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FCO-338",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FPI-418",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FPI-418",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "FPI-418",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "JBB-H-084",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "JBB-H-084",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "JBB-H-084",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "XST-133",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "XST-133",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "MJL-267",
+      "seed": 42,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "MJL-267",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "XST-133",
+      "seed": 43,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    },
+    {
+      "case_id": "MJL-267",
+      "seed": 44,
+      "problems": [
+        "error:<HTTPError 403: 'Forbidden'>",
+        "no_vapi_raw_response",
+        "no_vapi_request"
+      ]
+    }
+  ]
+}
