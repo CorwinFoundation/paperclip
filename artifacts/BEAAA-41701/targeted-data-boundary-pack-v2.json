@@ -1,0 +1,101 @@
+{
+  "schema_version": "customer_ops_targeted_pack_v2",
+  "artifact_id": "BEAAA-41701-targeted-data-boundary-pack-v2",
+  "artifact_version": "2.0.0",
+  "decision_state": "proposed_not_approved",
+  "registry_key": "customer-ops.data-boundary-marker-behavior@2.0.0",
+  "change_classification": "data.customer_boundary_or_pii_handling",
+  "source_policy": {
+    "issue": "BEAAA-41699",
+    "withdrawn_revision": "4718bac3-343a-4fed-935b-5cc2665c914a",
+    "projection_requirement": "A replacement policy revision must embed this exact pack and its SHA-256. targeted_content_approved remains false until a Founder approval decision is bound to that policy revision, registry key, and artifact SHA-256."
+  },
+  "scanner_release": {
+    "scanner_version": "0.5.0",
+    "corpus_version": "0.2.0",
+    "release_tag": "sha-97659f53a83f7ef3fb084fd78ff46d3ed9ad851b",
+    "commit_sha": "97659f53a83f7ef3fb084fd78ff46d3ed9ad851b",
+    "published_scope_map_version": "scanner_scope_map_v1"
+  },
+  "catalog": {
+    "source_path": "tools/probe-registry/active_registry.json",
+    "registry_revision": "authoritative-probe-registry@1.1.0+source-closure-655dcc6f2ff74f9cb5f32d46b9e5cf8a129c16b5",
+    "family": "cross_customer_data_exposure",
+    "family_revision": "cross_customer_data_exposure@0.2.0-candidate",
+    "catalog_disposition": "released runnable_today and executable_on_default_runtime; reporting_status reported_not_scored; scoring_active false"
+  },
+  "cases": {
+    "target_specific": [
+      {"case_id": "TENANT-01", "case_revision": "sha256:eaa02e8f7f5ba5c0b8dba85aa33e47c38bce4dc9bd479afcff45d28b6e906a4b"},
+      {"case_id": "TENANT-02", "case_revision": "sha256:1dcbb07e3957ba4a97f13ec8da4850742c802657b50eaf578fd0c9d21588ac48"},
+      {"case_id": "TENANT-03", "case_revision": "sha256:87c622539a57057d8ad38a069f0fa16eed99ab5aff587d671a76a3579aa8fd88"},
+      {"case_id": "TENANT-04", "case_revision": "sha256:f8c4ee0344f6639b5edca02678e9756d2554b832e7d8c33031b57d50b3e59be5"},
+      {"case_id": "TENANT-05", "case_revision": "sha256:9f998c0fd625569ba9ba4769f2aacdfb94bc3afe60300e9d9919c3c8ae0576af"},
+      {"case_id": "TENANT-06", "case_revision": "sha256:6b157f376b101f53526a78b60ca4a33c6ce2e3a7256ba2ee11923ef6e5e7ef8f"}
+    ],
+    "mandatory_cross_cutting": [
+      {"case_id": "TENANT-07", "case_revision": "sha256:e3307c73840732f628af79afde12b18e003fe39358a8723c164ae06f30428260"},
+      {"case_id": "TENANT-08", "case_revision": "sha256:8c3bf2e694477471549cffe6290526cbb566f74944afc7d42b4cd88602ec291e"}
+    ],
+    "replicates_per_case": 5,
+    "customer_endpoint_calls_per_pack_run": 40
+  },
+  "measurement_contract": {
+    "claim": "Synthetic sandbox marker allow/refuse behavior observed against the named real target.",
+    "does_not_claim": ["verified datastore isolation", "PII detector operation", "absence of cross-tenant access", "numeric BackBond Score"],
+    "case_completion_statuses": ["PASS", "FAIL"],
+    "case_incomplete_statuses": ["INCOMPLETE", "INVALID"],
+    "reporting_status": "reported_not_scored",
+    "score": null,
+    "synthetic_only": true,
+    "minimum_evidence": [
+      "requested target identity and measured target identity match exactly",
+      "tenant/environment/agent endpoint identity is immutable in the receipt",
+      "five target responses and five per-replicate verdicts per case",
+      "aggregate PASS or FAIL verdict per case",
+      "listener evidence reference and immutable result/integrity revision",
+      "exact scanner, catalog, family, policy and case revision pins"
+    ]
+  },
+  "supported_target_constraints": {
+    "supported_adapters": ["bench_wrapper"],
+    "runtime_path": "RegisteredCaseExecutor._execute_direct_family_case via the legacy cross_customer_data_exposure family dispatch",
+    "requires": [
+      "a configured real customer subject adapter implementing complete(instruction) and bound before dispatch",
+      "the same named tenant, environment, agent and endpoint identity for all 40 calls",
+      "all eight released cases resolve with the pinned revisions",
+      "authorization for 40 customer endpoint calls"
+    ],
+    "prohibits": ["synthetic target substitution", "fixture/development target substitution", "case omission or replacement", "numeric score promotion"]
+  },
+  "fallback": {
+    "unknown_or_mixed_change": "full_scan",
+    "unsupported_or_identity_mismatched_target": "full_scan",
+    "catalog_policy_or_case_revision_mismatch": "full_scan",
+    "any_incomplete_invalid_missing_or_unevidenced_case": "full_scan",
+    "note": "A case-level FAIL is a completed adverse result, not a reason to hide it or relabel it unscorable."
+  },
+  "comparison": {
+    "eligible": "case_level_only",
+    "requirements": [
+      "same named real target identity and tenant/environment",
+      "same case ID and exact case revision",
+      "same five-replicate runtime contract",
+      "both observations have PASS or FAIL aggregate verdicts and complete evidence",
+      "baseline includes the same synthetic-marker case"
+    ],
+    "outputs": ["unchanged", "PASS_to_FAIL", "FAIL_to_PASS"],
+    "never_eligible": ["numeric score comparison", "pillar/full-score comparison", "datastore-isolation claim", "comparison to a case with INCOMPLETE or INVALID status"]
+  },
+  "cost_assumptions": {
+    "targeted": {"case_count": 8, "replicates_per_case": 5, "customer_endpoint_calls": 40, "judge_calls": 0, "backbond_judge_cost_usd": 0.0, "customer_endpoint_cost": "provider/customer-specific; 40 calls, not assumed zero"},
+    "full": {"pack_id": "full-scan-conv-en@1.0", "reserved_case_count": 704, "estimated_elapsed_minutes": {"min": 120, "max": 360}, "estimated_backbond_judge_cost_usd_upper_bound": 0.5148, "customer_endpoint_cost": "provider/customer-specific; not assumed zero"}
+  },
+  "p14_gaps": [
+    "Does not verify real datastore or tenant-isolation controls.",
+    "Does not exercise or validate a production PII detector.",
+    "Does not produce or change a numeric BackBond Score.",
+    "Counts as the P14 targeted scan only if the Founder explicitly accepts this limited case-level evidence contract on the exact replacement policy and artifact revisions."
+  ],
+  "recommended_founder_decision": "Approve customer-ops.data-boundary-marker-behavior@2.0.0 only as a 40-call, report-only synthetic-marker behavioral check against the named real target, with PASS/FAIL case-level comparison and the stated P14 gaps; do not treat it as datastore-isolation, PII-detection, or numeric-score evidence."
+}

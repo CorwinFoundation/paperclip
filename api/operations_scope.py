@@ -16,6 +16,87 @@ class ScopeValidationError(ValueError):
     """A submitted scope does not match the pinned registry snapshot."""
 
 
+def project_targeted_scope_registry(
+    *, catalog: Mapping[str, Any], policy: Mapping[str, Any],
+    policy_revision: str, registry_key: str,
+    founder_decision: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Project an exact policy pack over an immutable released catalog.
+
+    A catalog proves release/executability, not approval. Runtime activation
+    requires a Founder decision independently bound to the exact policy
+    revision and pack artifact hash.
+    """
+    if not policy_revision:
+        raise ScopeValidationError("policy_revision_required")
+    packs = policy.get("targeted_packs")
+    if not isinstance(packs, Mapping) or not isinstance(packs.get(registry_key), Mapping):
+        raise ScopeValidationError("targeted_pack_unknown")
+    pack = dict(packs[registry_key])
+    if pack.get("registry_key") != registry_key:
+        raise ScopeValidationError("targeted_pack_registry_key_mismatch")
+    artifact = pack.get("pack_artifact")
+    if not isinstance(artifact, Mapping) or not isinstance(artifact.get("sha256"), str):
+        raise ScopeValidationError("targeted_pack_artifact_pin_required")
+    catalog_revision = _catalog_revision(catalog)
+    expected_revision = (pack.get("catalog") or {}).get("registry_revision")
+    if expected_revision != catalog_revision:
+        raise ScopeValidationError("targeted_pack_catalog_revision_mismatch")
+    family = (pack.get("catalog") or {}).get("family")
+    family_revision = (pack.get("catalog") or {}).get("family_revision")
+    if not isinstance(family, str) or not isinstance(family_revision, str):
+        raise ScopeValidationError("targeted_pack_family_pin_required")
+    constraints = pack.get("supported_target_constraints")
+    if not isinstance(constraints, Mapping) or not _nonempty_string_list(constraints.get("supported_adapters")):
+        raise ScopeValidationError("supported_adapters_required")
+    supported_adapters = list(constraints["supported_adapters"])
+    catalog_rows = catalog.get("rows")
+    if not isinstance(catalog_rows, Sequence) or isinstance(catalog_rows, (str, bytes)):
+        raise ScopeValidationError("catalog_rows_invalid")
+    by_id: dict[str, Mapping[str, Any]] = {}
+    for row in catalog_rows:
+        if not isinstance(row, Mapping):
+            raise ScopeValidationError("catalog_row_invalid")
+        case_id = row.get("case_id_or_probe_id")
+        if isinstance(case_id, str) and row.get("corpus_or_family") == family:
+            if case_id in by_id:
+                raise ScopeValidationError("catalog_case_id_duplicate:" + case_id)
+            by_id[case_id] = row
+    approved = _founder_decision_approves(
+        founder_decision, policy_revision=policy_revision, registry_key=registry_key,
+        artifact_sha256=str(artifact["sha256"]),
+    )
+    projected: list[dict[str, Any]] = []
+    for entry in _pack_case_entries(pack):
+        case_id, case_revision = entry.get("case_id"), entry.get("case_revision")
+        if not isinstance(case_id, str) or not isinstance(case_revision, str):
+            raise ScopeValidationError("targeted_pack_case_pin_invalid")
+        row = by_id.get(case_id)
+        if row is None:
+            raise ScopeValidationError("targeted_pack_case_missing:" + case_id)
+        if row.get("stable_id") != case_revision.removeprefix("sha256:"):
+            raise ScopeValidationError("targeted_pack_case_revision_mismatch:" + case_id)
+        categories = row.get("categories") or {}
+        supported = bool(
+            row.get("corpus_or_family") == family
+            and row.get("version_pin") == family_revision
+            and categories.get("executable") is True
+            and categories.get("executable_on_default_runtime") is True
+            and row.get("worker_runner") in supported_adapters
+        )
+        projected.append({
+            "case_id": case_id, "case_revision": case_revision, "scope_id": registry_key,
+            "source_catalog_revision": catalog_revision, "source_policy_revision": policy_revision,
+            "targeted_content_approved": approved, "targeted_supported": supported,
+            "supported_adapters": supported_adapters,
+            "reporting_status": "reported_not_scored", "numeric_score_eligible": False,
+            "completion_verdicts": ["PASS", "FAIL"],
+            "incomplete_verdicts": ["INCOMPLETE", "INVALID"],
+            "evidence_semantics": "synthetic_marker_behavior_against_named_real_target",
+        })
+    return projected
+
+
 def validate_scope_selection(
     selection: Mapping[str, Any],
     *,
@@ -120,17 +201,17 @@ def reconcile_scope_execution(
     requested = set(_string_list(scope.get("requested_case_ids", []), "requested_cases_invalid"))
     rows = [dict(row) for row in execution_rows]
     attempted = {str(row.get("case_id")) for row in rows if row.get("case_id")}
-    terminal_states = {"complete", "completed", "passed", "failed", "error", "unsupported", "skipped"}
-    scorable_states = {"complete", "completed", "passed", "failed"}
+    terminal_states = {"complete", "completed", "passed", "failed", "pass", "fail", "error", "unsupported", "skipped", "incomplete", "invalid"}
+    gradeable_states = {"complete", "completed", "passed", "failed", "pass", "fail"}
     terminal = {
         str(row["case_id"]) for row in rows
-        if row.get("case_id") and str(row.get("status") or "").lower() in terminal_states
+        if row.get("case_id") and str(row.get("status") or row.get("verdict") or "").lower() in terminal_states
     }
-    scorable = {
+    gradeable = {
         str(row["case_id"]) for row in rows
-        if row.get("case_id") and str(row.get("status") or "").lower() in scorable_states
+        if row.get("case_id") and str(row.get("status") or row.get("verdict") or "").lower() in gradeable_states
     }
-    unscorable = terminal - scorable
+    ungradeable = terminal - gradeable
     evidenced = {
         str(row["case_id"]) for row in rows
         if row.get("case_id") and (
@@ -139,15 +220,17 @@ def reconcile_scope_execution(
     }
     unexpected = attempted - requested
     complete = (
-        requested == attempted == terminal == scorable == evidenced
+        requested == attempted == terminal == gradeable == evidenced
         and not unexpected
     )
     return {
         "requested": sorted(requested),
         "attempted": sorted(attempted),
         "terminal": sorted(terminal),
-        "scorable": sorted(scorable),
-        "unscorable": sorted(unscorable),
+        "scorable": sorted(gradeable),
+        "unscorable": sorted(ungradeable),
+        "gradeable": sorted(gradeable),
+        "ungradeable": sorted(ungradeable),
         "evidenced": sorted(evidenced),
         "missing_attempted": sorted(requested - attempted),
         "missing_terminal": sorted(requested - terminal),
@@ -156,6 +239,45 @@ def reconcile_scope_execution(
         "complete": complete,
         "may_claim_full_score": bool(scope.get("complete")) and complete,
     }
+
+
+def _catalog_revision(catalog: Mapping[str, Any]) -> str:
+    metadata = catalog.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ScopeValidationError("catalog_metadata_invalid")
+    revision, closure = metadata.get("probe_set_version"), metadata.get("source_closure_sha")
+    if not isinstance(revision, str) or not isinstance(closure, str):
+        raise ScopeValidationError("catalog_revision_invalid")
+    return f"{revision}+source-closure-{closure}"
+
+
+def _pack_case_entries(pack: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    cases = pack.get("cases")
+    if not isinstance(cases, Mapping):
+        raise ScopeValidationError("targeted_pack_cases_invalid")
+    entries: list[Mapping[str, Any]] = []
+    for group in ("target_specific", "mandatory_cross_cutting"):
+        value = cases.get(group)
+        if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+            raise ScopeValidationError("targeted_pack_cases_invalid")
+        entries.extend(value)
+    if not entries:
+        raise ScopeValidationError("targeted_pack_cases_empty")
+    return entries
+
+
+def _nonempty_string_list(value: Any) -> bool:
+    return bool(value) and isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and all(isinstance(item, str) and item for item in value)
+
+
+def _founder_decision_approves(decision: Mapping[str, Any] | None, *, policy_revision: str, registry_key: str, artifact_sha256: str) -> bool:
+    return bool(
+        decision and decision.get("decision") == "approved"
+        and decision.get("approver_role") == "Founder"
+        and decision.get("policy_revision") == policy_revision
+        and decision.get("registry_key") == registry_key
+        and decision.get("pack_artifact_sha256") == artifact_sha256
+    )
 
 
 def _string_list(value: Any, error: str) -> list[str]:
