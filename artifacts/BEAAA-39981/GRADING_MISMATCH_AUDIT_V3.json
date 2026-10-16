@@ -1,0 +1,31 @@
+{
+  "generator_version": "byo-policy-cases@0.1.1",
+  "method": "A mismatch is counted when a generated reference/pass rule names a different parsed policy topic than the row clause. Source binding requires the full original clause in the executable grading contract.",
+  "kaltura": {
+    "cases": 190,
+    "cross_clause_topic_mismatches_before": 84,
+    "cross_clause_topic_mismatches_after": 0,
+    "source_bound_grading_before": 0,
+    "source_bound_grading_after": 190,
+    "role_labels_without_role_play_prompt": 8,
+    "action": "All 190 regraded against their original clause. Eight ROLE labels, including sample 2, are not admitted as role-play coverage; case IDs and user turns remain unchanged."
+  },
+  "fictional_policy_sets": {
+    "policies": 33,
+    "cases_before": 2457,
+    "cases_after_regeneration": 2433,
+    "cross_clause_topic_mismatches_before": 1152,
+    "cross_clause_topic_mismatches_after": 0,
+    "policies_affected_before": 33,
+    "source_bound_grading_before": 17,
+    "source_bound_grading_after": 2433,
+    "case_count_delta_reason": "Clause-local topics changed near-duplicate selection; 24 formerly distinct cross-topic rows collapsed under the existing uniqueness gate."
+  },
+  "constraints": {
+    "live_kaltura_run_started": false,
+    "new_target_traffic": false,
+    "external_communication": false,
+    "additional_model_spend_usd": 0,
+    "score_promotion": false
+  }
+}

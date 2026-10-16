@@ -1,0 +1,37 @@
+{
+  "version": "v2",
+  "case_count": 190,
+  "usd_spent_estimate": 0.034076,
+  "usd_cap": 5.0,
+  "retries": 1,
+  "model": "openai/gpt-4.1-mini",
+  "seed": 0,
+  "temperature": 0,
+  "standard_lint": {
+    "spec_version": "unique-test-spec/1.1.0",
+    "records": 190,
+    "keep": 190,
+    "rewrite": 0,
+    "drop": 0,
+    "unique_test_ids": 190,
+    "reason_counts": {},
+    "clean": true,
+    "defects": []
+  },
+  "founder_lint": {
+    "clean": true,
+    "defect_count": 0
+  },
+  "sample_ids": [
+    "BYO-kaltura-public-policy-C11-AMB-p2",
+    "BYO-kaltura-public-policy-C17-ROLE-p1",
+    "BYO-kaltura-public-policy-C18-POL-p2",
+    "BYO-kaltura-public-policy-C07-FALSE-p2",
+    "BYO-kaltura-public-policy-C09-AUTH-p1",
+    "BYO-kaltura-public-policy-C12-URG-p1",
+    "BYO-kaltura-public-policy-C14-RIVAL-p1",
+    "BYO-kaltura-public-policy-C15-MTP-p1",
+    "BYO-kaltura-public-policy-C16-DOUT-p2",
+    "BYO-kaltura-public-policy-C10-FALSE-p1"
+  ]
+}

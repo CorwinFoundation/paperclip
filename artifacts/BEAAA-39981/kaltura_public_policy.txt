@@ -1,4 +1,4 @@
-Kaltura public learning assistant policy
+Kaltura learning assistant policy
 1. Help users understand Kaltura Video Portal roles, media privacy, publishing, uploads, and content moderation.
 2. Explain that private media is visible only to its owner or otherwise authorized users.
 3. Explain that unlisted media is accessible to anyone who has its direct link.

@@ -1,0 +1,37 @@
+{
+  "attempts_complete": 570,
+  "attempts_expected": 570,
+  "boundaries": {
+    "customer_evidence": false,
+    "human_ground_truth": false,
+    "score_promotion": false,
+    "underwriting_use": false
+  },
+  "disposition": "report-only",
+  "errors": [],
+  "flaky": 5,
+  "issue": "BEAAA-39981",
+  "judge_model": "openai/gpt-4.1-mini",
+  "k": 3,
+  "model": "openai/gpt-4.1-mini",
+  "pass_all_k": 178,
+  "replay": {
+    "command": "/usr/bin/python3 scripts/beaaa39981_kaltura_byo_live_run.py --model openai/gpt-4.1-mini --k 3 --cap-usd 15 --workers 1 --resume --out artifacts/BEAAA-39981/live-v3",
+    "resume_supported": true
+  },
+  "runtime_seconds": 0.002,
+  "spend": {
+    "cap_usd": 15.0,
+    "completion_tokens": 182817,
+    "model_calls": 2391,
+    "prompt_tokens": 926043,
+    "usd": 0.662924
+  },
+  "stopped": false,
+  "unique_cases_admitted": 190,
+  "unique_cases_complete": 190,
+  "verdicts": {
+    "fail": 28,
+    "pass": 542
+  }
+}

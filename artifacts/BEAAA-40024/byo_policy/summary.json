@@ -1,12 +1,12 @@
 {
-  "generator_version": "byo-policy-cases@0.1.0",
+  "generator_version": "byo-policy-cases@0.1.1",
   "generation_mode": "deterministic-template",
   "pack_id": "full-scan-byo-policy@0.1.0-report-only",
   "ticket": "BEAAA-40024",
   "disposition": "report-only; uncalibrated; feeds no score, rubric weight or underwriting consumer",
   "min_cases_per_policy": 50,
   "policy_count": 33,
-  "total_cases": 2457,
+  "total_cases": 2433,
   "all_policies_meet_minimum": true,
   "all_policies_lint_clean": true,
   "dedupe": "per policy, in generation order, with tools.unique_test_lint normalize_text (exact) and word 3-shingle Jaccard > 0.8 (near)",
@@ -51,7 +51,7 @@
         "defects": []
       },
       "jsonl": "s1-ledgerly-support.jsonl",
-      "jsonl_sha256": "7587b3ea320aafca4b8439165064eea73df46888f0bac538df202d5202390be1"
+      "jsonl_sha256": "26960dcdd1131b168d878c255bbe738cbe5e9ba7ba06947438658dbf3f2efc9f"
     },
     {
       "policy_id": "s1-northfield-outdoor-shop",
@@ -66,34 +66,34 @@
       },
       "candidates_pass1": 61,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 3,
       "topped_up_from_pass2": 0,
-      "case_count": 59,
-      "unique_ids": 59,
-      "unique_content_sha256": 59,
+      "case_count": 58,
+      "unique_ids": 58,
+      "unique_content_sha256": 58,
       "framing_groups": {
         "ambiguous": 6,
         "authority_claim": 6,
         "direct_in": 6,
         "direct_out": 6,
         "multi_turn_pressure": 5,
-        "other": 24,
+        "other": 23,
         "polite": 6
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 59,
-        "keep": 59,
+        "records": 58,
+        "keep": 58,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 59,
+        "unique_test_ids": 58,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s1-northfield-outdoor-shop.jsonl",
-      "jsonl_sha256": "e5ff7cff3538490d1b9f4757f564b7c81568e4fee07d434f9984e633285ce26d"
+      "jsonl_sha256": "78a78ac0c8b34c89c78abb7b19c6ac1138bd1fd82363c13049079d0d987c4570"
     },
     {
       "policy_id": "s1-brightwell-logistics-hr",
@@ -108,7 +108,7 @@
       },
       "candidates_pass1": 31,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 3,
       "topped_up_from_pass2": 19,
       "case_count": 50,
       "unique_ids": 50,
@@ -117,8 +117,8 @@
         "ambiguous": 7,
         "authority_claim": 5,
         "direct_in": 6,
-        "direct_out": 6,
-        "multi_turn_pressure": 7,
+        "direct_out": 7,
+        "multi_turn_pressure": 6,
         "other": 12,
         "polite": 7
       },
@@ -135,7 +135,7 @@
         "defects": []
       },
       "jsonl": "s1-brightwell-logistics-hr.jsonl",
-      "jsonl_sha256": "2e4fe4f6214a93bbac90f191dbba70d300511a40b6f0c532b2cd6a57947a63b0"
+      "jsonl_sha256": "49fd4382ed0e99baed388cade6d904382b224168598f6a643cf246135f60820d"
     },
     {
       "policy_id": "s1-meridian-bank-accounts",
@@ -177,7 +177,7 @@
         "defects": []
       },
       "jsonl": "s1-meridian-bank-accounts.jsonl",
-      "jsonl_sha256": "34ceab0fa8e414a81d7b70f00278c9a4cb6ae9a6d9b37e385ad55a07ba4d7a4e"
+      "jsonl_sha256": "25292cfa62b11063c8ba5630ed2522022ea93f4df7a8263d84d74266fb444489"
     },
     {
       "policy_id": "s2-carver-holt-legal-intake",
@@ -192,34 +192,34 @@
       },
       "candidates_pass1": 61,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 1,
+      "dropped_near_duplicates": 2,
       "topped_up_from_pass2": 0,
-      "case_count": 60,
-      "unique_ids": 60,
-      "unique_content_sha256": 60,
+      "case_count": 59,
+      "unique_ids": 59,
+      "unique_content_sha256": 59,
       "framing_groups": {
         "ambiguous": 6,
         "authority_claim": 6,
         "direct_in": 6,
         "direct_out": 6,
-        "multi_turn_pressure": 6,
+        "multi_turn_pressure": 5,
         "other": 24,
         "polite": 6
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 60,
-        "keep": 60,
+        "records": 59,
+        "keep": 59,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 60,
+        "unique_test_ids": 59,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s2-carver-holt-legal-intake.jsonl",
-      "jsonl_sha256": "ed8554e075daf6dd99a27bc17fa5a134e21c112b2fabf32dc7fbdb36eadacac1"
+      "jsonl_sha256": "92b8cae10f6caa3e26e01f97d9c5d6e711fafa9cae7baafd9c7ca7b225a2da96"
     },
     {
       "policy_id": "s2-willowbrook-clinic-triage",
@@ -235,34 +235,34 @@
       },
       "candidates_pass1": 85,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 0,
+      "dropped_near_duplicates": 1,
       "topped_up_from_pass2": 0,
-      "case_count": 85,
-      "unique_ids": 85,
-      "unique_content_sha256": 85,
+      "case_count": 84,
+      "unique_ids": 84,
+      "unique_content_sha256": 84,
       "framing_groups": {
         "ambiguous": 9,
         "authority_claim": 9,
         "direct_in": 9,
         "direct_out": 12,
         "multi_turn_pressure": 9,
-        "other": 28,
+        "other": 27,
         "polite": 9
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 85,
-        "keep": 85,
+        "records": 84,
+        "keep": 84,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 85,
+        "unique_test_ids": 84,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s2-willowbrook-clinic-triage.jsonl",
-      "jsonl_sha256": "1ab39aa4df611ddf28eb36461de74a2927290008683fbf85927949f8473f2d92"
+      "jsonl_sha256": "5069f82fb88d67f0193e9fdfedee76c1a62a6695788ffc48293bf89c334d21f5"
     },
     {
       "policy_id": "s2-skylark-travel-booking",
@@ -304,7 +304,7 @@
         "defects": []
       },
       "jsonl": "s2-skylark-travel-booking.jsonl",
-      "jsonl_sha256": "ac44aed00a8f74cf5af0200f19cb58c503131ce8590f93abbeeebadca34826ad"
+      "jsonl_sha256": "21990732412894e5712f646646499108a9d93e44611546d4c1b68e99ed635ccf"
     },
     {
       "policy_id": "s2-ashgrove-wealth-client",
@@ -319,34 +319,34 @@
       },
       "candidates_pass1": 75,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 1,
       "topped_up_from_pass2": 0,
-      "case_count": 73,
-      "unique_ids": 73,
-      "unique_content_sha256": 73,
+      "case_count": 74,
+      "unique_ids": 74,
+      "unique_content_sha256": 74,
       "framing_groups": {
         "ambiguous": 7,
         "authority_claim": 7,
         "direct_in": 7,
         "direct_out": 7,
-        "multi_turn_pressure": 6,
+        "multi_turn_pressure": 7,
         "other": 32,
         "polite": 7
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 73,
-        "keep": 73,
+        "records": 74,
+        "keep": 74,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 73,
+        "unique_test_ids": 74,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s2-ashgrove-wealth-client.jsonl",
-      "jsonl_sha256": "767e193baac3fd99517777454d1c511c2b7255a9277cd2cdc56332dc6e6af5a2"
+      "jsonl_sha256": "2401822fa3aeda1d99cbea760bd62371d521621f35cfd7d0dccf63b1645f5922"
     },
     {
       "policy_id": "s3-brightlane-logistics-onboarding",
@@ -361,34 +361,34 @@
       },
       "candidates_pass1": 70,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 1,
+      "dropped_near_duplicates": 3,
       "topped_up_from_pass2": 0,
-      "case_count": 69,
-      "unique_ids": 69,
-      "unique_content_sha256": 69,
+      "case_count": 67,
+      "unique_ids": 67,
+      "unique_content_sha256": 67,
       "framing_groups": {
         "ambiguous": 7,
         "authority_claim": 6,
         "direct_in": 7,
         "direct_out": 7,
-        "multi_turn_pressure": 7,
-        "other": 28,
+        "multi_turn_pressure": 6,
+        "other": 27,
         "polite": 7
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 69,
-        "keep": 69,
+        "records": 67,
+        "keep": 67,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 69,
+        "unique_test_ids": 67,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s3-brightlane-logistics-onboarding.jsonl",
-      "jsonl_sha256": "ac64470722ded2e29a8dcc69a3180963b0f14357f678e6476225df6bde4798f4"
+      "jsonl_sha256": "31ceb5e494748905679a2fb6b23ad1fa748ff0cf4aa45e6b7f2caf3d10610b33"
     },
     {
       "policy_id": "s3-harbourline-mutual-claims",
@@ -430,7 +430,7 @@
         "defects": []
       },
       "jsonl": "s3-harbourline-mutual-claims.jsonl",
-      "jsonl_sha256": "5df7545e944eff8d695fdcb83a127b583bf46b9b46356ad84d6c09f741a3a436"
+      "jsonl_sha256": "0c38e686736a0a724f19cefa25ecc05aad79b0c5f77fd5978830deb880faf598"
     },
     {
       "policy_id": "s3-nettlefield-home-returns",
@@ -472,7 +472,7 @@
         "defects": []
       },
       "jsonl": "s3-nettlefield-home-returns.jsonl",
-      "jsonl_sha256": "a532c25721ea3ef847a41785dc4bd7ae67d13966cde54ce39255f8f7ad3f2ed5"
+      "jsonl_sha256": "ebaf1ea18cbec2da90d5a9a442618d3f9696ef3c7b0341647d39861448858a90"
     },
     {
       "policy_id": "s3-corvane-systems-it-helpdesk",
@@ -487,34 +487,34 @@
       },
       "candidates_pass1": 84,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 3,
+      "dropped_near_duplicates": 2,
       "topped_up_from_pass2": 0,
-      "case_count": 81,
-      "unique_ids": 81,
-      "unique_content_sha256": 81,
+      "case_count": 82,
+      "unique_ids": 82,
+      "unique_content_sha256": 82,
       "framing_groups": {
         "ambiguous": 8,
         "authority_claim": 7,
         "direct_in": 8,
         "direct_out": 8,
         "multi_turn_pressure": 7,
-        "other": 35,
+        "other": 36,
         "polite": 8
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 81,
-        "keep": 81,
+        "records": 82,
+        "keep": 82,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 81,
+        "unique_test_ids": 82,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s3-corvane-systems-it-helpdesk.jsonl",
-      "jsonl_sha256": "f1e3e21ee19f9dce8b529abdeadc2c1d064d1c68e48fc97fd9aefad7d800da25"
+      "jsonl_sha256": "f65197162e9884bfe4825f5c01aa01aa9eeea7e04871b67de7ba687a63f09045"
     },
     {
       "policy_id": "s3-ridgemont-academy-admissions",
@@ -536,11 +536,11 @@
       "unique_content_sha256": 69,
       "framing_groups": {
         "ambiguous": 7,
-        "authority_claim": 7,
+        "authority_claim": 6,
         "direct_in": 7,
         "direct_out": 7,
         "multi_turn_pressure": 7,
-        "other": 27,
+        "other": 28,
         "polite": 7
       },
       "meets_minimum": true,
@@ -556,7 +556,7 @@
         "defects": []
       },
       "jsonl": "s3-ridgemont-academy-admissions.jsonl",
-      "jsonl_sha256": "26bf237a4ebf6b4b2aae63e5082bc130eab6a92cdf5a5b4c95f98162c37d70e3"
+      "jsonl_sha256": "ee487ee1e5f112551e3829b16f96450f2a0ce688e3b1cb2d79f27fd2cabe51c2"
     },
     {
       "policy_id": "s4-greystone-energy-billing",
@@ -598,7 +598,7 @@
         "defects": []
       },
       "jsonl": "s4-greystone-energy-billing.jsonl",
-      "jsonl_sha256": "8e9333220b89038dd82a1bfa5424e6eddb4db6f22a3cc8f750d735e89c1d6314"
+      "jsonl_sha256": "5acef27eae24d941f5ee07998363d4e57722b0345e19abb73bd950cdb94ccbd1"
     },
     {
       "policy_id": "s4-pinecrest-mobile-support",
@@ -640,7 +640,7 @@
         "defects": []
       },
       "jsonl": "s4-pinecrest-mobile-support.jsonl",
-      "jsonl_sha256": "cf4927e3454af3be3405e4be818b9df3d53ee61ed6a1a1a693ff14356d7afcf6"
+      "jsonl_sha256": "cf35b596325a5751b2408f5a66d7c12db4a2d51c04d8aaefb8d453d7ec810b62"
     },
     {
       "policy_id": "s4-kestrel-row-lettings",
@@ -655,34 +655,34 @@
       },
       "candidates_pass1": 70,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 3,
+      "dropped_near_duplicates": 8,
       "topped_up_from_pass2": 0,
-      "case_count": 67,
-      "unique_ids": 67,
-      "unique_content_sha256": 67,
+      "case_count": 62,
+      "unique_ids": 62,
+      "unique_content_sha256": 62,
       "framing_groups": {
         "ambiguous": 7,
-        "authority_claim": 6,
+        "authority_claim": 5,
         "direct_in": 7,
         "direct_out": 7,
-        "multi_turn_pressure": 6,
-        "other": 27,
-        "polite": 7
+        "multi_turn_pressure": 5,
+        "other": 25,
+        "polite": 6
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 67,
-        "keep": 67,
+        "records": 62,
+        "keep": 62,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 67,
+        "unique_test_ids": 62,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s4-kestrel-row-lettings.jsonl",
-      "jsonl_sha256": "e36a1da67a1372e60174b9862f1391bbfdafa350222cbeccc1a10a56b77db47c"
+      "jsonl_sha256": "d996b52764801f9e65b32c8e3c8aa602eb1c60315009b1225165e80ee27a6e5a"
     },
     {
       "policy_id": "s4-mossgate-pharmacy-repeats",
@@ -724,7 +724,7 @@
         "defects": []
       },
       "jsonl": "s4-mossgate-pharmacy-repeats.jsonl",
-      "jsonl_sha256": "a7ab5af4f3fe18e778c8785b13d28d74c812fdda5538f877a8334af4160fe157"
+      "jsonl_sha256": "105e7aecd9b89468388a30448c748bafa5c86b1c333ccd35e721c66db0ec867c"
     },
     {
       "policy_id": "s4-dwb-benefits-helpline",
@@ -740,34 +740,34 @@
       },
       "candidates_pass1": 66,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 5,
+      "dropped_near_duplicates": 4,
       "topped_up_from_pass2": 0,
-      "case_count": 61,
-      "unique_ids": 61,
-      "unique_content_sha256": 61,
+      "case_count": 62,
+      "unique_ids": 62,
+      "unique_content_sha256": 62,
       "framing_groups": {
         "ambiguous": 7,
         "authority_claim": 6,
         "direct_in": 7,
         "direct_out": 7,
         "multi_turn_pressure": 5,
-        "other": 22,
+        "other": 23,
         "polite": 7
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 61,
-        "keep": 61,
+        "records": 62,
+        "keep": 62,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 61,
+        "unique_test_ids": 62,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s4-dwb-benefits-helpline.jsonl",
-      "jsonl_sha256": "a8202ef22b90d3f3139fb01db0ad98aba881220089519d788002b31504ff2887"
+      "jsonl_sha256": "476d03fd394b13d5f97f02bab31d00409865ba543c05a824aca17ec696965ea3"
     },
     {
       "policy_id": "s4-aurelia-air-loyalty",
@@ -809,7 +809,7 @@
         "defects": []
       },
       "jsonl": "s4-aurelia-air-loyalty.jsonl",
-      "jsonl_sha256": "25246992fddc3ea9682cb01bbff496994e0ffc7066ecf1ef91c81843d47f66fc"
+      "jsonl_sha256": "a7409b5c62625236b9d9493e49f70fadd8e8415082ddf6e3f6c6635c2d0871b4"
     },
     {
       "policy_id": "s4-tallyforge-admin-console",
@@ -852,7 +852,7 @@
         "defects": []
       },
       "jsonl": "s4-tallyforge-admin-console.jsonl",
-      "jsonl_sha256": "8bc5cb33d8f171fd6a684c3bf0e830eac37c2730c215e337259586035cc98962"
+      "jsonl_sha256": "072b64f6ae27de1b2c667bf0fc70eed7f182bb7447fa1129e089228adaeaaa6c"
     },
     {
       "policy_id": "s5-harrowfield-motors-sales",
@@ -867,34 +867,34 @@
       },
       "candidates_pass1": 107,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 3,
       "topped_up_from_pass2": 0,
-      "case_count": 105,
-      "unique_ids": 105,
-      "unique_content_sha256": 105,
+      "case_count": 104,
+      "unique_ids": 104,
+      "unique_content_sha256": 104,
       "framing_groups": {
         "ambiguous": 10,
         "authority_claim": 9,
         "direct_in": 10,
         "direct_out": 10,
         "multi_turn_pressure": 10,
-        "other": 46,
+        "other": 45,
         "polite": 10
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 105,
-        "keep": 105,
+        "records": 104,
+        "keep": 104,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 105,
+        "unique_test_ids": 104,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s5-harrowfield-motors-sales.jsonl",
-      "jsonl_sha256": "f4f9c686fec4dc9dfcad5059d362993cfcdc60e068ea8b84772e102dadb55e3a"
+      "jsonl_sha256": "0f966a57c79dd33fa5a60b241edd47b24260f0c2407b45c648c423ff08f14ee5"
     },
     {
       "policy_id": "s5-dishdash-food-delivery",
@@ -916,11 +916,11 @@
       "unique_content_sha256": 83,
       "framing_groups": {
         "ambiguous": 8,
-        "authority_claim": 7,
+        "authority_claim": 8,
         "direct_in": 8,
         "direct_out": 8,
         "multi_turn_pressure": 8,
-        "other": 36,
+        "other": 35,
         "polite": 8
       },
       "meets_minimum": true,
@@ -936,7 +936,7 @@
         "defects": []
       },
       "jsonl": "s5-dishdash-food-delivery.jsonl",
-      "jsonl_sha256": "67edb44d8b10a1a19f488a1992d876cdc38da9ebd8598347d4ab055c2c204d2d"
+      "jsonl_sha256": "f262c7e5cc0c44772cfeb0d2ef643ae019979f88e2dadd9eb6349941d253dd9f"
     },
     {
       "policy_id": "s5-ashcombe-university-library",
@@ -952,34 +952,34 @@
       },
       "candidates_pass1": 84,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 4,
+      "dropped_near_duplicates": 9,
       "topped_up_from_pass2": 0,
-      "case_count": 80,
-      "unique_ids": 80,
-      "unique_content_sha256": 80,
+      "case_count": 75,
+      "unique_ids": 75,
+      "unique_content_sha256": 75,
       "framing_groups": {
         "ambiguous": 9,
         "authority_claim": 7,
         "direct_in": 9,
         "direct_out": 9,
-        "multi_turn_pressure": 8,
-        "other": 29,
-        "polite": 9
+        "multi_turn_pressure": 6,
+        "other": 27,
+        "polite": 8
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 80,
-        "keep": 80,
+        "records": 75,
+        "keep": 75,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 80,
+        "unique_test_ids": 75,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s5-ashcombe-university-library.jsonl",
-      "jsonl_sha256": "6d02e96745c28ccd0a7825f02f088ad20287b11280d9a06ccaec2ddf1c4c0993"
+      "jsonl_sha256": "22c6bcddd3d3bb652ec5f62f0d658a4b7fd22eaa8abf73e17d01ebc432f6e233"
     },
     {
       "policy_id": "s5-ironvale-gyms-membership",
@@ -1021,7 +1021,7 @@
         "defects": []
       },
       "jsonl": "s5-ironvale-gyms-membership.jsonl",
-      "jsonl_sha256": "50b13415e5f0b0534374a35f0d0dd66a36a71a5d588dc7389e561c7ba5933e84"
+      "jsonl_sha256": "121333d3c694f3b8521d0485bff5615b767e4fec79581e651d33b2b4524057c7"
     },
     {
       "policy_id": "s5-larkspur-home-loans",
@@ -1064,7 +1064,7 @@
         "defects": []
       },
       "jsonl": "s5-larkspur-home-loans.jsonl",
-      "jsonl_sha256": "d93ed763c7bc15259cab4597ecade2b5cd5fbdd34f8e525201166e2a34e62949"
+      "jsonl_sha256": "255f0d604e669f3d0791ef12cfb19c1f34db121ec911f511611ca63697d9753e"
     },
     {
       "policy_id": "s5-brightwater-trust-supporters",
@@ -1079,34 +1079,34 @@
       },
       "candidates_pass1": 70,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 1,
+      "dropped_near_duplicates": 2,
       "topped_up_from_pass2": 0,
-      "case_count": 69,
-      "unique_ids": 69,
-      "unique_content_sha256": 69,
+      "case_count": 68,
+      "unique_ids": 68,
+      "unique_content_sha256": 68,
       "framing_groups": {
         "ambiguous": 7,
         "authority_claim": 6,
         "direct_in": 7,
         "direct_out": 7,
         "multi_turn_pressure": 7,
-        "other": 28,
+        "other": 27,
         "polite": 7
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 69,
-        "keep": 69,
+        "records": 68,
+        "keep": 68,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 69,
+        "unique_test_ids": 68,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s5-brightwater-trust-supporters.jsonl",
-      "jsonl_sha256": "e682332c9242d9e0f22e90c1edc9209f70e3cd8c8467be811e711f21ddcf15d3"
+      "jsonl_sha256": "0dca84758ff96984f53af97115305d34c70daae3c30e924fe882b8b8e4a386aa"
     },
     {
       "policy_id": "s5-northgate-parcels-tracking",
@@ -1148,7 +1148,7 @@
         "defects": []
       },
       "jsonl": "s5-northgate-parcels-tracking.jsonl",
-      "jsonl_sha256": "2a375dfe8eab345c3496934abbf3c01eda5cfa368aecfaeddad4a6cab40c2108"
+      "jsonl_sha256": "e20264055f55a06fd1bd03c6a10c80718064e1bd96491268110cc6697aa91d6b"
     },
     {
       "policy_id": "s6-harbourline-hotel-concierge",
@@ -1163,34 +1163,34 @@
       },
       "candidates_pass1": 107,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 3,
       "topped_up_from_pass2": 0,
-      "case_count": 105,
-      "unique_ids": 105,
-      "unique_content_sha256": 105,
+      "case_count": 104,
+      "unique_ids": 104,
+      "unique_content_sha256": 104,
       "framing_groups": {
         "ambiguous": 10,
         "authority_claim": 9,
         "direct_in": 10,
         "direct_out": 10,
         "multi_turn_pressure": 10,
-        "other": 46,
+        "other": 45,
         "polite": 10
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 105,
-        "keep": 105,
+        "records": 104,
+        "keep": 104,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 105,
+        "unique_test_ids": 104,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s6-harbourline-hotel-concierge.jsonl",
-      "jsonl_sha256": "bf4fab339001b638a13bc6ca6b5e6157ac0afdf325090a6ed7838d4a0e02337b"
+      "jsonl_sha256": "c9268446e3dbeface850429bbca422d920f367d6afdc2759020835b05b5b67db"
     },
     {
       "policy_id": "s6-corvane-mobile-helpdesk",
@@ -1206,34 +1206,34 @@
       },
       "candidates_pass1": 98,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 4,
+      "dropped_near_duplicates": 7,
       "topped_up_from_pass2": 0,
-      "case_count": 94,
-      "unique_ids": 94,
-      "unique_content_sha256": 94,
+      "case_count": 91,
+      "unique_ids": 91,
+      "unique_content_sha256": 91,
       "framing_groups": {
         "ambiguous": 10,
         "authority_claim": 8,
         "direct_in": 10,
         "direct_out": 10,
-        "multi_turn_pressure": 9,
-        "other": 37,
+        "multi_turn_pressure": 8,
+        "other": 35,
         "polite": 10
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 94,
-        "keep": 94,
+        "records": 91,
+        "keep": 91,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 94,
+        "unique_test_ids": 91,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s6-corvane-mobile-helpdesk.jsonl",
-      "jsonl_sha256": "8547aca8ef3cffe2a817476a21f45a52ee5bc871ef284882623aa176b1d8b6ad"
+      "jsonl_sha256": "157deaa1975e26b3127ff352e8afca02597e7f30987129ba7f997e47af8c5490"
     },
     {
       "policy_id": "s6-fenwick-direct-quotes",
@@ -1275,7 +1275,7 @@
         "defects": []
       },
       "jsonl": "s6-fenwick-direct-quotes.jsonl",
-      "jsonl_sha256": "7dea27dec3dd4ea614f210aca27034c18dba4ab1adc997450c0cf9fc42bda82c"
+      "jsonl_sha256": "80fe0392e99ba1e0dd737fb62b3293a8022ebe72835dd7e8db5172bdea79f6ba"
     },
     {
       "policy_id": "s6-oakmere-property-lettings",
@@ -1290,34 +1290,34 @@
       },
       "candidates_pass1": 79,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 6,
+      "dropped_near_duplicates": 10,
       "topped_up_from_pass2": 0,
-      "case_count": 73,
-      "unique_ids": 73,
-      "unique_content_sha256": 73,
+      "case_count": 69,
+      "unique_ids": 69,
+      "unique_content_sha256": 69,
       "framing_groups": {
         "ambiguous": 8,
         "authority_claim": 7,
         "direct_in": 8,
         "direct_out": 8,
         "multi_turn_pressure": 5,
-        "other": 29,
-        "polite": 8
+        "other": 27,
+        "polite": 6
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 73,
-        "keep": 73,
+        "records": 69,
+        "keep": 69,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 73,
+        "unique_test_ids": 69,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s6-oakmere-property-lettings.jsonl",
-      "jsonl_sha256": "7cfcf4de7ebece6ed31ad18242e94318a345829760b232da3fe9da6a4beca032"
+      "jsonl_sha256": "b3f093c36dce38fe32ff109b89cc050340055019a57f39cf5e5be21e4b9cf471"
     },
     {
       "policy_id": "s6-stratton-engineering-hr",
@@ -1333,34 +1333,34 @@
       },
       "candidates_pass1": 66,
       "dropped_exact_duplicates": 0,
-      "dropped_near_duplicates": 2,
+      "dropped_near_duplicates": 4,
       "topped_up_from_pass2": 0,
-      "case_count": 64,
-      "unique_ids": 64,
-      "unique_content_sha256": 64,
+      "case_count": 62,
+      "unique_ids": 62,
+      "unique_content_sha256": 62,
       "framing_groups": {
         "ambiguous": 7,
         "authority_claim": 6,
         "direct_in": 7,
         "direct_out": 7,
         "multi_turn_pressure": 6,
-        "other": 24,
+        "other": 22,
         "polite": 7
       },
       "meets_minimum": true,
       "lint": {
         "spec_version": "unique-test-spec/1.1.0",
-        "records": 64,
-        "keep": 64,
+        "records": 62,
+        "keep": 62,
         "rewrite": 0,
         "drop": 0,
-        "unique_test_ids": 64,
+        "unique_test_ids": 62,
         "reason_counts": {},
         "clean": true,
         "defects": []
       },
       "jsonl": "s6-stratton-engineering-hr.jsonl",
-      "jsonl_sha256": "0e797da0c17411ad9c8613e959bc3d771f22023e17e4beb9412a99068015a86b"
+      "jsonl_sha256": "aa70b833c1be5dbdf8b0e9ee357ec2121b7c9af0d92f640fe9a35c9a12fbb67e"
     },
     {
       "policy_id": "s6-ledgerly-support-desk",
@@ -1402,37 +1402,37 @@
         "defects": []
       },
       "jsonl": "s6-ledgerly-support-desk.jsonl",
-      "jsonl_sha256": "c8d1f36fd4ec6d3c950e20986f1cdb5123cf63d46b2d90d846c36e1dc0c560ee"
+      "jsonl_sha256": "79ed49141e7c7d2be2215c5e46a532aeee3555373c36c45b03e2c6e4a9b20841"
     }
   ],
   "cross_policy_lint": {
     "spec_version": "unique-test-spec/1.1.0",
-    "records": 2457,
-    "keep": 2442,
+    "records": 2433,
+    "keep": 2364,
     "rewrite": 0,
-    "drop": 15,
-    "unique_test_ids": 2442,
+    "drop": 69,
+    "unique_test_ids": 2364,
     "reason_counts": {
-      "duplicate_exact": 7,
-      "near_duplicate": 8
+      "duplicate_exact": 50,
+      "near_duplicate": 19
     },
     "clean": false
   },
   "cross_policy_lint_note": "All policies linted as one registry. Cases for different policies run against different system prompts, so a cross-policy prompt match is reported, not removed.",
   "sample": {
     "file": "SAMPLE_20.md",
-    "sha256": "f4e7feb7f359978e8b51db8e172e505f983167bb46013e36699edf2106e060da",
+    "sha256": "a791f6b54b9e11ecb19dea94f04cc6f7368a148427e19fc5789ff85319c2c5e7",
     "seed": 0,
     "cases": 20,
     "policies": 20,
     "ids": [
-      "BYO-s2-willowbrook-clinic-triage-C05-PROXY-p1",
-      "BYO-s5-ashcombe-university-library-C07-FALSE-p2",
-      "BYO-s5-dishdash-food-delivery-C05-FALSE-p2",
-      "BYO-s5-harrowfield-motors-sales-C09-DIN-p2",
+      "BYO-s2-willowbrook-clinic-triage-C05-RIVAL-p2",
+      "BYO-s5-ashcombe-university-library-C08-MTS-p2",
+      "BYO-s5-dishdash-food-delivery-C05-AUTH-p1",
+      "BYO-s5-harrowfield-motors-sales-C09-POL-p1",
       "BYO-s3-harbourline-mutual-claims-C05-ONCE-p2",
       "BYO-s1-brightwell-logistics-hr-C02-FALSE-p1",
-      "BYO-s2-carver-holt-legal-intake-C05-AUTH-p2",
+      "BYO-s2-carver-holt-legal-intake-C05-MTP-p1",
       "BYO-s6-ledgerly-support-desk-C08-DIN-p1",
       "BYO-s4-aurelia-air-loyalty-C07-AUTH-p2",
       "BYO-s1-meridian-bank-accounts-C04-URG-p1",
@@ -1441,11 +1441,11 @@
       "BYO-s4-tallyforge-admin-console-C08-RIVAL-p1",
       "BYO-s6-oakmere-property-lettings-C01-POL-p2",
       "BYO-s4-mossgate-pharmacy-repeats-C02-AMB-p1",
-      "BYO-s1-northfield-outdoor-shop-C06-DIN-p1",
-      "BYO-s5-brightwater-trust-supporters-C06-ROLE-p2",
-      "BYO-s6-stratton-engineering-hr-C01-DOUT-p1",
-      "BYO-s2-ashgrove-wealth-client-C07-MTP-p1",
-      "BYO-s6-fenwick-direct-quotes-C06-DOUT-p2"
+      "BYO-s1-northfield-outdoor-shop-C06-POL-p2",
+      "BYO-s5-brightwater-trust-supporters-C06-AMB-p1",
+      "BYO-s6-stratton-engineering-hr-C06-AMB-p1",
+      "BYO-s2-ashgrove-wealth-client-C01-DOUT-p1",
+      "BYO-s6-fenwick-direct-quotes-C08-HYPO-p2"
     ]
   }
 }
