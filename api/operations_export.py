@@ -12,6 +12,7 @@ from typing import Any, Mapping, Sequence
 
 
 EXPORT_VERSION = "scan_export_v1"
+INTEGRITY_ENVELOPE_VERSION = "scan_export_integrity_v1"
 
 
 class OperationsExportError(ValueError):
@@ -21,6 +22,24 @@ class OperationsExportError(ValueError):
 def canonical_digest(value: Mapping[str, Any]) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return "sha256:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def verify_export_integrity(export: Mapping[str, Any]) -> bool:
+    """Independently verify the canonical payload covered by an export."""
+    envelope = export.get("integrity_envelope")
+    if not isinstance(envelope, Mapping):
+        return False
+    if envelope.get("version") != INTEGRITY_ENVELOPE_VERSION:
+        return False
+    covered = envelope.get("covered_payload")
+    if not isinstance(covered, Mapping):
+        return False
+    expected = canonical_digest(covered)
+    if envelope.get("digest") != expected:
+        return False
+    return dict(covered) == {
+        key: value for key, value in export.items() if key != "integrity_envelope"
+    }
 
 
 def build_scan_export(
@@ -59,7 +78,7 @@ def build_scan_export(
     if not isinstance(scope.get("complete"), bool):
         raise OperationsExportError("scope.complete must be boolean")
 
-    return {
+    export = {
         "version": EXPORT_VERSION,
         "tenant_id": tenant_id,
         "scan_id": scan_id,
@@ -82,6 +101,14 @@ def build_scan_export(
         "correction_of": correction_of,
         "supersedes": supersedes,
     }
+    export["integrity_envelope"] = {
+        "version": INTEGRITY_ENVELOPE_VERSION,
+        "algorithm": "sha256",
+        "canonicalization": "json-sort-keys-utf8-v1",
+        "covered_payload": dict(export),
+        "digest": canonical_digest(export),
+    }
+    return export
 
 
 def comparison_eligibility(

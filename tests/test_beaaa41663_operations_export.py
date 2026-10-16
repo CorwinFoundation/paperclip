@@ -7,6 +7,7 @@ from api.operations_export import (
     OperationsExportError,
     build_scan_export,
     comparison_eligibility,
+    verify_export_integrity,
 )
 
 
@@ -40,6 +41,10 @@ def test_export_carries_exact_pins_and_stable_result_digest():
     assert first["evidence_refs"] == ["evidence://a", "evidence://b"]
     assert first["result_digest"].startswith("sha256:")
     assert len(first["result_digest"]) == 71
+    assert verify_export_integrity(first) is True
+    tampered = deepcopy(first)
+    tampered["scope"]["complete"] = False
+    assert verify_export_integrity(tampered) is False
 
 
 def test_export_requires_explicit_scope_completeness_and_case_revisions():

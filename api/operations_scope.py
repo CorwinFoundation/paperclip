@@ -74,7 +74,11 @@ def validate_scope_selection(
         bool(case_rows[case_id].get("targeted_content_approved"))
         for case_id in expected_cases
     )
-    held = mode == "targeted" and not targeted_approved
+    unsupported_cases = sorted(
+        case_id for case_id in expected_cases
+        if mode == "targeted" and not bool(case_rows[case_id].get("targeted_supported"))
+    )
+    held = mode == "targeted" and (not targeted_approved or bool(unsupported_cases))
     complete = mode == "full" and expected_cases == set(case_rows) and bool(case_rows)
     advisory = mode == "smoke"
     return {
@@ -83,6 +87,7 @@ def validate_scope_selection(
         "mode": mode,
         "scope_ids": sorted(scope_ids),
         "case_manifest": sorted(submitted_cases),
+        "requested_case_ids": sorted(expected_cases),
         # Compatibility is decided from these exact revisions, not from the
         # registry that happens to be active when an export is later read.
         # Older registries did not carry a per-case revision; for those rows
@@ -93,13 +98,63 @@ def validate_scope_selection(
         },
         "complete": complete,
         "held": held,
-        "held_reason": "targeted_content_not_approved" if held else None,
+        "held_reason": (
+            "targeted_content_not_approved" if mode == "targeted" and not targeted_approved else
+            "targeted_scope_requires_full_fallback" if unsupported_cases else None
+        ),
+        "unsupported_case_ids": unsupported_cases,
+        "requires_full_fallback": bool(unsupported_cases),
         "advisory": advisory,
         "may_claim_full_score": complete,
         "unknown_impact_rule": (
             "published_full" if mode == "full" else
             "published_scope_review" if mode == "scope_review" else None
         ),
+    }
+
+
+def reconcile_scope_execution(
+    scope: Mapping[str, Any], execution_rows: Iterable[Mapping[str, Any]]
+) -> dict[str, Any]:
+    """Reconcile requested cases through attempted, terminal, and evidenced states."""
+    requested = set(_string_list(scope.get("requested_case_ids", []), "requested_cases_invalid"))
+    rows = [dict(row) for row in execution_rows]
+    attempted = {str(row.get("case_id")) for row in rows if row.get("case_id")}
+    terminal_states = {"complete", "completed", "passed", "failed", "error", "unsupported", "skipped"}
+    scorable_states = {"complete", "completed", "passed", "failed"}
+    terminal = {
+        str(row["case_id"]) for row in rows
+        if row.get("case_id") and str(row.get("status") or "").lower() in terminal_states
+    }
+    scorable = {
+        str(row["case_id"]) for row in rows
+        if row.get("case_id") and str(row.get("status") or "").lower() in scorable_states
+    }
+    unscorable = terminal - scorable
+    evidenced = {
+        str(row["case_id"]) for row in rows
+        if row.get("case_id") and (
+            row.get("evidence_ref") or row.get("evidence_refs") or row.get("artifact_uri")
+        )
+    }
+    unexpected = attempted - requested
+    complete = (
+        requested == attempted == terminal == scorable == evidenced
+        and not unexpected
+    )
+    return {
+        "requested": sorted(requested),
+        "attempted": sorted(attempted),
+        "terminal": sorted(terminal),
+        "scorable": sorted(scorable),
+        "unscorable": sorted(unscorable),
+        "evidenced": sorted(evidenced),
+        "missing_attempted": sorted(requested - attempted),
+        "missing_terminal": sorted(requested - terminal),
+        "missing_evidence": sorted(requested - evidenced),
+        "unexpected": sorted(unexpected),
+        "complete": complete,
+        "may_claim_full_score": bool(scope.get("complete")) and complete,
     }
 
 
