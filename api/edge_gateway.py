@@ -100,6 +100,14 @@ class AuthError(Exception):
         self.code = code
 
 
+class ScopeDenied(Exception):
+    """An authenticated principal is not allowed to perform this action."""
+
+    def __init__(self, code: str = "authorization_scope_denied") -> None:
+        super().__init__(code)
+        self.code = code
+
+
 class RateLimited(Exception):
     """Tenant exceeded a scans/min or max-concurrent limit."""
 
@@ -126,6 +134,12 @@ class KeyRecord:
     created_at: float
     rotated_from: str | None = None
     rate_limit: dict[str, int] | None = None
+    scopes: tuple[str, ...] = ()
+    issuer: str | None = None
+    custodian: str | None = None
+    rotation_owner: str | None = None
+    revocation_owner: str | None = None
+    revocation_procedure: str | None = None
 
     def is_live(self, now: float) -> bool:
         return self.status == "active" and now <= self.expires_at
@@ -215,6 +229,12 @@ class KeyStore:
                 created_at=float(rec.get("created_at", 0.0)),
                 rotated_from=(str(rec["rotated_from"]) if rec.get("rotated_from") else None),
                 rate_limit=(dict(rec["rate_limit"]) if rec.get("rate_limit") else None),
+                scopes=tuple(str(scope) for scope in rec.get("scopes", [])),
+                issuer=(str(rec["issuer"]) if rec.get("issuer") else None),
+                custodian=(str(rec["custodian"]) if rec.get("custodian") else None),
+                rotation_owner=(str(rec["rotation_owner"]) if rec.get("rotation_owner") else None),
+                revocation_owner=(str(rec["revocation_owner"]) if rec.get("revocation_owner") else None),
+                revocation_procedure=(str(rec["revocation_procedure"]) if rec.get("revocation_procedure") else None),
             )
         return out
 
@@ -234,6 +254,12 @@ class KeyStore:
                     "created_at": r.created_at,
                     "rotated_from": r.rotated_from,
                     "rate_limit": r.rate_limit,
+                    "scopes": list(r.scopes),
+                    "issuer": r.issuer,
+                    "custodian": r.custodian,
+                    "rotation_owner": r.rotation_owner,
+                    "revocation_owner": r.revocation_owner,
+                    "revocation_procedure": r.revocation_procedure,
                 }
                 for token, r in records.items()
             },
@@ -274,6 +300,12 @@ class KeyStore:
         ttl_seconds: float,
         rate_limit: dict[str, int] | None = None,
         rotated_from: str | None = None,
+        scopes: list[str] | tuple[str, ...] = (),
+        issuer: str | None = None,
+        custodian: str | None = None,
+        rotation_owner: str | None = None,
+        revocation_owner: str | None = None,
+        revocation_procedure: str | None = None,
     ) -> KeyRecord:
         if ttl_seconds <= 0:
             raise ValueError("ttl_seconds must be positive — no infinite-lived keys")
@@ -286,6 +318,12 @@ class KeyStore:
             created_at=now,
             rotated_from=rotated_from,
             rate_limit=rate_limit,
+            scopes=tuple(sorted(set(scopes))),
+            issuer=issuer,
+            custodian=custodian,
+            rotation_owner=rotation_owner,
+            revocation_owner=revocation_owner,
+            revocation_procedure=revocation_procedure,
         )
         self._mutate(lambda recs: recs.__setitem__(token, record))
         return record
@@ -304,6 +342,12 @@ class KeyStore:
                         created_at=r.created_at,
                         rotated_from=r.rotated_from,
                         rate_limit=r.rate_limit,
+                        scopes=r.scopes,
+                        issuer=r.issuer,
+                        custodian=r.custodian,
+                        rotation_owner=r.rotation_owner,
+                        revocation_owner=r.revocation_owner,
+                        revocation_procedure=r.revocation_procedure,
                     )
                     found["hit"] = True
 
@@ -335,6 +379,12 @@ class KeyStore:
             ttl_seconds=grace_ttl,
             rate_limit=old.rate_limit,
             rotated_from=old_key_id,
+            scopes=old.scopes,
+            issuer=old.issuer,
+            custodian=old.custodian,
+            rotation_owner=old.rotation_owner,
+            revocation_owner=old.revocation_owner,
+            revocation_procedure=old.revocation_procedure,
         )
 
     def set_rate_limit(self, key_id: str, rate_limit: dict[str, int] | None) -> bool:
@@ -351,6 +401,12 @@ class KeyStore:
                         created_at=r.created_at,
                         rotated_from=r.rotated_from,
                         rate_limit=rate_limit,
+                        scopes=r.scopes,
+                        issuer=r.issuer,
+                        custodian=r.custodian,
+                        rotation_owner=r.rotation_owner,
+                        revocation_owner=r.revocation_owner,
+                        revocation_procedure=r.revocation_procedure,
                     )
                     found["hit"] = True
 
@@ -523,6 +579,14 @@ class EdgeGateway:
             raise AuthError("authorization_invalid")
         return record.tenant_id
 
+    def authorize(self, token: str, scope: str) -> KeyRecord:
+        record = self.store.resolve(token)
+        if record is None:
+            raise AuthError("authorization_invalid")
+        if scope not in record.scopes:
+            raise ScopeDenied()
+        return record
+
     def admit_scan(self, record: KeyRecord) -> ConcurrencyLease:
         cfg = RateLimitConfig.resolve(record, self.defaults)
         return self.limiter.admit_scan(record.tenant_id, cfg)
@@ -598,6 +662,12 @@ def _cli(argv: list[str] | None = None) -> int:
     p_issue.add_argument("--ttl-seconds", type=float, required=True)
     p_issue.add_argument("--scans-per-min", type=int, default=None)
     p_issue.add_argument("--max-concurrent", type=int, default=None)
+    p_issue.add_argument("--scope", action="append", default=[], dest="scopes")
+    p_issue.add_argument("--issuer")
+    p_issue.add_argument("--custodian")
+    p_issue.add_argument("--rotation-owner")
+    p_issue.add_argument("--revocation-owner")
+    p_issue.add_argument("--revocation-procedure")
 
     p_revoke = sub.add_parser("revoke", help="revoke a key by key_id")
     p_revoke.add_argument("--key-id", required=True)
@@ -626,6 +696,12 @@ def _cli(argv: list[str] | None = None) -> int:
             tenant_id=args.tenant_id,
             ttl_seconds=args.ttl_seconds,
             rate_limit=rate,
+            scopes=args.scopes,
+            issuer=args.issuer,
+            custodian=args.custodian,
+            rotation_owner=args.rotation_owner,
+            revocation_owner=args.revocation_owner,
+            revocation_procedure=args.revocation_procedure,
         )
         print(f"issued {rec.key_id} tenant={rec.tenant_id} expires_at={rec.expires_at}")
     elif args.cmd == "revoke":
@@ -645,6 +721,9 @@ def _cli(argv: list[str] | None = None) -> int:
             print(
                 f"{r.key_id}\ttenant={r.tenant_id}\tstatus={r.status}"
                 f"\texpires_at={r.expires_at}\trotated_from={r.rotated_from}\trate={r.rate_limit}"
+                f"\tscopes={list(r.scopes)}\tissuer={r.issuer}\tcustodian={r.custodian}"
+                f"\trotation_owner={r.rotation_owner}\trevocation_owner={r.revocation_owner}"
+                f"\trevocation_procedure={r.revocation_procedure}"
             )
     return 0
 

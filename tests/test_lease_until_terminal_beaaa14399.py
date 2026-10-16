@@ -265,7 +265,14 @@ class LeaseHeldUntilTerminalHttpTests(unittest.TestCase):
 
     def _client(self, runtime: ScanRuntime):
         clock = FakeClock()
-        store = KeyStore(None, clock=clock, bootstrap_env={"tok": TENANT_A})
+        store = KeyStore(None, clock=clock)
+        store.issue(
+            token="tok",
+            key_id="lease-test",
+            tenant_id=TENANT_A,
+            ttl_seconds=3600,
+            scopes=("POST /scanner/v1/scans", "POST /scanner/v1/rescans"),
+        )
         gateway = EdgeGateway(
             store=store,
             limiter=RateLimiter(clock=clock),

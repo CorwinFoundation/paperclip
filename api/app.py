@@ -27,7 +27,7 @@ from harness.secret_redaction import redact_secret_obj
 from .bundle import BundleStore
 from .activation_guard import ActivationInProgress, ActivationLease
 from .config import ApiConfig
-from .edge_gateway import AuthError, EdgeGateway, RateLimited
+from .edge_gateway import AuthError, EdgeGateway, RateLimited, ScopeDenied
 from .handlers import (
     HandlerError,
     forensic_bundle_handler,
@@ -152,7 +152,9 @@ def _bearer_token(request: Request) -> str:
     return authorization.removeprefix("Bearer ").strip()
 
 
-def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | None:
+def _authenticated_tenant_id(
+    request: Request, runtime_profile: str, *, governed_scope: str | None = None
+) -> str | None:
     """Return tenant id bound to the bearer token, or None on local dev bypass.
 
     BEAAA-11867 — when the edge gateway is active (``ARE_EDGE_GATEWAY=on``),
@@ -167,9 +169,14 @@ def _authenticated_tenant_id(request: Request, runtime_profile: str) -> str | No
     if gateway is not None:
         token = _bearer_token(request)
         try:
-            return gateway.resolve_tenant(token)
+            record = gateway.authorize(token, governed_scope) if governed_scope else gateway.resolve_record(token)
+            if record is None:
+                raise AuthError("authorization_invalid")
+            return record.tenant_id
         except AuthError as exc:
             raise _http_error(401, exc.code) from exc
+        except ScopeDenied as exc:
+            raise _http_error(403, exc.code) from exc
 
     raw_mapping = ApiConfig.from_env().api_auth_tokens_raw
     required = _api_auth_required(runtime_profile)
@@ -207,7 +214,7 @@ def _activation_in_progress_response() -> JSONResponse:
     )
 
 
-def _admit_scan_or_none(request: Request):
+def _admit_scan_or_none(request: Request, *, governed_scope: str):
     """Resolve the caller's key record and admit one scan through the D3
     limiter, returning a :class:`ConcurrencyLease` (to release when the scan
     is terminal). Returns ``None`` when the gateway is disabled. Raises 401
@@ -222,9 +229,12 @@ def _admit_scan_or_none(request: Request):
         gateway: EdgeGateway | None = getattr(request.app.state, "edge_gateway", None)
         if gateway is None:
             return activation_lease
-        record = gateway.resolve_record(_bearer_token(request))
-        if record is None:
-            raise _http_error(401, "authorization_invalid")
+        try:
+            record = gateway.authorize(_bearer_token(request), governed_scope)
+        except AuthError as exc:
+            raise _http_error(401, exc.code) from exc
+        except ScopeDenied as exc:
+            raise _http_error(403, exc.code) from exc
         return activation_lease.set_delegate(gateway.admit_scan(record))
     except BaseException:
         activation_lease.release()
@@ -451,7 +461,7 @@ def create_app(
         # is not leaked. ``ConcurrencyLease.release`` is idempotent, so a
         # belt-and-braces double release is safe.
         try:
-            lease = _admit_scan_or_none(request)
+            lease = _admit_scan_or_none(request, governed_scope="POST /scanner/v1/scans")
         except ActivationInProgress:
             return _activation_in_progress_response()
         except RateLimited as exc:
@@ -545,7 +555,7 @@ def create_app(
         # path, so it is rate-limited too (the doc_only branch above creates no
         # scan and is not limited).
         try:
-            lease = _admit_scan_or_none(request)
+            lease = _admit_scan_or_none(request, governed_scope="POST /scanner/v1/rescans")
         except ActivationInProgress:
             return _activation_in_progress_response()
         except RateLimited as exc:
@@ -581,7 +591,10 @@ def create_app(
         return app.state.sla_registry.snapshot()
 
     @app.get("/scanner/v1/release-identity")
-    async def get_release_identity() -> Any:
+    async def get_release_identity(request: Request) -> Any:
+        _authenticated_tenant_id(
+            request, runtime_profile, governed_scope="GET /scanner/v1/release-identity"
+        )
         try:
             return read_release_identity()
         except ReleaseIdentityError as exc:
@@ -621,7 +634,9 @@ def create_app(
         # BEAAA-11858 — capture (do not discard) the authenticated tenant so
         # the handler can enforce tenant isolation, and resolve uw-audience
         # entitlement at the edge where the env allowlist lives.
-        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
+        authenticated_tenant_id = _authenticated_tenant_id(
+            request, runtime_profile, governed_scope="GET /scan/{scan_id}"
+        )
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
         try:
@@ -658,7 +673,11 @@ def create_app(
 
     @app.get("/scanner/v1/scans/{scan_id}/export")
     async def get_scan_operations_export(request: Request, scan_id: str) -> Any:
-        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
+        authenticated_tenant_id = _authenticated_tenant_id(
+            request,
+            runtime_profile,
+            governed_scope="GET /scanner/v1/scans/{scan_id}/export",
+        )
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
         try:

@@ -245,10 +245,14 @@ class GatewayHttpTests(unittest.TestCase):
         store = KeyStore(self._tmp / "keys.json", cache_ttl_seconds=5.0, clock=clock)
         return EdgeGateway(store=store, limiter=RateLimiter(clock=clock), defaults=defaults)
 
+    @staticmethod
+    def _issue_scan_key(store: KeyStore, **kwargs):
+        return store.issue(scopes=("POST /scanner/v1/scans",), **kwargs)
+
     def test_revoked_key_http_401(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=100, max_concurrent=100))
-        gw.store.issue(token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
+        self._issue_scan_key(gw.store, token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
         client = self._app(gw)
 
         ok = client.post("/scanner/v1/scans", json={}, headers={"Authorization": "Bearer tok"})
@@ -262,7 +266,7 @@ class GatewayHttpTests(unittest.TestCase):
     def test_expired_key_http_401(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=100, max_concurrent=100))
-        gw.store.issue(token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=100)
+        self._issue_scan_key(gw.store, token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=100)
         client = self._app(gw)
         self.assertEqual(
             client.post("/scanner/v1/scans", json={}, headers={"Authorization": "Bearer tok"}).status_code,
@@ -277,14 +281,14 @@ class GatewayHttpTests(unittest.TestCase):
     def test_missing_bearer_http_401(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=100, max_concurrent=100))
-        gw.store.issue(token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
+        self._issue_scan_key(gw.store, token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
         client = self._app(gw)
         self.assertEqual(client.post("/scanner/v1/scans", json={}).status_code, 401)
 
     def test_d_http_rate_limit_429_with_retry_after(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=3, max_concurrent=100))
-        gw.store.issue(token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
+        self._issue_scan_key(gw.store, token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
         client = self._app(gw)
         h = {"Authorization": "Bearer tok"}
         for _ in range(3):  # N admitted → 503 (runtime None)
@@ -298,7 +302,7 @@ class GatewayHttpTests(unittest.TestCase):
     def test_e_http_concurrency_limit_429(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=1000, max_concurrent=1))
-        rec = gw.store.issue(token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
+        rec = self._issue_scan_key(gw.store, token="tok", key_id="k1", tenant_id=TENANT_A, ttl_seconds=3600)
         # Pre-seed one in-flight lease == a concurrent scan already running.
         held = gw.admit_scan(rec)  # noqa: F841 — kept un-released on purpose
         client = self._app(gw)
@@ -312,8 +316,8 @@ class GatewayHttpTests(unittest.TestCase):
     def test_f_http_two_tenants_same_ip_independent(self) -> None:
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=1000, max_concurrent=1))
-        rec_a = gw.store.issue(token="tok-a", key_id="ka", tenant_id=TENANT_A, ttl_seconds=3600)
-        gw.store.issue(token="tok-b", key_id="kb", tenant_id=TENANT_B, ttl_seconds=3600)
+        rec_a = self._issue_scan_key(gw.store, token="tok-a", key_id="ka", tenant_id=TENANT_A, ttl_seconds=3600)
+        self._issue_scan_key(gw.store, token="tok-b", key_id="kb", tenant_id=TENANT_B, ttl_seconds=3600)
         held_a = gw.admit_scan(rec_a)  # noqa: F841 — A now at max_concurrent
         client = self._app(gw)  # same TestClient == same source
         a = client.post("/scanner/v1/scans", json={}, headers={"Authorization": "Bearer tok-a"})
@@ -325,7 +329,8 @@ class GatewayHttpTests(unittest.TestCase):
         clock = FakeClock()
         gw = self._gateway(clock, RateLimitConfig(scans_per_min=1, max_concurrent=100))
         # Tenant A override raises its ceiling above the default of 1.
-        gw.store.issue(
+        self._issue_scan_key(
+            gw.store,
             token="tok-a",
             key_id="ka",
             tenant_id=TENANT_A,
@@ -333,7 +338,7 @@ class GatewayHttpTests(unittest.TestCase):
             rate_limit={"scans_per_min": 3, "max_concurrent": 100},
         )
         # Tenant B keeps the default of 1.
-        gw.store.issue(token="tok-b", key_id="kb", tenant_id=TENANT_B, ttl_seconds=3600)
+        self._issue_scan_key(gw.store, token="tok-b", key_id="kb", tenant_id=TENANT_B, ttl_seconds=3600)
         client = self._app(gw)
         ha, hb = {"Authorization": "Bearer tok-a"}, {"Authorization": "Bearer tok-b"}
         for _ in range(3):  # A honoured to 3
