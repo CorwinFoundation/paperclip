@@ -73,6 +73,16 @@ CREATE TABLE IF NOT EXISTS accepted_scans (
 CREATE INDEX IF NOT EXISTS ix_accepted_scans_state ON accepted_scans (state);
 CREATE INDEX IF NOT EXISTS ix_accepted_scans_accepted_at ON accepted_scans (accepted_at);
 
+CREATE TABLE IF NOT EXISTS scan_request_identity (
+    tenant_id             TEXT NOT NULL,
+    client_request_id     TEXT NOT NULL,
+    canonical_request_hash TEXT NOT NULL,
+    scan_id               TEXT NOT NULL UNIQUE,
+    pins_json             TEXT NOT NULL,
+    created_at            REAL NOT NULL,
+    PRIMARY KEY (tenant_id, client_request_id)
+);
+
 CREATE TABLE IF NOT EXISTS scan_case_progress (
     scan_id            TEXT NOT NULL,
     case_id            TEXT NOT NULL,
@@ -97,6 +107,10 @@ CREATE TABLE IF NOT EXISTS webhook_outbox (
 );
 CREATE INDEX IF NOT EXISTS ix_webhook_outbox_status ON webhook_outbox (status);
 """
+
+
+class RequestIdentityConflict(ValueError):
+    """A tenant reused a client request id for different canonical input."""
 
 
 def _sanitized_endpoint_config(config: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -242,6 +256,63 @@ class AcceptedScanStore:
         return self._retention_seconds
 
     # -- accepted scans -----------------------------------------------------
+
+    def reserve_request_identity(
+        self,
+        *,
+        tenant_id: str,
+        client_request_id: str,
+        canonical_request_hash: str,
+        candidate_scan_id: str,
+        pins: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically reserve the durable identity used before paid work.
+
+        The tenant/client request pair is the idempotency key. An identical
+        retry receives the original scanner-minted identity and pins; reuse
+        with different canonical input or pins fails closed.
+        """
+        if not tenant_id or not client_request_id or not candidate_scan_id:
+            raise ValueError("request identity fields must be non-empty")
+        if not canonical_request_hash.startswith("sha256:"):
+            raise ValueError("canonical_request_hash must be sha256-prefixed")
+        pins_json = json.dumps(dict(pins), sort_keys=True, separators=(",", ":"))
+        now = self._clock()
+        with self._write() as conn:
+            created = conn.execute(
+                "INSERT OR IGNORE INTO scan_request_identity "
+                "(tenant_id,client_request_id,canonical_request_hash,scan_id,pins_json,created_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (
+                    tenant_id,
+                    client_request_id,
+                    canonical_request_hash,
+                    candidate_scan_id,
+                    pins_json,
+                    now,
+                ),
+            ).rowcount
+            row = conn.execute(
+                "SELECT canonical_request_hash,scan_id,pins_json,created_at "
+                "FROM scan_request_identity WHERE tenant_id=? AND client_request_id=?",
+                (tenant_id, client_request_id),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("request identity reservation disappeared")
+            if (
+                row["canonical_request_hash"] != canonical_request_hash
+                or row["pins_json"] != pins_json
+            ):
+                raise RequestIdentityConflict(client_request_id)
+        return {
+            "tenant_id": tenant_id,
+            "client_request_id": client_request_id,
+            "canonical_request_hash": row["canonical_request_hash"],
+            "scan_id": row["scan_id"],
+            "pins": json.loads(row["pins_json"]),
+            "created_at": float(row["created_at"]),
+            "replayed": not bool(created),
+        }
 
     def accept(
         self,
@@ -495,6 +566,32 @@ class AcceptedScanStore:
         if row["accepted_at"] < self._clock() - self._retention_seconds:
             return None
         return _decode(row)
+
+    def request_identity_for_scan(
+        self, scan_id: str, *, tenant_id: str
+    ) -> dict[str, Any] | None:
+        """Return the immutable pre-work binding, scoped to its owner.
+
+        The combined predicate deliberately makes a foreign scan and an
+        unknown scan indistinguishable to API callers.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT tenant_id,client_request_id,canonical_request_hash,"
+                "scan_id,pins_json,created_at FROM scan_request_identity "
+                "WHERE scan_id=? AND tenant_id=?",
+                (scan_id, tenant_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "tenant_id": row["tenant_id"],
+            "client_request_id": row["client_request_id"],
+            "canonical_request_hash": row["canonical_request_hash"],
+            "scan_id": row["scan_id"],
+            "pins": json.loads(row["pins_json"]),
+            "created_at": float(row["created_at"]),
+        }
 
     def unfinished(self) -> list[dict[str, Any]]:
         with self._lock:

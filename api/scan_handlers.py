@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import json
 import logging
 import re
 import os
@@ -65,7 +66,17 @@ from api.full_scan_executor import (
     registry_cases_from_rows,
 )
 from api.full_suite_manifest import FullSuiteCase, build_full_suite_manifest
-from api.accepted_scan_store import AcceptedScanStore
+from api.accepted_scan_store import (
+    AcceptedScanStore,
+    RequestIdentityConflict,
+    result_to_record,
+)
+from api.operations_export import (
+    OperationsExportError,
+    build_scan_export,
+    canonical_digest,
+)
+from api.operations_scope import ScopeValidationError, validate_scope_selection
 from api.handlers import HandlerError, verify_tenant_isolation
 from api import production_controls
 from api.bundle import BundleStore, new_opaque_bundle_id
@@ -553,6 +564,41 @@ class ScanRuntime:
     def attach_webhook_outbox(self, webhook_outbox: "WebhookOutbox | None") -> None:
         """Attach the process-wide terminal webhook outbox."""
         self._webhook_outbox = webhook_outbox
+
+    def validate_operations_scope(self, selection: Mapping[str, Any]) -> dict[str, Any]:
+        """Pin Operations scope to the exact active full-scan registry."""
+        revisions = {
+            str(row.get("registry_version"))
+            for row in self._full_scan_registry_rows
+            if row.get("registry_version")
+        }
+        if len(revisions) != 1:
+            raise ScopeValidationError("active_registry_revision_unavailable")
+        return validate_scope_selection(
+            selection,
+            registry_revision=next(iter(revisions)),
+            registry_rows=self._full_scan_registry_rows,
+        )
+
+    def reserve_request_identity(
+        self,
+        *,
+        tenant_id: str,
+        client_request_id: str,
+        canonical_request_hash: str,
+        candidate_scan_id: str,
+        pins: Mapping[str, Any],
+    ) -> dict[str, Any] | None:
+        """Reserve a scanner identity when durable production storage is wired."""
+        if self._accepted_scan_store is None:
+            return None
+        return self._accepted_scan_store.reserve_request_identity(
+            tenant_id=tenant_id,
+            client_request_id=client_request_id,
+            canonical_request_hash=canonical_request_hash,
+            candidate_scan_id=candidate_scan_id,
+            pins=pins,
+        )
 
     def bind_bundle_store(self, bundle_store: BundleStore) -> None:
         """Bind the API-owned evidence store before accepting live scans."""
@@ -1326,6 +1372,69 @@ class ScanRuntime:
             "last_activity_at": row["last_activity_at"],
             "completed_test_count": row["completed_test_count"],
         }
+
+    def durable_operations_export(
+        self, scan_id: str, *, tenant_id: str
+    ) -> dict[str, Any] | None:
+        """Project one owner-scoped terminal journal row as scan_export_v1.
+
+        ``None`` covers unknown, foreign, or non-idempotent legacy scans. The
+        caller therefore cannot use this method as a cross-tenant oracle.
+        """
+        store = self._accepted_scan_store
+        if store is None:
+            return None
+        row = store.get(scan_id)
+        identity = store.request_identity_for_scan(scan_id, tenant_id=tenant_id)
+        if row is None or identity is None or row["tenant_id"] != tenant_id:
+            return None
+        if row["state"] != "terminal" or row["result"] is None:
+            raise OperationsExportError("persisted_result_not_terminal")
+
+        pins = dict(identity["pins"])
+        release = dict(pins.get("release") or {})
+        scope_pin = dict(pins.get("scope") or {})
+        scope = scope_pin.get("operations_scope")
+        if not isinstance(scope, Mapping):
+            raise OperationsExportError("operations_scope_pin_missing")
+        scope = dict(scope)
+        case_revisions = dict(scope.get("case_revisions") or {})
+        registry_revision = str(scope.get("registry_revision") or "")
+        persisted_result = result_to_record(row["result"])
+        result_revision = canonical_digest(persisted_result)
+        requested_target = dict(pins.get("target") or {})
+        request = row["request"]
+        measured_target = {
+            "agent_id": request.agent_id,
+            "endpoint": request.agent_endpoint,
+        }
+        manifest = persisted_result.get("full_suite_manifest") or {}
+        evidence_refs = sorted({
+            str(item.get("evidence_ref"))
+            for item in manifest.get("evidence_rows", ())
+            if isinstance(item, Mapping) and item.get("evidence_ref")
+        })
+        integrity_refs = [
+            str(manifest[key])
+            for key in ("manifest_hash", "manifest_digest", "signature")
+            if manifest.get(key)
+        ]
+        return build_scan_export(
+            tenant_id=tenant_id,
+            scan_id=scan_id,
+            result_revision=result_revision,
+            requested_target=requested_target,
+            measured_target=measured_target,
+            release=release,
+            methodology_revision="are-scanner-api-v1@v1.3.0",
+            corpus_revision=str(release.get("corpus_version") or request.corpus_version),
+            registry_revision=registry_revision,
+            case_revisions=case_revisions,
+            scope=scope,
+            evidence_refs=evidence_refs,
+            integrity_refs=integrity_refs,
+            persisted_result=persisted_result,
+        )
 
     def _restore_scan_state(self, row: Mapping[str, Any]) -> None:
         scan_id = row["scan_id"]
@@ -2230,6 +2339,16 @@ def _kickoff_live_probe_scan(
     )
     k_replicates = _validate_k_replicates(body.get("k_replicates"))
     requested_pillars = tuple(body.get("requested_pillars", ()))
+    operations_scope = None
+    if body.get("operations_scope") is not None:
+        if not isinstance(body["operations_scope"], Mapping):
+            raise HandlerError(422, "operations_scope_invalid")
+        try:
+            operations_scope = runtime.validate_operations_scope(body["operations_scope"])
+        except ScopeValidationError as exc:
+            raise HandlerError(422, str(exc)) from exc
+        if operations_scope["held"]:
+            raise HandlerError(409, operations_scope["held_reason"])
     vendor_id = body.get("vendor_id")
     if vendor_id is not None and (not isinstance(vendor_id, str) or not vendor_id):
         raise HandlerError(422, "vendor_id_invalid")
@@ -2244,6 +2363,62 @@ def _kickoff_live_probe_scan(
     canary_phrasing_hashes = tuple(canary_hashes_raw)
 
     scan_id = (scan_id_factory or _default_scan_id)()
+    client_request_id = body.get("client_request_id")
+    if client_request_id is not None:
+        if not isinstance(client_request_id, str) or not client_request_id.strip():
+            raise HandlerError(422, "client_request_id_invalid")
+        canonical_body = {
+            key: value
+            for key, value in body.items()
+            if key not in {"client_request_id", "credential_secret"}
+        }
+        canonical_request_hash = "sha256:" + hashlib.sha256(
+            json.dumps(
+                canonical_body,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        ).hexdigest()
+        pins = {
+            "target": {
+                "agent_id": agent_id,
+                "endpoint": agent_endpoint["url"],
+            },
+            "release": {
+                "scanner_version": str(scanner_version),
+                "corpus_version": str(corpus_version),
+                "corpus_snapshot_hash": corpus_snapshot_hash,
+            },
+            "scope": {
+                "pack_id": pack_id,
+                "scan_mode": scan_mode,
+                "scan_tier": scan_tier,
+                "requested_pillars": list(requested_pillars),
+                "k_replicates": k_replicates,
+                "operations_scope": operations_scope,
+            },
+        }
+        try:
+            reservation = runtime.reserve_request_identity(
+                tenant_id=tenant_id,
+                client_request_id=client_request_id,
+                canonical_request_hash=canonical_request_hash,
+                candidate_scan_id=scan_id,
+                pins=pins,
+            )
+        except RequestIdentityConflict as exc:
+            raise HandlerError(409, "client_request_id_conflict") from exc
+        if reservation is not None:
+            scan_id = str(reservation["scan_id"])
+            if reservation["replayed"]:
+                del credential_secret
+                return 202, {
+                    "scan_id": scan_id,
+                    "status": "accepted",
+                    "partial_completion": False,
+                    "confidence_below_adjudication_threshold": False,
+                }
     # BEAAA-11864 / ADR-0046 — per-run probe-surface rotation seed. STRICTLY
     # SEPARATE from the scoring `seed` above (which stays canonical). Resolved
     # AFTER scan_id so the toggle-on default can derive a fresh per-run seed
@@ -2705,6 +2880,28 @@ def scan_progress_handler(
     if progress is None:
         raise HandlerError(404, "scan_not_found")
     return 200, progress
+
+
+def scan_operations_export_handler(
+    scan_id: str,
+    *,
+    runtime: ScanRuntime,
+    authenticated_tenant_id: str | None,
+) -> tuple[int, dict[str, Any]]:
+    """Return ``scan_export_v1`` from the tenant's persisted terminal row."""
+    if not authenticated_tenant_id:
+        raise HandlerError(401, "authentication_required")
+    try:
+        export = runtime.durable_operations_export(
+            scan_id, tenant_id=authenticated_tenant_id
+        )
+    except OperationsExportError as exc:
+        if str(exc) == "persisted_result_not_terminal":
+            raise HandlerError(409, "scan_result_not_ready") from exc
+        raise HandlerError(409, str(exc)) from exc
+    if export is None:
+        raise HandlerError(404, "scan_not_found")
+    return 200, export
 
 
 def scan_context_report_handler(

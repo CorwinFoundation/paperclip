@@ -48,6 +48,7 @@ from .scan_handlers import (
     connectivity_check_handler,
     rescan_handler,
     scan_context_report_handler,
+    scan_operations_export_handler,
     scan_progress_handler,
     scan_handler,
     scan_status_handler,
@@ -654,6 +655,21 @@ def create_app(
         if status != 200:
             raise _http_error(status, payload)
         return payload
+
+    @app.get("/scanner/v1/scans/{scan_id}/export")
+    async def get_scan_operations_export(request: Request, scan_id: str) -> Any:
+        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
+        if app.state.scan_runtime is None:
+            raise _http_error(503, "scan_runtime_unconfigured")
+        try:
+            status, payload = scan_operations_export_handler(
+                scan_id,
+                runtime=app.state.scan_runtime,
+                authenticated_tenant_id=authenticated_tenant_id,
+            )
+        except HandlerError as exc:
+            raise _http_error(exc.status, exc.message) from exc
+        return JSONResponse(status_code=status, content=payload)
 
     @app.get(
         "/internal/scanner/v1/scans/{scan_id}/context-report",
