@@ -210,12 +210,12 @@ function normalizeCreateInteractionInput(input: CreateIssueThreadInteraction): C
 
 function isCommentAtOrAfterInteraction(args: {
   commentCreatedAt: Date | string;
-  interactionCreatedAt: Date | string;
+  interactionPendingSince: Date | string;
 }) {
   const commentCreatedAtMs = new Date(args.commentCreatedAt).getTime();
-  const interactionCreatedAtMs = new Date(args.interactionCreatedAt).getTime();
-  if (!Number.isFinite(commentCreatedAtMs) || !Number.isFinite(interactionCreatedAtMs)) return false;
-  return commentCreatedAtMs >= interactionCreatedAtMs;
+  const interactionPendingSinceMs = new Date(args.interactionPendingSince).getTime();
+  if (!Number.isFinite(commentCreatedAtMs) || !Number.isFinite(interactionPendingSinceMs)) return false;
+  return commentCreatedAtMs >= interactionPendingSinceMs;
 }
 
 function buildTaskCreationOrder(tasks: ReadonlyArray<SuggestTasksInteraction["payload"]["tasks"][number]>) {
@@ -1117,6 +1117,57 @@ export function issueThreadInteractionService(db: Db) {
       return hydrateInteraction(updated);
     },
 
+    restoreSupersededRequestConfirmation: async (
+      issue: { id: string; companyId: string },
+      interactionId: string,
+    ) => db.transaction(async (tx) => {
+      const current = await tx
+        .select()
+        .from(issueThreadInteractions)
+        .where(eq(issueThreadInteractions.id, interactionId))
+        .then((rows) => rows[0] ?? null);
+
+      if (!current || current.companyId !== issue.companyId || current.issueId !== issue.id) {
+        throw notFound("Interaction not found");
+      }
+      if (current.kind !== "request_confirmation") {
+        throw unprocessable("Only request_confirmation interactions can be restored");
+      }
+      if (
+        current.status !== "expired"
+        || typeof current.result !== "object"
+        || current.result === null
+        || !("outcome" in current.result)
+        || current.result.outcome !== "superseded_by_comment"
+      ) {
+        throw conflict("Only confirmations expired as superseded_by_comment can be restored");
+      }
+
+      const now = new Date();
+      const [updated] = await tx
+        .update(issueThreadInteractions)
+        .set({
+          status: "pending",
+          result: null,
+          resolvedByAgentId: null,
+          resolvedByUserId: null,
+          resolvedAt: null,
+          updatedAt: now,
+        })
+        .where(and(
+          eq(issueThreadInteractions.id, interactionId),
+          eq(issueThreadInteractions.status, "expired"),
+        ))
+        .returning();
+
+      if (!updated) {
+        throw conflict("Interaction status changed before it could be restored");
+      }
+
+      await touchIssue(tx, issue.id);
+      return hydrateInteraction(updated);
+    }),
+
     expireRequestConfirmationsSupersededByComment: async (
       issue: { id: string; companyId: string },
       comment: { id: string; createdAt: Date | string; authorUserId?: string | null },
@@ -1140,7 +1191,7 @@ export function issueThreadInteractionService(db: Db) {
           shouldSupersedeRequestConfirmationOnUserComment(interaction)
           && isCommentAtOrAfterInteraction({
             commentCreatedAt: comment.createdAt,
-            interactionCreatedAt: row.createdAt,
+            interactionPendingSince: row.updatedAt,
           })
         );
       });
@@ -1219,7 +1270,7 @@ export function issueThreadInteractionService(db: Db) {
 
         const supersedingComment = comments.find((comment) => isCommentAtOrAfterInteraction({
           commentCreatedAt: comment.createdAt,
-          interactionCreatedAt: row.createdAt,
+          interactionPendingSince: row.updatedAt,
         }));
         if (!supersedingComment) continue;
 

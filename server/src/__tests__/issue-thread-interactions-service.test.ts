@@ -1033,6 +1033,68 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
     });
   });
 
+  it("restores the same superseded confirmation without changing its retained request identity", async () => {
+    const { companyId, issueId } = await seedConfirmationIssue("Restore retained confirmation");
+    const idempotencyKey = `retained:${randomUUID()}`;
+    const created = await interactionsSvc.create({ id: issueId, companyId }, {
+      kind: "request_confirmation",
+      idempotencyKey,
+      title: "Retained admission",
+      summary: "Await the board decision",
+      payload: {
+        version: 1,
+        prompt: "Admit the retained target?",
+        detailsMarkdown: "Use the retained record only.",
+      },
+    }, {
+      userId: "local-board",
+    });
+    const [comment] = await db.insert(issueComments).values({
+      companyId,
+      issueId,
+      body: "Administrative comment that superseded the confirmation.",
+      authorUserId: "local-board",
+    }).returning();
+    await interactionsSvc.expireRequestConfirmationsSupersededByComment(
+      { id: issueId, companyId },
+      comment,
+      { userId: "local-board" },
+    );
+
+    const restored = await interactionsSvc.restoreSupersededRequestConfirmation(
+      { id: issueId, companyId },
+      created.id,
+    );
+
+    expect(restored).toMatchObject({
+      id: created.id,
+      companyId,
+      issueId,
+      kind: "request_confirmation",
+      status: "pending",
+      idempotencyKey,
+      title: created.title,
+      summary: created.summary,
+      payload: created.payload,
+      createdByAgentId: created.createdByAgentId,
+      createdByUserId: created.createdByUserId,
+      sourceRunId: created.sourceRunId,
+      result: null,
+      resolvedByAgentId: null,
+      resolvedByUserId: null,
+      resolvedAt: null,
+    });
+    expect(restored.createdAt).toEqual(created.createdAt);
+
+    const reexpired = await interactionsSvc.expireRequestConfirmationsSupersededByHistoricalComments({
+      id: issueId,
+      companyId,
+    });
+    expect(reexpired).toEqual([]);
+    expect((await interactionsSvc.listForIssue(issueId)).find((item) => item.id === created.id))
+      .toMatchObject({ status: "pending", result: null });
+  });
+
   it("keeps request confirmations pending when user-comment supersede is explicitly disabled", async () => {
     const { companyId, issueId } = await seedConfirmationIssue("Comment supersede opt-out");
 
