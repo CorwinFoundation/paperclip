@@ -611,10 +611,7 @@ def create_app(
         return app.state.sla_registry.snapshot()
 
     @app.get("/scanner/v1/release-identity")
-    async def get_release_identity(request: Request) -> Any:
-        _authenticated_tenant_id(
-            request, runtime_profile, governed_scope="GET /scanner/v1/release-identity"
-        )
+    async def get_release_identity() -> Any:
         try:
             return read_release_identity()
         except ReleaseIdentityError as exc:

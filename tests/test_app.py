@@ -182,6 +182,35 @@ class AppTests(unittest.TestCase):
         self.assertNotIn("authorization_token", body)
         self.assertNotIn("service_env_path", body)
 
+    def test_release_identity_remains_public_when_bearer_auth_is_configured(self):
+        identity = {
+            "schema_version": "backbond-scanner-release-identity@1",
+            "commit_sha": "a" * 40,
+            "image_digest": "sha256:" + "b" * 64,
+            "authorization_token": "must-not-be-returned",
+        }
+        path = REPO / ".tmp-public-release-identity-test.json"
+        path.write_text(json.dumps(identity), encoding="utf-8")
+        try:
+            with mock.patch.dict(
+                "os.environ",
+                {
+                    "BACKBOND_RELEASE_IDENTITY_PATH": str(path),
+                    "ARE_API_AUTH_TOKENS_JSON": '{"token-1":"tenant-auth"}',
+                },
+                clear=False,
+            ):
+                client = TestClient(create_app())
+                response = client.get("/scanner/v1/release-identity")
+                governed = client.post("/scanner/v1/scans", json={})
+        finally:
+            path.unlink(missing_ok=True)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["commit_sha"], "a" * 40)
+        self.assertNotIn("authorization_token", response.json())
+        self.assertEqual(governed.status_code, 401, governed.text)
+
     def test_auth_token_required_when_token_map_configured(self):
         with mock.patch.dict(
             "os.environ",

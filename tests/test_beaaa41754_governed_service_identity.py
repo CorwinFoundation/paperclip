@@ -53,10 +53,10 @@ def test_governed_metadata_persists_without_secret(tmp_path):
 
 
 def test_explicit_scopes_allow_only_named_routes(tmp_path):
-    client, _ = _client(tmp_path, scopes=("GET /scanner/v1/release-identity",))
+    client, _ = _client(tmp_path, scopes=("POST /scanner/v1/scans",))
     headers = {"Authorization": "Bearer bac-token", "X-Tenant-Id": TENANT}
-    assert client.get("/scanner/v1/release-identity", headers=headers).status_code != 403
-    denied = client.post("/scanner/v1/scans", headers=headers, json={})
+    assert client.post("/scanner/v1/scans", headers=headers, json={}).status_code != 403
+    denied = client.get("/scan/example", headers=headers)
     assert denied.status_code == 403
     assert denied.json()["detail"] == "authorization_scope_denied"
 
@@ -65,7 +65,6 @@ def test_new_explicit_empty_scope_record_denies_all_governed_routes(tmp_path):
     client, _ = _client(tmp_path, scopes=())
     headers = {"Authorization": "Bearer bac-token", "X-Tenant-Id": TENANT}
     for method, path in (
-        (client.get, "/scanner/v1/release-identity"),
         (client.post, "/scanner/v1/scans"),
         (client.get, "/scan/example"),
         (client.get, "/scanner/v1/scans/example/export"),
