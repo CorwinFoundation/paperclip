@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -60,7 +61,7 @@ def test_explicit_scopes_allow_only_named_routes(tmp_path):
     assert denied.json()["detail"] == "authorization_scope_denied"
 
 
-def test_legacy_record_with_no_scopes_does_not_gain_operations_authority(tmp_path):
+def test_new_explicit_empty_scope_record_denies_all_governed_routes(tmp_path):
     client, _ = _client(tmp_path, scopes=())
     headers = {"Authorization": "Bearer bac-token", "X-Tenant-Id": TENANT}
     for method, path in (
@@ -71,6 +72,64 @@ def test_legacy_record_with_no_scopes_does_not_gain_operations_authority(tmp_pat
     ):
         response = method(path, headers=headers, **({"json": {}} if method == client.post else {}))
         assert response.status_code == 403, response.text
+
+
+def test_governed_key_is_denied_on_every_authenticated_route_without_named_scope(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path)
+    headers = {"Authorization": "Bearer bac-token", "X-Tenant-Id": TENANT}
+    monkeypatch.setenv("ARE_RESCANS_MEASURED", "off")
+    cases = (
+        ("post", "/score", {}),
+        ("get", "/forensic_bundle/example", None),
+        ("get", "/scanner/v1/scans/example/progress", None),
+        ("get", "/internal/scanner/v1/scans/example/context-report", None),
+        ("post", "/quote", {}),
+        ("post", "/scanner/v1/rescans", {}),
+    )
+    for method, path, body in cases:
+        response = getattr(client, method)(path, headers=headers, json=body) if body is not None else getattr(client, method)(path, headers=headers)
+        assert response.status_code == 403, (method, path, response.text)
+        assert response.json()["detail"] == "authorization_scope_denied"
+
+
+def test_real_pre_scope_file_preserves_established_authenticated_access(tmp_path, monkeypatch):
+    store_path = tmp_path / "keys.json"
+    store_path.write_text(json.dumps({
+        "version": 1,
+        "keys": {
+            "legacy-token": {
+                "key_id": "customer-before-scopes",
+                "tenant_id": TENANT,
+                "status": "active",
+                "expires_at": 2_000_000_000,
+                "created_at": 1_700_000_000,
+                "rate_limit": {"scans_per_min": 10, "max_concurrent": 3},
+            }
+        },
+    }))
+    store = KeyStore(store_path, cache_ttl_seconds=0)
+    assert store.list_records()[0].scopes is None
+    app = create_app(
+        rubric=Rubric.load(Path(__file__).parents[1] / "rubric" / "rubric.yaml"),
+        bundles=BundleStore(), scan_runtime=None,
+    )
+    app.state.edge_gateway = EdgeGateway(
+        store=store, limiter=RateLimiter(),
+        defaults=RateLimitConfig(scans_per_min=10, max_concurrent=3),
+    )
+    client = TestClient(app, raise_server_exceptions=False)
+    headers = {"Authorization": "Bearer legacy-token", "X-Tenant-Id": TENANT}
+    monkeypatch.setenv("ARE_RESCANS_MEASURED", "off")
+    # These reach their handlers instead of the new 403 scope boundary.
+    assert client.post("/scanner/v1/scans", headers=headers, json={}).status_code == 503
+    assert client.get("/scan/example", headers=headers).status_code == 503
+    assert client.get("/scanner/v1/scans/example/export", headers=headers).status_code == 503
+    assert client.get("/scanner/v1/release-identity", headers=headers).status_code != 403
+    assert client.post("/scanner/v1/rescans", headers=headers, json={}).status_code == 200
+
+    # An unrelated mutation must not silently add an explicit scopes field.
+    assert store.set_rate_limit("customer-before-scopes", {"scans_per_min": 5, "max_concurrent": 2})
+    assert "scopes" not in json.loads(store_path.read_text())["keys"]["legacy-token"]
 
 
 def test_tenant_mismatch_rejected_before_scan_runtime(tmp_path):
@@ -104,3 +163,30 @@ def test_admin_cli_issues_governed_identity_metadata(tmp_path):
     assert record.rotation_owner == "platform-maintainer"
     assert record.revocation_owner == "scanner-operator"
     assert "revoke --key-id bac-operations-1" in record.revocation_procedure
+
+
+def test_admin_cli_without_scope_preserves_released_legacy_access(tmp_path):
+    store_path = tmp_path / "keys.json"
+    assert _cli([
+        "--store", str(store_path), "issue",
+        "--token", "legacy-cli-token", "--key-id", "legacy-cli-1",
+        "--tenant-id", TENANT, "--ttl-seconds", "300",
+    ]) == 0
+
+    payload = json.loads(store_path.read_text())
+    assert "scopes" not in payload["keys"]["legacy-cli-token"]
+
+    app = create_app(
+        rubric=Rubric.load(Path(__file__).parents[1] / "rubric" / "rubric.yaml"),
+        bundles=BundleStore(), scan_runtime=None,
+    )
+    app.state.edge_gateway = EdgeGateway(
+        store=KeyStore(store_path), limiter=RateLimiter(),
+        defaults=RateLimitConfig(scans_per_min=10, max_concurrent=3),
+    )
+    client = TestClient(app, raise_server_exceptions=False)
+    headers = {"Authorization": "Bearer legacy-cli-token", "X-Tenant-Id": TENANT}
+    assert client.post("/scanner/v1/scans", headers=headers, json={}).status_code != 403
+    assert client.get("/scan/example", headers=headers).status_code != 403
+    assert client.get("/scanner/v1/scans/example/export", headers=headers).status_code != 403
+    assert client.get("/scanner/v1/release-identity", headers=headers).status_code != 403

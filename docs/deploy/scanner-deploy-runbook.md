@@ -22,11 +22,18 @@ verb and push-orchestrator scripts (BEAAA-13362) are preserved under
 |---|---|
 | systemd unit | `backbond-scanner-live.service` (owns the container lifecycle) |
 | env file | `/etc/backbond/scanner-edge.env` (`0600`) |
+| targeted-attempt ledger | `/var/lib/are-scanner/full-scan-target-attempts.sqlite3` (service-owned persistent volume; fixed by the unit) |
 | live image variable | `SCANNER_EDGE_IMAGE` in that env file |
 | local live tag | `backbond-scanner-live:<git-sha>` |
 | container name | `backbond-scanner-live-edge` |
 | app readiness | `http://127.0.0.1:8077/openapi.json` |
 | image selector | OCI label `org.opencontainers.image.revision=<git-sha>` |
+
+The checked-in unit sets `ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH` to the absolute
+service-owned path above. Keep it on the `/var/lib/are-scanner` volume: moving
+the evidence root or restarting/replacing the container must reopen the same
+target-send reservations. A missing or relative override is a startup/config
+error; never redirect it to a container-temporary path.
 
 The host runs **default-deny egress**: it can NOT `docker pull`. The image is
 delivered as a tarball over the operator's inbound SSH channel and loaded

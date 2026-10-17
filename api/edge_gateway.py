@@ -134,7 +134,12 @@ class KeyRecord:
     created_at: float
     rotated_from: str | None = None
     rate_limit: dict[str, int] | None = None
-    scopes: tuple[str, ...] = ()
+    # ``None`` is reserved for records persisted before scoped identities
+    # existed (the JSON object has no ``scopes`` field).  An explicit empty
+    # tuple is a governed key with no grants and therefore denies every
+    # authenticated action.  Keeping these states distinct prevents a new
+    # empty-scope key from inheriting legacy broad access.
+    scopes: tuple[str, ...] | None = None
     issuer: str | None = None
     custodian: str | None = None
     rotation_owner: str | None = None
@@ -229,7 +234,11 @@ class KeyStore:
                 created_at=float(rec.get("created_at", 0.0)),
                 rotated_from=(str(rec["rotated_from"]) if rec.get("rotated_from") else None),
                 rate_limit=(dict(rec["rate_limit"]) if rec.get("rate_limit") else None),
-                scopes=tuple(str(scope) for scope in rec.get("scopes", [])),
+                scopes=(
+                    tuple(str(scope) for scope in rec["scopes"])
+                    if "scopes" in rec
+                    else None
+                ),
                 issuer=(str(rec["issuer"]) if rec.get("issuer") else None),
                 custodian=(str(rec["custodian"]) if rec.get("custodian") else None),
                 rotation_owner=(str(rec["rotation_owner"]) if rec.get("rotation_owner") else None),
@@ -254,12 +263,12 @@ class KeyStore:
                     "created_at": r.created_at,
                     "rotated_from": r.rotated_from,
                     "rate_limit": r.rate_limit,
-                    "scopes": list(r.scopes),
                     "issuer": r.issuer,
                     "custodian": r.custodian,
                     "rotation_owner": r.rotation_owner,
                     "revocation_owner": r.revocation_owner,
                     "revocation_procedure": r.revocation_procedure,
+                    **({"scopes": list(r.scopes)} if r.scopes is not None else {}),
                 }
                 for token, r in records.items()
             },
@@ -300,7 +309,7 @@ class KeyStore:
         ttl_seconds: float,
         rate_limit: dict[str, int] | None = None,
         rotated_from: str | None = None,
-        scopes: list[str] | tuple[str, ...] = (),
+        scopes: list[str] | tuple[str, ...] | None = (),
         issuer: str | None = None,
         custodian: str | None = None,
         rotation_owner: str | None = None,
@@ -318,7 +327,7 @@ class KeyStore:
             created_at=now,
             rotated_from=rotated_from,
             rate_limit=rate_limit,
-            scopes=tuple(sorted(set(scopes))),
+            scopes=(tuple(sorted(set(scopes))) if scopes is not None else None),
             issuer=issuer,
             custodian=custodian,
             rotation_owner=rotation_owner,
@@ -583,7 +592,11 @@ class EdgeGateway:
         record = self.store.resolve(token)
         if record is None:
             raise AuthError("authorization_invalid")
-        if scope not in record.scopes:
+        # Pre-scope records retain their established authenticated-route
+        # behavior. They are deliberately not converted into governed BAC
+        # identities: only records with an explicit ``scopes`` field are
+        # governed, and those are exact allowlists (including empty = deny).
+        if record.scopes is not None and scope not in record.scopes:
             raise ScopeDenied()
         return record
 
@@ -662,7 +675,7 @@ def _cli(argv: list[str] | None = None) -> int:
     p_issue.add_argument("--ttl-seconds", type=float, required=True)
     p_issue.add_argument("--scans-per-min", type=int, default=None)
     p_issue.add_argument("--max-concurrent", type=int, default=None)
-    p_issue.add_argument("--scope", action="append", default=[], dest="scopes")
+    p_issue.add_argument("--scope", action="append", default=None, dest="scopes")
     p_issue.add_argument("--issuer")
     p_issue.add_argument("--custodian")
     p_issue.add_argument("--rotation-owner")

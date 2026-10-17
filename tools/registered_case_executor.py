@@ -12,11 +12,12 @@ import json
 import os
 import re
 import secrets
+import sqlite3
 import threading
 import time
 import traceback
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -54,6 +55,80 @@ def anthropic_haiku_45_cost_usd(usage: Mapping[str, int], *, batch: bool) -> flo
 
 class BudgetExceeded(RuntimeError):
     pass
+
+
+class DurableTargetAttemptLedger:
+    """Crash-safe reservations for actual target HTTP sends.
+
+    A reservation is never deleted.  A reserved row with no completion is an
+    unknown outcome and cannot be purchased again during replay.
+    """
+
+    def __init__(self, path: Path, *, original_job_id: str, limit: int) -> None:
+        self.path = path
+        self.original_job_id = original_job_id
+        self.limit = limit
+        self._lock = threading.RLock()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as db:
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS target_attempt_reservation (
+                    original_job_id TEXT NOT NULL,
+                    attempt_key TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK(state IN ('reserved','complete')),
+                    reserved_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    PRIMARY KEY(original_job_id, attempt_key)
+                )"""
+            )
+
+    def _connect(self) -> sqlite3.Connection:
+        return sqlite3.connect(str(self.path), timeout=30, isolation_level=None)
+
+    def reserve(self, attempt_key: str) -> str:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._lock, self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            prior = db.execute(
+                "SELECT state FROM target_attempt_reservation WHERE original_job_id=? AND attempt_key=?",
+                (self.original_job_id, attempt_key),
+            ).fetchone()
+            if prior is not None:
+                db.rollback()
+                raise BudgetExceeded(f"target_attempt_{prior[0]}_not_repurchaseable")
+            count = db.execute(
+                "SELECT COUNT(*) FROM target_attempt_reservation WHERE original_job_id=?",
+                (self.original_job_id,),
+            ).fetchone()[0]
+            if int(count) >= self.limit:
+                db.rollback()
+                raise BudgetExceeded("max_target_calls")
+            db.execute(
+                "INSERT INTO target_attempt_reservation VALUES (?,?,?,?,NULL)",
+                (self.original_job_id, attempt_key, "reserved", now),
+            )
+            db.commit()
+        return attempt_key
+
+    def complete(self, attempt_key: str) -> None:
+        with self._lock, self._connect() as db:
+            db.execute(
+                "UPDATE target_attempt_reservation SET state='complete', completed_at=? "
+                "WHERE original_job_id=? AND attempt_key=? AND state='reserved'",
+                (datetime.now(timezone.utc).isoformat(), self.original_job_id, attempt_key),
+            )
+
+    def snapshot(self) -> dict[str, int]:
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT state, COUNT(*) FROM target_attempt_reservation "
+                "WHERE original_job_id=? GROUP BY state",
+                (self.original_job_id,),
+            ).fetchall()
+        counts = {str(state): int(count) for state, count in rows}
+        return {"reserved": sum(counts.values()), "complete": counts.get("complete", 0),
+                "unknown": counts.get("reserved", 0), "limit": self.limit}
 
 
 class JudgeResponseError(RuntimeError):
@@ -223,7 +298,8 @@ class _BudgetedRunner(ModelRunner):
 
     def complete(self, prompt: str) -> str:
         if self._role == "target":
-            self._ledger.reserve_target_call()
+            if not getattr(self._base, "_durable_transport_accounting", False):
+                self._ledger.reserve_target_call()
             return self._base.complete(prompt)
         reserved_cost = self._ledger.reserve_judge_call(prompt)
         response = self._base.complete(prompt)
@@ -431,6 +507,8 @@ class RegisteredCaseExecutor:
         tenant_id: str | None = None,
         audience: str = "internal_observational",
         tau_session_factory: Callable[[Any, int], Any] | None = None,
+        durable_target_ledger: DurableTargetAttemptLedger | None = None,
+        require_durable_transport: bool = False,
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
         self.budget = budget
@@ -440,8 +518,31 @@ class RegisteredCaseExecutor:
         self.tenant_id = tenant_id
         self.audience = audience
         self.tau_session_factory = tau_session_factory
+        self.durable_target_ledger = durable_target_ledger
+        self.require_durable_transport = require_durable_transport
+        self._transport_context = threading.local()
+        base_subject = self.subject._base
+        binder = getattr(base_subject, "bind_transport_attempt_ledger", None)
+        if durable_target_ledger is not None and callable(binder):
+            binder(self._reserve_actual_transport, durable_target_ledger.complete)
+            setattr(base_subject, "_durable_transport_accounting", True)
+        elif require_durable_transport:
+            raise ValueError("unsupported_multi_request_adapter")
         self._observational_lock = threading.RLock()
         self._observational_records: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def _reserve_actual_transport(self) -> str:
+        context = getattr(self._transport_context, "value", None)
+        if context is None or self.durable_target_ledger is None:
+            raise BudgetExceeded("target_attempt_context_missing")
+        case_id, ordinal = context
+        attempt_key = f"{case_id}:{ordinal}"
+        self._transport_context.value = (case_id, ordinal + 1)
+        reservation = self.durable_target_ledger.reserve(attempt_key)
+        # Keep the in-memory evidence counter aligned with durable sends; this
+        # increment happens only after the durable transaction commits.
+        self.ledger.reserve_target_call()
+        return reservation
 
     def manifest_metadata(self) -> dict[str, Any]:
         return {
@@ -549,6 +650,7 @@ class RegisteredCaseExecutor:
         verdict: str | None = None
         unmet_criteria: tuple[str, ...] = ()
         try:
+            self._transport_context.value = (case_id, 0)
             execution_row = dict(registry_row)
             execution_row["target_authorization_ref"] = (
                 f"full-scan-job:{job.job_id}:agent:{job.agent_id}"
@@ -611,6 +713,8 @@ class RegisteredCaseExecutor:
                     )[-4000:],
                 }
             )
+        finally:
+            self._transport_context.value = None
 
         after_case = self.ledger.case_snapshot()
         delta = _budget_delta(before, after_case)
@@ -2389,11 +2493,38 @@ def build_registered_case_workers(
             secret,
             getattr(scan_request, "agent_id", None),
         )
+    operations_scope = getattr(scan_request, "operations_scope", None)
+    resolved_budget = budget or ScanBudget.from_env()
+    if operations_scope is not None:
+        resolved_budget = replace(
+            resolved_budget,
+            max_target_calls=40,
+            max_judge_calls=0,
+            max_estimated_judge_cost_usd=0.0,
+        )
+    durable_ledger = None
+    if operations_scope is not None:
+        configured_ledger_path = os.environ.get("ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH")
+        if not configured_ledger_path:
+            raise RuntimeError(
+                "targeted execution requires ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH"
+            )
+        ledger_path = Path(configured_ledger_path)
+        if not ledger_path.is_absolute():
+            raise RuntimeError(
+                "ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH must be an absolute maintained path"
+            )
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        durable_ledger = DurableTargetAttemptLedger(
+            ledger_path,
+            original_job_id=str(scan_request.scan_id),
+            limit=resolved_budget.max_target_calls,
+        )
     executor = RegisteredCaseExecutor(
         subject=subject,
         judge=judge_builder(),
         evidence_store=EvidenceStore(root),
-        budget=budget or ScanBudget.from_env(),
+        budget=resolved_budget,
         tenant_id=(
             str(scan_request.tenant_id)
             if getattr(scan_request, "tenant_id", None)
@@ -2401,6 +2532,8 @@ def build_registered_case_workers(
         ),
         audience="internal_observational",
         tau_session_factory=tau_session_factory,
+        durable_target_ledger=durable_ledger,
+        require_durable_transport=operations_scope is not None,
     )
     return {worker_id: executor for worker_id in WORKERS}
 

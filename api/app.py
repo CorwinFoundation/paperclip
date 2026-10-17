@@ -172,6 +172,12 @@ def _authenticated_tenant_id(
             record = gateway.authorize(token, governed_scope) if governed_scope else gateway.resolve_record(token)
             if record is None:
                 raise AuthError("authorization_invalid")
+            # Governed identities are deny-by-default. Every authenticated
+            # route they may call must name its action scope at this central
+            # boundary; legacy records (no persisted scopes field) retain the
+            # pre-scope behavior until an explicit migration is performed.
+            if governed_scope is None and record.scopes is not None:
+                raise ScopeDenied()
             return record.tenant_id
         except AuthError as exc:
             raise _http_error(401, exc.code) from exc
@@ -269,8 +275,12 @@ def _tenant_context(
     request: Request,
     runtime_profile: str,
     x_tenant_id: str | None,
+    *,
+    governed_scope: str | None = None,
 ) -> str | None:
-    authenticated = _authenticated_tenant_id(request, runtime_profile)
+    authenticated = _authenticated_tenant_id(
+        request, runtime_profile, governed_scope=governed_scope
+    )
     if authenticated is None:
         return x_tenant_id
     if x_tenant_id and x_tenant_id != authenticated:
@@ -448,7 +458,12 @@ def create_app(
         request: Request,
         x_tenant_id: str | None,
     ) -> Any:
-        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
+        tenant_context = _tenant_context(
+            request,
+            runtime_profile,
+            x_tenant_id,
+            governed_scope="POST /scanner/v1/scans",
+        )
         # BEAAA-11867 D3 — admit through the per-tenant limiter (no-op when the
         # gateway is disabled). The lease models one in-flight scan.
         # BEAAA-14399 (P1#5 fix 3) — after the async full-scan cutover the scan
@@ -530,7 +545,12 @@ def create_app(
         # envelope. Rollback Path 1 per ADR-0017 §6 is to set the env var
         # to ``off`` explicitly.
         body = await request.json()
-        tenant_context = _tenant_context(request, runtime_profile, x_tenant_id)
+        tenant_context = _tenant_context(
+            request,
+            runtime_profile,
+            x_tenant_id,
+            governed_scope="POST /scanner/v1/rescans",
+        )
         if ApiConfig.from_env().rescans_measured_off:
             return JSONResponse(
                 status_code=200,

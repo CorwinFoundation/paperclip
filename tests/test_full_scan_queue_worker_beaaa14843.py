@@ -173,6 +173,144 @@ def test_db_backed_worker_restart_resumes_without_duplicate_attempts(monkeypatch
     assert len(finalized.attempts) == 2
 
 
+def test_targeted_partial_batch_restart_never_widens_dispatch(monkeypatch, tmp_path):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-41663-targeted-test-key")
+    db = str(tmp_path / "targeted-queue.sqlite3")
+    rows = _registry_rows() + [{
+        "test_id": "promptinject", "case_id": "promptinject.unselected",
+        "status": "active", "production_runner_executable": True,
+        "risk_or_rubric_id": "P3.1", "runner": "promptfoo_wrapper",
+    }]
+    requested = ["promptinject.case_001", "promptinject.case_002"]
+    dispatched: list[tuple[str, str | None]] = []
+
+    def scoped_worker(row, job):
+        dispatched.append((row["case_id"], job.scan_id))
+        return _worker(row, job)
+
+    clock = Clock()
+    store1 = FullScanJobStore(clock=clock, persistence=FullScanJobPersistence(db))
+    job = store1.submit(
+        agent_id="agent-41663", scanner_version="1.3.0",
+        corpus_version="registry@1", model_versions={"primary": "fixture"}, seed=41663,
+        registry_cases=registry_cases_from_rows(rows[:2]),
+        scan_id="original-scan-41663",
+        operations_scope={"requested_case_ids": requested},
+    )
+    worker1 = FullScanQueueWorker(
+        store1, registry_rows=rows, workers={"promptfoo": scoped_worker},
+        lease_ttl_seconds=300, case_concurrency=1,
+    )
+    assert [row["case_id"] for row in worker1._pending_registry_rows_v2(job.job_id)] == requested
+    first = worker1.run_once(max_cases=1)
+    assert first.status == "interrupted"
+    assert len(store1.status(job.job_id).attempts) == 1
+
+    clock.advance(301)
+    store2 = FullScanJobStore(clock=clock, persistence=FullScanJobPersistence(db))
+    worker2 = FullScanQueueWorker(
+        store2, registry_rows=rows, workers={"promptfoo": scoped_worker},
+        lease_ttl_seconds=300, case_concurrency=1,
+    )
+    assert worker2.recover()["resumed"] == [job.job_id]
+    assert worker2.run_once().status == "finalized"
+
+    resumed = store2.status(job.job_id)
+    assert dispatched == [
+        ("promptinject.case_001", "original-scan-41663"),
+        ("promptinject.case_002", "original-scan-41663"),
+    ]
+    assert len(resumed.attempts) == 2
+    assert resumed.scan_id == "original-scan-41663"
+    assert resumed.operations_scope["requested_case_ids"] == requested
+
+
+def test_targeted_worker_fails_closed_when_persisted_case_is_absent():
+    rows = _registry_rows()
+    store = FullScanJobStore()
+    job = store.submit(
+        agent_id="agent-41663", scanner_version="1.3.0",
+        corpus_version="registry@1", model_versions={}, seed=41663,
+        registry_cases=registry_cases_from_rows(rows),
+        operations_scope={"requested_case_ids": ["missing-case"]},
+    )
+    worker = FullScanQueueWorker(store, registry_rows=rows, workers={"promptfoo": _worker})
+    with pytest.raises(RuntimeError, match="cases unavailable"):
+        worker._pending_registry_rows(job.job_id)
+    with pytest.raises(RuntimeError, match="cases unavailable"):
+        worker._pending_registry_rows_v2(job.job_id)
+
+
+def test_poisoned_targeted_job_is_terminal_once_and_does_not_starve_queue(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-41663-poison-test-key")
+    db = tmp_path / "poison-queue.sqlite3"
+    rows = _registry_rows()
+    callback_payloads: list[dict] = []
+
+    def post(_url, _headers, body):
+        import json
+        callback_payloads.append(json.loads(body))
+
+    store = FullScanJobStore(persistence=FullScanJobPersistence(db))
+    poison = store.submit(
+        agent_id="poison-agent", scanner_version="1.3.0",
+        corpus_version="registry@1", model_versions={}, seed=1,
+        registry_cases=registry_cases_from_rows(rows[:1]),
+        scan_id="original-poison-scan",
+        operations_scope={"requested_case_ids": ["retired.case"]},
+        terminal_webhook={
+            "webhook_cfg": {"url": "https://callback.invalid", "secret_ref": "x"},
+            "response_base": {"scan_id": "original-poison-scan"},
+        },
+    )
+    healthy = store.submit(
+        agent_id="healthy-agent", scanner_version="1.3.0",
+        corpus_version="registry@1", model_versions={}, seed=2,
+        registry_cases=registry_cases_from_rows(rows), scan_id="healthy-scan",
+    )
+    sends: list[str] = []
+
+    def counted_worker(row, job):
+        sends.append(job.job_id)
+        return _worker(row, job)
+
+    worker = FullScanQueueWorker(
+        store, registry_rows=rows, workers={"promptfoo": counted_worker},
+        webhook_secret_resolver=lambda _ref: "secret",
+        webhook_http_poster=post,
+    )
+    result = worker.run_once()
+    assert result.status == "invalid_job_finalized"
+    terminal = store.status(poison.job_id)
+    assert terminal.status == "failed"
+    assert terminal.scan_id == "original-poison-scan"
+    assert terminal.final_manifest["terminal_failure_reason"].startswith(
+        "invalid_persisted_operations_scope:"
+    )
+    assert terminal.final_manifest["counts"]["missing_required"] == 1
+    assert sends == []
+
+    # The released terminal callback drains once, then the unrelated full job runs.
+    assert worker.run_once().status == "terminal_webhook_delivered"
+    assert callback_payloads[0]["missing_evidence"] is True
+    assert callback_payloads[0]["comparison_status"] == "no_comparable_result"
+    assert worker.run_once().status == "finalized"
+    assert store.status(healthy.job_id).status == "complete"
+    assert sends == [healthy.job_id, healthy.job_id]
+
+    # Repeated recovery/run cycles neither requeue poison nor replay its callback.
+    restarted = FullScanQueueWorker(
+        FullScanJobStore(persistence=FullScanJobPersistence(db)),
+        registry_rows=rows, workers={"promptfoo": counted_worker},
+        webhook_secret_resolver=lambda _ref: "secret", webhook_http_poster=post,
+    )
+    assert restarted.recover() == {"resumed": [], "failed": []}
+    assert restarted.run_once().status == "idle"
+    assert len(callback_payloads) == 1
+
+
 def test_lease_next_returns_none_until_job_is_durably_accepted(tmp_path):
     store = FullScanJobStore(persistence=FullScanJobPersistence(tmp_path / "queue.sqlite3"))
     assert store.lease_next() is None

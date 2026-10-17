@@ -49,6 +49,10 @@ FULL_SCAN_WORKER_POLL_INTERVAL_SECONDS = 5.0
 FULL_SCAN_WEBHOOK_SECRETS_ENV = "ARE_SCAN_WEBHOOK_SECRETS_JSON"
 
 
+class PersistedOperationsScopeError(RuntimeError):
+    """A leased job's immutable targeted scope can no longer be executed."""
+
+
 @dataclass(frozen=True)
 class FullScanWorkerResult:
     status: str
@@ -169,7 +173,22 @@ class FullScanQueueWorker:
             )
 
         while True:
-            pending = self._pending_registry_rows(job_id)
+            try:
+                pending = self._pending_registry_rows(job_id)
+            except PersistedOperationsScopeError as exc:
+                reason = f"invalid_persisted_operations_scope:{exc}"
+                finalized = self._store.finalize_stranded(job_id, reason=reason)
+                # Finalization releases the lease and makes any terminal callback
+                # visible to the normal durable outbox pass. Do not send inline:
+                # the next queue tick owns delivery/retry independently of this job.
+                return FullScanWorkerResult(
+                    status="invalid_job_finalized",
+                    job_id=job_id,
+                    attempt_id=attempt_id,
+                    processed_cases=processed,
+                    final_status=finalized.status,
+                    final_manifest_hash=finalized.final_manifest_hash,
+                )
             if not pending:
                 # BEAAA-38957: if the cost cap was hit, use the dedicated
                 # finalizer so the job gets ``incomplete_cost_cap`` status.
@@ -280,6 +299,7 @@ class FullScanQueueWorker:
             ]
         else:
             rows = self._registry_rows
+        rows = self._rows_within_persisted_scope(job, rows)
         resume = self._store.resume(job_id)
         terminal_case_ids = {
             str(row["probe_id"])
@@ -297,6 +317,8 @@ class FullScanQueueWorker:
 
     def _pending_registry_rows_v2(self, job_id: str) -> list[Mapping[str, Any]]:
         """Like _pending_registry_rows but also excludes cost_cap_reached rows."""
+        job = self._store.status(job_id)
+        rows = self._rows_within_persisted_scope(job, self._registry_rows)
         resume = self._store.resume(job_id)
         terminal_case_ids = {
             str(row["probe_id"])
@@ -309,11 +331,49 @@ class FullScanQueueWorker:
         }
         return [
             row
-            for row in self._registry_rows
+            for row in rows
             if row.get("status") == "active"
             and row.get("production_runner_executable") is True
             and str(row.get("case_id") or "") not in terminal_case_ids
         ]
+
+    @staticmethod
+    def _rows_within_persisted_scope(
+        job: FullScanJob,
+        rows: Sequence[Mapping[str, Any]],
+    ) -> tuple[Mapping[str, Any], ...]:
+        """Intersect dispatch with the immutable scope accepted for this job.
+
+        A targeted job may resume against a newer or wider live registry.  Its
+        persisted ``requested_case_ids`` remain the sole dispatch authority;
+        malformed or no-longer-resolvable scope data fails closed rather than
+        silently widening to the full registry.
+        """
+        available = tuple(rows)
+        if job.operations_scope is None:
+            return available
+        raw_requested = job.operations_scope.get("requested_case_ids")
+        if (
+            not isinstance(raw_requested, list)
+            or not raw_requested
+            or any(not isinstance(case_id, str) or not case_id for case_id in raw_requested)
+            or len(set(raw_requested)) != len(raw_requested)
+        ):
+            raise PersistedOperationsScopeError(
+                "persisted operations scope has invalid requested_case_ids"
+            )
+        requested = set(raw_requested)
+        selected = tuple(
+            row for row in available
+            if str(row.get("case_id") or "") in requested
+        )
+        selected_ids = {str(row.get("case_id") or "") for row in selected}
+        missing = sorted(requested - selected_ids)
+        if missing:
+            raise PersistedOperationsScopeError(
+                f"persisted operations scope cases unavailable in worker registry: {missing}"
+            )
+        return selected
 
     def _deliver_terminal_webhook(self, job: Any) -> bool:
         if not isinstance(job.terminal_webhook, Mapping):
@@ -329,6 +389,13 @@ class FullScanQueueWorker:
         payload["partial_completion"] = job.status != "complete"
         payload["confidence_below_adjudication_threshold"] = job.status != "complete"
         payload["job_id"] = job.job_id
+        if job.status == "failed" and isinstance(job.final_manifest, Mapping):
+            if job.final_manifest.get("terminal_failure_reason"):
+                payload["missing_evidence"] = True
+                payload["comparison_status"] = "no_comparable_result"
+                payload["terminal_failure_reason"] = job.final_manifest[
+                    "terminal_failure_reason"
+                ]
         if job.final_manifest_hash:
             payload["full_suite_manifest_hash"] = job.final_manifest_hash
         delivered = fire_webhook(

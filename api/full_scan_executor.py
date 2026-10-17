@@ -445,6 +445,7 @@ class FullScanJob:
     # Durable live-progress projection.  These are case identities only; no
     # prompt, response, credential, or evidence content crosses this boundary.
     in_flight_case_ids: tuple[str, ...] = ()
+    operations_scope: Mapping[str, Any] | None = None
 
 
 FrameworkWorker = Callable[[Mapping[str, Any], FullScanJob], WorkerAttemptResult]
@@ -545,6 +546,7 @@ class FullScanJobStore:
         form_bank_version: str | None = None,
         form_id: str | None = None,
         form_history_window: int = 1,
+        operations_scope: Mapping[str, Any] | None = None,
     ) -> FullScanJob:
         with self._lock:
             cases = tuple(registry_cases)
@@ -729,6 +731,9 @@ class FullScanJobStore:
                 entitlement_id=entitlement_id,
                 form_id=resolved_form_id,
                 max_concurrent_per_target=max_concurrent_per_target,
+                operations_scope=(
+                    dict(operations_scope) if operations_scope is not None else None
+                ),
             )
             self._jobs[job.job_id] = job
             self._job_target_ids[job.job_id] = target_id
@@ -1207,6 +1212,7 @@ class FullScanJobStore:
 
     def _finalize_stranded(self, job: FullScanJob, *, reason: str) -> FullScanJob:
         manifest = build_attempt_manifest(job, finished_at=self._clock())
+        manifest["terminal_failure_reason"] = reason
         updated = replace(
             job,
             status="failed",
@@ -2753,6 +2759,9 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
         "form_id": job.form_id,
         "max_concurrent_per_target": job.max_concurrent_per_target,
         "in_flight_case_ids": list(job.in_flight_case_ids),
+        "operations_scope": (
+            dict(job.operations_scope) if job.operations_scope is not None else None
+        ),
     }
 
 
@@ -2814,4 +2823,5 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
             or DEFAULT_MAX_INFLIGHT_CASES_PER_TARGET
         ),
         in_flight_case_ids=tuple(str(value) for value in record.get("in_flight_case_ids", ())),
+        operations_scope=record.get("operations_scope"),
     )

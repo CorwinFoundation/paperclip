@@ -44,7 +44,7 @@ import json as _json
 import gzip
 import os
 import re
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 from harness.egress import EgressNotAllowed, ScopedEgressAllowlist
@@ -165,6 +165,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
         self._auth_headers_sendable = all(
             _is_sendable_header_value(value) for value in self._auth_headers.values()
         )
+        self._reserve_transport_attempt: Callable[[], str] | None = None
+        self._complete_transport_attempt: Callable[[str], None] | None = None
         if self._config.get("transport") == "kaltura_genie" and auth_type == "bearer":
             # Kaltura Session (KS) auth deliberately differs from OAuth bearer
             # auth.  Keep the scoped token in the existing ephemeral secret
@@ -176,6 +178,15 @@ class _CustomerAgentHttpRunner(ModelRunner):
 
     def model_id(self) -> str:
         return self._model_id
+
+    def bind_transport_attempt_ledger(
+        self,
+        reserve: Callable[[], str],
+        complete: Callable[[str], None],
+    ) -> None:
+        """Bind durable accounting at the actual HTTP-send boundary."""
+        self._reserve_transport_attempt = reserve
+        self._complete_transport_attempt = complete
 
     def _request_payload(self, prompt: str) -> dict[str, Any]:
         messages_payload = getattr(self, "_messages_payload", None)
@@ -353,6 +364,11 @@ class _CustomerAgentHttpRunner(ModelRunner):
                     timeout=_REQUEST_TIMEOUT_SECONDS,
                     follow_redirects=False,
                 ) as client:
+                    reservation_id = (
+                        self._reserve_transport_attempt()
+                        if self._reserve_transport_attempt is not None
+                        else None
+                    )
                     with client.stream(
                         "POST",
                         self._agent_endpoint,
@@ -451,6 +467,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
             ) from exc
         text = raw.decode("utf-8", errors="replace")
         parsed_response = self._parse_response(text)
+        if reservation_id is not None and self._complete_transport_attempt is not None:
+            self._complete_transport_attempt(reservation_id)
         if self._result_rows_enabled:
             self._pending_exchange = (
                 self._redact_result_text(prompt),

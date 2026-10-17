@@ -1,14 +1,18 @@
 import json
 from pathlib import Path
+import time
 
 import pytest
 
+from api.full_scan_executor import WorkerAttemptResult
 from api.operations_scope import (
     ScopeValidationError,
     project_targeted_scope_registry,
     reconcile_scope_execution,
     validate_scope_selection,
 )
+from api.scan_handlers import ScanRuntime, scan_handler
+from scanners.live_probe_orchestrator import ScanResult
 
 
 REGISTRY = (
@@ -189,3 +193,62 @@ def test_full_reconciliation_rejects_terminal_but_unscorable_cases(status):
     assert result["unscorable"] == ["a", "b"]
     assert result["complete"] is False
     assert result["may_claim_full_score"] is False
+
+
+def test_api_targeted_scope_reaches_worker_without_widening(monkeypatch):
+    """The production intake-to-worker path dispatches only accepted cases."""
+    monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "beaaa-41663-test-key")
+    rows = (
+        {
+            "test_id": "scope-a-test", "case_id": "case-a", "scope_id": "scope-a",
+            "registry_version": "registry@1", "risk_or_rubric_id": "OPS.A",
+            "runner": "fixture", "status": "active", "production_runner_executable": True,
+            "targeted_content_approved": True, "targeted_supported": True,
+        },
+        {
+            "test_id": "scope-b-test", "case_id": "case-b", "scope_id": "scope-b",
+            "registry_version": "registry@1", "risk_or_rubric_id": "OPS.B",
+            "runner": "fixture", "status": "active", "production_runner_executable": True,
+            "targeted_content_approved": True, "targeted_supported": True,
+        },
+    )
+    observed = []
+
+    def worker(row, job):
+        observed.append((row["case_id"], job.operations_scope))
+        return WorkerAttemptResult(
+            status="complete", evidence_ref=f"evidence://{row['case_id']}",
+            target_calls=1,
+        )
+
+    runtime = ScanRuntime(
+        run_scan_fn=lambda *_args: pytest.fail("registry path invoked legacy walker"),
+        full_scan_registry_rows=rows,
+        full_scan_workers_factory=lambda *_args: {"promptfoo": worker},
+    )
+    status, payload = scan_handler(
+        {
+            "tenant_id": "tenant-p08", "agent_id": "agent-p08",
+            "agent_endpoint": {"url": "https://agent.example.test/probe"},
+            "credential_ref": "credential-p08", "credential_secret": "secret",
+            "corpus_snapshot_hash": "sha256:" + "0" * 64,
+            "scanner_version": "0.4.2", "corpus_version": "registry@1", "seed": 41663,
+            "operations_scope": {
+                "registry_revision": "registry@1", "mode": "targeted",
+                "scope_ids": ["scope-a"], "case_manifest": ["case-a"],
+            },
+        },
+        tenant_header="tenant-p08", runtime=runtime,
+        scan_id_factory=lambda: "scan-p08-targeted",
+    )
+    assert status == 202
+    deadline = time.monotonic() + 3
+    result = runtime.fetch(payload["scan_id"])
+    while result is not None and result.status in {"queued", "running"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+        result = runtime.fetch(payload["scan_id"])
+
+    assert result is not None and result.status == "complete"
+    assert [case_id for case_id, _scope in observed] == ["case-a"]
+    assert observed[0][1]["requested_case_ids"] == ["case-a"]

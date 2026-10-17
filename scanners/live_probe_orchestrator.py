@@ -287,6 +287,9 @@ class ScanRequest:
     # canonical probe surface byte-for-byte, so the default path is
     # unchanged and rollback is toggle-off.
     surface_seed: int | None = None
+    # BEAAA-41663 P08: normalized, registry-pinned Customer Operations
+    # selection carried across the API/worker boundary.
+    operations_scope: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:

@@ -1159,10 +1159,20 @@ class ScanRuntime:
         if worker_metadata.get("execution_budget"):
             model_versions["execution_budget"] = worker_metadata["execution_budget"]
         variable_form_pack = scan_request.pack_id == "full-scan-conv-en@1.0"
+        selected_case_ids = (
+            frozenset(scan_request.operations_scope["requested_case_ids"])
+            if scan_request.operations_scope is not None
+            else None
+        )
+        selected_registry_rows = tuple(
+            row
+            for row in self._full_scan_registry_rows
+            if selected_case_ids is None or row.get("case_id") in selected_case_ids
+        )
         registry_cases = (
             ()
             if variable_form_pack
-            else registry_cases_from_rows(self._full_scan_registry_rows)
+            else registry_cases_from_rows(selected_registry_rows)
         )
         webhook_cfg = self._webhook_cfgs.get(scan_request.scan_id)
         job = self._full_scan_job_store.submit(
@@ -1188,6 +1198,7 @@ class ScanRuntime:
                 else None
             ),
             tenant_id=scan_request.tenant_id,
+            operations_scope=scan_request.operations_scope,
             pack_id=(
                 scan_request.pack_id if variable_form_pack else None
             ),
@@ -1240,7 +1251,7 @@ class ScanRuntime:
                     self._full_scan_job_store,
                     job.job_id,
                     attempt_id=attempt_id,
-                    registry_rows=self._full_scan_registry_rows,
+                    registry_rows=selected_registry_rows,
                     workers=workers,
                     max_workers=case_concurrency,
                 )
@@ -2446,6 +2457,7 @@ def _kickoff_live_probe_scan(
             invocation_context=scanner_invocation_context,
             vendor_id=vendor_id,
             canary_phrasing_hashes=canary_phrasing_hashes,
+            operations_scope=operations_scope,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc
