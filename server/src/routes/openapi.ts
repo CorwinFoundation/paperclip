@@ -589,6 +589,7 @@ const BOARD_ONLY_OPERATIONS = new Set([
   "POST /api/issues/{id}/interactions/{interactionId}/accept",
   "POST /api/issues/{id}/interactions/{interactionId}/reject",
   "POST /api/issues/{id}/interactions/{interactionId}/respond",
+  "POST /api/issues/{id}/interactions/{interactionId}/restore",
 ]);
 
 const INSTANCE_ADMIN_OPERATIONS = new Set([
@@ -3039,6 +3040,17 @@ registry.registerPath({
     body: jsonBody(respondIssueThreadInteractionSchema),
   },
   responses: { 200: r.ok(), 400: r.badRequest, 401: r.unauthorized, 404: r.notFound },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/issues/{id}/interactions/{interactionId}/restore",
+  tags: ["issues"],
+  summary: "Restore a retained request confirmation superseded by a comment",
+  request: {
+    params: z.object({ id: z.string(), interactionId: z.string() }),
+  },
+  responses: { 200: r.ok(), 401: r.unauthorized, 404: r.notFound, 409: r.conflict, 422: r.unprocessable },
 });
 
 registry.registerPath({

@@ -12,6 +12,7 @@ const mockIssueService = vi.hoisted(() => ({
 const mockInteractionService = vi.hoisted(() => ({
   listForIssue: vi.fn(),
   create: vi.fn(),
+  restoreSupersededRequestConfirmation: vi.fn(),
   acceptInteraction: vi.fn(),
   acceptSuggestedTasks: vi.fn(),
   rejectInteraction: vi.fn(),
@@ -517,6 +518,40 @@ describe.sequential("issue thread interaction routes", () => {
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       interaction,
       expect.objectContaining({ userId: "local-board" }),
+    );
+  });
+
+  it("restores a superseded request confirmation through a board-only audited route", async () => {
+    mockInteractionService.restoreSupersededRequestConfirmation.mockResolvedValueOnce({
+      id: "interaction-retained",
+      kind: "request_confirmation",
+      status: "pending",
+    });
+    const app = await createApp();
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-retained/restore")
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "interaction-retained",
+      kind: "request_confirmation",
+      status: "pending",
+    });
+    expect(mockInteractionService.restoreSupersededRequestConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
+      "interaction-retained",
+    );
+    expect(mockLogActivity).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: "issue.thread_interaction_restored",
+        details: expect.objectContaining({
+          interactionId: "interaction-retained",
+          restoredFromOutcome: "superseded_by_comment",
+        }),
+      }),
     );
   });
 

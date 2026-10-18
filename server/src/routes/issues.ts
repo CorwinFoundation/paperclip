@@ -7047,6 +7047,42 @@ export function issueRoutes(
     res.status(201).json(interaction);
   });
 
+  router.post("/issues/:id/interactions/:interactionId/restore", async (req, res) => {
+    const id = req.params.id as string;
+    const interactionId = req.params.interactionId as string;
+    const issue = await svc.getById(id);
+    if (!issue) {
+      res.status(404).json({ error: "Issue not found" });
+      return;
+    }
+    assertCompanyAccess(req, issue.companyId);
+    assertBoard(req);
+
+    const actor = getActorInfo(req);
+    const interaction = await issueThreadInteractionService(db)
+      .restoreSupersededRequestConfirmation(issue, interactionId);
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.thread_interaction_restored",
+      entityType: "issue",
+      entityId: issue.id,
+      details: {
+        interactionId: interaction.id,
+        interactionKind: interaction.kind,
+        interactionStatus: interaction.status,
+        restoredFromStatus: "expired",
+        restoredFromOutcome: "superseded_by_comment",
+      },
+    });
+
+    res.json(interaction);
+  });
+
   router.post(
     "/issues/:id/interactions/:interactionId/accept",
     validate(acceptIssueThreadInteractionSchema),
