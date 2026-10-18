@@ -61,6 +61,7 @@ class FakeActivator:
         image_digest = candidate.image_digest
         identity = {
             "schema_version": agent.RELEASE_IDENTITY_SCHEMA,
+            "compatibility_contract_version": agent.COMPATIBILITY_CONTRACT_VERSION,
             "environment": "production",
             "host": "srv1749248",
             "candidate_id": candidate.candidate_id,
@@ -311,6 +312,7 @@ def test_complete_terminal_acceptance_record_contains_required_fields(tmp_path: 
     assert record["release_identity"]["running_container_revision"] == record["commit_sha"]
     assert record["release_identity"]["internal_version_sha"] == record["commit_sha"]
     assert record["release_identity"]["current_version"] == record["commit_sha"]
+    assert record["release_identity"]["compatibility_contract_version"] == "scanner-operations-contract@1"
     assert record["release_identity"]["last_activated_sequence"] == 7
 
 
@@ -924,6 +926,7 @@ def _identity(commit_sha: str = COMMIT_SHA, *, sequence: int = 7) -> dict:
     image_digest = "sha256:" + "f" * 64
     return {
         "schema_version": agent.RELEASE_IDENTITY_SCHEMA,
+        "compatibility_contract_version": agent.COMPATIBILITY_CONTRACT_VERSION,
         "environment": "production",
         "host": "srv1749248",
         "candidate_id": "cand-1",

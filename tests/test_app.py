@@ -150,6 +150,7 @@ class AppTests(unittest.TestCase):
     def test_release_identity_route_returns_public_immutable_fields(self):
         identity = {
             "schema_version": "backbond-scanner-release-identity@1",
+            "compatibility_contract_version": "scanner-operations-contract@1",
             "environment": "production",
             "host": "srv1749248",
             "candidate_id": "cand-1",
@@ -178,6 +179,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertEqual(body["commit_sha"], "a" * 40)
+        self.assertEqual(body["compatibility_contract_version"], "scanner-operations-contract@1")
         self.assertNotIn("deploy_token_scope", body)
         self.assertNotIn("authorization_token", body)
         self.assertNotIn("service_env_path", body)

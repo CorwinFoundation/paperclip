@@ -145,7 +145,9 @@ class DeployConfig:
 
 
 RELEASE_IDENTITY_SCHEMA = "backbond-scanner-release-identity@1"
+COMPATIBILITY_CONTRACT_VERSION = "scanner-operations-contract@1"
 RELEASE_IDENTITY_FIELDS = (
+    "compatibility_contract_version",
     "configured_image",
     "running_container_revision",
     "internal_version_sha",
@@ -308,6 +310,7 @@ class SystemdDockerActivator:
     ) -> dict[str, Any]:
         return {
             "schema_version": RELEASE_IDENTITY_SCHEMA,
+            "compatibility_contract_version": COMPATIBILITY_CONTRACT_VERSION,
             "environment": self.config.environment,
             "host": self.config.host,
             "candidate_id": candidate.candidate_id,
@@ -691,6 +694,8 @@ def validate_release_identity(identity: dict[str, Any]) -> None:
     missing = [field for field in RELEASE_IDENTITY_FIELDS if not identity.get(field)]
     if missing:
         raise DeployRejected(f"release identity missing field(s): {', '.join(missing)}")
+    if identity["compatibility_contract_version"] != COMPATIBILITY_CONTRACT_VERSION:
+        raise DeployRejected("release identity compatibility_contract_version is unsupported")
     commit_sha = str(identity.get("commit_sha", ""))
     image_digest = str(identity.get("image_digest", ""))
     if identity["configured_image"] != image_digest:

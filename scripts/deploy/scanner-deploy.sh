@@ -560,7 +560,7 @@ RECORDED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 python3 - "$TX/identity.activating" "$SHA" "$REPO_DIGEST" "$LOCAL_TAG" "$CANDIDATE" "$RECORDED_AT" <<'PY'
 import json,sys
 p,sha,digest,image,candidate,at=sys.argv[1:]
-v={"schema_version":"backbond-scanner-release-identity@1","environment":"production","host":"srv1749248","candidate_id":candidate,"commit_sha":sha,"image_digest":digest,"configured_image":image,"running_container_revision":sha,"internal_version_sha":sha,"current_version":sha,"status":"activating","recorded_at":at}
+v={"schema_version":"backbond-scanner-release-identity@1","compatibility_contract_version":"scanner-operations-contract@1","environment":"production","host":"srv1749248","candidate_id":candidate,"commit_sha":sha,"image_digest":digest,"configured_image":image,"running_container_revision":sha,"internal_version_sha":sha,"current_version":sha,"status":"activating","recorded_at":at}
 open(p,'w').write(json.dumps(v,sort_keys=True,separators=(',',':'))+'\n')
 PY
 python3 -m json.tool "$TX/identity.activating" >/dev/null
@@ -584,7 +584,7 @@ wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/public-activating.json"
 python3 - "$TX/public-activating.json" "$SHA" "$REPO_DIGEST" "$LOCAL_TAG" <<'PY'
 import json,sys
 p,sha,digest,image=sys.argv[1:]; d=json.load(open(p))
-for k,v in {"commit_sha":sha,"current_version":sha,"running_container_revision":sha,"internal_version_sha":sha,"image_digest":digest,"configured_image":image}.items():
+for k,v in {"compatibility_contract_version":"scanner-operations-contract@1","commit_sha":sha,"current_version":sha,"running_container_revision":sha,"internal_version_sha":sha,"image_digest":digest,"configured_image":image}.items():
     if d.get(k)!=v: raise SystemExit(f"public identity mismatch: {k}")
 PY
 python3 - "$IDENTITY" <<'PY'
@@ -598,7 +598,7 @@ wait_200 "$PUBLIC_BASE/scanner/v1/release-identity" "$TX/public-activated.json"
 python3 - "$IDENTITY" "$TX/public-activated.json" <<'PY'
 import json,sys
 expected=json.load(open(sys.argv[1])); observed=json.load(open(sys.argv[2]))
-for key in ("schema_version","environment","host","candidate_id","commit_sha","image_digest","configured_image","running_container_revision","internal_version_sha","current_version","status"):
+for key in ("schema_version","compatibility_contract_version","environment","host","candidate_id","commit_sha","image_digest","configured_image","running_container_revision","internal_version_sha","current_version","status"):
     if observed.get(key)!=expected.get(key): raise SystemExit(f"activated public identity mismatch: {key}")
 PY
 

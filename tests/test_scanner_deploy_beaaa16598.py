@@ -97,7 +97,7 @@ case "$out" in /dev/null) :;; *) printf '%s\n' "$STUB_IDENTITY" >"$out";; esac
 printf 200
 ''')
     local_tag = f"backbond-scanner-live:{SHA}"
-    identity = json.dumps({"commit_sha":SHA,"current_version":SHA,"running_container_revision":SHA,"internal_version_sha":SHA,"image_digest":DIGEST,"configured_image":local_tag,"schema_version":"backbond-scanner-release-identity@1","environment":"production","host":"srv1749248","candidate_id":CANDIDATE,"status":"activated","recorded_at":"ignored"},sort_keys=True,separators=(",", ":"))
+    identity = json.dumps({"commit_sha":SHA,"current_version":SHA,"running_container_revision":SHA,"internal_version_sha":SHA,"image_digest":DIGEST,"configured_image":local_tag,"schema_version":"backbond-scanner-release-identity@1","compatibility_contract_version":"scanner-operations-contract@1","environment":"production","host":"srv1749248","candidate_id":CANDIDATE,"status":"activated","recorded_at":"ignored"},sort_keys=True,separators=(",", ":"))
     e = os.environ.copy()
     e.update({"PATH":f"{bin_dir}:{e['PATH']}","TMPDIR":str(tmp_path),"SCANNER_EDGE_ENV":str(env_file),"SCANNER_ARCHIVE_DIR":str(tmp_path),"SCANNER_STATE_DIR":str(state),"SCANNER_UNIT_FILE":str(unit),"SCANNER_DOCKER":str(bin_dir/"docker"),"SCANNER_SYSTEMCTL":str(bin_dir/"systemctl"),"SCANNER_CURL":str(bin_dir/"curl"),"SCANNER_READINESS_TIMEOUT":"1","SCANNER_READINESS_INTERVAL":"1","SCANNER_EXPECTED_OWNER_UID":str(os.getuid()),"SCANNER_EXPECTED_OWNER_GID":str(os.getgid()),"SCANNER_FROZEN_SHA":SHA,"SCANNER_FROZEN_REPO_DIGEST":DIGEST,"SCANNER_FROZEN_ARCHIVE_SHA":archive_sha,"SCANNER_FROZEN_MANIFEST_SHA":manifest_sha,"SCANNER_FROZEN_CANDIDATE":CANDIDATE,"STUB_SHA":SHA,"STUB_ARCHIVE_PATH":str(archive),"STUB_MANIFEST_FILE":str(manifest_file),"STUB_CONTAINER_STATE":str(tmp_path/"container.exists"),"STUB_IDENTITY":identity,"STUB_CURL_FAIL":"1" if curl_fail else "","STUB_ROLLBACK_FAIL":"1" if rollback_fail else ""})
     return e, env_file, state, archive, archive_sha, calls
@@ -156,6 +156,8 @@ def test_activation_lock_is_initialized_on_the_exact_container_mount(tmp_path):
     lock = state / "activation.lock"
     assert lock.is_file()
     assert stat.S_IMODE(lock.stat().st_mode) == 0o644
+    identity = json.loads((state / "releases" / f"{SHA}.json").read_text())
+    assert identity["compatibility_contract_version"] == "scanner-operations-contract@1"
     assert 'STATE_DIR="${SCANNER_STATE_DIR:-/var/lib/backbond-deploy-agent}"' in HELPER.read_text()
     assert 'ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"' in HELPER.read_text()
     assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()

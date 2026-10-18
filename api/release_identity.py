@@ -7,6 +7,7 @@ from typing import Any
 
 PUBLIC_RELEASE_IDENTITY_FIELDS = (
     "schema_version",
+    "compatibility_contract_version",
     "environment",
     "host",
     "candidate_id",
