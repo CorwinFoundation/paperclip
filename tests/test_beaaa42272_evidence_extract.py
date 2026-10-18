@@ -13,11 +13,11 @@ SCAN_ID = "f530b033-46d2-4c37-a2a2-b8cad01824fa"
 JOB_ID = "a935915a-ddc0-473f-ba46-ebd3593cc38b"
 
 
-def _database(path: Path) -> None:
+def _database(path: Path, *, historical: bool = False) -> None:
     conn = sqlite3.connect(path)
     conn.execute("CREATE TABLE full_scan_jobs (job_id TEXT, job_json TEXT)")
+    conn.execute("CREATE TABLE full_scan_idempotency (idempotency_key TEXT, job_id TEXT)")
     record = {
-        "scan_id": SCAN_ID,
         "job_id": JOB_ID,
         "status": "incomplete",
         "scanner_version": "0.5.0",
@@ -43,7 +43,22 @@ def _database(path: Path) -> None:
             "bind_eligibility": "blocked_base_suite_incomplete",
         },
     }
+    if not historical:
+        record["scan_id"] = SCAN_ID
     conn.execute("INSERT INTO full_scan_jobs VALUES (?, ?)", (JOB_ID, json.dumps(record)))
+    if historical:
+        conn.execute(
+            "INSERT INTO full_scan_idempotency VALUES (?, ?)",
+            (f"private-tenant:{SCAN_ID}:full-registry", JOB_ID),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _accepted_database(path: Path) -> None:
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE accepted_scans (scan_id TEXT PRIMARY KEY, tenant_id TEXT)")
+    conn.execute("INSERT INTO accepted_scans VALUES (?, ?)", (SCAN_ID, "private-tenant"))
     conn.commit()
     conn.close()
 
@@ -52,7 +67,8 @@ def _run(state: Path, db: Path, scan_id: str = SCAN_ID) -> subprocess.CompletedP
     return subprocess.run(
         ["bash", str(HELPER), "evidence-extract", scan_id],
         env={**os.environ, "SCANNER_EVIDENCE_STATE_DIR": str(state),
-             "SCANNER_FULL_SCAN_JOB_STORE": str(db)},
+             "SCANNER_FULL_SCAN_JOB_STORE": str(db),
+             "SCANNER_ACCEPTED_SCAN_STORE": str(state / "accepted_scans.sqlite3")},
         text=True, capture_output=True, check=False,
     )
 
@@ -91,6 +107,25 @@ def test_extract_is_idempotent_and_does_not_write_database(tmp_path: Path) -> No
     assert first.returncode == second.returncode == 0
     assert first.stdout == second.stdout
     assert db.read_bytes() == before
+
+
+def test_extract_correlates_historical_job_through_accepted_scan(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    db = state / "full_scan_jobs.sqlite3"
+    accepted_db = state / "accepted_scans.sqlite3"
+    _database(db, historical=True)
+    _accepted_database(accepted_db)
+    before = (db.read_bytes(), accepted_db.read_bytes())
+
+    result = _run(state, db)
+
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["scan_id"] == SCAN_ID
+    assert output["job_id"] == JOB_ID
+    assert "private-tenant" not in result.stdout
+    assert (db.read_bytes(), accepted_db.read_bytes()) == before
 
 
 def test_extract_rejects_bad_or_unknown_scan_id(tmp_path: Path) -> None:

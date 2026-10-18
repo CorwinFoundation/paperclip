@@ -27,6 +27,7 @@ ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"
 EVIDENCE_STATE_DIR="${SCANNER_EVIDENCE_STATE_DIR:-/var/lib/are-scanner}"
 EVIDENCE_EXPORT_DIR="${SCANNER_EVIDENCE_EXPORT_DIR:-/var/tmp/are-scanner-evidence-exports}"
 FULL_SCAN_JOB_STORE="${SCANNER_FULL_SCAN_JOB_STORE:-$EVIDENCE_STATE_DIR/full_scan_jobs.sqlite3}"
+ACCEPTED_SCAN_STORE="${SCANNER_ACCEPTED_SCAN_STORE:-$EVIDENCE_STATE_DIR/accepted_scans.sqlite3}"
 SCAN_INTAKE_SERVICE="${SCANNER_SCAN_INTAKE_SERVICE:-backbond-scan-intake.service}"
 DISK_PATH="${SCANNER_DISK_PATH:-/}"
 DISK_MIN_FREE_BYTES="${SCANNER_DISK_MIN_FREE_BYTES:-21474836480}"
@@ -375,13 +376,45 @@ evidence_extract() {
   [ ! -L "$EVIDENCE_STATE_DIR" ] || die 'evidence state directory is a symlink'
   [ ! -L "$FULL_SCAN_JOB_STORE" ] || die 'full-scan job store is a symlink'
   [ -f "$FULL_SCAN_JOB_STORE" ] || die "full-scan job store missing: $FULL_SCAN_JOB_STORE"
-  python3 - "$FULL_SCAN_JOB_STORE" "$scan_id" <<'PY'
-import json, sqlite3, sys
+  python3 - "$FULL_SCAN_JOB_STORE" "$ACCEPTED_SCAN_STORE" "$scan_id" <<'PY'
+import json, os, sqlite3, sys
 
-db_path, scan_id = sys.argv[1:]
+db_path, accepted_path, scan_id = sys.argv[1:]
 try:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    rows = conn.execute("SELECT job_json FROM full_scan_jobs").fetchall()
+    # Newer durable jobs carry scan_id directly. Query the JSON field in SQL so
+    # an operator request never enumerates or loads unrelated job records.
+    rows = conn.execute(
+        "SELECT job_json FROM full_scan_jobs "
+        "WHERE json_extract(job_json, '$.scan_id') = ?",
+        (scan_id,),
+    ).fetchall()
+    if not rows:
+        # Historical jobs predate the top-level scan_id field. Resolve the
+        # accepted scan exactly, then follow the durable idempotency edge that
+        # the full-scan submit path wrote as tenant:scan:full-registry. Tenant
+        # identity stays in-process and is never emitted in output or errors.
+        if os.path.islink(accepted_path):
+            raise SystemExit("accepted-scan store is a symlink")
+        if not os.path.isfile(accepted_path):
+            raise SystemExit(f"scan id not found: {scan_id}")
+        accepted = sqlite3.connect(f"file:{accepted_path}?mode=ro", uri=True)
+        try:
+            accepted_rows = accepted.execute(
+                "SELECT tenant_id FROM accepted_scans WHERE scan_id = ?", (scan_id,)
+            ).fetchall()
+        finally:
+            accepted.close()
+        if len(accepted_rows) > 1:
+            raise SystemExit(f"scan id is not unique: {scan_id}")
+        if accepted_rows:
+            correlation_key = f"{accepted_rows[0][0]}:{scan_id}:full-registry"
+            rows = conn.execute(
+                "SELECT j.job_json FROM full_scan_idempotency AS i "
+                "JOIN full_scan_jobs AS j ON j.job_id = i.job_id "
+                "WHERE i.idempotency_key = ?",
+                (correlation_key,),
+            ).fetchall()
 finally:
     if "conn" in locals():
         conn.close()
@@ -392,8 +425,7 @@ for (raw,) in rows:
         record = json.loads(raw)
     except (TypeError, json.JSONDecodeError) as exc:
         raise SystemExit(f"invalid durable full-scan record: {exc}")
-    if record.get("scan_id") == scan_id:
-        matches.append(record)
+    matches.append(record)
 if not matches:
     raise SystemExit(f"scan id not found: {scan_id}")
 if len(matches) != 1:
