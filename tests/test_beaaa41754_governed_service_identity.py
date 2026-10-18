@@ -67,6 +67,7 @@ def test_new_explicit_empty_scope_record_denies_all_governed_routes(tmp_path):
     for method, path in (
         (client.post, "/scanner/v1/scans"),
         (client.get, "/scan/example"),
+        (client.get, "/scanner/v1/scans/example/progress"),
         (client.get, "/scanner/v1/scans/example/export"),
     ):
         response = method(path, headers=headers, **({"json": {}} if method == client.post else {}))
@@ -139,6 +140,45 @@ def test_tenant_mismatch_rejected_before_scan_runtime(tmp_path):
     )
     assert response.status_code == 409
     assert "tenant mismatch" in response.json()["detail"]
+
+
+def test_governed_progress_scope_returns_only_own_scan_progress(tmp_path):
+    from api.accepted_scan_store import AcceptedScanStore
+    from api.scan_handlers import ScanRuntime
+    from scanners.live_probe_orchestrator import ScanRequest
+
+    scope = "GET /scanner/v1/scans/{scan_id}/progress"
+    client, keys = _client(tmp_path, scopes=(scope,))
+    accepted = AcceptedScanStore(tmp_path / "accepted.sqlite3")
+    request = ScanRequest(
+        scan_id="own-progress", tenant_id=TENANT,
+        agent_endpoint="https://agent.invalid", credential_ref="private-key-ref",
+        corpus_snapshot_hash="sha256:test", scanner_version="test",
+        corpus_version="test", seed=42, pack_id="starter-100@4", agent_id="agent-1",
+    )
+    accepted.accept(request, agent_id="agent-1", invocation_context=None, webhook_cfg=None)
+    accepted.mark_running(request.scan_id)
+    accepted.record_case_progress(request.scan_id, case_id="case-1", family="safety", state="finished")
+    client.app.state.scan_runtime = ScanRuntime(run_scan_fn=lambda *_: None, accepted_scan_store=accepted)
+    keys.issue(token="foreign-token", key_id="foreign", tenant_id="foreign",
+               ttl_seconds=300, scopes=(scope,))
+
+    own = client.get("/scanner/v1/scans/own-progress/progress", headers={"Authorization":"Bearer bac-token"})
+    assert own.status_code == 200, own.text
+    assert own.json()["processed_count"] == 1
+    assert own.json()["accepted_pack_total"] == 100
+    assert "private-key-ref" not in own.text
+    assert "result_rows" not in own.json()
+    foreign = client.get("/scanner/v1/scans/own-progress/progress", headers={"Authorization":"Bearer foreign-token"})
+    assert foreign.status_code == 404
+    assert client.get("/scanner/v1/scans/own-progress/progress").status_code == 401
+
+
+def test_scan_result_read_scope_does_not_grant_progress_implicitly(tmp_path):
+    client, _ = _client(tmp_path, scopes=("GET /scan/{scan_id}",))
+    response = client.get("/scanner/v1/scans/example/progress", headers={"Authorization":"Bearer bac-token"})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "authorization_scope_denied"
 
 
 def test_admin_cli_issues_governed_identity_metadata(tmp_path):

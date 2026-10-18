@@ -673,7 +673,10 @@ def create_app(
 
     @app.get("/scanner/v1/scans/{scan_id}/progress")
     async def get_scan_progress(request: Request, scan_id: str) -> Any:
-        authenticated_tenant_id = _authenticated_tenant_id(request, runtime_profile)
+        authenticated_tenant_id = _authenticated_tenant_id(
+            request, runtime_profile,
+            governed_scope="GET /scanner/v1/scans/{scan_id}/progress",
+        )
         if app.state.scan_runtime is None:
             raise _http_error(503, "scan_runtime_unconfigured")
         try:
