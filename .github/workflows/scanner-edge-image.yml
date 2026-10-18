@@ -577,10 +577,15 @@ jobs:
           candidate_id="$(git show -s --format=%s "$SHA" | grep -oE 'BEAAA-[0-9]+' | head -1 || true)"
           candidate_id="${candidate_id:-BEAAA-29900}"
           archive="backbond-scanner-${SHA}.tar"
+          helper="scanner-deploy-${SHA}"
           mv payload/scanner-edge-image.tar "$archive"
+          install -m 0755 scripts/deploy/scanner-deploy.sh "$helper"
+          helper_sha="$(sha256sum "$helper" | awk '{print $1}')"
           {
             echo "ARCHIVE=$archive"
             echo "ARCHIVE_SHA=$archive_sha"
+            echo "STAGED_HELPER=$helper"
+            echo "STAGED_HELPER_SHA=$helper_sha"
             echo "IMMUTABLE_REF=${IMAGE_REPOSITORY}@${digest}"
             echo "CANDIDATE_ID=$candidate_id"
           } >> "$GITHUB_ENV"
@@ -620,10 +625,12 @@ jobs:
         run: |
           set -euo pipefail
           remote_archive="/var/tmp/${ARCHIVE}"
+          remote_helper="/var/tmp/${STAGED_HELPER}"
           ssh_opts=(-4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS")
           scp "${ssh_opts[@]}" "$ARCHIVE" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+          scp "${ssh_opts[@]}" "$STAGED_HELPER" "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_helper}"
           ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "set -euo pipefail; cleanup() { rm -f '${remote_archive}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
+            "set -euo pipefail; cleanup() { rm -f '${remote_archive}' '${remote_helper}'; }; trap cleanup EXIT; sudo '${DEPLOY_HELPER}' refresh-helper '${SHA}' '${remote_helper}' '${STAGED_HELPER_SHA}'; sudo '${DEPLOY_HELPER}' '${SHA}' '${remote_archive}' '${IMMUTABLE_REF}' '${ARCHIVE_SHA}' '${CANDIDATE_ID}'"
 
       - name: Verify public release identity
         shell: bash
@@ -632,7 +639,7 @@ jobs:
           curl -fsS --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 \
             https://scanner.backbond.ai/scanner/v1/release-identity > deployed-release-identity.json
           jq -e --arg sha "$SHA" --arg digest "$IMMUTABLE_REF" \
-            '.commit_sha == $sha and .image_digest == $digest and .status == "activated"' \
+            '.commit_sha == $sha and .image_digest == $digest and .status == "activated" and .compatibility_contract_version == "scanner-operations-contract@1"' \
             deployed-release-identity.json
           curl -fsS --retry 6 --retry-all-errors --retry-delay 5 --max-time 20 "$SLA_URL" >/dev/null
 

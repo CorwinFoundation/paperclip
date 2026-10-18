@@ -593,3 +593,29 @@ def test_isolated_unit_cutover_and_rollback_evidence(tmp_path):
     assert "docker tag sha256:loaded backbond-scanner-live:" in trace
     unit=UNIT.read_text()
     assert ":/var/lib/backbond-deploy-agent:ro" in unit and "--read-only" in unit
+
+
+def test_refresh_helper_atomically_installs_the_staged_contract(tmp_path):
+    installed = tmp_path / "scanner-deploy"
+    staged = tmp_path / f"scanner-deploy-{SHA}"
+    installed.write_bytes(HELPER.read_bytes())
+    installed.chmod(0o755)
+    staged.write_bytes(HELPER.read_bytes())
+    staged.chmod(0o755)
+    digest = hashlib.sha256(staged.read_bytes()).hexdigest()
+
+    result = subprocess.run(
+        ["bash", str(installed), "refresh-helper", SHA, str(staged), digest],
+        env={
+            **os.environ,
+            "SCANNER_ARCHIVE_DIR": str(tmp_path),
+            "SCANNER_EXPECTED_OWNER_UID": str(os.getuid()),
+            "SCANNER_EXPECTED_OWNER_GID": str(os.getgid()),
+        },
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert installed.read_bytes() == staged.read_bytes()
+    assert "OK: deploy helper refreshed" in result.stderr

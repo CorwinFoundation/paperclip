@@ -79,8 +79,14 @@ class ImmutableReleaseWorkflowTests(unittest.TestCase):
         self.assertEqual(deploy["env"]["DEPLOY_USER"], "are-deploy")
         self.assertEqual(deploy["env"]["DEPLOY_HELPER"], "/usr/local/sbin/scanner-deploy")
         self.assertNotIn("sudo install", text)
-        self.assertNotIn("remote_helper", text)
+        self.assertIn('remote_helper="/var/tmp/${STAGED_HELPER}"', text)
+        self.assertIn("sudo '${DEPLOY_HELPER}' refresh-helper '${SHA}'", text)
         self.assertIn("sudo '${DEPLOY_HELPER}' '${SHA}'", text)
+        self.assertLess(
+            text.index("sudo '${DEPLOY_HELPER}' refresh-helper '${SHA}'"),
+            text.index("sudo '${DEPLOY_HELPER}' '${SHA}'"),
+        )
+        self.assertIn('.compatibility_contract_version == "scanner-operations-contract@1"', text)
         self.assertIn('ssh_dir="$RUNNER_TEMP/scanner-deploy-ssh"', text)
         self.assertIn("secrets.SCANNER_EDGE_DEPLOY_SSH_PRIVATE_KEY", text)
         self.assertIn("secrets.SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS", text)

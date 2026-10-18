@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # BEAAA-22831 - atomic, egress-sealed activation of a Development Mode image.
+# BEAAA-42199 - automatic deploy-helper refresh contract v1.
 # Install only as /usr/local/sbin/scanner-deploy (root:root 0755).
 set -Eeuo pipefail
 
@@ -417,7 +418,22 @@ if [ "${1:-}" = preflight ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
+if [ "${1:-}" = refresh-helper ]; then
+  [ "$#" = 4 ] || die 'usage: scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256>'
+  REFRESH_SHA=$2 REFRESH_SOURCE=$3 REFRESH_DIGEST=$4
+  [[ "$REFRESH_SHA" =~ ^[0-9a-f]{40}$ ]] || die 'refresh commit must be 40 lowercase hex characters'
+  [ "$REFRESH_SOURCE" = "$ARCHIVE_DIR/scanner-deploy-$REFRESH_SHA" ] || die 'refresh source is not the fixed helper path'
+  [[ "$REFRESH_DIGEST" =~ ^[0-9a-f]{64}$ ]] || die 'helper SHA-256 must be 64 lowercase hex characters'
+  [ -f "$REFRESH_SOURCE" ] && [ ! -L "$REFRESH_SOURCE" ] || die 'staged helper must be a regular file'
+  [ "$(sha256sum "$REFRESH_SOURCE" | awk '{print $1}')" = "$REFRESH_DIGEST" ] || die 'staged helper checksum mismatch'
+  grep -Fqx '# BEAAA-42199 - automatic deploy-helper refresh contract v1.' "$REFRESH_SOURCE" || die 'staged helper lacks refresh contract marker'
+  bash -n "$REFRESH_SOURCE" || die 'staged helper has invalid shell syntax'
+  atomic_install "$REFRESH_SOURCE" "$0" 0755
+  log "OK: deploy helper refreshed for $REFRESH_SHA ($REFRESH_DIGEST)"
+  exit 0
+fi
+
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
