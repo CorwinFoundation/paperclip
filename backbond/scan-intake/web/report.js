@@ -97,9 +97,7 @@
     const prompt = typeof test.prompt === 'string' ? test.prompt : '';
     const reply = typeof test.reply === 'string' ? test.reply : '';
     if (!prompt.trim() && !reply.trim()) {
-      article.append(text('p', test.evidenceOmitted
-        ? 'This test pack does not include request or reply text in its report. The recorded verdict and explanation are shown below.'
-        : 'Request and reply text are unavailable for this test. The recorded result is shown below.'));
+      article.append(text('p', 'Request and reply text are unavailable for this test. The recorded result is shown below.'));
     } else {
       article.append(text('p','What we sent'), text('pre', prompt.trim() ? prompt : 'Request text is unavailable.'));
       article.append(text('p','What the agent replied'));
