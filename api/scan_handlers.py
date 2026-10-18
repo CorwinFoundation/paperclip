@@ -40,6 +40,7 @@ import re
 import os
 import threading
 import time
+import traceback
 import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -99,6 +100,7 @@ from harness.context_envelope import (
     validate_context_envelope,
 )
 from harness.runner import RunnerError
+from harness.secret_redaction import REDACTED_SECRET, redact_secret_text
 from harness.customer_runner import (
     CustomerEndpointHTTPError,
     customer_agent_http_runner_factory,
@@ -129,6 +131,20 @@ from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_CO
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_PACK_V3_TEST_COUNT
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID, STARTER_PACK_V4_TEST_COUNT
 from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, STARTER_VOICE_TEST_COUNT
+
+
+def _redacted_worker_diagnostics(exc: BaseException, *, secret: str) -> tuple[str, str]:
+    """Return bounded failure diagnostics without exception locals or credentials."""
+
+    message = redact_secret_text(str(exc))
+    frames = redact_secret_text(
+        "".join(traceback.format_list(traceback.extract_tb(exc.__traceback__)))
+    )
+    if secret:
+        message = message.replace(secret, REDACTED_SECRET)
+        frames = frames.replace(secret, REDACTED_SECRET)
+    return message[:500], frames[-4000:]
+
 
 # New Starter intakes use variable @4 forms, including clients naming older
 # packs. Historical results retain their original identities. The existing
@@ -865,7 +881,7 @@ class ScanRuntime:
                     scan_request.scan_id,
                     result.status,
                 )
-        except Exception as exc:  # never expose credential or response bodies
+        except Exception as exc:  # bounded, credential-redacted diagnostics only
             reason = (
                 _handler_error_from_orchestrator_error(exc).message
                 if isinstance(exc, OrchestratorError)
@@ -938,10 +954,16 @@ class ScanRuntime:
                     production_security_findings=self._production_security_findings(),
                 )
         except Exception as exc:  # never expose credential or response bodies
+            error_message, error_traceback = _redacted_worker_diagnostics(
+                exc, secret=secret
+            )
             LOGGER.error(
-                "full_scan_background_worker_error scan_id=%s error_type=%s",
+                "full_scan_background_worker_error scan_id=%s error_type=%s "
+                "error_message=%r error_traceback=%r",
                 scan_request.scan_id,
                 type(exc).__name__,
+                error_message,
+                error_traceback,
             )
             self._record_failed_result(
                 scan_request,

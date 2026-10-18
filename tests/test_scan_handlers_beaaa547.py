@@ -940,8 +940,8 @@ def test_full_scan_background_worker_error_logs_at_error_no_cred_leak(
 ):
     import logging
 
-    # A sentinel exception whose *message* carries a fake credential / upstream
-    # response body. The fix must log the exception TYPE only — never str(exc).
+    # A sentinel exception whose message carries a fake credential. Diagnostics
+    # must retain the safe message/frames while redacting the credential.
     fake_secret = "sk-live-DEADBEEF-super-secret-token"
 
     class _SentinelWorkerError(RuntimeError):
@@ -969,12 +969,13 @@ def test_full_scan_background_worker_error_logs_at_error_no_cred_leak(
     ]
     assert len(error_records) == 1
     assert scan_request.scan_id in caplog.text
-    assert "_SentinelWorkerError" in caplog.text  # type name is the only detail
+    assert "_SentinelWorkerError" in caplog.text
+    assert "upstream response body leaked" in caplog.text
+    assert "tests/test_scan_handlers_beaaa547.py" in caplog.text
 
     # (3) Credential non-leak: neither the fake secret nor any str(exc) content
     #     may appear anywhere in the captured log output.
     assert fake_secret not in caplog.text
-    assert "upstream response body leaked" not in caplog.text
 
     # (4) Existing behavior preserved: result still recorded failed / incomplete.
     result = runtime.fetch(scan_request.scan_id)

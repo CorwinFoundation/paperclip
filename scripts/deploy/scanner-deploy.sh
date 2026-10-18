@@ -16,6 +16,7 @@ CURL="${SCANNER_CURL:-curl}"
 TIMEOUT="${SCANNER_READINESS_TIMEOUT:-60}"
 INTERVAL="${SCANNER_READINESS_INTERVAL:-2}"
 CONTAINER="${SCANNER_CONTAINER_NAME:-backbond-scanner-live-edge}"
+ATTEMPT_LEDGER_PATH=/var/lib/are-scanner/full-scan-target-attempts.sqlite3
 EXPECTED_OWNER_UID="${SCANNER_EXPECTED_OWNER_UID:-0}"
 EXPECTED_OWNER_GID="${SCANNER_EXPECTED_OWNER_GID:-0}"
 ARCHIVE_DIR="${SCANNER_ARCHIVE_DIR:-/var/tmp}"
@@ -582,16 +583,18 @@ PY
 python3 -m json.tool "$TX/identity.activating" >/dev/null
 atomic_install "$TX/identity.activating" "$IDENTITY" 0444
 
-awk '!/^SCANNER_EDGE_IMAGE=/ && !/^BACKBOND_RELEASE_IDENTITY_PATH=/' "$ENV_FILE" >"$TX/env.next"
-printf 'SCANNER_EDGE_IMAGE=%s\nBACKBOND_RELEASE_IDENTITY_PATH=%s\n' "$LOCAL_TAG" "$IDENTITY" >>"$TX/env.next"
+awk '!/^SCANNER_EDGE_IMAGE=/ && !/^BACKBOND_RELEASE_IDENTITY_PATH=/ && !/^ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH=/' "$ENV_FILE" >"$TX/env.next"
+printf 'SCANNER_EDGE_IMAGE=%s\nBACKBOND_RELEASE_IDENTITY_PATH=%s\nARE_FULL_SCAN_ATTEMPT_LEDGER_PATH=%s\n' "$LOCAL_TAG" "$IDENTITY" "$ATTEMPT_LEDGER_PATH" >>"$TX/env.next"
 [ "$(grep -c '^SCANNER_EDGE_IMAGE=' "$TX/env.next")" = 1 ]
 [ "$(grep -c '^BACKBOND_RELEASE_IDENTITY_PATH=' "$TX/env.next")" = 1 ]
+[ "$(grep -c '^ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH=' "$TX/env.next")" = 1 ]
 printf '%s\n' "$SHA" >"$TX/current.next"
 atomic_install "$TX/current.next" "$CURRENT" 0644
 atomic_install "$TX/env.next" "$ENV_FILE" 0600
 "$SYSTEMCTL" restart "$SERVICE"
 "$SYSTEMCTL" is-active --quiet "$SERVICE"
 wait_200 "$LOCAL_URL"
+[ "$(container_env_value ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH)" = "$ATTEMPT_LEDGER_PATH" ] || die 'running container lacks the durable target-attempt ledger path'
 RUNNING_REV="$("$DOCKER" inspect --format "{{ index .Config.Labels \"$REVISION_LABEL\" }}" "$CONTAINER")"
 [ "$RUNNING_REV" = "$SHA" ]
 wait_200 "$PUBLIC_BASE/scanner/v1/sla"

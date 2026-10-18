@@ -58,6 +58,7 @@ case "$1 $2" in
  "inspect --format") case "$*" in *Labels*) echo "$STUB_SHA";; *) echo sha256:running;; esac;;
 esac
 case "$1" in
+ exec) [ "$3" = printenv ] && [ "$4" = ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH ] && echo /var/lib/are-scanner/full-scan-target-attempts.sqlite3;;
  create) [ -z "$STUB_CREATE_FAIL" ] || exit 71; : >"$STUB_CONTAINER_STATE"; echo manifest-inspection-container;;
  cp) [ -z "$STUB_CP_FAIL" ] || exit 72
    if [ -n "$STUB_PAUSE_CP" ]; then
@@ -150,7 +151,7 @@ def test_shell_syntax_and_exact_read_only_mount():
 
 
 def test_activation_lock_is_initialized_on_the_exact_container_mount(tmp_path):
-    e, _env_file, state, archive, archive_sha, _calls = harness(tmp_path)
+    e, env_file, state, archive, archive_sha, _calls = harness(tmp_path)
     result = run(e, archive, archive_sha)
     assert result.returncode == 0, result.stderr
     lock = state / "activation.lock"
@@ -161,6 +162,9 @@ def test_activation_lock_is_initialized_on_the_exact_container_mount(tmp_path):
     assert 'STATE_DIR="${SCANNER_STATE_DIR:-/var/lib/backbond-deploy-agent}"' in HELPER.read_text()
     assert 'ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"' in HELPER.read_text()
     assert "--volume /var/lib/backbond-deploy-agent:/var/lib/backbond-deploy-agent:ro" in UNIT.read_text()
+    assert env_file.read_text().count(
+        "ARE_FULL_SCAN_ATTEMPT_LEDGER_PATH=/var/lib/are-scanner/full-scan-target-attempts.sqlite3"
+    ) == 1
 
 
 def test_development_helper_takes_identity_from_five_validated_arguments():
