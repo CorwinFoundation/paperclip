@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import threading
 
 import pytest
 
@@ -317,6 +320,76 @@ def test_poisoned_targeted_job_is_terminal_once_and_does_not_starve_queue(
     assert restarted.recover() == {"resumed": [], "failed": []}
     assert restarted.run_once().status == "idle"
     assert len(callback_payloads) == 1
+
+
+def test_production_terminal_poster_forwards_signed_headers_to_http_server(tmp_path):
+    """Exercise the real urllib poster, not the injectable fake seam."""
+    received: dict[str, object] = {}
+
+    class Receiver(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            received.update(
+                path=self.path,
+                headers={key.lower(): value for key, value in self.headers.items()},
+                body=body,
+            )
+            self.send_response(204)
+            self.end_headers()
+
+        def log_message(self, _format, *args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Receiver)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        rows = _registry_rows()
+        store = FullScanJobStore(
+            persistence=FullScanJobPersistence(tmp_path / "wire-callback.sqlite3")
+        )
+        poison = store.submit(
+            agent_id="wire-agent",
+            scanner_version="1.3.0",
+            corpus_version="registry@1",
+            model_versions={},
+            seed=42228,
+            registry_cases=registry_cases_from_rows(rows[:1]),
+            scan_id="wire-scan-42228",
+            operations_scope={"requested_case_ids": ["retired.case"]},
+            terminal_webhook={
+                "webhook_cfg": {
+                    "url": f"http://127.0.0.1:{server.server_port}/operations/callback",
+                    "secret_ref": "wire-secret-ref",
+                },
+                "response_base": {"scan_id": "wire-scan-42228"},
+            },
+        )
+        worker = FullScanQueueWorker(
+            store,
+            registry_rows=rows,
+            workers={"promptfoo": _worker},
+            webhook_secret_resolver=lambda _ref: "wire-shared-secret",
+        )
+
+        assert worker.run_once().status == "invalid_job_finalized"
+        assert worker.run_once().status == "terminal_webhook_delivered"
+        assert store.status(poison.job_id).terminal_webhook_delivered_at is not None
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    headers = received["headers"]
+    assert received["path"] == "/operations/callback"
+    assert headers["content-type"] == "application/json"
+    assert headers["x-backbond-signature"].startswith("sha256=")
+    assert headers["x-backbond-delivery"]
+    payload = json.loads(received["body"])
+    assert payload["scan_id"] == "wire-scan-42228"
+    assert payload["terminal_status_version"] == "scanner_terminal_status_v1"
+    assert payload["missing_evidence"] is True
+    assert payload["comparison_status"] == "no_comparable_result"
 
 
 def test_lease_next_returns_none_until_job_is_durably_accepted(tmp_path):

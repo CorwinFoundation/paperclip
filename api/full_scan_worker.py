@@ -389,6 +389,11 @@ class FullScanQueueWorker:
         payload["partial_completion"] = job.status != "complete"
         payload["confidence_below_adjudication_threshold"] = job.status != "complete"
         payload["job_id"] = job.job_id
+        if job.status != "complete":
+            # Operations validates failed/partial terminal status separately
+            # from the complete-result envelope. Keep that contract explicit so
+            # a failure callback cannot be mistaken for a malformed result.
+            payload["terminal_status_version"] = "scanner_terminal_status_v1"
         if job.status == "failed" and isinstance(job.final_manifest, Mapping):
             if job.final_manifest.get("terminal_failure_reason"):
                 payload["missing_evidence"] = True
