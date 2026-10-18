@@ -62,6 +62,43 @@ describe("codex managed home", () => {
     }
   });
 
+  it("pins the managed codex-home thread store to in_memory (above tables, idempotent)", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-home-"));
+    const sharedCodexHome = path.join(root, "shared-codex-home");
+    const paperclipHome = path.join(root, "paperclip-home");
+    const managedConfig = path.join(
+      paperclipHome, "instances", "default", "companies", "company-1", "codex-home", "config.toml",
+    );
+    await fs.mkdir(sharedCodexHome, { recursive: true });
+    // Shared source config.toml WITHOUT the key and WITH an existing table section.
+    await fs.writeFile(
+      path.join(sharedCodexHome, "config.toml"),
+      'trust_level = "trusted"\n\n[projects."/work"]\ntrust_level = "trusted"\n',
+      "utf8",
+    );
+    const env = {
+      CODEX_HOME: sharedCodexHome,
+      PAPERCLIP_HOME: paperclipHome,
+      PAPERCLIP_INSTANCE_ID: "default",
+    };
+    try {
+      await prepareManagedCodexHome(env, async () => {}, "company-1");
+      let toml = await fs.readFile(managedConfig, "utf8");
+      expect(toml).toMatch(
+        /experimental_thread_store\s*=\s*\{\s*type\s*=\s*"in_memory",\s*id\s*=\s*"paperclip-managed-[0-9a-f]{16}"\s*\}/,
+      );
+      // Top-level key must precede any [table] section (valid TOML).
+      expect(toml.indexOf("experimental_thread_store")).toBeLessThan(toml.indexOf("["));
+      expect(toml).toContain('[projects."/work"]');
+      // Idempotent: re-running seeds no duplicate key.
+      await prepareManagedCodexHome(env, async () => {}, "company-1");
+      toml = await fs.readFile(managedConfig, "utf8");
+      expect(toml.match(/experimental_thread_store/g)?.length).toBe(1);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("still throws on EEXIST when a raced-in auth symlink points elsewhere", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-home-"));
     const sharedCodexHome = path.join(root, "shared-codex-home");
