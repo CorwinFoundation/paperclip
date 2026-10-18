@@ -8,14 +8,14 @@
 # Exit codes:
 #   0  pinned SHA matches → safe to ship (visual/voice review still required)
 #   1  brand/ directory missing or .sha256 pin file missing
-#   2  PDF missing on disk — re-pull from Paperclip (BEAAA-8369 Founder attachment) and retry
+#   2  PDF missing on disk — re-pull from Paperclip (BEAAA-42264 Founder attachment) and retry
 #   3  SHA mismatch — on-disk PDF is stale or tampered; do NOT ship; escalate to CMO
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRAND_DIR="${ROOT}/brand"
-PIN_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.6.sha256"
-PDF_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.6.pdf"
+PIN_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.7.sha256"
+PDF_FILE="${BRAND_DIR}/BackBond-Brand-Backbone-v1.7.pdf"
 
 if [[ ! -d "${BRAND_DIR}" || ! -f "${PIN_FILE}" ]]; then
   echo "FAIL: brand/ directory or pinned .sha256 missing at ${BRAND_DIR}" >&2
@@ -29,7 +29,7 @@ fi
 
 cd "${BRAND_DIR}"
 if sha256sum -c "$(basename "${PIN_FILE}")" >/dev/null 2>&1; then
-  echo "OK: Brand Backbone v1.6 SHA matches pin (a2ffc4f9...)"
+  echo "OK: Brand Backbone v1.7 SHA matches pin (9ad6a53e...)"
   exit 0
 fi
 
