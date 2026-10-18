@@ -63,7 +63,7 @@ import tarfile
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
 from api.config import ApiConfig
 from api import production_controls
@@ -871,7 +871,31 @@ def make_default_production_scan_runtime() -> ScanRuntime:
     from tools.active_test_registry import build_registry as build_active_registry
     from tools.framework_workers import build_live_framework_workers
 
-    runtime._full_scan_registry_rows = tuple(build_active_registry())
+    active_registry_path = (
+        Path(__file__).resolve().parents[1]
+        / "tools"
+        / "probe-registry"
+        / "active_registry.json"
+    )
+    active_registry = json.loads(active_registry_path.read_text(encoding="utf-8"))
+    metadata = active_registry.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ScanRuntimeError("active registry metadata unavailable")
+    probe_set_version = metadata.get("probe_set_version")
+    source_closure_sha = metadata.get("source_closure_sha")
+    if not isinstance(probe_set_version, str) or not probe_set_version:
+        raise ScanRuntimeError("active registry probe_set_version unavailable")
+    if not isinstance(source_closure_sha, str) or not source_closure_sha:
+        raise ScanRuntimeError("active registry source_closure_sha unavailable")
+    registry_version = f"{probe_set_version}+source-closure-{source_closure_sha}"
+    runtime._full_scan_registry_rows = tuple(
+        {
+            **row,
+            "registry_version": registry_version,
+            "scope_id": str(row["risk_or_rubric_id"]),
+        }
+        for row in build_active_registry()
+    )
     runtime._full_scan_workers_factory = build_live_framework_workers
     from scanners.variable_test_forms import FormStore
     variable_forms_path = Path(
