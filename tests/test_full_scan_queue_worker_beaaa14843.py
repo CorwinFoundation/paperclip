@@ -248,9 +248,11 @@ def test_poisoned_targeted_job_is_terminal_once_and_does_not_starve_queue(
     db = tmp_path / "poison-queue.sqlite3"
     rows = _registry_rows()
     callback_payloads: list[dict] = []
+    callback_headers: list[dict[str, str]] = []
 
-    def post(_url, _headers, body):
+    def post(_url, headers, body):
         import json
+        callback_headers.append(dict(headers))
         callback_payloads.append(json.loads(body))
 
     store = FullScanJobStore(persistence=FullScanJobPersistence(db))
@@ -296,6 +298,12 @@ def test_poisoned_targeted_job_is_terminal_once_and_does_not_starve_queue(
     assert worker.run_once().status == "terminal_webhook_delivered"
     assert callback_payloads[0]["missing_evidence"] is True
     assert callback_payloads[0]["comparison_status"] == "no_comparable_result"
+    assert set(callback_headers[0]) == {
+        "X-BackBond-Signature",
+        "X-BackBond-Delivery",
+        "Content-Type",
+    }
+    assert callback_headers[0]["Content-Type"] == "application/json"
     assert worker.run_once().status == "finalized"
     assert store.status(healthy.job_id).status == "complete"
     assert sends == [healthy.job_id, healthy.job_id]

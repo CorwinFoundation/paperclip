@@ -95,6 +95,12 @@ def test_delivers_signed_payload_exactly_once() -> None:
     url, headers, body = poster.calls[0]
     assert url == "https://ci.example/hook"
     assert body == canonical_json(payload)
+    assert set(headers) == {
+        "X-BackBond-Signature",
+        "X-BackBond-Delivery",
+        "Content-Type",
+    }
+    assert headers["Content-Type"] == "application/json"
     # Signature verifies with the shared secret over the exact delivered body.
     assert verify_signature(_SECRET, payload, headers[SIGNATURE_HEADER])
     assert headers[DELIVERY_HEADER] == stable_delivery_id("s1")
