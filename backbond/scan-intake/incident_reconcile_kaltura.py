@@ -29,10 +29,18 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-def patch_sources(app: str, service: str) -> tuple[str, str]:
-    app = replace_once(app,
-        "        rows = body.get('result_rows')\n        if not isinstance(rows, list) or not 1 <= len(rows) <= 100 or not all(isinstance(row, dict) for row in rows):",
-        "        rows = body.get('result_rows')\n        terminal_failure = (str(body.get('status') or '').lower() == 'failed'\n                            and body.get('incomplete') is True\n                            and bool(body.get('incomplete_reason')))\n        if (not isinstance(rows, list) or len(rows) > 100\n                or (not rows and not terminal_failure)\n                or not all(isinstance(row, dict) for row in rows)):", "callback validation")
+def patch_quota_sources(service: str) -> str:
+    # The shared policy supersedes this incident's three inline predicates.
+    # Recognize the complete current wiring; refuse partial or unknown layouts.
+    if "from quota_policy import quota_counted_sql" in service:
+        current_queries = (
+            '"SELECT count(*) FROM scans WHERE partner=? AND email=? AND " + quota_counted_sql(),',
+            '"SELECT count(DISTINCT email) FROM scans WHERE code=? AND " + quota_counted_sql(),',
+            '"SELECT 1 FROM scans WHERE code=? AND email=? AND " + quota_counted_sql() + " LIMIT 1"',
+        )
+        if any(service.count(query) != 1 for query in current_queries):
+            raise RuntimeError("shared quota: expected complete current source wiring")
+        return service
     service = replace_once(service,
         '"SELECT count(*) FROM scans WHERE partner=? AND email=? AND status NOT IN (\'connection_failed\',\'cancelled\',\'interrupted\')",',
         '"SELECT count(*) FROM scans WHERE partner=? AND email=? AND status NOT IN (\'connection_failed\',\'cancelled\',\'interrupted\') "\n                "AND NOT (status=\'finished\' AND outcome=\'failed\')",', "email quota")
@@ -42,6 +50,14 @@ def patch_sources(app: str, service: str) -> tuple[str, str]:
     service = replace_once(service,
         '"SELECT 1 FROM scans WHERE code=? AND email=? AND status NOT IN (\'connection_failed\',\'cancelled\',\'interrupted\') LIMIT 1"',
         '"SELECT 1 FROM scans WHERE code=? AND email=? AND status NOT IN (\'connection_failed\',\'cancelled\',\'interrupted\') AND NOT (status=\'finished\' AND outcome=\'failed\') LIMIT 1"', "known email")
+    return service
+
+
+def patch_sources(app: str, service: str) -> tuple[str, str]:
+    app = replace_once(app,
+        "        rows = body.get('result_rows')\n        if not isinstance(rows, list) or not 1 <= len(rows) <= 100 or not all(isinstance(row, dict) for row in rows):",
+        "        rows = body.get('result_rows')\n        terminal_failure = (str(body.get('status') or '').lower() == 'failed'\n                            and body.get('incomplete') is True\n                            and bool(body.get('incomplete_reason')))\n        if (not isinstance(rows, list) or len(rows) > 100\n                or (not rows and not terminal_failure)\n                or not all(isinstance(row, dict) for row in rows)):", "callback validation")
+    service = patch_quota_sources(service)
     service = replace_once(service,
         '        if status == "finished" and row["outcome"] == "incomplete":\n            status = "incomplete"',
         '        if status == "finished" and row["outcome"] == "incomplete":\n            status = "incomplete"\n        elif status == "finished" and row["outcome"] == "failed":\n            status = "error"', "truthful status")

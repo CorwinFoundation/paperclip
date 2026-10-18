@@ -71,6 +71,7 @@ class ScanQueue:
                 raise DispatchUnknown()
             # Keep the queue lock through binding to avoid a callback race.
             with self.lock:
+                self.store.record_provenance(scan_id, response.get("provenance") or {})
                 early = self.store.bind_scanner(scan_id, remote_id)
                 self.store.running(scan_id)
                 if early is not None:

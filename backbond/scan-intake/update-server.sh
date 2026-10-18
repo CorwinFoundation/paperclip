@@ -17,7 +17,7 @@ if [ -f "$REPO_ROOT/scripts/deploy/scanner-deploy.sh" ]; then
 fi
 changed=0
 for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/report_extensions.py "$HERE"/server/qa_runtime.py \
-           "$HERE"/server/improvement_store.py "$HERE"/server/purge_retention.py \
+           "$HERE"/server/quota_policy.py "$HERE"/server/improvement_store.py "$HERE"/server/purge_retention.py \
            "$HERE"/server/reconcile_terminal_failure.py "$HERE"/server/reconcile_internal_slot.py; do
   name="$(basename "$src")"
   if [ -f "$DEST/$name" ] && cmp -s "$src" "$DEST/$name"; then

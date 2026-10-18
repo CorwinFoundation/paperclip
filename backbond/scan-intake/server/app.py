@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue, deliver_pending
 
 from qa_service import (Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
-                        scanner_payload, translate_callback, translate_tests, verify_webhook)
+                        safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
 
 DB_PATH = os.environ.get("QA_DB_PATH", "/var/lib/backbond-qa/qa.sqlite")
 SCANNER_URL = os.environ.get("QA_SCANNER_URL", "https://scanner.backbond.ai/scanner/v1")
@@ -191,15 +191,17 @@ def _tenant_tokens() -> dict:
     directory = os.environ.get('CREDENTIALS_DIRECTORY')
     if directory and (Path(directory) / 'qa-scanner-tokens.json').is_file():
         mapping = json.loads((Path(directory) / 'qa-scanner-tokens.json').read_text())
+    dynamic = Path('/var/lib/backbond-qa/partner-code-tenants.json')
+    if dynamic.is_file():
+        for tenant, token in json.loads(dynamic.read_text()).items():
+            if tenant not in mapping:
+                mapping[tenant] = token
     return mapping
 
 
 def _headers(data: dict | None = None) -> dict[str, str]:
     token = os.environ.get("QA_SCANNER_TOKEN", "")
-    mapping = json.loads(os.environ.get('QA_SCANNER_TOKENS_JSON', '{}'))
-    directory = os.environ.get('CREDENTIALS_DIRECTORY')
-    if directory and (Path(directory) / 'qa-scanner-tokens.json').is_file():
-        mapping = json.loads((Path(directory) / 'qa-scanner-tokens.json').read_text())
+    mapping = _tenant_tokens()
     if data and data.get('tenant_id') in mapping:
         token = mapping[data['tenant_id']]
     return {"Authorization": f"Bearer {token}"} if token else {}
@@ -222,13 +224,31 @@ def _scanner_start(data: dict) -> dict:
     Read/write timeouts, 5xx and unreadable 2xx bodies are ambiguous and propagate."""
     try:
         with httpx.Client(timeout=20) as client:
+            identity = {}
+            try:
+                observed = client.get(f"{SCANNER_URL}/release-identity", timeout=5)
+                if observed.status_code == 200:
+                    raw_identity = observed.json()
+                    identity = safe_provenance({
+                        'scanner_version': raw_identity.get('commit_sha'),
+                        'scanner_release_commit': raw_identity.get('commit_sha'),
+                        'scanner_image_digest': raw_identity.get('image_digest'),
+                        'scanner_identity_observed_at': datetime.now(timezone.utc).isoformat(),
+                    })
+            except (httpx.HTTPError, ValueError):
+                pass
             response = client.post(f"{SCANNER_URL}/scans", json=data, headers=_headers(data))
     except (httpx.ConnectError, httpx.ConnectTimeout):
         raise DispatchNotSent() from None
     if 400 <= response.status_code < 500:
         raise DispatchNotSent()
     response.raise_for_status()
-    return response.json()
+    started = response.json()
+    if isinstance(started, dict):
+        identity.update(safe_provenance({'seed': started.get('seed'),
+            'corpus_snapshot_hash': started.get('corpus_snapshot_hash')}))
+        started['provenance'] = identity
+    return started
 
 
 def _mail_credentials_path() -> Path | None:
@@ -404,7 +424,9 @@ def start_scan(body: ScanRequest, request: Request):
         reservation = store.reserve(code=clean["code"], email=str(clean["email"]),
             agent_label=clean["agent_label"], endpoint_url=clean["endpoint_url"],
             transport=clean["transport"], terms_version=body.terms_version or "unversioned-legacy",
-            improvement_consent=body.consent_improvement, pack_version=body.pack_id)
+            improvement_consent=body.consent_improvement, pack_version=body.pack_id,
+            provenance={'seed': int(os.environ.get('QA_SCANNER_CORPUS_SEED', '42')),
+                        'model_versions': {'target_requested': clean['model']} if clean.get('model') else {}})
     except IntakeError as exc:
         raise HTTPException(429 if "limit" in str(exc) or "used" in str(exc) else 400, str(exc))
     payload = _payload(clean)
@@ -466,6 +488,15 @@ _PROGRESS_FIELDS = {
 def _engine_progress(scan_id: str) -> dict:
     """Fetch the bounded owner-scoped engine projection, never its evidence rows."""
     row = store.scan(scan_id)
+    if row and row['status'] == 'finished':
+        tests = json.loads(row['tests_json'] or '[]')
+        usable = sum(t.get('verdict') in {'pass', 'fail'} for t in tests)
+        state = 'error' if row['outcome'] == 'failed' else 'incomplete' if row['outcome'] == 'incomplete' else 'finished'
+        return {'state': state, 'phase': 'finished', 'stage_label': 'Results ready',
+                'processed_count': len(tests),
+                'accepted_pack_total': 100 if row['pack_version'].startswith('starter-100@') else len(tests),
+                'usable_count': usable, 'unavailable_count': len(tests) - usable,
+                'updated_at': row['finished_at'], 'last_activity_at': row['finished_at']}
     if not row or not row["scanner_id"] or row["status"] not in {"running", "dispatch_unknown"}:
         return {}
     tenant_id = f"partner-{row['partner']}"

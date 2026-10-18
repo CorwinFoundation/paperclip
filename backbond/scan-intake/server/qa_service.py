@@ -19,10 +19,36 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlsplit
 from report_extensions import ensure_schema, extend
+from quota_policy import quota_counted_sql
 
 
 LIMIT_MESSAGE = ("You've used your {limit} free scans. For a full scan of your "
                  "organization's agent, contact info@backbond.ai.")
+
+
+def safe_provenance(value):
+    """Keep only bounded run identities; never credentials, prompts or endpoints."""
+    if not isinstance(value, dict):
+        return {}
+    result = {}
+    for key in ('scanner_version', 'scanner_release_commit', 'scanner_image_digest',
+                'scanner_identity_observed_at', 'scanner_client_version',
+                'corpus_version', 'corpus_snapshot_hash'):
+        item = value.get(key)
+        if isinstance(item, str) and 0 < len(item) <= 200 and not any(ord(c) < 32 for c in item):
+            result[key] = item
+    seed = value.get('seed')
+    if isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < 2**63:
+        result['seed'] = seed
+    models = value.get('model_versions')
+    if isinstance(models, dict):
+        kept = {key: item for key, item in models.items()
+                if key in {'target_requested', 'target_resolved', 'judge'}
+                and isinstance(item, str) and 0 < len(item) <= 200
+                and not any(ord(c) < 32 for c in item)}
+        if kept:
+            result['model_versions'] = kept
+    return result
 
 
 class IntakeError(ValueError):
@@ -115,6 +141,8 @@ class IntakeStore:
             self.db.execute('ALTER TABLE scans ADD COLUMN outcome TEXT')
         if 'incomplete_reason' not in scan_cols:
             self.db.execute('ALTER TABLE scans ADD COLUMN incomplete_reason TEXT')
+        if 'provenance_json' not in scan_cols:
+            self.db.execute("ALTER TABLE scans ADD COLUMN provenance_json TEXT NOT NULL DEFAULT '{}'")
         if 'source_intake_id' not in scan_cols:
             self.db.execute('ALTER TABLE scans ADD COLUMN source_intake_id TEXT')
         self.db.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_retained_voice_admission '
@@ -145,7 +173,8 @@ class IntakeStore:
                 endpoint_url: str, transport: str, now: str | None = None,
                 terms_version: str | None = None, improvement_consent: bool = False,
                 pack_version: str | None = None,
-                source_intake_id: str | None = None) -> dict:
+                source_intake_id: str | None = None,
+                provenance: dict | None = None) -> dict:
         created = now or datetime.now(timezone.utc).isoformat()
         email = email.strip().lower()
         endpoint = urlsplit(endpoint_url)
@@ -159,16 +188,14 @@ class IntakeStore:
             if not row or not row["active"] or row["expires_at"] < created[:10]:
                 raise IntakeError("invalid or expired code")
             used = self.db.execute(
-                "SELECT count(*) FROM scans WHERE partner=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted') "
-                "AND NOT (status='finished' AND outcome='failed')",
+                "SELECT count(*) FROM scans WHERE partner=? AND email=? AND " + quota_counted_sql(),
                 (row["partner"], email)).fetchone()[0]
             if used >= row["scans_per_email"]:
                 raise IntakeError(LIMIT_MESSAGE.format(limit=row["scans_per_email"]))
             emails = self.db.execute(
-                "SELECT count(DISTINCT email) FROM scans WHERE code=? AND status NOT IN ('connection_failed','cancelled','interrupted') "
-                "AND NOT (status='finished' AND outcome='failed')",
+                "SELECT count(DISTINCT email) FROM scans WHERE code=? AND " + quota_counted_sql(),
                 (code,)).fetchone()[0]
-            known = self.db.execute("SELECT 1 FROM scans WHERE code=? AND email=? AND status NOT IN ('connection_failed','cancelled','interrupted') AND NOT (status='finished' AND outcome='failed') LIMIT 1", (code, email)).fetchone()
+            known = self.db.execute("SELECT 1 FROM scans WHERE code=? AND email=? AND " + quota_counted_sql() + " LIMIT 1", (code, email)).fetchone()
             if not known and emails >= row["max_emails"]:
                 raise IntakeError("This partner code has reached its email limit.")
             if self.db.execute("SELECT 1 FROM scans WHERE email=? AND status IN ('reserved','queued','starting','running','dispatch_unknown') LIMIT 1", (email,)).fetchone():
@@ -178,6 +205,7 @@ class IntakeStore:
               VALUES(?,?,?,?,?,?,?,?,?, 'reserved',?)""",
               (scan_id, code, row["partner"], email, agent_label, host, transport,
                pack_version or "starter-100@4", created, source_intake_id))
+            self.record_provenance(scan_id, provenance or {})
             # Only a digest of the status token is stored; the caller holds the token.
             status_token = secrets.token_urlsafe(24)
             self.db.execute('UPDATE scans SET status_token_hash=? WHERE id=?',
@@ -241,9 +269,19 @@ class IntakeStore:
 
     @synchronized
     def launch_failed(self, scan_id: str) -> None:
-        # Connectivity passed, so this remains a counted attempt.
+        # Only provably unsent/rejected dispatches use this state. Unknown dispatch stays counted.
         self.db.execute("UPDATE scans SET status='launch_failed' WHERE id=? AND status IN "
                         "('reserved','starting','dispatch_unknown')", (scan_id,))
+
+    @synchronized
+    def record_provenance(self, scan_id: str, value: dict) -> None:
+        row = self.scan(scan_id)
+        if not row or row['status'] == 'finished':
+            return
+        merged = safe_provenance(json.loads(row['provenance_json'] or '{}'))
+        merged.update(safe_provenance(value))
+        self.db.execute('UPDATE scans SET provenance_json=? WHERE id=?',
+                        (json.dumps(merged), scan_id))
 
     @synchronized
     def finish(self, scan_id: str, tests: list[dict] | dict, *, now: str | None = None) -> str:
@@ -257,6 +295,7 @@ class IntakeStore:
             if row['outcome'] != 'failed':
                 self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
             return row['report_token']
+        self.record_provenance(scan_id, meta.get('provenance') or {})
         token = secrets.token_hex(16)  # 128 random bits; matches the viewer
         safe = [{k: v for k, v in test.items() if k in
                  {"id", "family", "prompt", "reply", "verdict", "error", "reason"}}
@@ -326,7 +365,8 @@ class IntakeStore:
         value = {"agent_label": row["agent_label"], "endpoint_host": row["endpoint_host"],
                 "pack_version": row["pack_version"], "created_at": row["created_at"],
                 "partner": row["partner"], "tests": json.loads(row["tests_json"]),
-                **report_outcome(row["outcome"], row["incomplete_reason"], json.loads(row["tests_json"]))}
+                **report_outcome(row["outcome"], row["incomplete_reason"], json.loads(row["tests_json"])),
+                **safe_provenance(json.loads(row["provenance_json"] or "{}"))}
         return extend(self.db, row, value)
 
     @synchronized
@@ -438,8 +478,8 @@ class IntakeStore:
 
     @synchronized
     def scans_since(self, partner: str, since: str) -> int:
-        return self.db.execute("""SELECT count(*) FROM scans WHERE partner=? AND created_at>=?
-          AND status NOT IN ('connection_failed','cancelled','interrupted')""", (partner, since)).fetchone()[0]
+        return self.db.execute("SELECT count(*) FROM scans WHERE partner=? AND created_at>=? AND "
+                               + quota_counted_sql(refund_terminal_failures=False), (partner, since)).fetchone()[0]
 
     @synchronized
     def status(self, token: str) -> dict | None:
@@ -591,7 +631,10 @@ def translate_callback(payload: dict) -> dict:
     return {"tests": translate_tests(payload), "meta": {
         "outcome": "failed" if status == "failed" and not (payload.get("result_rows") or []) else "incomplete" if incomplete else "complete",
         "incomplete_reason": str(payload.get("incomplete_reason") or "")[:200] or None if incomplete else None,
-        "pack_version": pack if isinstance(pack, str) and re.fullmatch(r"[a-z0-9-]{1,40}@\d{1,4}", pack) else None}}
+        "pack_version": pack if isinstance(pack, str) and re.fullmatch(r"[a-z0-9-]{1,40}@\d{1,4}", pack) else None,
+        **({"provenance": safe_provenance({"corpus_version": payload.get("corpus_version"),
+            "scanner_client_version": payload.get("scanner_version")})}
+           if payload.get("corpus_version") or payload.get("scanner_version") else {})}}
 
 
 def report_outcome(outcome, incomplete_reason, tests: list[dict]) -> dict:
