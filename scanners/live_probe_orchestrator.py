@@ -290,6 +290,10 @@ class ScanRequest:
     # BEAAA-41663 P08: normalized, registry-pinned Customer Operations
     # selection carried across the API/worker boundary.
     operations_scope: dict[str, Any] | None = None
+    # Effective scan budget (caller value or deployment default). Registry
+    # execution enforces it per paid batch; plain live_probe currently carries
+    # it as metadata because its provider adapter exposes no spend accounting.
+    max_cost_usd: float | None = None
 
     def __post_init__(self) -> None:
         if self.k_replicates not in ALLOWED_K_REPLICATES:

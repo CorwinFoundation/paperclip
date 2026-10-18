@@ -117,6 +117,7 @@ def _good_body(corpus_hash: str, **overrides) -> dict:
         "scanner_version": "0.3.0",
         "corpus_version": "0.1.0",
         "seed": 42,
+        "max_cost_usd": 10.0,
         "scan_mode": "live_probe",
         "k_replicates": 5,
         "requested_pillars": ["GOVERNANCE", "ROBUSTNESS"],

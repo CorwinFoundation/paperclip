@@ -729,6 +729,19 @@ components:
         scanner_version: { type: string }
         corpus_version: { type: string }
         seed: { type: integer }
+        max_cost_usd:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: |
+            Optional scan budget in USD. When omitted, the server applies
+            BACKBOND_SCAN_DEFAULT_MAX_COST_USD. Values above the deployment's
+            BACKBOND_SCAN_MAX_CREATE_COST_USD ceiling are rejected before
+            execution. Registry/operations_scope jobs enforce the effective
+            value before each paid batch. Plain live_probe jobs currently
+            carry the value as request metadata only; their provider adapter
+            does not yet expose spend accounting, so this field is not a hard
+            provider-spend stop for that path.
         surface_seed:
           type: integer
           description: |

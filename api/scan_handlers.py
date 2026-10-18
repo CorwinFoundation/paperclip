@@ -35,6 +35,7 @@ import hashlib
 import ipaddress
 import json
 import logging
+import math
 import re
 import os
 import threading
@@ -427,6 +428,34 @@ _NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
 _TERMINAL_FULL_SCAN_JOB_STATUSES: frozenset[str] = frozenset(
     {"complete", "incomplete", "incomplete_cost_cap", "failed", "cancelled"}
 )
+DEFAULT_CREATE_COST_USD = 1_000.0
+MAX_CREATE_COST_USD = 1_000.0
+
+
+def _create_cost_limits() -> tuple[float, float]:
+    """Return the deployment's default and maximum accepted scan budgets."""
+    try:
+        default = float(
+            os.environ.get(
+                "BACKBOND_SCAN_DEFAULT_MAX_COST_USD", str(DEFAULT_CREATE_COST_USD)
+            )
+        )
+        maximum = float(
+            os.environ.get(
+                "BACKBOND_SCAN_MAX_CREATE_COST_USD", str(MAX_CREATE_COST_USD)
+            )
+        )
+    except ValueError as exc:
+        raise RuntimeError("invalid Scanner create cost configuration") from exc
+    if (
+        not math.isfinite(default)
+        or not math.isfinite(maximum)
+        or default <= 0
+        or maximum <= 0
+        or default > maximum
+    ):
+        raise RuntimeError("invalid Scanner create cost configuration")
+    return default, maximum
 
 
 class ScanRuntime:
@@ -1198,6 +1227,7 @@ class ScanRuntime:
                 else None
             ),
             tenant_id=scan_request.tenant_id,
+            max_cost_usd=scan_request.max_cost_usd,
             operations_scope=scan_request.operations_scope,
             pack_id=(
                 scan_request.pack_id if variable_form_pack else None
@@ -2291,6 +2321,19 @@ def _kickoff_live_probe_scan(
         raise HandlerError(422, "scan_tier_invalid")
     scan_tier = "smoke" if is_starter else (raw_scan_tier or "full")
 
+    default_max_cost_usd, server_max_cost_usd = _create_cost_limits()
+    max_cost_raw = body.get("max_cost_usd", default_max_cost_usd)
+    if (
+        not isinstance(max_cost_raw, (int, float))
+        or isinstance(max_cost_raw, bool)
+        or not math.isfinite(float(max_cost_raw))
+        or float(max_cost_raw) <= 0
+    ):
+        raise HandlerError(422, "max_cost_usd_invalid")
+    max_cost_usd = float(max_cost_raw)
+    if max_cost_usd > server_max_cost_usd:
+        raise HandlerError(422, "max_cost_usd_exceeds_server_limit")
+
     # corpus_snapshot_hash: required for full, can default to pinned for smoke.
     if is_starter:
         corpus_snapshot_hash = STARTER_PACK_CORPUS_SNAPSHOT_HASH
@@ -2458,6 +2501,7 @@ def _kickoff_live_probe_scan(
             vendor_id=vendor_id,
             canary_phrasing_hashes=canary_phrasing_hashes,
             operations_scope=operations_scope,
+            max_cost_usd=max_cost_usd,
         )
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc
