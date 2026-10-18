@@ -26,6 +26,7 @@ ACTIVATION_LOCK="${SCANNER_ACTIVATION_LOCK_PATH:-$STATE_DIR/activation.lock}"
 # on disk; only the 0710 mode on the state directory keeps the deploy seat out.
 EVIDENCE_STATE_DIR="${SCANNER_EVIDENCE_STATE_DIR:-/var/lib/are-scanner}"
 EVIDENCE_EXPORT_DIR="${SCANNER_EVIDENCE_EXPORT_DIR:-/var/tmp/are-scanner-evidence-exports}"
+FULL_SCAN_JOB_STORE="${SCANNER_FULL_SCAN_JOB_STORE:-$EVIDENCE_STATE_DIR/full_scan_jobs.sqlite3}"
 SCAN_INTAKE_SERVICE="${SCANNER_SCAN_INTAKE_SERVICE:-backbond-scan-intake.service}"
 DISK_PATH="${SCANNER_DISK_PATH:-/}"
 DISK_MIN_FREE_BYTES="${SCANNER_DISK_MIN_FREE_BYTES:-21474836480}"
@@ -363,6 +364,92 @@ if [ "${1:-}" = export-evidence ]; then
   exit 0
 fi
 
+# BEAAA-42272: emit a read-only, scan-id-scoped projection of the durable
+# full-scan record. The projection intentionally excludes tenant/agent identity,
+# prompts, responses, evidence refs, credentials, and webhook configuration.
+evidence_extract() {
+  [ "$#" = 1 ] || die 'usage: scanner-deploy evidence-extract <scan-id>'
+  scan_id=$1
+  [[ "$scan_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] \
+    || die 'scan id must be a lowercase uuid'
+  [ ! -L "$EVIDENCE_STATE_DIR" ] || die 'evidence state directory is a symlink'
+  [ ! -L "$FULL_SCAN_JOB_STORE" ] || die 'full-scan job store is a symlink'
+  [ -f "$FULL_SCAN_JOB_STORE" ] || die "full-scan job store missing: $FULL_SCAN_JOB_STORE"
+  python3 - "$FULL_SCAN_JOB_STORE" "$scan_id" <<'PY'
+import json, sqlite3, sys
+
+db_path, scan_id = sys.argv[1:]
+try:
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    rows = conn.execute("SELECT job_json FROM full_scan_jobs").fetchall()
+finally:
+    if "conn" in locals():
+        conn.close()
+
+matches = []
+for (raw,) in rows:
+    try:
+        record = json.loads(raw)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid durable full-scan record: {exc}")
+    if record.get("scan_id") == scan_id:
+        matches.append(record)
+if not matches:
+    raise SystemExit(f"scan id not found: {scan_id}")
+if len(matches) != 1:
+    raise SystemExit(f"scan id is not unique: {scan_id}")
+
+record = matches[0]
+manifest = record.get("final_manifest") or {}
+registry = record.get("registry_cases") or []
+evidence = manifest.get("evidence_rows") or record.get("evidence_rows") or []
+required_ids = sorted(str(row.get("case_id")) for row in registry
+                      if row.get("required", True) and row.get("case_id"))
+attempted_ids = sorted({str(row.get("probe_id")) for row in evidence if row.get("probe_id")})
+terminal_statuses = {"complete", "failed", "incomplete", "skipped", "could_not_run_probe"}
+terminal_ids = sorted({str(row.get("probe_id")) for row in evidence
+                       if row.get("probe_id") and row.get("status") in terminal_statuses})
+evidenced_ids = sorted({str(row.get("probe_id")) for row in evidence
+                        if row.get("probe_id") and row.get("evidence_ref")})
+incomplete_rows = [
+    {"case_id": str(row.get("probe_id")),
+     "status": row.get("status"),
+     "incomplete_reason": row.get("incomplete_reason")}
+    for row in evidence
+    if row.get("probe_id") and (row.get("status") != "complete" or row.get("incomplete_reason"))
+]
+incomplete_rows.sort(key=lambda row: row["case_id"])
+reconciliation = manifest.get("reconciliation") or {}
+output = {
+    "schema_version": "scanner-evidence-extract@1",
+    "scan_id": scan_id,
+    "job_id": record.get("job_id"),
+    "job_status": record.get("status"),
+    "registry": {
+        "scanner_version": record.get("scanner_version"),
+        "corpus_version": record.get("corpus_version"),
+        "snapshot_hash": manifest.get("registry_snapshot_hash"),
+    },
+    "expected_required": {"count": len(required_ids), "case_ids": required_ids},
+    "attempted": {"count": int(reconciliation.get("attempted", len(attempted_ids))), "case_ids": attempted_ids},
+    "terminal": {"count": int(reconciliation.get("terminal", len(terminal_ids))), "case_ids": terminal_ids},
+    "evidenced": {"count": int(reconciliation.get("evidenced", len(evidenced_ids))), "case_ids": evidenced_ids},
+    "incomplete_rows": incomplete_rows,
+    "incomplete_reasons": list(manifest.get("incomplete_reasons") or []),
+    "bind_eligibility": manifest.get("bind_eligibility", record.get("bind_eligibility")),
+    "errors": list(manifest.get("errors") or []),
+    "final_manifest_hash": record.get("final_manifest_hash") or manifest.get("manifest_hash"),
+}
+print(json.dumps(output, indent=2, sort_keys=True))
+PY
+}
+
+if [ "${1:-}" = evidence-extract ]; then
+  shift
+  evidence_extract "$@"
+  exit 0
+fi
+
 if [ "${1:-}" = disk-maintenance ]; then
   shift
   disk_maintenance "$@"
@@ -434,7 +521,7 @@ if [ "${1:-}" = refresh-helper ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
