@@ -651,6 +651,30 @@ if [ "${1:-}" = qa-tenant-keys ]; then
   exit 0
 fi
 
+# BEAAA-42388: credential-free restart test target + signed callback receiver
+# for the BEAAA-38869 item 2 live check. The installer is taken from the live
+# image (like scan-intake) so the code that runs is the code master deployed.
+# install is idempotent and only adds the dedicated qa-38869-callback ref;
+# remove drops only this fixture and that ref, keeping receipts and evidence.
+qa_restart_fixture() {
+  case "${1:-}" in
+    install|status|receipts|remove) ;;
+    *) die 'usage: scanner-deploy qa-restart-fixture install [--delay-seconds N] | status | receipts | remove' ;;
+  esac
+  work="$(mktemp -d)" || die 'cannot create qa-restart-fixture staging directory'
+  trap 'rm -rf -- "$work"' RETURN
+  "$DOCKER" cp "$CONTAINER:/app/backbond/qa-restart-fixture/." "$work/" \
+    || die 'cannot extract qa-restart-fixture payload from live image'
+  [ -f "$work/install.py" ] && [ -f "$work/fixture.py" ] || die 'qa-restart-fixture payload is incomplete'
+  SCANNER_EDGE_ENV="$ENV_FILE" python3 "$work/install.py" "$@"
+}
+
+if [ "${1:-}" = qa-restart-fixture ]; then
+  shift
+  qa_restart_fixture "$@"
+  exit 0
+fi
+
 if [ "${1:-}" = preflight ]; then
   [ "$#" = 1 ] || die 'usage: scanner-deploy preflight'
   public_dns_preflight
@@ -672,7 +696,7 @@ if [ "${1:-}" = refresh-helper ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix> | scanner-deploy qa-tenant-keys beaaa38869'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix> | scanner-deploy qa-restart-fixture install|status|receipts|remove | scanner-deploy qa-tenant-keys beaaa38869'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
