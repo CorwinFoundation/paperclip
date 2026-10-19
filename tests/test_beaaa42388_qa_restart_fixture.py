@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import socket
 import stat
 import subprocess
 import sys
@@ -17,6 +18,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -172,7 +174,7 @@ def test_untrusted_fields_are_not_copied_into_receipts(server):
 def test_there_is_no_public_receipt_or_body_endpoint(server):
     port = server.server_address[1]
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{fixture.HEALTH_PATH}", timeout=5) as resp:
-        assert json.loads(resp.read()) == {"ok": True}
+        assert json.loads(resp.read()) == {"ok": True, "service": "backbond-qa-restart-fixture"}
     for path in ("/qa-restart-fixture/v1/receipts", "/qa-restart-fixture/receipts.json", "/"):
         with pytest.raises(urllib.error.HTTPError) as err:
             urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5)
@@ -189,12 +191,34 @@ def test_receipts_survive_a_fixture_restart(tmp_path):
 # -- installer ----------------------------------------------------------------
 
 
-def _install_env(tmp_path: Path) -> dict[str, str]:
+def _serve(srv):
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+@pytest.fixture(scope="module")
+def healthz_url():
+    """A real fixture's health endpoint, standing in for the installed unit."""
+    srv = fixture.FixtureServer(("127.0.0.1", 0), secret=SECRET.encode(), delay=0.0,
+                                receipts=fixture.ReceiptStore(Path(os.devnull)), sleep=lambda _s: None)
+    yield _serve(srv) + fixture.HEALTH_PATH
+    srv.shutdown()
+    srv.server_close()
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _install_env(tmp_path: Path, health_url: str) -> dict[str, str]:
     (tmp_path / "sites").mkdir()
     (tmp_path / "sites" / "scanner.backbond.ai").write_text(SITE_TEXT)
     calls = tmp_path / "calls.log"
     fake = tmp_path / "fake-cmd"
-    fake.write_text(f'#!/bin/sh\necho "$0 $*" >> {calls}\nexit 0\n')
+    # systemctl stand-in: logs calls, reports the unit inactive, succeeds otherwise.
+    fake.write_text(f'#!/bin/sh\necho "$0 $*" >> {calls}\n[ "$1" = is-active ] && exit 3\nexit 0\n')
     fake.chmod(0o755)
     env_file = tmp_path / "scanner-edge.env"
     env_file.write_text(
@@ -210,7 +234,9 @@ def _install_env(tmp_path: Path) -> dict[str, str]:
         "QA_FIXTURE_NGINX_SNIPPET": str(tmp_path / "snippet.conf"),
         "QA_FIXTURE_NGINX_SITE": str(tmp_path / "sites" / "scanner.backbond.ai"),
         "QA_FIXTURE_RECEIPTS": str(tmp_path / "receipts.json"),
-        "QA_FIXTURE_HEALTH_URL": "http://127.0.0.1:9/never",
+        "QA_FIXTURE_HEALTH_URL": health_url,
+        "QA_FIXTURE_HEALTH_WAIT_SECONDS": "1",
+        "QA_FIXTURE_PORT": str(_free_port()),
         "SCANNER_EDGE_ENV": str(env_file),
         "SCANNER_SYSTEMCTL": str(fake),
         "QA_FIXTURE_NGINX": str(fake),
@@ -231,8 +257,8 @@ def _refs(env) -> dict[str, dict[str, str]]:
     return out
 
 
-def test_install_reruns_safely_and_preserves_other_refs(tmp_path):
-    env = _install_env(tmp_path)
+def test_install_reruns_safely_and_preserves_other_refs(tmp_path, healthz_url):
+    env = _install_env(tmp_path, healthz_url)
     first = _run(env, "install", "--delay-seconds", "4")
     assert first.returncode == 0, first.stderr
     secret = Path(env["QA_FIXTURE_SECRET_FILE"]).read_text().strip()
@@ -260,8 +286,8 @@ def test_install_reruns_safely_and_preserves_other_refs(tmp_path):
         assert "keep-a" not in result.stdout + result.stderr
 
 
-def test_remove_drops_only_the_fixture_and_its_ref(tmp_path):
-    env = _install_env(tmp_path)
+def test_remove_drops_only_the_fixture_and_its_ref(tmp_path, healthz_url):
+    env = _install_env(tmp_path, healthz_url)
     assert _run(env, "install").returncode == 0
     Path(env["QA_FIXTURE_RECEIPTS"]).write_text('{"receipts":{"scan-x":{"scan_id":"scan-x"}}}')
     removed = _run(env, "remove")
@@ -275,16 +301,16 @@ def test_remove_drops_only_the_fixture_and_its_ref(tmp_path):
     assert _run(env, "remove").returncode == 0
 
 
-def test_install_refuses_to_rewrite_a_malformed_ref_map(tmp_path):
-    env = _install_env(tmp_path)
+def test_install_refuses_to_rewrite_a_malformed_ref_map(tmp_path, healthz_url):
+    env = _install_env(tmp_path, healthz_url)
     Path(env["SCANNER_EDGE_ENV"]).write_text(WEBHOOK_SECRETS_JSON_ENV + "=not-json\n")
     result = _run(env, "install")
     assert result.returncode != 0
     assert Path(env["SCANNER_EDGE_ENV"]).read_text() == WEBHOOK_SECRETS_JSON_ENV + "=not-json\n"
 
 
-def test_receipts_and_status_print_sanitized_fields_only(tmp_path):
-    env = _install_env(tmp_path)
+def test_receipts_and_status_print_sanitized_fields_only(tmp_path, healthz_url):
+    env = _install_env(tmp_path, healthz_url)
     assert _run(env, "install").returncode == 0
     Path(env["QA_FIXTURE_RECEIPTS"]).write_text(json.dumps({
         "invalid_signature_deliveries": 1,
@@ -300,6 +326,54 @@ def test_receipts_and_status_print_sanitized_fields_only(tmp_path):
     status = _run(env, "status")
     assert status.returncode == 0, status.stderr
     assert "receipts=1 invalid_signature_deliveries=1" in status.stdout
+
+
+def _assert_nothing_published(env) -> None:
+    assert Path(env["QA_FIXTURE_NGINX_SITE"]).read_text() == SITE_TEXT
+    assert not Path(env["QA_FIXTURE_NGINX_SNIPPET"]).exists()
+    assert _refs(env) == {WEBHOOK_SECRETS_JSON_ENV: {"vendor-a": "keep-a", "vendor-b": "keep-b"}}
+
+
+def test_install_refuses_a_port_held_by_another_listener(tmp_path, healthz_url):
+    env = _install_env(tmp_path, healthz_url)
+    with socket.socket() as other:
+        other.bind(("127.0.0.1", 0))
+        other.listen()
+        env["QA_FIXTURE_PORT"] = str(other.getsockname()[1])
+        result = _run(env, "install")
+    assert result.returncode != 0
+    assert "already used by another listener" in result.stderr
+    _assert_nothing_published(env)
+    assert not Path(env["QA_FIXTURE_SECRET_FILE"]).exists()
+    assert not Path(env["QA_FIXTURE_UNIT_FILE"]).exists()
+
+
+class _ForeignApp(BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802
+        body = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.mark.parametrize("target", ["foreign", "down"])
+def test_install_publishes_nothing_unless_the_fixture_itself_answers(tmp_path, target):
+    foreign = HTTPServer(("127.0.0.1", 0), _ForeignApp)
+    url = _serve(foreign) + fixture.HEALTH_PATH
+    try:
+        env = _install_env(tmp_path, url if target == "foreign" else "http://127.0.0.1:9/never")
+        result = _run(env, "install")
+    finally:
+        foreign.shutdown()
+        foreign.server_close()
+    assert result.returncode != 0
+    assert f"fixture health={target}" in result.stderr
+    _assert_nothing_published(env)
+    assert "disable --now backbond-qa-restart-fixture.service" in (tmp_path / "calls.log").read_text()
 
 
 def test_deploy_helper_extracts_fixture_from_live_image():

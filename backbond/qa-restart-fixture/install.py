@@ -24,17 +24,22 @@ import json
 import os
 import secrets
 import shlex
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
 REF = "qa-38869-callback"
 SECRET_VARS = ("ARE_WEBHOOK_SECRETS_JSON", "ARE_SCAN_WEBHOOK_SECRETS_JSON")
 SERVICE = "backbond-qa-restart-fixture.service"
-PORT = 8791
+#: 127.0.0.1:8788-8791 already belong to other host-local services on the
+#: scanner server; 8791 was the first choice and collided (BEAAA-42388).
+PORT = int(os.environ.get("QA_FIXTURE_PORT") or 18791)
+SERVICE_NAME = "backbond-qa-restart-fixture"
 DEFAULT_DELAY_SECONDS = 5.0
 MAX_DELAY_SECONDS = 25.0
 SITE_ANCHOR = "include /etc/nginx/snippets/backbond-stage-b-inbound.conf;"
@@ -60,6 +65,7 @@ RECEIPTS = _path("QA_FIXTURE_RECEIPTS", "/var/lib/backbond-qa-restart-fixture/re
 SYSTEMCTL = shlex.split(os.environ.get("SCANNER_SYSTEMCTL") or "systemctl")
 NGINX = shlex.split(os.environ.get("QA_FIXTURE_NGINX") or "nginx")
 HEALTH_URL = os.environ.get("QA_FIXTURE_HEALTH_URL") or f"http://127.0.0.1:{PORT}/qa-restart-fixture/healthz"
+HEALTH_WAIT_SECONDS = float(os.environ.get("QA_FIXTURE_HEALTH_WAIT_SECONDS") or 15)
 
 
 def die(message: str) -> None:
@@ -323,16 +329,52 @@ def sanitized_receipts() -> dict[str, object]:
 
 
 def health() -> str:
+    """``ok`` only when *this* fixture answers; another listener is ``foreign``."""
     try:
         with urllib.request.urlopen(HEALTH_URL, timeout=5) as response:
-            return "ok" if response.status == 200 else f"http_{response.status}"
+            if response.status != 200:
+                return f"http_{response.status}"
+            try:
+                doc = json.loads(response.read(4096))
+            except ValueError:
+                doc = None
+            ok = isinstance(doc, dict) and doc.get("service") == SERVICE_NAME
+            return "ok" if ok else "foreign"
     except Exception as exc:  # noqa: BLE001 - status only
         return f"down:{type(exc).__name__}"
+
+
+def service_active() -> bool:
+    return run([*SYSTEMCTL, "is-active", "--quiet", SERVICE], check=False) == 0
+
+
+def port_in_use() -> bool:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", PORT))
+    except OSError:
+        return True
+    finally:
+        sock.close()
+    return False
+
+
+def wait_healthy() -> str:
+    deadline = time.monotonic() + HEALTH_WAIT_SECONDS
+    state = health()
+    while state != "ok" and time.monotonic() < deadline:
+        time.sleep(0.5)
+        state = health()
+    return state
 
 
 def install(delay: float) -> None:
     if not 0 <= delay <= MAX_DELAY_SECONDS:
         die(f"--delay-seconds must be within [0, {MAX_DELAY_SECONDS:g}]")
+    # Never publish another service: refuse when a foreign listener holds the port.
+    if not service_active() and port_in_use():
+        die(f"127.0.0.1:{PORT} is already used by another listener; nothing installed")
     secret, created = ensure_secret()
     log(f"secret_ref {REF}: {'created' if created else 'reused'} ({SECRET_FILE}, 0600)")
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -343,6 +385,11 @@ def install(delay: float) -> None:
     run([*SYSTEMCTL, "enable", SERVICE])
     run([*SYSTEMCTL, "restart" if (code_changed or unit_changed) else "start", SERVICE])
     log(f"fixture unit {SERVICE}: {'restarted' if code_changed or unit_changed else 'unchanged'} delay_seconds={delay:g}")
+    state = wait_healthy()
+    if state != "ok":
+        run([*SYSTEMCTL, "disable", "--now", SERVICE], check=False)
+        die(f"fixture health={state} on 127.0.0.1:{PORT}; unit stopped, nginx and webhook refs left unchanged")
+    log(f"fixture health=ok port={PORT}")
     site = read_text(SITE)
     if site is None:
         die(f"nginx site {SITE} is missing")
@@ -374,7 +421,7 @@ def remove() -> None:
 
 
 def status() -> None:
-    active = run([*SYSTEMCTL, "is-active", "--quiet", SERVICE], check=False) == 0
+    active = service_active()
     print(f"service={'active' if active else 'inactive'}")
     print(f"health={health()}")
     print(f"secret_file={'present' if SECRET_FILE.exists() else 'absent'}")

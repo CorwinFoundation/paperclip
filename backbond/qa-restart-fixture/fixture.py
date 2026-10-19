@@ -37,6 +37,10 @@ PREFIX = "/qa-restart-fixture"
 CHAT_PATH = f"{PREFIX}/v1/chat/completions"
 CALLBACK_PATH = f"{PREFIX}/v1/callback"
 HEALTH_PATH = f"{PREFIX}/healthz"
+#: Identity marker in the health reply, so the installer can tell this fixture
+#: apart from any other local service that might hold the same port.
+SERVICE_NAME = "backbond-qa-restart-fixture"
+DEFAULT_PORT = 18791
 
 SIGNATURE_HEADER = "X-BackBond-Signature"
 DELIVERY_HEADER = "X-BackBond-Delivery"
@@ -222,7 +226,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == HEALTH_PATH:
-            self._reply(200, {"ok": True})
+            self._reply(200, {"ok": True, "service": SERVICE_NAME})
         else:
             self._reply(404, {"error": "not_found"})
 
@@ -291,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
     secret_file = os.environ.get("FIXTURE_SECRET_FILE") or os.path.join(credentials, "callback-secret")
     state_dir = os.environ.get("FIXTURE_STATE_DIR") or os.environ.get("STATE_DIRECTORY") or "."
     server = FixtureServer(
-        (os.environ.get("FIXTURE_HOST", "127.0.0.1"), int(os.environ.get("FIXTURE_PORT", "8791"))),
+        (os.environ.get("FIXTURE_HOST", "127.0.0.1"), int(os.environ.get("FIXTURE_PORT") or DEFAULT_PORT)),
         secret=load_secret(secret_file),
         delay=bounded_delay(os.environ.get("FIXTURE_DELAY_SECONDS")),
         receipts=ReceiptStore(Path(state_dir) / "receipts.json"),
