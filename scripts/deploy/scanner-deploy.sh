@@ -548,6 +548,109 @@ if [ "${1:-}" = acceptance ] && [ "${2:-}" = starter-v5 ]; then
   exit $?
 fi
 
+# BEAAA-42359: idempotent renewal of the two fixed BEAAA-38869 QA tenant keys
+# (qa-38869-a, qa-38869-b). A key that still resolves live for its tenant with
+# at least a day left is kept; an expired, revoked, unknown or near-expiry key
+# is replaced by a fresh seven-day key and the old key_id revoked. Tokens move
+# only over stdin pipes and land 0600 in the owner's file; stdout carries
+# key_id/expiry only. Tenants, TTL and file path are fixed here, not arguments.
+QA_KEYS_CONTAINER_PROGRAM='
+import os, sys, time
+from api.edge_gateway import KeyStore
+tenant, key_id, ttl, min_remaining = sys.argv[1], sys.argv[2], float(sys.argv[3]), float(sys.argv[4])
+current = sys.stdin.readline().strip()
+fresh = sys.stdin.readline().strip()
+store = KeyStore(os.environ["ARE_KEY_STORE_PATH"])
+old = store.resolve(current) if current else None
+if old is not None and old.tenant_id == tenant and old.expires_at - time.time() >= min_remaining:
+    print(f"kept key_id={old.key_id} expires_at={int(old.expires_at)}")
+    raise SystemExit(0)
+if not fresh.startswith("bbqa_") or len(fresh) != 53:
+    raise SystemExit("fresh token has the wrong shape")
+rec = store.issue(token=fresh, key_id=key_id, tenant_id=tenant, ttl_seconds=ttl, scopes=None)
+if old is not None and old.key_id != key_id:
+    store.revoke(old.key_id)
+print(f"renewed key_id={rec.key_id} expires_at={int(rec.expires_at)}")
+raise SystemExit(10)
+'
+qa_tenant_keys() {
+  [ "$#" = 1 ] && [ "$1" = beaaa38869 ] || die 'usage: scanner-deploy qa-tenant-keys beaaa38869'
+  qa_owner="${QA_TOKENS_OWNER:-are-deploy}"
+  qa_out="${QA_TOKENS_FILE:-/home/are-deploy/qa-38869.tokens}"
+  qa_uid="$(id -u "$qa_owner")" || die "unknown token owner: $qa_owner"
+  qa_gid="$(id -g "$qa_owner")" || die "unknown token owner: $qa_owner"
+  "$DOCKER" exec "$CONTAINER" sh -c 'test -n "${ARE_KEY_STORE_PATH:-}"' \
+    || die "ARE_KEY_STORE_PATH is not set in $CONTAINER; edge gateway key store not in use"
+  QA_DOCKER="$DOCKER" QA_CONTAINER="$CONTAINER" QA_OUT="$qa_out" QA_UID="$qa_uid" QA_GID="$qa_gid" \
+    QA_PROGRAM="$QA_KEYS_CONTAINER_PROGRAM" QA_MIN_REMAINING="${QA_RENEW_MIN_REMAINING_SECONDS:-86400}" \
+    python3 - <<'PY'
+import os, secrets, stat, subprocess, sys, time
+
+TENANTS = ("qa-38869-a", "qa-38869-b")
+TTL = 604800  # seven days; changing it needs a Founder decision (BEAAA-38869)
+out, uid, gid = os.environ["QA_OUT"], int(os.environ["QA_UID"]), int(os.environ["QA_GID"])
+directory = os.path.dirname(out) or "."
+
+
+def read_tokens():
+    try:
+        fd = os.open(out, os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        sys.exit(f"[scanner-deploy] ERROR: refusing token file {out}: not a plain file")
+    with os.fdopen(fd, "r") as fh:
+        st = os.fstat(fh.fileno())
+        if not stat.S_ISREG(st.st_mode) or st.st_uid != uid or st.st_nlink != 1:
+            sys.exit(f"[scanner-deploy] ERROR: refusing token file {out}: wrong type, owner or link count")
+        tokens = {}
+        for line in fh.read(65536).splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[0] in TENANTS:
+                tokens[parts[0]] = parts[1]
+        return tokens
+
+
+def write_tokens(tokens):
+    tmp = os.path.join(directory, f".qa-38869.tokens.{secrets.token_hex(8)}")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        os.fchown(fd, uid, gid)
+        os.fchmod(fd, 0o600)
+        os.write(fd, "".join(f"{t} {tokens[t]}\n" for t in TENANTS if t in tokens).encode())
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.rename(tmp, out)
+
+
+tokens = read_tokens()
+for tenant in TENANTS:
+    key_id = f"{tenant}-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+    fresh = "bbqa_" + secrets.token_hex(24)
+    proc = subprocess.run(
+        [os.environ["QA_DOCKER"], "exec", "-i", os.environ["QA_CONTAINER"], "python", "-c",
+         os.environ["QA_PROGRAM"], tenant, key_id, str(TTL), os.environ["QA_MIN_REMAINING"]],
+        input=f"{tokens.get(tenant, '')}\n{fresh}\n", capture_output=True, text=True,
+    )
+    status = proc.stdout.strip().splitlines()[-1:] or [""]
+    if proc.returncode == 10 and status[0].startswith("renewed "):
+        tokens[tenant] = fresh
+        write_tokens(tokens)
+    elif proc.returncode != 0 or not status[0].startswith("kept "):
+        detail = (proc.stderr.strip().splitlines() or [""])[-1][:200]
+        sys.exit(f"[scanner-deploy] ERROR: {tenant} key check failed (exit {proc.returncode}): {detail}")
+    print(f"{tenant} {status[0]}")
+print(f"tokens in {out}")
+PY
+}
+
+if [ "${1:-}" = qa-tenant-keys ]; then
+  shift
+  qa_tenant_keys "$@"
+  exit 0
+fi
+
 if [ "${1:-}" = preflight ]; then
   [ "$#" = 1 ] || die 'usage: scanner-deploy preflight'
   public_dns_preflight
@@ -569,7 +672,7 @@ if [ "${1:-}" = refresh-helper ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix>'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix> | scanner-deploy qa-tenant-keys beaaa38869'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'

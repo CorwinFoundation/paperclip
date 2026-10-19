@@ -1,29 +1,15 @@
 #!/usr/bin/env bash
-# BEAAA-38869: issue two 7-day test tenant keys (qa-38869-a, qa-38869-b) on the
-# live scanner so the tenant-isolation check can run against production.
-# Run as root on srv1749248. Safe to rerun: a tenant already listed in the
-# tokens file is skipped. Tokens land 0600 in are-deploy's home, never on stdout.
+# BEAAA-38869: keep two 7-day test tenant keys (qa-38869-a, qa-38869-b) live on
+# the production scanner so the tenant-isolation check can run there.
+# BEAAA-42359: the earlier version skipped any tenant already listed in the
+# tokens file, so an expired or revoked key could never be renewed. Renewal now
+# lives in the sudo-authorized deploy helper (`scanner-deploy qa-tenant-keys
+# beaaa38869`): a key with at least a day left is kept, anything else is
+# replaced by a fresh seven-day key and the old key_id revoked. Safe to rerun.
+# Tokens land 0600 in are-deploy's home and are never written to stdout.
 set -euo pipefail
-C="${SCANNER_CONTAINER:-backbond-scanner-live-edge}"
-OUT="${QA_TOKENS_FILE:-/home/are-deploy/qa-38869.tokens}"
-OWNER="${QA_TOKENS_OWNER:-are-deploy}"
-
-docker exec "$C" sh -c 'test -n "${ARE_KEY_STORE_PATH:-}"' \
-  || { echo "ARE_KEY_STORE_PATH is not set in $C; edge gateway key store not in use" >&2; exit 1; }
-
-umask 077
-touch "$OUT"
-chown "$OWNER:$OWNER" "$OUT"
-chmod 600 "$OUT"
-
-for t in qa-38869-a qa-38869-b; do
-  if grep -q "^$t " "$OUT"; then
-    echo "$t already issued"
-    continue
-  fi
-  k="bbqa_$(openssl rand -hex 24)"
-  docker exec "$C" sh -c 'python -m api.edge_gateway --store "$ARE_KEY_STORE_PATH" issue \
-      --token "$1" --key-id "$2" --tenant-id "$2" --ttl-seconds 604800' _ "$k" "$t"
-  echo "$t $k" >>"$OUT"
-done
-echo "tokens in $OUT"
+HELPER="${SCANNER_DEPLOY_HELPER:-/usr/local/sbin/scanner-deploy}"
+if [ "$(id -u)" = 0 ]; then
+  exec "$HELPER" qa-tenant-keys beaaa38869
+fi
+exec sudo -n "$HELPER" qa-tenant-keys beaaa38869
