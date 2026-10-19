@@ -420,6 +420,7 @@ class TestAGA6FlagOffRollback:
         factory = _production_score_envelope_factory(runtime_ref, None)
 
         result = MagicMock()
+        result.full_suite_manifest = None
         result.scan_id = "scan-x"
         result.scanner_version = "0.3.11"
         result.corpus_version = "0.1.0"

@@ -746,13 +746,16 @@ def _production_score_envelope_factory(
                 if truncated:
                     envelope["prior_scan_refs_truncated"] = True
                 return envelope
-            raise ScanRuntimeError(
-                f"score envelope registry miss for scan_id={result.scan_id!r} "
-                "under ARE_SCORER_REAL=on; aborting scan before persistence"
-            )
+            if result.full_suite_manifest is None:
+                raise ScanRuntimeError(
+                    f"score envelope registry miss for scan_id={result.scan_id!r} "
+                    "under ARE_SCORER_REAL=on; aborting scan before persistence"
+                )
 
-        # Flag-off path — master 52c003e placeholder envelope. Tier-1
-        # rollback target. Registry misses in the flag-on path fail closed.
+        # Full-scan dispatch produces a manifest without running the prober/scorer
+        # pair. Persist its report-only result without claiming a numeric score.
+        # Prober registry misses above still fail before persistence.
+        # Flag-off callers retain the existing placeholder envelope.
         envelope: dict[str, Any] = {
             "agent_id": agent_id,
             "are_total": "_phase1_pending",
@@ -770,6 +773,10 @@ def _production_score_envelope_factory(
             "seed": "_phase1_pending",
             "subscores": "_phase1_pending",
         }
+        if result.full_suite_manifest is not None:
+            envelope["may_claim_full_score"] = False
+            envelope["partial_completion"] = bool(result.incomplete)
+            envelope["confidence_below_adjudication_threshold"] = bool(result.incomplete)
         if truncated:
             envelope["prior_scan_refs_truncated"] = True
         return envelope

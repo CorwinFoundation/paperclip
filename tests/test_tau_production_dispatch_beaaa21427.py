@@ -67,7 +67,9 @@ def _session_factory(scenario, seed):
     )
 
 
-def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tmp_path):
+@pytest.mark.parametrize("real_scorer", [False, True])
+def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tmp_path, monkeypatch, real_scorer):
+    monkeypatch.setenv("ARE_SCORER_REAL", "on" if real_scorer else "off")
     from api.scan_handlers import scan_handler
     evidence_root = tmp_path / "evidence"
     workers_factory = lambda request, secret: build_registered_case_workers(
@@ -91,7 +93,7 @@ def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tm
         full_scan_workers_factory=workers_factory,
     )
     runtime_ref = [runtime]
-    runtime._score_envelope_factory = _production_score_envelope_factory(runtime_ref, None)
+    runtime._score_envelope_factory = _production_score_envelope_factory(runtime_ref, {} if real_scorer else None)
 
     body = {
         "tenant_id": "tenant-tau",
@@ -147,6 +149,10 @@ def test_normal_scan_boundary_dispatches_tau_and_persists_correlated_evidence(tm
     while not scan_log.list_for_agent("agent-tau", tenant_id="tenant-tau") and time.monotonic() < deadline:
         time.sleep(0.01)
     persisted = scan_log.list_for_agent("agent-tau", tenant_id="tenant-tau")[-1]
+    assert persisted["score_json"]["may_claim_full_score"] is False
+    assert persisted["score_json"]["are_total"] == "_phase1_pending"
+    assert persisted["score_json"]["partial_completion"] is False
+    assert persisted["score_json"]["confidence_below_adjudication_threshold"] is False
     persisted_rows = persisted["score_json"]["evidence_refs"]
     assert len(persisted_rows) == 3
     assert {row["case_id"] for row in persisted_rows} == {
