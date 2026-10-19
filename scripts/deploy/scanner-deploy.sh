@@ -380,6 +380,14 @@ evidence_extract() {
 import json, os, sqlite3, sys
 
 db_path, accepted_path, scan_id = sys.argv[1:]
+# Fixed field names and counts only: never print paths, keys, rows or identity.
+diagnostic = {"direct_job_matches": 0, "accepted_store_present": 0,
+              "accepted_scan_matches": 0, "idempotency_matches": 0,
+              "correlated_job_matches": 0}
+def missing():
+    print(json.dumps({"schema_version": "scanner-evidence-lookup@1",
+                      "counts": diagnostic}, sort_keys=True), file=sys.stderr)
+    raise SystemExit(f"scan id not found: {scan_id}")
 try:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     # Newer durable jobs carry scan_id directly. Query the JSON field in SQL so
@@ -389,6 +397,7 @@ try:
         "WHERE json_extract(job_json, '$.scan_id') = ?",
         (scan_id,),
     ).fetchall()
+    diagnostic["direct_job_matches"] = len(rows)
     if not rows:
         # Historical jobs predate the top-level scan_id field. Resolve the
         # accepted scan exactly, then follow the durable idempotency edge that
@@ -397,7 +406,8 @@ try:
         if os.path.islink(accepted_path):
             raise SystemExit("accepted-scan store is a symlink")
         if not os.path.isfile(accepted_path):
-            raise SystemExit(f"scan id not found: {scan_id}")
+            missing()
+        diagnostic["accepted_store_present"] = 1
         accepted = sqlite3.connect(f"file:{accepted_path}?mode=ro", uri=True)
         try:
             accepted_rows = accepted.execute(
@@ -405,16 +415,22 @@ try:
             ).fetchall()
         finally:
             accepted.close()
+        diagnostic["accepted_scan_matches"] = len(accepted_rows)
         if len(accepted_rows) > 1:
             raise SystemExit(f"scan id is not unique: {scan_id}")
         if accepted_rows:
             correlation_key = f"{accepted_rows[0][0]}:{scan_id}:full-registry"
+            diagnostic["idempotency_matches"] = conn.execute(
+                "SELECT COUNT(*) FROM full_scan_idempotency WHERE idempotency_key = ?",
+                (correlation_key,),
+            ).fetchone()[0]
             rows = conn.execute(
                 "SELECT j.job_json FROM full_scan_idempotency AS i "
                 "JOIN full_scan_jobs AS j ON j.job_id = i.job_id "
                 "WHERE i.idempotency_key = ?",
                 (correlation_key,),
             ).fetchall()
+            diagnostic["correlated_job_matches"] = len(rows)
 finally:
     if "conn" in locals():
         conn.close()
@@ -427,7 +443,7 @@ for (raw,) in rows:
         raise SystemExit(f"invalid durable full-scan record: {exc}")
     matches.append(record)
 if not matches:
-    raise SystemExit(f"scan id not found: {scan_id}")
+    missing()
 if len(matches) != 1:
     raise SystemExit(f"scan id is not unique: {scan_id}")
 

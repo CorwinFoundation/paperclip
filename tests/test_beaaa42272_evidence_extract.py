@@ -151,3 +151,29 @@ def test_extract_refuses_symlinked_store(tmp_path: Path) -> None:
     result = _run(state, link)
     assert result.returncode != 0
     assert "job store is a symlink" in result.stderr
+
+
+def test_missing_lookup_reports_only_fixed_counts(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    db = state / "full_scan_jobs.sqlite3"
+    _database(db, historical=True)
+    missing_store = _run(state, db)
+    counts = json.loads(missing_store.stderr.splitlines()[0])["counts"]
+    assert counts == {"direct_job_matches": 0, "accepted_store_present": 0,
+                      "accepted_scan_matches": 0, "idempotency_matches": 0,
+                      "correlated_job_matches": 0}
+    _accepted_database(state / "accepted_scans.sqlite3")
+    conn = sqlite3.connect(db)
+    conn.execute("DELETE FROM full_scan_jobs")
+    conn.commit()
+    conn.close()
+    before = db.read_bytes()
+    orphan = _run(state, db)
+    counts = json.loads(orphan.stderr.splitlines()[0])["counts"]
+    assert counts == {"direct_job_matches": 0, "accepted_store_present": 1,
+                      "accepted_scan_matches": 1, "idempotency_matches": 1,
+                      "correlated_job_matches": 0}
+    assert db.read_bytes() == before
+    for forbidden in (str(state), "private-tenant", JOB_ID, "job_json"):
+        assert forbidden not in orphan.stderr
