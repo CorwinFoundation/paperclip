@@ -187,7 +187,7 @@ case "$*" in
   *"printenv ARE_PINNED_CORPUS_SNAPSHOT_HASH") printf 'secret-corpus-hash\\n';;
   *"printenv ARE_SCAN_WEBHOOK") printf 'ops@example.test\\n';;
   *"printenv BEAAA_RESI_PROXY_URL") printf 'https://secret-proxy.example\\n';;
-  *"sh -c unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec curl -fsS --max-time 10 https://api.ipify.org") printf '203.0.113.10\\n';;
+  *"sh -c unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec python3 -") printf '203.0.113.10\\n';;
   *) exit 2;;
 esac
 ''',

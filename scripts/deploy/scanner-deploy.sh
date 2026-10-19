@@ -108,8 +108,19 @@ diagnostics_wp_s() {
   scan_webhook="$(container_env_value ARE_SCAN_WEBHOOK)"
   resi_proxy_url="$(container_env_value BEAAA_RESI_PROXY_URL)"
   outbound_ip="$(
-    "$DOCKER" exec "$CONTAINER" sh -c \
-      'unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec curl -fsS --max-time 10 https://api.ipify.org'
+    "$DOCKER" exec -i "$CONTAINER" sh -c \
+      'unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; exec python3 -' <<'PY_WPS_IP'
+import ipaddress
+import urllib.request
+
+try:
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open("https://api.ipify.org", timeout=10) as response:
+        outbound_ip = response.read(65).decode("ascii").strip()
+    print(ipaddress.ip_address(outbound_ip))
+except Exception:
+    raise SystemExit(1)
+PY_WPS_IP
   )" || die 'cannot determine direct outbound IP'
 
   printf 'ARE_WALKER_CUSTOMER_AGENT=%s\n' "$customer_agent"
