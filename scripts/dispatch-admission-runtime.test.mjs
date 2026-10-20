@@ -39,3 +39,52 @@ test('both queued-run entry paths use the shared guarded claim', () => {
   assert.match(source, /await claimQueuedRun\(queuedRun, companyAgents\)/);
   assert.match(source, /await claimQueuedRun\(run\)/);
 });
+
+const { createDispatchControl } = await import('../server/src/services/dispatch-admission.ts');
+
+test('operator drain denies restart while running, then status permits it after completion', async () => {
+  const gate = createDispatchAdmission(); let running = 1;
+  const control = createDispatchControl(gate, async () => running);
+  assert.equal((await control.drain(0)).restartReady, false);
+  assert.equal(gate.acquire(), null);
+  running = 0;
+  assert.equal((await control.status()).restartReady, true);
+  assert.deepEqual(control.resume(), { closed: false, restartReady: false });
+  const release = gate.acquire(); assert.equal(typeof release, 'function'); release();
+  assert.equal((await control.status()).restartReady, false);
+});
+
+test('resume invalidates pending drain even if admission closes again', async () => {
+  const gate = createDispatchAdmission(); const release = gate.acquire();
+  const control = createDispatchControl(gate, async () => 0);
+  const old = control.drain(1000);
+  control.resume();
+  const current = control.drain(1000);
+  release();
+  assert.equal((await old).restartReady, false);
+  assert.equal((await current).restartReady, true);
+});
+
+test('invalid or unavailable authoritative counts fail closed and allow explicit rollback', async () => {
+  for (const count of [undefined, NaN, -1, 0.5, '0']) {
+    const gate = createDispatchAdmission();
+    const control = createDispatchControl(gate, async () => count);
+    await assert.rejects(control.drain(0), /count unavailable/);
+    assert.equal(gate.closed, true);
+    control.resume(); assert.equal(gate.closed, false);
+  }
+  const gate = createDispatchAdmission();
+  const control = createDispatchControl(gate, async () => { throw Error('database offline'); });
+  await assert.rejects(control.drain(0), /database offline/);
+  assert.equal(gate.closed, true);
+});
+
+test('resume while the authoritative query is pending invalidates its snapshot', async () => {
+  const gate = createDispatchAdmission(); let answer;
+  const control = createDispatchControl(gate, () => new Promise(resolve => { answer = resolve; }));
+  await gate.drain(0);
+  const snapshot = control.status();
+  control.resume(); await gate.drain(0);
+  answer(0);
+  assert.equal((await snapshot).restartReady, false);
+});

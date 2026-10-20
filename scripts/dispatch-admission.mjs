@@ -35,6 +35,7 @@ export function createDispatchAdmission() {
         waiters.add(onIdle);
       });
     },
+    resume() { closed = false; },
     get closed() { return closed; },
     get active() { return active; },
   };

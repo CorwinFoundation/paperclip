@@ -35,6 +35,7 @@ export function createDispatchAdmission() {
         waiters.add(onIdle);
       });
     },
+    resume() { closed = false; },
     get closed() { return closed; },
     get active() { return active; },
   };
@@ -55,4 +56,40 @@ export async function withDispatchAdmission<T>(
   } finally {
     release();
   }
+}
+
+/** Operator controls never cancel runs or alter durable queues/session state. */
+export function createDispatchControl(
+  admission: ReturnType<typeof createDispatchAdmission>,
+  countRunning: () => Promise<number>,
+) {
+  let revision = 0;
+  async function status() {
+    // Capture revision before the query so concurrent resume cannot certify idle.
+    const observedRevision = revision;
+    const running = await countRunning();
+    if (!Number.isSafeInteger(running) || running < 0) {
+      throw new Error("Authoritative active-run count unavailable");
+    }
+    const closed = admission.closed;
+    const claims = admission.active;
+    return {
+      closed, claims, running,
+      restartReady: observedRevision === revision && closed && claims === 0 && running === 0,
+    };
+  }
+  return {
+    status,
+    async drain(timeoutMs: number) {
+      const observedRevision = revision;
+      const settled = await admission.drain(timeoutMs);
+      const current = await status();
+      return { ...current, restartReady: settled && observedRevision === revision && current.restartReady };
+    },
+    resume() {
+      revision += 1;
+      admission.resume();
+      return { closed: false, restartReady: false };
+    },
+  };
 }

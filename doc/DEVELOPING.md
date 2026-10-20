@@ -784,3 +784,17 @@ This snapshot check does not lock dispatch between the health response and
 restart. It is not a session-preserving drain mechanism. Native processes without
 a dev supervisor cannot use this control. Do not use plain PM2 restart or SIGTERM
 as proof that active agent sessions have drained.
+
+The isolated restart-preservation candidate also has a process-local dispatch
+control service (`createDispatchControl`). Its drain closes admission before
+waiting for in-flight claims, then queries an injected authoritative running-run
+counter. Status reports closed admission, outstanding claims, running runs and
+restart readiness. Resume reopens admission and invalidates pending drain/status
+observations. Invalid or unavailable counts fail closed; the operator can
+explicitly resume without cancelling sessions or modifying durable wakeups.
+
+This service is not yet exposed through an operator endpoint or connected to the
+dev supervisor. Do not use it as evidence that a live restart is safe. First load
+into a server that lacks admission control still needs a separately verified
+quiescent installation procedure; restarting that server to install this code
+cannot itself prove session preservation. The barrier covers only one process.
