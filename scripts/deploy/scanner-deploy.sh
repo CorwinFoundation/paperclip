@@ -662,6 +662,87 @@ if [ "${1:-}" = qa-tenant-keys ]; then
   exit 0
 fi
 
+# BEAAA-42967: one controlled out-of-band restart of the live container while
+# a single credential-free fixture scan is in flight, to exercise the startup
+# recovery path (resume_accepted_scans). A deploy drains accepted scans behind
+# the activation lock, so it never reaches that path. This restart deliberately
+# does not take the activation lock, so it refuses unless the only unfinished
+# work in both durable stores is the named fixture scan. Prints ids/counts only.
+QA_FIXTURE_TENANT=qa-38869-a
+QA_FIXTURE_URL_PREFIX="$PUBLIC_BASE/qa-restart-fixture/v1/"
+qa_restart_guard() {
+  python3 - "$ACCEPTED_SCAN_STORE" "$FULL_SCAN_JOB_STORE" "$1" "$QA_FIXTURE_TENANT" "$QA_FIXTURE_URL_PREFIX" <<'PY'
+import json, os, sqlite3, sys
+accepted_path, jobs_path, scan_id, tenant, prefix = sys.argv[1:]
+for p in (accepted_path, jobs_path):
+    if os.path.islink(p) or not os.path.isfile(p):
+        raise SystemExit(f"durable store missing or a symlink: {os.path.basename(p)}")
+def ro(p):
+    return sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+conn = ro(accepted_path)
+try:
+    rows = conn.execute(
+        "SELECT scan_id, tenant_id, state, resumable, resume_count, completed_test_count, request_json "
+        "FROM accepted_scans WHERE state != 'terminal'").fetchall()
+finally:
+    conn.close()
+others = [r for r in rows if r[0] != scan_id]
+mine = [r for r in rows if r[0] == scan_id]
+if others:
+    raise SystemExit(f"refusing restart: {len(others)} other unfinished accepted scan(s)")
+if len(mine) != 1:
+    raise SystemExit("refusing restart: fixture scan is not unfinished")
+_, row_tenant, state, resumable, resume_count, done, request_json = mine[0]
+try:
+    url = json.loads(request_json).get("agent_endpoint")
+except ValueError:
+    url = None
+url = url if isinstance(url, str) else ""
+if row_tenant != tenant or not url.startswith(prefix) or resumable != 1:
+    raise SystemExit("refusing restart: scan is not a credential-free fixture scan")
+conn = ro(jobs_path)
+try:
+    jobs = conn.execute(
+        "SELECT json_extract(job_json, '$.scan_id') FROM full_scan_jobs "
+        "WHERE status NOT IN ('complete','incomplete','failed','cancelled','incomplete_cost_cap')").fetchall()
+finally:
+    conn.close()
+foreign = [j for j in jobs if j[0] != scan_id]
+if foreign:
+    raise SystemExit(f"refusing restart: {len(foreign)} other unfinished full-scan job(s)")
+print(json.dumps({"scan_id": scan_id, "state": state, "resumable": resumable,
+                  "resume_count": resume_count, "completed_test_count": done,
+                  "unfinished_full_scan_jobs": len(jobs)}, sort_keys=True))
+PY
+}
+qa_restart_test() {
+  [ "$#" = 1 ] || die 'usage: scanner-deploy qa-restart-fixture restart-test <scan-id>'
+  [[ "$1" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || die 'scan id must be a lowercase uuid'
+  pre="$(qa_restart_guard "$1")" || die 'restart-test guard refused; nothing was restarted'
+  log "pre-restart $pre"
+  started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  log "restart-test: $SYSTEMCTL restart $SERVICE at $started"
+  "$SYSTEMCTL" restart "$SERVICE"
+  "$SYSTEMCTL" is-active --quiet "$SERVICE" || die 'service is not active after restart'
+  wait_200 "$LOCAL_URL" || die 'scanner did not become ready after restart'
+  log "restart-test: ready at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # Startup recovery evidence: the fixture row after the sweep, and only the
+  # accepted_scan_* recovery tokens from the new container's log.
+  log "post-restart $(python3 - "$ACCEPTED_SCAN_STORE" "$1" <<'PY'
+import json, sqlite3, sys
+conn = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+row = conn.execute("SELECT state, resumable, resume_count, completed_test_count FROM accepted_scans "
+                   "WHERE scan_id=?", (sys.argv[2],)).fetchone()
+conn.close()
+keys = ("state", "resumable", "resume_count", "completed_test_count")
+print(json.dumps(dict(zip(keys, row)) if row else None, sort_keys=True))
+PY
+)"
+  "$DOCKER" logs --since "$started" "$CONTAINER" 2>&1 \
+    | grep -oE 'accepted_scan_(resumed|restart_failed) scan_id=[0-9a-f-]{36}( reason=[a-z_]+)?' \
+    | head -n 20 | sed 's/^/startup-recovery: /' >&2 || true
+}
+
 # BEAAA-42388: credential-free restart test target + signed callback receiver
 # for the BEAAA-38869 item 2 live check. The installer is taken from the live
 # image (like scan-intake) so the code that runs is the code master deployed.
@@ -670,7 +751,8 @@ fi
 qa_restart_fixture() {
   case "${1:-}" in
     install|status|receipts|remove) ;;
-    *) die 'usage: scanner-deploy qa-restart-fixture install [--delay-seconds N] | status | receipts | remove' ;;
+    restart-test) shift; qa_restart_test "$@"; return ;;
+    *) die 'usage: scanner-deploy qa-restart-fixture install [--delay-seconds N] | status | receipts | remove | restart-test <scan-id>' ;;
   esac
   work="$(mktemp -d)" || die 'cannot create qa-restart-fixture staging directory'
   trap 'rm -rf -- "$work"' RETURN
@@ -707,7 +789,7 @@ if [ "${1:-}" = refresh-helper ]; then
   exit 0
 fi
 
-[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix> | scanner-deploy qa-restart-fixture install|status|receipts|remove | scanner-deploy qa-tenant-keys beaaa38869'
+[ "$#" = 5 ] || die 'usage: scanner-deploy <commit-sha> <archive.tar> <repository@sha256:digest> <archive-sha256> <candidate-id> | scanner-deploy refresh-helper <commit-sha> <staged-helper> <helper-sha256> | scanner-deploy preflight | scanner-deploy scan-intake <commit-sha> | scanner-deploy export-evidence [job <job-id>] | scanner-deploy evidence-extract <scan-id> | scanner-deploy disk-maintenance [--apply] | scanner-deploy acceptance starter-v5 <commit-prefix> | scanner-deploy qa-restart-fixture install|status|receipts|remove|restart-test <scan-id> | scanner-deploy qa-tenant-keys beaaa38869'
 SHA=$1 ARCHIVE=$2 REPO_DIGEST=$3 ARCHIVE_SHA=$4 CANDIDATE=$5
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die 'commit must be 40 lowercase hex characters'
 [[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || die 'archive SHA-256 must be 64 lowercase hex characters'
