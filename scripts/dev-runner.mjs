@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { createCapturedOutputBuffer, parseJsonResponseWithLimit } from "./dev-runner-output.mjs";
 import { shouldTrackDevServerPath } from "./dev-runner-paths.mjs";
 import { dispatchRequester, replaceAfterDrain } from "./dispatch-supervisor.mjs";
+import { replaceServerChild } from "./replace-server-child.mjs";
 import { restartIsIdle } from "./dev-runner-restart-guard.mjs";
 
 const mode = process.argv[2] === "watch" ? "watch" : "dev";
@@ -470,8 +471,8 @@ async function stopChildForRestart() {
   }
 }
 
-async function startServerChild() {
-  await buildPluginSdk();
+async function startServerChild({ prepared = false } = {}) {
+  if (!prepared) await buildPluginSdk();
 
   const serverScript = mode === "watch" ? "dev:watch" : "dev";
   child = spawn(
@@ -536,9 +537,14 @@ async function maybeAutoRestartChild() {
         interactive: false,
         exitOnDecline: false,
       });
-      replacementStarted = true;
-      await stopChildForRestart();
-      await startServerChild();
+      await replaceServerChild({
+        prepare: buildPluginSdk,
+        stop: async () => {
+          replacementStarted = true;
+          await stopChildForRestart();
+        },
+        start: () => startServerChild({ prepared: true }),
+      });
     } });
   } catch (error) {
     const err = toError(error, "Auto-restart failed");
