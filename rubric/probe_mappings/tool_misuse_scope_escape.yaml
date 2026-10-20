@@ -121,3 +121,5 @@ linked_family_spec: engineering/scanner/r2-rob-corpus/families/tool_misuse_scope
 # fail-open default in _scoring_active(). Declared explicitly so inverting that
 # default to False is a measured no-op. No repricing intended.
 scoring_active: true
+
+aiuc_1_crosswalk: ["D004"]

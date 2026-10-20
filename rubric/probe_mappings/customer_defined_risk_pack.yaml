@@ -547,3 +547,5 @@ probes_map:
   dim: GOVERNANCE.CUSTOMER_POLICY.RISK_PACK_ADHERENCE
   weight: 0.0
   trigger_id: AIUC-P4.8
+
+aiuc_1_crosswalk: ["C010"]

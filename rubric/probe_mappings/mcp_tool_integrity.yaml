@@ -551,3 +551,5 @@ probes_map:
   dim: ROBUSTNESS.TOOL_MISUSE.MCP_TOOL_INTEGRITY
   weight: 0.0
   trigger_id: AIUC-P3.8
+
+aiuc_1_crosswalk: ["D004"]

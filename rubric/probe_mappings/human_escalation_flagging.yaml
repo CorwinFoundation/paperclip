@@ -857,3 +857,5 @@ probes_map:
   dim: GOVERNANCE.AUTONOMY_BOUND.HUMAN_ESCALATION
   weight: 0.0
   trigger_id: AIUC-P4.7
+
+aiuc_1_crosswalk: ["E018"]

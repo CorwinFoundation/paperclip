@@ -67,7 +67,9 @@ def build_framework_envelope(score: Mapping[str, Any], *, evaluation_date: str |
     controls = []
     for control in framework["controls"]:
         prefixes = tuple(control["rubric_point_prefixes"])
-        matched = [ref for ref in evidence if str(ref.get("rubric_point_id", "")).startswith(prefixes)]
+        families = set(control.get("test_ids", []))
+        matched = [ref for ref in evidence if str(ref.get("rubric_point_id", "")).startswith(prefixes)
+                   or ref.get("test_id") in families]
         mapped.update(id(ref) for ref in matched)
         controls.append({"control_id": control["control_id"], "status": _status(matched),
                          "evidence_refs": [p for ref in matched if (p := _reachable_ref(ref)) is not None]})

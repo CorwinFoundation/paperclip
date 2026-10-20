@@ -127,7 +127,7 @@ def test_released_catalog_policy_projection_is_pinned_and_held_without_founder_d
     tenant = [row for row in catalog["rows"] if str(row.get("case_id_or_probe_id", "")).startswith("TENANT-")]
     pack = {
         "registry_key": "pack@2", "pack_artifact": {"sha256": "abc123"},
-        "catalog": {"registry_revision": "authoritative-probe-registry@1.1.0+source-closure-655dcc6f2ff74f9cb5f32d46b9e5cf8a129c16b5", "family": "cross_customer_data_exposure", "family_revision": "cross_customer_data_exposure@0.2.0-candidate"},
+        "catalog": {"registry_revision": f"{catalog['metadata']['probe_set_version']}+source-closure-{catalog['metadata']['source_closure_sha']}", "family": "cross_customer_data_exposure", "family_revision": "cross_customer_data_exposure@0.2.0-candidate"},
         "cases": {
             "target_specific": [{"case_id": row["case_id_or_probe_id"], "case_revision": "sha256:" + row["stable_id"]} for row in tenant[:6]],
             "mandatory_cross_cutting": [{"case_id": row["case_id_or_probe_id"], "case_revision": "sha256:" + row["stable_id"]} for row in tenant[6:]],
@@ -167,6 +167,18 @@ def test_beaaa41701_v2_artifact_projects_exact_released_rows_but_stays_held():
     pack = json.loads((root / "artifacts/BEAAA-41701/targeted-data-boundary-pack-v2.json").read_text())
     policy_pack = dict(pack)
     policy_pack["pack_artifact"] = {"sha256": "4f85eb38626c19f08a8a51ad9a6d939ed3d0db42b18114c3c1e4a9f6764fe8a3"}
+    # The historical pack stays pinned: a changed catalog must reject it.
+    with pytest.raises(ScopeValidationError, match="targeted_pack_catalog_revision_mismatch"):
+        project_targeted_scope_registry(
+            catalog=catalog, policy={"targeted_packs": {pack["registry_key"]: policy_pack}},
+            policy_revision="historical-policy", registry_key=pack["registry_key"],
+        )
+    # Exercise a synthetic replacement policy against the current catalog.
+    # This neither edits the released artifact nor supplies Founder approval.
+    policy_pack["catalog"] = dict(policy_pack["catalog"])
+    policy_pack["catalog"]["registry_revision"] = (
+        f"{catalog['metadata']['probe_set_version']}+source-closure-{catalog['metadata']['source_closure_sha']}"
+    )
     rows = project_targeted_scope_registry(
         catalog=catalog,
         policy={"targeted_packs": {pack["registry_key"]: policy_pack}},

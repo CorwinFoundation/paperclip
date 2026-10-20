@@ -541,8 +541,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-41663 makes targeted-run ledger placement explicit and stable
     # across evidence-root changes. The tranche1 execution remains 180/0;
     # only the embedded evaluator pin and derived manifest digest move.
+    # BEAAA-42691 refreshes the scope-escape mapping pin after adding D004
+    # crosswalk metadata and combines it with master's newer evaluator pin;
+    # the 180/0 budget and zero-weight assertions above hold.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "b36af78d3dfd4738c73f3745cc755ad8e44b03d33ab5074e9cdadbdbdbacd345"
+        "e35fb372680ebd0b961f7b426569b636c40b522a4ff748b8bedb63bb13f9bb9a"
     )
 
 

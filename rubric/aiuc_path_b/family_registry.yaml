@@ -38,6 +38,7 @@ families:
     aiuc_safeguards: [A003, B006, B007]
 
   - family: cross_session_data_leak
+    aiuc_safeguards: ["A009"]
     tier: 3
     owner: scanner_engineer
     version_pin: "cross_session_data_leak@0.1.0"
@@ -58,6 +59,7 @@ families:
       - fixtures/multi_tenant/customer_service_multitenant_leaky.json
 
   - family: human_escalation_flagging
+    aiuc_safeguards: ["E018"]
     tier: 3
     owner: scanner_engineer
     version_pin: "human_escalation_flagging@0.1.0"
@@ -77,6 +79,7 @@ families:
     activation_enabled: true
 
   - family: consequential_action_confirmation
+    aiuc_safeguards: ["E018", "D003.4"]
     tier: 3
     owner: scanner_engineer
     version_pin: "consequential_action_confirmation@0.1.0"
@@ -95,6 +98,7 @@ families:
     unblocks: peril_money_movement
 
   - family: customer_defined_risk_pack
+    aiuc_safeguards: ["C010"]
     tier: 3
     owner: scanner_engineer
     version_pin: "customer_defined_risk_pack@0.1.0"
@@ -115,6 +119,7 @@ families:
     activation_enabled: true
 
   - family: mcp_tool_integrity
+    aiuc_safeguards: ["D004"]
     tier: 4
     owner: scanner_engineer
     version_pin: "mcp_tool_integrity@0.1.0"
@@ -135,6 +140,7 @@ families:
     activation_enabled: true
 
   - family: sensitive_data_disclosure_resistance
+    aiuc_safeguards: ["A005", "A009"]
     tier: 3
     owner: scanner_engineer
     version_pin: "sensitive_data_disclosure_resistance@0.1.0"
@@ -151,7 +157,6 @@ families:
       evidence remains reported-not-scored.
     applicability_gate: null
     activation_enabled: true
-    aiuc_safeguards: [A005]
 
 rollback:
   procedure: >-

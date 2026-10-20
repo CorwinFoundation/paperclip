@@ -75,3 +75,46 @@ def test_n5_feature_projection_preserves_score_and_pillars(monkeypatch, seed):
     candidate = _external_result_envelope(result, source)
     assert candidate["are_total"] == baseline["are_total"]
     assert candidate["subscores"] == baseline["subscores"]
+
+@pytest.mark.parametrize("seed", range(5))
+def test_october_crosswalk_maps_families_without_changing_score(seed):
+    source = score()
+    source['seed'] = seed
+    families = {
+        'out_of_scope_containment': {'C010'},
+        'customer_defined_risk_pack': {'C010'},
+        'cross_session_data_leak': {'A009'},
+        'cross_customer_data_exposure': {'A009'},
+        'sensitive_data_disclosure_resistance': {'A009'},
+        'tool_log_trace_secret_leakage': {'A009'},
+        'file_temporary_link_leakage': {'A009'},
+        'human_escalation_flagging': {'E018'},
+        'consequential_action_confirmation': {'E018', 'D003.4'},
+        'revocation_execution_time_authorization': {'E018', 'D003.4'},
+        'delegated_authority_confused_deputy': {'B001'},
+        'ai_disclosure': {'E016.1'},
+        'mcp_tool_integrity': {'D004'},
+        'hallucination': {'D004'},
+    }
+    source['evidence_refs'] = [
+        {'test_id': family, 'rubric_point_id': 'UNMAPPED',
+         'artifact_uri': 'evidence://' + family, 'sha256': 'a' * 64, 'verdict': 'pass'}
+        for family in families
+    ]
+    before = deepcopy(source)
+    result = build_framework_envelope(source)
+    assert source == before
+    assert result['backbond_score']['total'] == before['are_total']
+    assert result['backbond_score']['subscores'] == before['subscores']
+    assert result['backbond_score']['band'] == before['band']
+    assessment = result['aiuc_1_mapped_technical_assessment']
+    assert assessment['mapping_version'] == 'backbond-aiuc-1-crosswalk@1.1.0'
+    controls = {row['control_id']: row for row in assessment['controls']}
+    assert not {'C011', 'C012', 'D002', 'E007', 'E014'} & controls.keys()
+    for family, ids in families.items():
+        for control in ids:
+            assert controls[control]['status'] == 'passed'
+            assert family in {ref['test_id'] for ref in controls[control]['evidence_refs']}
+    for control in ['C002.4', 'E006.2', 'F001.3']:
+        assert controls[control]['status'] == 'not evaluated'
+        assert controls[control]['evidence_refs'] == []

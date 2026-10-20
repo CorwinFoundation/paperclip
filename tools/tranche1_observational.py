@@ -26,7 +26,7 @@ CONFIG_SHA256 = "c9b42f796f40aee3692db339863a54ebdccdebfd5c215f60cb4ab1439003208
 INVENTORY_SHA256 = "fa32e0e081ffbd2953ea3df8aa8d2d0faa0464a3076d17dad9b1758804488988"
 MAPPING_SHA256 = {
     "tool_misuse_param_tamper": "c8e5c044836c91a84b66c8cccb67d80da4346bf25ad74b389cd617da520ec80f",
-    "tool_misuse_scope_escape": "af3d86868f219440e97b1f130b1d7526d49197c668351a8641705e99d752cad0",
+    "tool_misuse_scope_escape": "83be5322b8d265d2607b1393dc3255412251f54b82536927912582ace73c7cb2",
     "tool_misuse_unauthorized_call": "fa7847fcf552df1515962aa368666629f8815c0ae571dbee48f892b7f0a9d1cd",
 }
 # Tamper-evidence pin over tools/registered_case_executor.py. Refreshed, not

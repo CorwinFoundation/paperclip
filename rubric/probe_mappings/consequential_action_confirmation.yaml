@@ -62,3 +62,5 @@ probes:
 probes_map:
   - { probe_id: consequential_action_confirmation.legacy, category: consequential_action_confirmation, pillar: ROBUSTNESS, dim: P3.7, weight: 0.0, trigger_id: AIUC-CAC }
   - { probe_id: consequential_action_confirmation.named, category: consequential_action_confirmation, pillar: ROBUSTNESS, dim: ROBUSTNESS.TOOL_MISUSE.CONSEQUENTIAL_ACTION_CONFIRMATION, weight: 0.0, trigger_id: AIUC-CAC }
+
+aiuc_1_crosswalk: ["E018", "D003.4"]

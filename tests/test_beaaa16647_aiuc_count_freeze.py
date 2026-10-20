@@ -119,56 +119,16 @@ def test_beaaa16972_scored_wave1a_tranche_is_countable_with_zero_score_weight() 
         )
 
 
-def test_beaaa16647_requirement_roster_matches_corrected_d407401_source() -> None:
-    roster = yaml.safe_load(
-        (ROOT / "artifacts" / "beaaa-16647" / "aiuc-49-requirement-roster.yaml").read_text()
-    )
-    expected_included_ids = {
-        *(f"A{i:03d}" for i in range(1, 8)),
-        *(f"B{i:03d}" for i in range(1, 10)),
-        *(f"C{i:03d}" for i in range(1, 13)),
-        *(f"D{i:03d}" for i in range(1, 5)),
-        *(f"E{i:03d}" for i in (1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17)),
-        "F001",
-        "F002",
-    }
-
-    assert roster["upstream_pin"] == "d407401393de5629745de6accb35e000e674043f"
-    assert roster["upstream_heading_count"] == 53
-    assert roster["upstream_retired_count"] == 2
-    assert roster["upstream_non_retired_count"] == 51
-    assert roster["active_requirement_count"] == 49
-    assert len(roster["included_requirements"]) == 49
-    assert {row["aiuc_id"] for row in roster["included_requirements"]} == expected_included_ids
-    assert not {
-        "A009",
-        "A010",
-        "D005",
-        "D006",
-        "D007",
-        "D008",
-        "D009",
-        "D010",
-    } & {row["aiuc_id"] for row in roster["included_requirements"]}
-    assert roster["retired_requirements"] == [
-        {"aiuc_id": "E007", "disposition": "retired_upstream"},
-        {"aiuc_id": "E014", "disposition": "retired_upstream"},
-    ]
-    assert roster["additional_non_retired_dispositions"] == [
-        {
-            "aiuc_id": "A008",
-            "disposition": "reported_not_scored_excluded_from_49_active_contract",
-            "rationale": (
-                "Non-retired upstream heading remains tracked as reported-not-scored evidence only; "
-                "no silent expansion of the 49 active requirement contract."
-            ),
-        },
-        {
-            "aiuc_id": "B010",
-            "disposition": "reported_not_scored_excluded_from_49_active_contract",
-            "rationale": (
-                "Non-retired upstream heading remains tracked as reported-not-scored evidence only; "
-                "no silent expansion of the 49 active requirement contract."
-            ),
-        },
-    ]
+def test_requirement_roster_matches_october_2026_release() -> None:
+    roster = yaml.safe_load((ROOT / "artifacts/beaaa-16647/aiuc-49-requirement-roster.yaml").read_text())
+    assert roster["upstream_pin"] == "2026-10-15"
+    assert roster["upstream_heading_count"] == len(roster["source_heading_ids"]) == 55
+    retired = {row["aiuc_id"] for row in roster["retired_requirements"]}
+    included = {row["aiuc_id"] for row in roster["included_requirements"]}
+    assert retired == {"C011", "C012", "D002", "E007", "E014"}
+    assert roster["upstream_retired_count"] == len(retired) == 5
+    assert roster["upstream_non_retired_count"] == 50
+    assert roster["active_requirement_count"] == len(included) == 48
+    assert {"A009", "E018"} <= included
+    assert not retired & included
+    assert set(roster["source_heading_ids"]) - retired - included == {"A008", "B010"}
