@@ -798,3 +798,20 @@ dev supervisor. Do not use it as evidence that a live restart is safe. First loa
 into a server that lacks admission control still needs a separately verified
 quiescent installation procedure; restarting that server to install this code
 cannot itself prove session preservation. The barrier covers only one process.
+
+### Dispatch drain operator API
+
+Instance admins (including local implicit board access) can read `GET /api/instance/dispatch`,
+close process-local run admission with `POST /api/instance/dispatch/drain`
+(`{"timeoutMs": 0}`, bounded to 30000 milliseconds), and reopen it with
+`POST /api/instance/dispatch/resume` (`{}`). Agent keys and company-only board
+users cannot operate or inspect these instance-wide controls. Mutations log
+operator intent for each company before changing admission.
+
+`restartReady` requires closed admission, settled in-flight claims, and an
+authoritative database count of zero running heartbeat runs across the instance.
+Queued work does not prevent drain completion and stays queued. Database query
+failure cannot certify readiness; drain remains closed until explicit resume.
+These endpoints do not restart the server or modify sessions, runs, or wakeups.
+Supervisor integration and preservation across the initial deployment remain
+separate work; a readiness response alone does not prove either.
