@@ -230,6 +230,7 @@ def _install_env(tmp_path: Path, health_url: str) -> dict[str, str]:
         **os.environ,
         "QA_FIXTURE_DIR": str(tmp_path / "opt"),
         "QA_FIXTURE_SECRET_FILE": str(tmp_path / "etc" / "qa-38869-callback.secret"),
+        "QA_FIXTURE_OPENROUTER_KEY_FILE": str(tmp_path / "etc" / "qa-starter-agents-openrouter.key"),
         "QA_FIXTURE_UNIT_FILE": str(tmp_path / "unit.service"),
         "QA_FIXTURE_NGINX_SNIPPET": str(tmp_path / "snippet.conf"),
         "QA_FIXTURE_NGINX_SITE": str(tmp_path / "sites" / "scanner.backbond.ai"),
@@ -270,7 +271,8 @@ def test_install_reruns_safely_and_preserves_other_refs(tmp_path, healthz_url):
     assert site.count("backbond-qa-restart-fixture") == 0  # include points at the snippet path
     assert site.count(env["QA_FIXTURE_NGINX_SNIPPET"]) == 1
     assert "FIXTURE_DELAY_SECONDS=4" in Path(env["QA_FIXTURE_UNIT_FILE"]).read_text()
-    assert (Path(env["QA_FIXTURE_DIR"]) / "fixture.py").read_bytes() == (FIXTURE_DIR / "fixture.py").read_bytes()
+    for name in ("fixture.py", "starter_agents.py"):
+        assert (Path(env["QA_FIXTURE_DIR"]) / name).read_bytes() == (FIXTURE_DIR / name).read_bytes()
 
     env_before = Path(env["SCANNER_EDGE_ENV"]).read_bytes()
     site_before = site

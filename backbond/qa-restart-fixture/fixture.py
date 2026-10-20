@@ -15,6 +15,12 @@ One stdlib-only process, bound to loopback and published by nginx under
   terminal status, timestamps, delivery count and signature validity. The
   callback body itself is never stored.
 
+* ``POST /qa-restart-fixture/agents/<agent_id>/v1/chat/completions``
+  (BEAAA-42593) serves the eight BEAAA-39988 starter-100@5 controlled agents
+  from ``starter_agents.py`` in the same ``openai_chat`` shape, ``auth: none``,
+  under the same body-size and in-flight bounds and without the restart delay.
+  ``GET /qa-restart-fixture/agents`` lists ids, adapter and model only.
+
 There is no public read endpoint: receipts live in the systemd state
 directory and are read by ``scanner-deploy qa-restart-fixture receipts``.
 """
@@ -22,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import importlib.util
 import json
 import os
 import re
@@ -33,10 +40,27 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+
+def _load_sibling(name: str):
+    # The fixture runs as a plain script on the host and is loaded by path in
+    # tests, so import the sibling module by file path, never via sys.path.
+    spec = importlib.util.spec_from_file_location(f"qa_restart_fixture_{name}",
+                                                  Path(__file__).resolve().parent / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module  # dataclasses resolve annotations through sys.modules
+    spec.loader.exec_module(module)
+    return module
+
+
+starter_agents = _load_sibling("starter_agents")
+
 PREFIX = "/qa-restart-fixture"
 CHAT_PATH = f"{PREFIX}/v1/chat/completions"
 CALLBACK_PATH = f"{PREFIX}/v1/callback"
 HEALTH_PATH = f"{PREFIX}/healthz"
+AGENTS_PATH = f"{PREFIX}/agents"
+AGENT_CHAT_SUFFIX = "/v1/chat/completions"
 #: Identity marker in the health reply, so the installer can tell this fixture
 #: apart from any other local service that might hold the same port.
 SERVICE_NAME = "backbond-qa-restart-fixture"
@@ -186,13 +210,18 @@ class FixtureServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address: tuple[str, int], *, secret: bytes, delay: float, receipts: ReceiptStore,
-                 sleep=time.sleep) -> None:
+                 sleep=time.sleep, openrouter_key: str | None = None,
+                 transport=starter_agents.urllib_transport) -> None:
         super().__init__(address, FixtureHandler)
         self.secret = secret
         self.delay = delay
         self.receipts = receipts
         self.sleep = sleep
         self.slots = threading.BoundedSemaphore(MAX_IN_FLIGHT)
+        # Agent traffic gets its own equal bound so it cannot starve restart tests.
+        self.agent_slots = threading.BoundedSemaphore(MAX_IN_FLIGHT)
+        self.openrouter_key = openrouter_key
+        self.transport = transport
 
 
 class FixtureHandler(BaseHTTPRequestHandler):
@@ -227,6 +256,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path == HEALTH_PATH:
             self._reply(200, {"ok": True, "service": SERVICE_NAME})
+        elif self.path in (AGENTS_PATH, AGENTS_PATH + "/"):
+            self._reply(200, starter_agents.listing())
         else:
             self._reply(404, {"error": "not_found"})
 
@@ -235,6 +266,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self._chat()
         elif self.path == CALLBACK_PATH:
             self._callback()
+        elif self.path.startswith(AGENTS_PATH + "/") and self.path.endswith(AGENT_CHAT_SUFFIX):
+            self._agent_chat(self.path[len(AGENTS_PATH) + 1:-len(AGENT_CHAT_SUFFIX)])
         else:
             self._reply(404, {"error": "not_found"})
 
@@ -258,6 +291,32 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self._reply(200, chat_completion())
         finally:
             self.server.slots.release()
+
+    def _agent_chat(self, agent_id: str) -> None:
+        if agent_id not in starter_agents.AGENT_IDS:
+            self._reply(404, {"error": "unknown_agent"})
+            return
+        if not self.server.agent_slots.acquire(blocking=False):
+            self._reply(503, {"error": "busy"})
+            return
+        try:
+            body = self._read_body(MAX_CHAT_BODY_BYTES)
+            if body is None:
+                self._reply(413, {"error": "body_too_large"})
+                return
+            try:
+                request = json.loads(body)
+            except ValueError:
+                request = None
+            turns = starter_agents.conversation(request)
+            if turns is None:
+                self._reply(400, {"error": "messages_required"})
+                return
+            code, payload = starter_agents.respond(agent_id, turns, self.server.openrouter_key,
+                                                   self.server.transport)
+            self._reply(code, payload)
+        finally:
+            self.server.agent_slots.release()
 
     def _callback(self) -> None:
         body = self._read_body(MAX_CALLBACK_BODY_BYTES)
@@ -299,8 +358,10 @@ def main(argv: list[str] | None = None) -> int:
         secret=load_secret(secret_file),
         delay=bounded_delay(os.environ.get("FIXTURE_DELAY_SECONDS")),
         receipts=ReceiptStore(Path(state_dir) / "receipts.json"),
+        openrouter_key=starter_agents.load_openrouter_key(),
     )
-    print(f"qa-restart-fixture listening port={server.server_address[1]} delay={server.delay}", flush=True)
+    print(f"qa-restart-fixture listening port={server.server_address[1]} delay={server.delay} "
+          f"zoo_key={'present' if server.openrouter_key else 'absent'}", flush=True)
     try:
         server.serve_forever()
     finally:

@@ -11,6 +11,10 @@ extracted out of the live image. Actions:
   ``qa-38869-callback`` ref to the scanner webhook secret maps while keeping
   every other configured ref byte-for-byte. The scanner container reads the
   new ref at its next activation.
+* BEAAA-42593: also installs ``starter_agents.py`` and publishes
+  ``/qa-restart-fixture/agents``. When the root-provisioned OpenRouter key file
+  exists at install time, the unit loads it as the ``openrouter-api-key``
+  systemd credential; without it the five zoo agents answer 503.
 * ``status`` / ``receipts`` — counts and sanitized receipts only.
 * ``remove`` — removes this fixture, its nginx snippet, its secret and its
   ref; other refs and all receipts / scan evidence are retained.
@@ -57,6 +61,9 @@ def _path(name: str, default: str) -> Path:
 
 FIXTURE_DIR = _path("QA_FIXTURE_DIR", "/opt/backbond-qa-restart-fixture")
 SECRET_FILE = _path("QA_FIXTURE_SECRET_FILE", "/etc/backbond/qa-38869-callback.secret")
+#: Provisioned by root, never created or removed here (BEAAA-42593 zoo agents).
+OPENROUTER_KEY_FILE = _path("QA_FIXTURE_OPENROUTER_KEY_FILE", "/etc/backbond/qa-starter-agents-openrouter.key")
+CODE_FILES = ("fixture.py", "starter_agents.py")
 UNIT_FILE = _path("QA_FIXTURE_UNIT_FILE", f"/etc/systemd/system/{SERVICE}")
 SNIPPET = _path("QA_FIXTURE_NGINX_SNIPPET", "/etc/nginx/snippets/backbond-qa-restart-fixture.conf")
 SITE = _path("QA_FIXTURE_NGINX_SITE", "/etc/nginx/sites-available/scanner.backbond.ai")
@@ -151,6 +158,12 @@ def ensure_secret() -> tuple[str, bool]:
     return value, True
 
 
+def key_credential_line() -> str:
+    # LoadCredential= fails the unit when the source is missing, so the line is
+    # only written when the key file exists; rerun install after provisioning.
+    return f"LoadCredential=openrouter-api-key:{OPENROUTER_KEY_FILE}\n" if OPENROUTER_KEY_FILE.is_file() else ""
+
+
 def unit_text(delay: float) -> str:
     return f"""# BEAAA-42388 QA restart fixture. Managed by scanner-deploy qa-restart-fixture.
 [Unit]
@@ -164,7 +177,7 @@ StateDirectory=backbond-qa-restart-fixture
 StateDirectoryMode=0700
 UMask=0077
 LoadCredential=callback-secret:{SECRET_FILE}
-Environment=FIXTURE_HOST=127.0.0.1
+{key_credential_line()}Environment=FIXTURE_HOST=127.0.0.1
 Environment=FIXTURE_PORT={PORT}
 Environment=FIXTURE_DELAY_SECONDS={delay:g}
 ExecStart=/usr/bin/python3 {FIXTURE_DIR}/fixture.py
@@ -192,6 +205,17 @@ WantedBy=multi-user.target
 SNIPPET_TEXT = f"""# BEAAA-42388 QA restart fixture. Managed by scanner-deploy qa-restart-fixture.
 location ^~ /qa-restart-fixture/v1/ {{
     limit_except POST {{ deny all; }}
+    client_max_body_size 1m;
+    proxy_pass http://127.0.0.1:{PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_read_timeout 40s;
+    proxy_connect_timeout 5s;
+    access_log off;
+}}
+# BEAAA-42593 starter-100@5 controlled agents: GET listing, POST chat completions.
+location ^~ /qa-restart-fixture/agents {{
+    limit_except GET POST {{ deny all; }}
     client_max_body_size 1m;
     proxy_pass http://127.0.0.1:{PORT};
     proxy_http_version 1.1;
@@ -378,7 +402,9 @@ def install(delay: float) -> None:
     secret, created = ensure_secret()
     log(f"secret_ref {REF}: {'created' if created else 'reused'} ({SECRET_FILE}, 0600)")
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-    code_changed = write_atomic(FIXTURE_DIR / "fixture.py", (HERE / "fixture.py").read_text(), 0o644)
+    code_changed = False
+    for name in CODE_FILES:
+        code_changed = write_atomic(FIXTURE_DIR / name, (HERE / name).read_text(), 0o644) or code_changed
     unit_changed = write_atomic(UNIT_FILE, unit_text(delay), 0o644)
     if unit_changed:
         run([*SYSTEMCTL, "daemon-reload"])
@@ -394,7 +420,8 @@ def install(delay: float) -> None:
     if site is None:
         die(f"nginx site {SITE} is missing")
     nginx_changed = apply_nginx(site_with_include(site), SNIPPET_TEXT)
-    log(f"nginx /qa-restart-fixture/v1/: {'reloaded' if nginx_changed else 'unchanged'}")
+    log(f"nginx /qa-restart-fixture/v1/ + /agents: {'reloaded' if nginx_changed else 'unchanged'}")
+    log(f"zoo agents openrouter-api-key credential: {'loaded' if key_credential_line() else 'absent (zoo routes answer 503)'}")
     for var, state in update_env_refs(secret).items():
         log(f"{var}: {REF} {state}")
     log("scanner container reads the ref at its next activation; other refs untouched")
@@ -411,7 +438,8 @@ def remove() -> None:
         apply_nginx(site_without_include(site), None)
     for var, state in update_env_refs(None).items():
         log(f"{var}: {REF} {state}")
-    (FIXTURE_DIR / "fixture.py").unlink(missing_ok=True)
+    for name in CODE_FILES:
+        (FIXTURE_DIR / name).unlink(missing_ok=True)
     try:
         FIXTURE_DIR.rmdir()
     except OSError:
@@ -425,6 +453,7 @@ def status() -> None:
     print(f"service={'active' if active else 'inactive'}")
     print(f"health={health()}")
     print(f"secret_file={'present' if SECRET_FILE.exists() else 'absent'}")
+    print(f"openrouter_key_file={'present' if OPENROUTER_KEY_FILE.is_file() else 'absent'}")
     site = read_text(SITE) or ""
     print(f"nginx_include={'present' if include_line().strip() in site else 'absent'}")
     for var, present in env_ref_state().items():
