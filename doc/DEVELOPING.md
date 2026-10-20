@@ -793,8 +793,8 @@ restart readiness. Resume reopens admission and invalidates pending drain/status
 observations. Invalid or unavailable counts fail closed; the operator can
 explicitly resume without cancelling sessions or modifying durable wakeups.
 
-This service is not yet exposed through an operator endpoint or connected to the
-dev supervisor. Do not use it as evidence that a live restart is safe. First load
+This service is exposed through the instance-admin operator endpoints below.
+The dev runner has not yet adopted the supervisor adapter. Do not use it as evidence that a live restart is safe. First load
 into a server that lacks admission control still needs a separately verified
 quiescent installation procedure; restarting that server to install this code
 cannot itself prove session preservation. The barrier covers only one process.
@@ -815,3 +815,28 @@ failure cannot certify readiness; drain remains closed until explicit resume.
 These endpoints do not restart the server or modify sessions, runs, or wakeups.
 Supervisor integration and preservation across the initial deployment remain
 separate work; a readiness response alone does not prove either.
+
+### Supervisor replacement adapter (candidate, not installed)
+
+`scripts/dispatch-supervisor.mjs` provides a command adapter for an owning
+supervisor. It requires `PAPERCLIP_INSTANCE_ADMIN_AUTHORIZATION` from the
+operator environment and accepts `ORIGIN -- COMMAND [ARGS]`. It closes admission,
+requires zero claims and running runs from both drain and a fresh status request,
+and then executes the supplied replacement command without a shell. The command
+must return only after its replacement succeeds or its rollback completes.
+The operator credential is removed from that command's environment. HTTP requests
+have bounded timeouts and reject redirects.
+
+If drain, status or replacement fails, the adapter attempts resume and exits with
+failure. A failed resume explicitly requires operator recovery. Successful
+replacement relies on the new process's initially open admission. The adapter
+does not cancel sessions, modify queues, configure PM2 or bypass authorization.
+
+This is source-level supervisor integration infrastructure, not an installed live
+supervisor or a first-load solution. The current dev runner still uses its health
+snapshot path. An uninstrumented server returns an error and the adapter refuses
+to replace it. Concurrent operators can still resume after the final status
+observation; exclusive supervisor ownership is required. A restart failure after
+process termination cannot restore the old process through the HTTP resume call.
+Prove rollback, exclusive ownership and active/queued/session preservation in an
+isolated supervisor before using this candidate against a live instance.
