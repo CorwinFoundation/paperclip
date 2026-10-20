@@ -50,3 +50,46 @@ test('preparation finishes before old child exits and replacement starts', async
 test('stop failure prevents a second server from starting', async () => {
   await assert.rejects(replaceServerChild({ prepare: async () => {}, stop: async () => { throw Error('stop failed'); }, start: async () => assert.fail('must not start') }), /stop failed/);
 });
+
+
+test('failed candidate restores a prepared child snapshot before reporting failure', async () => {
+  const old = await fixture();
+  let restored;
+  const candidateError = Error('candidate failed');
+  const snapshot = Object.freeze({ revision: 'previous' });
+  try {
+    await assert.rejects(replaceServerChild({
+      prepare: async () => snapshot,
+      stop: () => stop(old),
+      start: async (prepared) => { assert.equal(prepared, snapshot); throw candidateError; },
+      recover: async (prepared, error) => {
+        assert.equal(prepared, snapshot);
+        assert.equal(error, candidateError);
+        assert.equal(old.signalCode, 'SIGTERM');
+        restored = await fixture();
+      },
+    }), error => error === candidateError);
+    assert.equal(process.kill(restored.pid, 0), true);
+  } finally {
+    if (restored) await stop(restored);
+    if (!old.signalCode) await stop(old);
+  }
+});
+
+test('recovery failure preserves both causes', async () => {
+  const startError = Error('candidate failed');
+  const recoveryError = Error('snapshot failed');
+  await assert.rejects(replaceServerChild({
+    prepare: async () => {}, stop: async () => {},
+    start: async () => { throw startError; },
+    recover: async () => { throw recoveryError; },
+  }), error => error instanceof AggregateError && error.errors[0] === startError && error.errors[1] === recoveryError);
+});
+
+test('stop failure never attempts recovery against a potentially running owner', async () => {
+  await assert.rejects(replaceServerChild({
+    prepare: async () => {}, stop: async () => { throw Error('stop failed'); },
+    start: async () => assert.fail('must not start'),
+    recover: async () => assert.fail('must not recover'),
+  }), /stop failed/);
+});
