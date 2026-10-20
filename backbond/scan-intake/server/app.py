@@ -1,6 +1,8 @@
 """FastAPI surface for the private partner QA intake service."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -9,6 +11,7 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import urlsplit
 
 import httpx
@@ -17,7 +20,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue, deliver_pending
+from bac_intake import BACIntake, BACUnconfirmed
+from operations_client import OperationsClient, OperationsOutbox
+from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
+from report_release import ReportRelease, RevisionTampered
 
 from qa_service import (Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
                         safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
@@ -40,13 +46,35 @@ SCAN_MESSAGES = 100
 CONNECTION_CHECK_MESSAGES = 1
 PROOF_MESSAGE = "Your connection details changed or the connection test expired. Test the connection again."
 
+def _operations_client():
+    """Operations Starter intake (QA_OPERATIONS_BASE_URL https + QA_OPERATIONS_TOKEN); unset = no-op."""
+    return OperationsClient.from_env(post=httpx.post, get=httpx.get)
+
+
+def _operations_enqueue(request_id, scan_id):
+    operations.enqueue(bac, store, request_id=request_id, scan_id=scan_id, client=_operations_client())
+
+
+def worker_tick():
+    """One lifespan worker iteration. BEAAA-42596: intake sends no report mail at all, to a
+    customer or to info@backbond.ai; the Operations workflow writes and sends the final report.
+    Intake records the finished result there and reads its public status back."""
+    bac.reconcile_pending(limit=1)
+    queue.recover_bac(bac)
+    bac.capture_scans(store, queue, _terminal_scan, fetch_progress=_engine_progress,
+                      on_finished=_operations_enqueue)
+    bac.flush_events(limit=1)
+    operations.flush(_operations_client(), limit=1)
+    operations.poll_status(_operations_client())
+    queue.expire_pending()
+
+
 @asynccontextmanager
 async def lifespan(app):
     stopped = threading.Event()
     def worker():
         while not stopped.is_set():
-            deliver_pending(store, _send_report)
-            queue.expire_pending()
+            worker_tick()
             stopped.wait(10)
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
@@ -64,6 +92,13 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
                    allow_headers=["Content-Type"])
 store = IntakeStore(DB_PATH)
+bac = BACIntake(DB_PATH, base_url=os.environ.get('QA_BAC_URL', ''),
+                company_id=os.environ.get('QA_BAC_COMPANY_ID', ''),
+                owner_id=os.environ.get('QA_BAC_LEAD_ID', ''),
+                token=os.environ.get('QA_BAC_TOKEN', ''), post=httpx.post, get=httpx.get)
+operations = OperationsOutbox(DB_PATH)
+release = ReportRelease(os.environ.get('QA_RELEASE_DB_PATH', DB_PATH),
+                        lead_actor_id=lambda: os.environ.get('QA_RELEASE_LEAD_ACTOR_ID', ''))
 proofs = ConnectionProofs(ttl=int(os.environ.get('QA_CONNECTION_PROOF_TTL', '900')))
 check_gate = RateGate(email=(int(os.environ.get('QA_CHECKS_PER_EMAIL_HOUR', '10')), 3600),
                       ip=(int(os.environ.get('QA_CHECKS_PER_IP_HOUR', '30')), 3600),
@@ -268,23 +303,6 @@ def _mail_configured() -> bool:
         return False
 
 
-def _send_report(to: str, agent: str, token: str) -> None:
-    path = _mail_credentials_path()
-    if not path or not path.is_file():
-        raise RuntimeError("Report mail is not configured")
-    value = json.loads(path.read_text())
-    if value.get('provider') != 'resend':
-        raise RuntimeError('Unexpected mail provider')
-    with httpx.Client(timeout=30) as client:
-        response = client.post('https://api.resend.com/emails',
-            headers={'Authorization': 'Bearer ' + value['api_key']}, json={
-                'from': 'BackBond <info@backbond.ai>', 'to': [to],
-                'subject': f'Your BackBond scan report — {agent}',
-                'text': f'Your scan is complete.\n\nView the report:\nhttps://backbond.ai/scan/r/{token}'})
-        if response.status_code not in {200, 201}:
-            raise RuntimeError('Report mail delivery unavailable')
-
-
 def _send_report_code(to: str, code: str) -> None:
     path = _mail_credentials_path()
     if not path or not path.is_file():
@@ -438,8 +456,23 @@ def start_scan(body: ScanRequest, request: Request):
                 store.connection_failed(reservation["scan_id"])
                 raise HTTPException(400, error or "connection failed")
             connection_passed = True
+        scan_ref = reservation['scan_id']
+        intake_ref = scan_ref
         try:
-            status = queue.submit(reservation['scan_id'], payload)
+            intake_ref = bac.retry_identity(scan_ref, clean)
+            bac.acknowledge(intake_ref, customer_ref='intake:' + intake_ref,
+                            agent_ref='intake:' + intake_ref,
+                            scope_ref=body.pack_id,
+                            code_ref='intake:' + intake_ref)
+            status = queue.submit(scan_ref, payload)
+        except BACUnconfirmed:
+            try:
+                queue.defer_bac(scan_ref, intake_ref, payload)
+            except QueueFull:
+                store.cancel_unsent(scan_ref)
+                raise HTTPException(503, "Intake acknowledgment pending. Submit again later.")
+            payload = {}  # Recovery owns the original credential-bearing payload.
+            return {"status": "queued", "status_token": reservation["status_token"]}
         except QueueFull:
             store.cancel_unsent(reservation['scan_id'])
             raise HTTPException(429, "BackBond is running the maximum number of scans. Try again in a few minutes.")
@@ -485,6 +518,25 @@ _PROGRESS_FIELDS = {
 }
 
 
+def _terminal_scan(row):
+    # Existing authenticated customer result contract, never a probe/dispatch.
+    headers = _headers({'tenant_id': f"partner-{row['partner']}"})
+    if not headers:
+        return None
+    remote_id = row['scanner_id']
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', remote_id):
+        return None
+    response = httpx.get(SCANNER_URL.removesuffix('/scanner/v1') + '/scan/' + remote_id,
+                         headers=headers, timeout=5, follow_redirects=False)
+    return response.json() if response.status_code == 200 else None
+
+
+def _pack_total(pack_version) -> int | None:
+    """Accepted size of a known starter pack id (``starter-100@4`` -> 100); unknown -> None."""
+    match = re.fullmatch(r"starter-(?:voice-)?(\d+)@\d+", pack_version or "")
+    return int(match.group(1)) if match and pack_version in STARTER_PACK_IDS else None
+
+
 def _engine_progress(scan_id: str) -> dict:
     """Fetch the bounded owner-scoped engine projection, never its evidence rows."""
     row = store.scan(scan_id)
@@ -492,11 +544,15 @@ def _engine_progress(scan_id: str) -> dict:
         tests = json.loads(row['tests_json'] or '[]')
         usable = sum(t.get('verdict') in {'pass', 'fail'} for t in tests)
         state = 'error' if row['outcome'] == 'failed' else 'incomplete' if row['outcome'] == 'incomplete' else 'finished'
-        return {'state': state, 'phase': 'finished', 'stage_label': 'Results ready',
+        value = {'state': state, 'phase': 'finished', 'stage_label': 'Results ready',
                 'processed_count': len(tests),
-                'accepted_pack_total': 100 if row['pack_version'].startswith('starter-100@') else len(tests),
                 'usable_count': usable, 'unavailable_count': len(tests) - usable,
                 'updated_at': row['finished_at'], 'last_activity_at': row['finished_at']}
+        # Terminal totals come only from recorded Scanner progress, never the pack name (f7dfa14ba).
+        accepted_total = bac.latest_progress(scan_id).get('accepted_pack_total')
+        if accepted_total is not None:
+            value['accepted_pack_total'] = accepted_total
+        return value
     if not row or not row["scanner_id"] or row["status"] not in {"running", "dispatch_unknown"}:
         return {}
     tenant_id = f"partner-{row['partner']}"
@@ -516,6 +572,43 @@ def _engine_progress(scan_id: str) -> dict:
     return {key: payload[key] for key in _PROGRESS_FIELDS if key in payload}
 
 
+def _iso_max(*values):
+    stamps = []
+    for value in values:
+        try:
+            stamps.append((datetime.fromisoformat(value), value))
+        except (TypeError, ValueError):
+            pass
+    return max(stamps)[1] if stamps else None
+
+
+def _merge_lifecycle(lifecycle: dict, scan_id: str, scan_status: str) -> dict:
+    """starter_lifecycle@1: intake_status from the BAC intake owner (42595); report_status and
+    delivery_status from the Operations workflow's last good status snapshot once Operations has
+    acknowledged the BAC-bound result. Missing acknowledgment stays pending; local release
+    records are never an authority for BAC-bound scans. Store errors read unavailable."""
+    try:
+        if bac.is_bound(scan_id):
+            released = operations.public_lifecycle(scan_id)
+            if released is None:
+                released = {'report_status': 'awaiting_results', 'delivery_status': 'not_ready',
+                            'updated_at': None}
+        else:
+            released = release.public_lifecycle(scan_id, scan_failed=scan_status in ('failed', 'incomplete'))
+    except Exception:
+        released = {'report_status': 'unavailable', 'delivery_status': 'unavailable', 'updated_at': None}
+    return {**lifecycle, 'report_status': released['report_status'],
+            'delivery_status': released['delivery_status'],
+            'updated_at': _iso_max(lifecycle.get('updated_at'), released['updated_at'])}
+
+
+def _acknowledged_intake(scan_id):
+    with bac.lock:
+        return bac.db.execute('SELECT i.payload FROM bac_scan_bindings b JOIN bac_intake i '
+                                  'ON i.request_id=b.request_id WHERE b.scan_id=? AND i.state=\'acknowledged\'',
+                                  (scan_id,)).fetchone()
+
+
 @app.post("/scan/v1/scan-status")
 def scan_status(body: StatusRequest):
     # POST so the bearer-style token never lands in access-log URLs.
@@ -524,15 +617,35 @@ def scan_status(body: StatusRequest):
     if progress:
         value.update(progress)
         value["status"] = progress.get("state", value["status"])
-    value.pop("scan_id")
+    value["lifecycle"] = _merge_lifecycle(bac.public_lifecycle(value["scan_id"]),
+                                          value["scan_id"], value["status"])
+    scan_id = value.pop('scan_id')
+    # Public reference is a stable, non-authorizing digest of the persisted reservation.
+    # Neither the internal case identity nor the bearer status token is exposed.
+    value['request_reference'] = 'BB-' + hashlib.sha256(('starter-public:' + scan_id).encode()).hexdigest()[:20]
+    accepted = _acknowledged_intake(scan_id)
+    try:
+        scope = json.loads(json.loads(accepted[0])['description']).get('scope_ref') if accepted else None
+    except (KeyError, TypeError, ValueError):
+        scope = None
+    value['accepted_scope_version'] = scope if scope in STARTER_PACK_IDS else None
+    value['last_confirmed_progress_at'] = bac.confirmed_progress_at(scan_id)
+    with queue.lock:
+        queued = scan_id in queue.pending
+    value['queue_acknowledged'] = bool(queued and accepted and value['status'] == 'queued')
+    value['cancel_available'] = value['queue_acknowledged']
     return value
 
 
 @app.post("/scan/v1/scan-cancel")
 def scan_cancel(body: StatusRequest):
     value = _status(body.status_token)
-    if value["status"] == "queued" and queue.cancel(value["scan_id"]):
-        return {"status": "cancelled"}
+    if value["status"] == "queued":
+        if not _acknowledged_intake(value["scan_id"]):
+            raise HTTPException(409, "Request confirmation is pending; cancellation is unavailable.")
+        with queue.lock:
+            if value["scan_id"] in queue.pending and queue.cancel(value["scan_id"]):
+                return {"status": "cancelled"}
     if value["status"] == "dispatch_unknown":
         raise HTTPException(409, "We could not confirm whether this scan started. It may still be sending "
                                  "test messages to your agent and cannot be stopped from here. "
@@ -591,8 +704,31 @@ def _report_csrf_ok(request: Request) -> bool:
     return False
 
 
+def _report_access(token: str) -> str | None:
+    """'legacy' when a historically mailed report may be reached, else None.
+
+    BAC-bound scans use the Operations-owned final artifact, never this local report viewer;
+    they never get a customer verification code. Unbound pre-BAC scans keep their
+    historical access only if the legacy outbox already mailed the customer their link."""
+    scan_id = store.scan_for_report(token)
+    if not scan_id:
+        return None
+    if bac.is_bound(scan_id):
+        # Operations owns the final artifact; a local approval cannot open a customer link.
+        return None
+    return 'legacy' if store.legacy_released(scan_id) else None
+
+
+def _report_released(token: str) -> bool:
+    return _report_access(token) is not None
+
+
 @app.post("/scan/v1/reports/{token}/verification")
 def request_report_verification(token: str, request: Request):
+    # BEAAA-42596: a BAC report is never mailed to the customer, so only a historically
+    # released legacy report can request a code; everything else fails closed.
+    if _report_access(token) != 'legacy':
+        raise HTTPException(404, "report_not_released")
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     client_key = _client(request)
@@ -615,6 +751,8 @@ def request_report_verification(token: str, request: Request):
 
 @app.post("/scan/v1/reports/{token}/session")
 def create_report_session(token: str, body: ReportCode, request: Request):
+    if not _report_released(token):
+        raise HTTPException(404, "report_not_released")
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     nonce = request.cookies.get('bb_report_challenge') or ''
@@ -648,6 +786,8 @@ def report(token: str, request: Request):
     # oracle through timing or storage side effects.
     if not session:
         raise HTTPException(401, "authentication required")
+    if not _report_released(token):
+        raise HTTPException(404, "report_not_released")
     if not store.authorize_report(token, session):
         raise HTTPException(403, "report access denied")
     value = store.report(token)
@@ -660,6 +800,135 @@ def report(token: str, request: Request):
     if not value:
         raise HTTPException(404, "report not found")
     return value
+
+
+RELEASE_ROLES = {'lead': ('QA_RELEASE_LEAD_TOKEN_SHA256', 'QA_RELEASE_LEAD_ACTOR_ID'),
+                 'analyst': ('QA_RELEASE_ANALYST_TOKEN_SHA256', 'QA_RELEASE_ANALYST_ACTOR_ID'),
+                 'reviewer': ('QA_RELEASE_REVIEWER_TOKEN_SHA256', 'QA_RELEASE_REVIEWER_ACTOR_ID')}
+UNAVAILABLE_ROLE = {'lead': "release approval unavailable", 'analyst': "revision authoring unavailable",
+                    'reviewer': "revision review unavailable"}
+
+
+def _configured_roles() -> dict:
+    configured = {}
+    for role, (hash_env, actor_env) in RELEASE_ROLES.items():
+        digest = os.environ.get(hash_env, '').strip().lower()
+        actor = os.environ.get(actor_env, '')
+        if re.fullmatch(r'[0-9a-f]{64}', digest) and actor:
+            configured[role] = (digest, actor)
+    return configured
+
+
+def _matched_roles(authorization: str | None, configured: dict) -> set:
+    if not authorization or not authorization.startswith('Bearer ') or not authorization[7:]:
+        raise HTTPException(401, "authentication required")
+    presented = hashlib.sha256(authorization[7:].encode()).hexdigest()
+    return {role for role, (digest, _) in configured.items() if hmac.compare_digest(presented, digest)}
+
+
+def _role_actor(authorization: str | None, required: str) -> tuple[str, bool]:
+    """Authenticate a release role by exact token-hash match; the actor id never comes from the
+    request body or headers. Returns (actor, holds_other_role). A role whose hash/actor env is
+    unset fails closed (503)."""
+    configured = _configured_roles()
+    if required not in configured:
+        raise HTTPException(503, UNAVAILABLE_ROLE[required])
+    matched = _matched_roles(authorization, configured)
+    if required not in matched:
+        raise HTTPException(403, "wrong_role" if matched else "forbidden")
+    return configured[required][1], bool(matched - {required})
+
+
+def _revision(revision_id: str) -> dict:
+    try:
+        value = release.read_revision(revision_id) if re.fullmatch(r'rev_[0-9a-f]{32}', revision_id) else None
+    except RevisionTampered:
+        raise HTTPException(409, "revision_tampered")
+    if not value:
+        raise HTTPException(404, "revision not found")
+    return value
+
+
+class ReleaseDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    revision_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")  # covers content + frozen artifact bytes
+    nonce: str = Field(min_length=16, max_length=128)
+    decision: str = Field(pattern="^(approve|reject)$")
+
+
+class ReleaseReview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    revision_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    nonce: str = Field(min_length=16, max_length=128)
+    decision: str = Field(pattern="^(approve|request_changes)$")
+
+
+@app.get("/scan/v1/bac/revisions/{revision_id}")
+def read_release_revision(revision_id: str, authorization: str | None = Header(default=None)):
+    """Any configured release role (Analyst, reviewer, Lead) may read; nobody else."""
+    configured = _configured_roles()
+    if not configured:
+        raise HTTPException(503, "release roles unavailable")
+    if not _matched_roles(authorization, configured):
+        raise HTTPException(403, "forbidden")
+    return _revision(revision_id)
+
+
+@app.post("/scan/v1/bac/revisions/{revision_id}/decision")
+def decide_release_revision(revision_id: str, body: ReleaseDecision,
+                            authorization: str | None = Header(default=None)):
+    """Final report mutations belong exclusively to Operations."""
+    raise HTTPException(410, "report_authority_moved_to_operations")
+
+
+@app.post("/scan/v1/bac/revisions/{revision_id}/review")
+def review_release_revision(revision_id: str, body: ReleaseReview,
+                            authorization: str | None = Header(default=None)):
+    """Final report mutations belong exclusively to Operations."""
+    raise HTTPException(410, "report_authority_moved_to_operations")
+
+
+class RevisionAuthoring(BaseModel):
+    """Analyst-authored Starter report revision; evidence is named by its bound BAC case."""
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(min_length=1, max_length=200)
+    case_id: str = Field(min_length=1, max_length=200)
+    evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")  # sha256 of the scan's stored tests
+    summary: str = Field(min_length=1, max_length=8000)  # Analyst-written narrative
+    recommendations: list[Annotated[str, Field(min_length=1, max_length=1000)]] = Field(
+        default_factory=list, max_length=20)
+
+
+class CaseEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(min_length=1, max_length=200)
+    case_id: str = Field(min_length=1, max_length=200)
+    scan_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+
+
+@app.post("/scan/v1/bac/cases/evidence")
+def read_case_evidence(body: CaseEvidenceRequest, authorization: str | None = Header(default=None)):
+    """Analyst report-tool read: the bound case's evidence digest and ordinal verdicts only.
+
+    POST so case references stay out of access-log URLs; same resolver checks as authoring."""
+    _role_actor(authorization, 'analyst')
+    try:
+        digest = bac.evidence_digest(store, request_id=body.request_id, case_id=body.case_id,
+                                     scan_id=body.scan_id)
+        evidence = bac.resolve_evidence(store, request_id=body.request_id, case_id=body.case_id,
+                                        scan_id=body.scan_id, revision_sha256=digest)
+    except BACUnconfirmed:
+        raise HTTPException(409, "evidence_unconfirmed")
+    return {'request_id': evidence['request_id'], 'case_id': evidence['case_id'],
+            'scan_id': evidence['scan_id'], 'evidence_sha256': evidence['revision_sha256'],
+            'outcome': evidence['outcome'], 'results': evidence['results']}
+
+
+@app.post("/scan/v1/bac/scans/{scan_id}/revisions", status_code=201)
+def create_release_revision(scan_id: str, body: RevisionAuthoring,
+                            authorization: str | None = Header(default=None)):
+    """Final report mutations belong exclusively to Operations."""
+    raise HTTPException(410, "report_authority_moved_to_operations")
 
 
 @app.post("/scan/v1/delete")

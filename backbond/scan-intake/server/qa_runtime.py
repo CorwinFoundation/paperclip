@@ -37,12 +37,49 @@ class ScanQueue:
         # Queued work never reached the scanner, so it is not charged against quota.
         store.db.execute("UPDATE scans SET status='interrupted' WHERE status='queued'")
         self.pending = OrderedDict()  # scan_id -> (payload, enqueued_at)
+        self.awaiting_bac = OrderedDict()
+
+    def defer_bac(self, scan_id, request_id, payload, now=None):
+        """Own the original payload in memory until acknowledgment or expiry."""
+        with self.lock:
+            self.expire_pending(now)
+            if len(self.pending) + len(self.awaiting_bac) >= self.max_pending:
+                raise QueueFull()
+            if scan_id in self.awaiting_bac:
+                raise ValueError('reservation already retained')
+            self.store.queued(scan_id)
+            self.awaiting_bac[scan_id] = (request_id, payload,
+                                        time.monotonic() if now is None else now)
+
+    def recover_bac(self, bac, now=None):
+        """Transfer acknowledged original reservations to dispatch exactly once."""
+        with self.lock:
+            self.expire_pending(now)
+            for scan_id, (request_id, payload, _) in list(self.awaiting_bac.items()):
+                # The reconciler owns authenticated network reads and durable backoff.
+                with bac.lock:
+                    row = bac.db.execute('SELECT state FROM bac_intake WHERE request_id=?',
+                                         (request_id,)).fetchone()
+                if not row or row[0] != 'acknowledged':
+                    continue
+                self.awaiting_bac.pop(scan_id)
+                current = self.store.scan(scan_id)
+                if not current or current['status'] != 'queued':
+                    payload.clear()
+                    continue
+                try:
+                    self.submit(scan_id, payload, now)
+                except QueueFull:
+                    payload.clear()
+                    self.store.interrupted(scan_id)
+                except (DispatchUnknown, DispatchNotSent):
+                    pass  # Durable launch state forbids another scanner start.
 
     def submit(self, scan_id, payload, now=None):
         with self.lock:
             self.expire_pending(now)
             if len(self.active) >= self.capacity:
-                if len(self.pending) >= self.max_pending:
+                if len(self.pending) + len(self.awaiting_bac) >= self.max_pending:
                     raise QueueFull()
                 self.store.queued(scan_id)
                 self.pending[scan_id] = (payload, time.monotonic() if now is None else now)
@@ -110,6 +147,11 @@ class ScanQueue:
         """Drop never-dispatched payloads older than the TTL; not charged against quota."""
         now = time.monotonic() if now is None else now
         with self.lock:
+            for scan_id in [s for s, (_, _, at) in self.awaiting_bac.items()
+                            if now - at >= self.pending_ttl]:
+                _, payload, _ = self.awaiting_bac.pop(scan_id)
+                payload.clear()
+                self.store.interrupted(scan_id)
             for scan_id in [s for s, (_, at) in self.pending.items() if now - at >= self.pending_ttl]:
                 payload, _ = self.pending.pop(scan_id)
                 payload.clear()
@@ -138,6 +180,10 @@ class ScanQueue:
     def cancel(self, scan_id):
         """Cancel only work that has not been sent to the scanner."""
         with self.lock:
+            waiting = self.awaiting_bac.pop(scan_id, None)
+            if waiting is not None:
+                waiting[1].clear()
+                return self.store.cancel_unsent(scan_id)
             item = self.pending.pop(scan_id, None)
             if item is None:
                 return False
@@ -150,14 +196,12 @@ class ScanQueue:
                 payload.clear()
                 self.store.interrupted(scan_id)
             self.pending.clear()
+            for scan_id, (_, payload, _) in self.awaiting_bac.items():
+                payload.clear()
+                self.store.interrupted(scan_id)
+            self.awaiting_bac.clear()
 
 
 def deliver_pending(store, send, now=None):
-    now = time.time() if now is None else now
-    for row in store.mail_jobs(now):
-        try:
-            send(row['email'], row['agent_label'], row['report_token'])
-        except Exception:
-            store.mail_result(row['id'], False, now)
-        else:
-            store.mail_result(row['id'], True, now)
+    """BEAAA-42596: customer report mail is disabled; the Operations workflow sends the report."""
+    raise RuntimeError('customer report mail is disabled (BEAAA-42596)')

@@ -3,7 +3,7 @@
 
 Given the list of files a push or pull request changed, this script decides
 
-* which Python test files under ``tests/`` can be affected (``tests``), and
+* which Python test files under registered test roots can be affected (``tests``), and
 * which CI jobs need to run at all (one boolean "gate" per job family).
 
 It is deliberately fail-closed: whenever it cannot tell, it answers "run
@@ -250,6 +250,19 @@ GATES: dict[str, dict[str, tuple[str, ...]]] = {
 }
 
 TEST_FILE_RE = re.compile(r"^(test_.*|.*_test)\.py$")
+TEST_ROOTS = ("tests", "backbond/scan-intake/tests")
+STARTER_INTAKE_PREFIX = "backbond/scan-intake/"
+
+
+def _is_test_file(rel: str) -> bool:
+    return (any(rel.startswith(root + "/") for root in TEST_ROOTS)
+            and bool(TEST_FILE_RE.match(PurePosixPath(rel).name)))
+
+
+def _all_test_targets(root: Path) -> list[str]:
+    # Keep the legacy root even when absent so an invalid checkout fails closed.
+    return ["tests"] + [path for path in TEST_ROOTS[1:] if (root / path).is_dir()]
+
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +348,7 @@ class Repo:
         return sorted(
             rel
             for rel in self.files
-            if rel.startswith("tests/") and TEST_FILE_RE.match(PurePosixPath(rel).name)
+            if _is_test_file(rel)
         )
 
     def dependents(self, changed: set[str]) -> set[str]:
@@ -420,7 +433,7 @@ def select(repo: Repo, changed: list[str], full: bool = False) -> dict[str, obje
         gates = _gates(mode, changed, tests)
         return {
             "selection_mode": mode,
-            "tests": ["tests"] if mode == "ALL" else tests,
+            "tests": _all_test_targets(repo.root) if mode == "ALL" else tests,
             "code": mode != "NONE",
             "gates": gates,
             "reason": "; ".join(reasons),
@@ -444,7 +457,7 @@ def select(repo: Repo, changed: list[str], full: bool = False) -> dict[str, obje
         if rel.endswith(".py"):
             if rel in repo.files:
                 seeds.add(rel)
-                if rel.startswith("tests/") and TEST_FILE_RE.match(PurePosixPath(rel).name):
+                if _is_test_file(rel):
                     selected.add(rel)
             else:
                 # Deleted or renamed away: whoever still names it is affected.
@@ -462,6 +475,14 @@ def select(repo: Repo, changed: list[str], full: bool = False) -> dict[str, obje
     for rel in affected:
         if rel in all_tests:
             selected.add(rel)
+
+    # This standalone service uses runtime sys.path setup and a maintained JS
+    # consumer, so static Python imports alone cannot describe its test closure.
+    # Run its explicit suite for any service/page/contract change in the existing
+    # pytest lane; this does not add a runner, job, or hosted execution route.
+    if any(rel.startswith(STARTER_INTAKE_PREFIX) for rel in changed):
+        selected.update(rel for rel in all_tests if rel.startswith(STARTER_INTAKE_PREFIX))
+        reasons.append("Starter intake change selects its complete standalone suite")
 
     # A changed core module nobody tests is a gap we refuse to paper over.
     for rel in changed:
@@ -532,14 +553,14 @@ def _expand() -> list[str]:
     if mode == "NONE":
         return []
     if mode != "SOME" or not raw:
-        return ["tests"]  # ALL, or the changes job never reported: whole tree
+        return _all_test_targets(Path.cwd())  # ALL or missing selector output
     try:
         targets = json.loads(raw)
     except json.JSONDecodeError:
-        return ["tests"]
+        return _all_test_targets(Path.cwd())
     targets = [t for t in targets if isinstance(t, str) and t]
     targets = [t for t in targets if t not in EVAL_VENV_ONLY_TESTS]
-    return targets or ["tests"]
+    return targets or _all_test_targets(Path.cwd())
 
 
 def _write_outputs(res: dict[str, object], path: str | None, summary: str | None) -> None:

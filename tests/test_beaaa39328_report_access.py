@@ -15,6 +15,7 @@ def store_with_report(tmp_path):
     store.db.execute("PRAGMA foreign_keys=OFF")
     store.db.execute("INSERT INTO scans(id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status,report_token,tests_json,outcome) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                      ('s1','c','p','Owner@Example.COM','agent','example.test','rest','starter-100@4',datetime.now(timezone.utc).isoformat(),'finished','a'*32,'[]','complete'))
+    store.db.execute("INSERT INTO mail_outbox(scan_id,status) VALUES(?,?)", ('s1', 'sent'))
     return store
 
 
@@ -156,11 +157,18 @@ def test_cors_allows_credentialed_viewer_and_logout():
     assert "nonce = secrets.token_hex(16)" in source
 
 
-def test_report_get_rejects_missing_credentials_before_any_lookup(monkeypatch, tmp_path):
+@pytest.mark.parametrize("token", ["a" * 32, "unknown-token"])
+def test_report_get_rejects_missing_credentials_before_any_lookup(monkeypatch, tmp_path, token):
     monkeypatch.setenv("QA_DB_PATH", str(tmp_path / "app.sqlite"))
     import app
 
+    calls = []
+
     class NoLookupStore:
+        def __getattr__(self, name):
+            calls.append(name)
+            raise AssertionError("store must not be consulted without credentials")
+
         def authorize_report(self, token, session):
             raise AssertionError("session lookup must not run without credentials")
 
@@ -172,8 +180,9 @@ def test_report_get_rejects_missing_credentials_before_any_lookup(monkeypatch, t
 
     monkeypatch.setattr(app, "store", NoLookupStore())
     with pytest.raises(HTTPException) as failure:
-        app.report("a" * 32, Request())
+        app.report(token, Request())
     assert failure.value.status_code == 401
+    assert calls == []
 
 
 def test_verified_browser_session_fetches_report_and_anonymous_get_is_rejected(monkeypatch, tmp_path):
@@ -211,7 +220,7 @@ def test_report_get_checks_authorization_before_report_or_upstream_read():
     guard = 'if not store.authorize_report(token, session):'
     assert missing_credentials in route
     assert guard in route
-    assert route.index(missing_credentials) < route.index(guard)
+    assert route.index(missing_credentials) < route.index('if not _report_released(token):') < route.index(guard)
     assert route.index(guard) < route.index('value = store.report(token)')
     assert 'raise HTTPException(401, "authentication required")' in route[:route.index(guard)]
     assert 'raise HTTPException(403, "report access denied")' in route[:route.index('value = store.report(token)')]

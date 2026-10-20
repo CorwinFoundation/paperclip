@@ -292,8 +292,6 @@ class IntakeStore:
         if not row:
             raise IntakeError("scan not found")
         if row['status'] == 'finished' and row['report_token']:
-            if row['outcome'] != 'failed':
-                self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
             return row['report_token']
         self.record_provenance(scan_id, meta.get('provenance') or {})
         token = secrets.token_hex(16)  # 128 random bits; matches the viewer
@@ -314,8 +312,8 @@ class IntakeStore:
               (scan_id,pack_version,tests_json,copied_at) VALUES(?,?,?,?)''',
               (scan_id, row['pack_version'], json.dumps(safe),
                now or datetime.now(timezone.utc).isoformat()))
-        if meta.get("outcome") != "failed":
-            self.db.execute('INSERT OR IGNORE INTO mail_outbox(scan_id) VALUES(?)', (scan_id,))
+        # BEAAA-42596: no customer mail_outbox row, and intake sends no report mail at all;
+        # the Operations workflow writes the final report and sends it to info@backbond.ai.
         return token
 
     @synchronized
@@ -368,6 +366,22 @@ class IntakeStore:
                 **report_outcome(row["outcome"], row["incomplete_reason"], json.loads(row["tests_json"])),
                 **safe_provenance(json.loads(row["provenance_json"] or "{}"))}
         return extend(self.db, row, value)
+
+    @synchronized
+    def scan_for_report(self, token: str) -> str | None:
+        if not isinstance(token, str) or not re.fullmatch(r'[a-f0-9]{32}', token):
+            return None
+        row = self.db.execute("SELECT id FROM scans WHERE report_token=? AND status='finished'", (token,)).fetchone()
+        return row['id'] if row else None
+
+    @synchronized
+    def legacy_released(self, scan_id: str) -> bool:
+        """Pre-BAC report whose link the legacy outbox already mailed to its customer.
+
+        No new row reaches status 'sent' (finish() no longer enqueues, deliver_pending is
+        disabled), so this admits only historically released reports."""
+        row = self.db.execute("SELECT status FROM mail_outbox WHERE scan_id=?", (scan_id,)).fetchone()
+        return bool(row and row['status'] == 'sent')
 
     @synchronized
     def report_recipient_hint(self, token: str) -> str | None:

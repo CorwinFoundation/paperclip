@@ -127,8 +127,20 @@ class Api(unittest.TestCase):
     def test_finished_progress_retains_counts(self):
         row={'status':'finished','outcome':'complete','pack_version':'starter-100@4',
              'tests_json':json.dumps([{'verdict':'pass'},{'verdict':'fail'}]),'finished_at':'2026-10-18T10:00:00Z'}
-        with patch.object(self.app.store,'scan',return_value=row):value=self.app._engine_progress('local')
+        # The accepted total comes from durable Scanner progress, not the pack label.
+        with patch.object(self.app.store,'scan',return_value=row),patch.object(
+                self.app.bac,'latest_progress',return_value={'accepted_pack_total':37}) as latest:
+            value=self.app._engine_progress('local')
+        latest.assert_called_once_with('local')
         self.assertEqual(value['state'],'finished');self.assertEqual(value['processed_count'],2)
-        self.assertEqual(value['accepted_pack_total'],100);self.assertEqual(value['usable_count'],2)
+        self.assertEqual(value['accepted_pack_total'],37);self.assertEqual(value['usable_count'],2)
+    def test_finished_progress_does_not_infer_total_from_pack_name(self):
+        row={'status':'finished','outcome':'complete','pack_version':'starter-100@4',
+             'tests_json':json.dumps([{'verdict':'pass'}]),'finished_at':'2026-10-18T10:00:00Z'}
+        with patch.object(self.app.store,'scan',return_value=row),patch.object(
+                self.app.bac,'latest_progress',return_value={}):
+            value=self.app._engine_progress('local')
+        self.assertNotIn('accepted_pack_total',value)
+        self.assertEqual(value['processed_count'],1);self.assertEqual(value['usable_count'],1)
 
 if __name__=='__main__':unittest.main(verbosity=2)

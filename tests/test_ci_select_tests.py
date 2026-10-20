@@ -286,7 +286,9 @@ def test_malformed_json_fails_closed(repo, tmp_path: Path, monkeypatch, capsys):
         ("SOME", '["tests/unit/test_inspect_provenance_pin.py"]', ["tests"]),
     ],
 )
-def test_expand_reads_env(monkeypatch, mode, raw, expected):
+def test_expand_reads_env(monkeypatch, tmp_path, mode, raw, expected):
+    # Preserve legacy expansion scenarios in an isolated legacy-only checkout.
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SELECTION_MODE", mode)
     monkeypatch.setenv("SELECTED_TESTS", raw)
     assert sel._expand() == expected
@@ -308,3 +310,74 @@ def test_gate_table_names_only_real_tests():
 def test_eval_venv_only_tests_are_named_by_the_evalvenv_gate():
     """The drop-list must stay a subset of the gate that actually runs them."""
     assert sel.EVAL_VENV_ONLY_TESTS <= set(sel.GATES["evalvenv"]["tests"])
+
+
+@pytest.mark.parametrize('invalidate', [False, True])
+def test_changed_intake_privacy_file_is_selected_outside_root_tests(tmp_path, monkeypatch, invalidate):
+    target = 'backbond/scan-intake/tests/test_report_release.py'
+    path = tmp_path / target
+    path.parent.mkdir(parents=True)
+    path.write_text('def test_privacy(): pass\n')
+    changed = [target] + (['scripts/ci_select_tests.py'] if invalidate else [])
+    result = sel.select(sel.Repo(tmp_path), changed)
+    assert any(target == item or target.startswith(item.rstrip('/') + '/')
+               for item in result['tests'])
+    assert result['code'] is True
+    monkeypatch.setenv('SELECTION_MODE', result['selection_mode'])
+    monkeypatch.setenv('SELECTED_TESTS', json.dumps(result['tests']))
+    monkeypatch.chdir(tmp_path)
+    assert any(target == item or target.startswith(item.rstrip('/') + '/')
+               for item in sel._expand())
+
+
+def _starter_intake_repo(tmp_path):
+    files = {
+        "backbond/scan-intake/server/app.py": "def status(): return {}\n",
+        "backbond/scan-intake/web/scan.js": "// maintained page\n",
+        "backbond/scan-intake/tests/test_report_release.py": "def test_public_projection(): pass\n",
+        "backbond/scan-intake/tests/test_bac_intake.py": "def test_ack(): pass\n",
+    }
+    for index in range(10):
+        files[f"tests/test_unrelated_{index}.py"] = "def test_other(): pass\n"
+    for rel, text in files.items():
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    return sel.Repo(tmp_path)
+
+
+def test_starter_nested_test_change_is_never_selected_as_none(tmp_path):
+    repo = _starter_intake_repo(tmp_path)
+    path = "backbond/scan-intake/tests/test_report_release.py"
+    assert path in repo.test_files()
+    result = sel.select(repo, [path])
+    assert result["selection_mode"] == "SOME" and result["code"] is True
+    assert path in result["tests"]
+
+
+@pytest.mark.parametrize("changed", [
+    "backbond/scan-intake/server/app.py",
+    "backbond/scan-intake/web/scan.js",
+    "backbond/scan-intake/tests/test_report_release.py",
+])
+def test_starter_source_page_and_contract_changes_select_whole_intake_suite(tmp_path, changed):
+    repo = _starter_intake_repo(tmp_path)
+    result = sel.select(repo, [changed])
+    assert result["selection_mode"] == "SOME"
+    assert set(result["tests"]) == {
+        "backbond/scan-intake/tests/test_report_release.py",
+        "backbond/scan-intake/tests/test_bac_intake.py",
+    }
+
+
+def test_starter_full_and_fallback_expansion_include_intake_suite(tmp_path, monkeypatch):
+    repo = _starter_intake_repo(tmp_path)
+    expected = ["tests", "backbond/scan-intake/tests"]
+    assert sel.select(repo, [], full=True)["tests"] == expected
+    assert sel.select(repo, ["scripts/ci_select_tests.py"])["tests"] == expected
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SELECTION_MODE", "ALL")
+    assert sel._expand() == expected
+    monkeypatch.setenv("SELECTION_MODE", "SOME")
+    monkeypatch.setenv("SELECTED_TESTS", "invalid json")
+    assert sel._expand() == expected

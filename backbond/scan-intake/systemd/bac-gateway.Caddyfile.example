@@ -1,0 +1,17 @@
+# DRAFT ONLY. Insert this route before the existing UI/auth route in the
+# existing BAC HTTPS site on VM2066639. Keep that site's hostname/TLS/UI intact.
+# BAC_ARICLAW_IP must be AriClaw's verified direct source IP, never a subnet.
+# Do not trust caller X-Forwarded-For; remote_ip uses the socket peer.
+route /starter-bac-gateway/* {
+    @ariclaw remote_ip {$BAC_ARICLAW_IP}
+    handle @ariclaw {
+        request_body {
+            max_size 8192
+        }
+        uri strip_prefix /starter-bac-gateway
+        reverse_proxy 127.0.0.1:8794
+    }
+    handle {
+        respond 403
+    }
+}

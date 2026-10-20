@@ -1,0 +1,25 @@
+[Unit]
+Description=Restricted Starter BAC gateway
+After=network-online.target
+
+[Service]
+User=backbond-bac-gateway
+Group=backbond-bac-gateway
+WorkingDirectory=/opt/backbond/scan-intake/server
+EnvironmentFile=/etc/backbond/bac-gateway.env
+LoadCredential=upstream-token:/etc/backbond/bac-gateway/upstream-token
+LoadCredential=client-token:/etc/backbond/bac-gateway/client-token
+Environment=BAC_GATEWAY_DB=/var/lib/backbond-bac-gateway/gateway.sqlite
+StateDirectory=backbond-bac-gateway
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/backbond/scan-venv/bin/uvicorn bac_gateway:app_from_env --factory --host 127.0.0.1 --port 8794 --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/backbond-bac-gateway
+
+[Install]
+WantedBy=multi-user.target
