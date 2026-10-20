@@ -1,3 +1,4 @@
+import { dispatchAdmission, withDispatchAdmission } from "./dispatch-admission.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execFileCallback } from "node:child_process";
@@ -7411,6 +7412,10 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
   }
 
   async function claimQueuedRun(run: typeof heartbeatRuns.$inferSelect, companyAgents?: AgentOrgRow[]) {
+    return withDispatchAdmission(dispatchAdmission, () => claimQueuedRunAdmitted(run, companyAgents));
+  }
+
+  async function claimQueuedRunAdmitted(run: typeof heartbeatRuns.$inferSelect, companyAgents?: AgentOrgRow[]) {
     if (run.status !== "queued") return run;
     const agent = await getAgent(run.agentId);
     if (!agent) {
