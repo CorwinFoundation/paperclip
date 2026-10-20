@@ -293,6 +293,19 @@ class _BudgetedRunner(ModelRunner):
         self._ledger = ledger
         self._role = role
 
+    @property
+    def run_injection_order_probe(self):
+        drive = getattr(self._base, "run_injection_order_probe", None)
+        if not callable(drive):
+            return None
+
+        def run(runtime):
+            if getattr(self._base, "_ordering_per_call_accounting", False):
+                return drive(runtime, reserve_call=self._ledger.reserve_target_call)
+            self._ledger.reserve_target_call()
+            return drive(runtime)
+        return run
+
     def model_id(self) -> str:
         return self._base.model_id()
 
@@ -1566,7 +1579,13 @@ class RegisteredCaseExecutor:
         elif test_id == "indirect_injection_channels":
             from harness.trace_observation import execute_indirect_injection_channel_case
 
-            record = execute_indirect_injection_channel_case(**common)
+            from harness.guardrail_effect_order import CASE_ID, execute_ordering_case
+
+            record = (
+                execute_ordering_case(subject=self.subject, **common)
+                if case_id == CASE_ID
+                else execute_indirect_injection_channel_case(**common)
+            )
         elif test_id == "data_containment_transformed_exfiltration":
             from harness.trace_observation import execute_transformed_exfiltration_case
 

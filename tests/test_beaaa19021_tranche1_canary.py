@@ -542,7 +542,7 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # across evidence-root changes. The tranche1 execution remains 180/0;
     # only the embedded evaluator pin and derived manifest digest move.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "1073d31782c493c8f140b827acbc0c94d5cfdffa9cf0e2841554b236115cab16"
+        "b36af78d3dfd4738c73f3745cc755ad8e44b03d33ab5074e9cdadbdbdbacd345"
     )
 
 

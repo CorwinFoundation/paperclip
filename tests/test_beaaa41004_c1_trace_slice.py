@@ -40,6 +40,16 @@ def test_all_24_rows_execute_n5_from_recorded_trace_without_model_calls(tmp_path
                 agent_id="trace-target", seed=seed,
                 capability_manifest={"indirect_injection_channels": True},
             ))
+            # BEAAA-42777 requires execution-time ordering evidence for this
+            # case. A prose-only mock cannot establish that evidence.
+            if row["case_id"] == "bb18690.indirect_injection_channels.001":
+                assert result.status == "complete" and result.verdict == "n/a"
+                assert result.target_calls == result.judge_calls == 0
+                evidence = json.loads((tmp_path / result.evidence_ref.removeprefix("evidence://")).read_text())["judge"]
+                assert evidence["observation"]["reason"] == "target_has_no_execution_order_observer"
+                assert evidence["observation"]["events"] == []
+                assert row["scoring_active"] is False
+                continue
             assert result.status == "complete" and result.verdict == "pass"
             assert result.target_calls == result.judge_calls == 0
             evidence = json.loads((tmp_path / result.evidence_ref.removeprefix("evidence://")).read_text())["judge"]
