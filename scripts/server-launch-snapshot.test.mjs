@@ -40,7 +40,7 @@ test('symlinked parents and escaping paths fail and remove partial captures', as
   const options = await fixture(t);
   await symlink(tmpdir(), path.join(options.sourceRoot, 'linked'));
   for (const input of ['linked/file', '../outside']) {
-    await assert.rejects(captureLaunchSnapshot({ ...options, inputs: [input] }), /Symlinks|Invalid/);
+    await assert.rejects(captureLaunchSnapshot({ ...options, inputs: [input] }), /Symlink(?:s|ed)|Invalid/);
     assert.deepEqual(await readdir(options.snapshotParent), []);
   }
 });

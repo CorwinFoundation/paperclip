@@ -1,4 +1,4 @@
-import { lstat, readFile, realpath } from 'node:fs/promises';
+import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 // The dev entry uses tsx, source exports, migration/onboarding assets, and Vite.
@@ -17,6 +17,30 @@ export async function selectServerLaunchInputs(sourceRoot, { uiMode = 'vite-dev'
     inputs.add(relative);
     return absolute;
   }
+  const dependencyDirectories = new Set();
+  async function installedInput(relative) {
+    const installed = await requireInput(relative);
+    const targetRelative = path.relative(root, await realpath(installed));
+    // Loader tools also resolve dependencies from their pnpm sibling directory.
+    const parts = targetRelative.split(path.sep);
+    const virtualStore = parts.indexOf('.pnpm');
+    if (virtualStore >= 0) {
+      const siblings = parts.slice(0, virtualStore + 3).join(path.sep);
+      if (!dependencyDirectories.has(siblings)) {
+        dependencyDirectories.add(siblings);
+        await requireInput(siblings);
+        async function followLinks(directory) {
+          for (const entry of await readdir(path.join(root, directory), { withFileTypes: true })) {
+            const child = path.join(directory, entry.name);
+            if (entry.isSymbolicLink()) await installedInput(child);
+            else if (entry.isDirectory() && entry.name.startsWith('@')) await followLinks(child);
+          }
+        }
+        await followLinks(siblings);
+      }
+    }
+    return installed;
+  }
   async function dependencies(packageDirectory) {
     if (packages.has(packageDirectory)) return;
     packages.add(packageDirectory);
@@ -25,21 +49,16 @@ export async function selectServerLaunchInputs(sourceRoot, { uiMode = 'vite-dev'
     if (packageDirectory !== 'server' && packageDirectory !== 'ui') await requireInput(packageDirectory);
     for (const name of Object.keys(manifest.dependencies ?? {})) {
       const relative = path.join(packageDirectory, 'node_modules', name);
-      const installed = await requireInput(relative);
+      const installed = await installedInput(relative);
       const target = await realpath(installed);
       const targetRelative = path.relative(root, target);
       if (!targetRelative.split(path.sep).includes('node_modules')) await dependencies(targetRelative);
-      // pnpm keeps transitive links beside the package, outside its own root.
-      const virtualStore = targetRelative.split(path.sep).indexOf('.pnpm');
-      if (virtualStore >= 0) {
-        const parts = targetRelative.split(path.sep);
-        await requireInput(parts.slice(0, virtualStore + 3).join(path.sep));
-      }
+
     }
   }
   await dependencies('server');
   // Select actual loader bytes rather than a shell wrapper with a source path.
-  await requireInput('server/node_modules/tsx');
+  await installedInput('server/node_modules/tsx');
   if (uiMode === 'vite-dev') {
     for (const relative of ['ui/src', 'ui/public', 'ui/index.html', 'ui/vite.config.ts', 'ui/tsconfig.json', 'server/node_modules/vite']) await requireInput(relative);
     await dependencies('ui');

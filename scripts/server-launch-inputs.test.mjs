@@ -36,3 +36,22 @@ test('requires UI inputs when Vite middleware is enabled', async t => {
   const root = await fixture(t);
   await assert.rejects(selectServerLaunchInputs(root), /Missing.*ui\/src/);
 });
+
+test('selects pnpm loader dependency siblings such as esbuild', async t => {
+  const root = await fixture(t);
+  await rm(path.join(root, 'server/node_modules/tsx'), { recursive: true });
+  const loaderStore = 'node_modules/.pnpm/tsx@fixture/node_modules';
+  await mkdir(path.join(root, loaderStore, 'tsx'), { recursive: true });
+  await mkdir(path.join(root, 'node_modules/.pnpm/esbuild@fixture/node_modules/esbuild'), { recursive: true });
+  await symlink('../../esbuild@fixture/node_modules/esbuild', path.join(root, loaderStore, 'esbuild'));
+  await symlink('../../' + loaderStore + '/tsx', path.join(root, 'server/node_modules/tsx'));
+  const esbuildStore = 'node_modules/.pnpm/esbuild@fixture/node_modules';
+  const binaryStore = 'node_modules/.pnpm/@esbuild+linux-x64@fixture/node_modules/@esbuild/linux-x64';
+  await mkdir(path.join(root, esbuildStore, '@esbuild'), { recursive: true });
+  await mkdir(path.join(root, binaryStore), { recursive: true });
+  await symlink(path.relative(path.join(root, esbuildStore, '@esbuild'), path.join(root, binaryStore)), path.join(root, esbuildStore, '@esbuild/linux-x64'));
+  const inputs = await selectServerLaunchInputs(root, { uiMode: 'none' });
+  assert.ok(inputs.includes(esbuildStore), 'transitive native dependency directory must be captured');
+  assert.ok(inputs.includes('node_modules/.pnpm/@esbuild+linux-x64@fixture/node_modules'), 'native binary dependency directory must be selected');
+  assert.ok(inputs.includes(loaderStore), 'loader sibling dependencies must be captured');
+});
