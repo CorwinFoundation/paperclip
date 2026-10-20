@@ -241,6 +241,8 @@ def test_public_lifecycle_maps_each_status(tmp_path, monkeypatch):
 def app_env(tmp_path, monkeypatch):
     os.environ.setdefault('QA_DB_PATH', str(Path(tempfile.mkdtemp()) / 'import.sqlite'))
     app = importlib.import_module('app')
+    # These legacy lifecycle fixtures exercise the configured BAC branch.
+    monkeypatch.setattr(app, '_bac_mode', lambda: 'configured')
     from qa_service import IntakeStore, Code
     from qa_runtime import ScanQueue
     from bac_intake import BACIntake

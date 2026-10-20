@@ -257,6 +257,8 @@ def test_one_row_per_tick_least_recently_polled_first_including_accepted_rows(en
 def app_env(tmp_path, monkeypatch):
     os.environ.setdefault('QA_DB_PATH', str(Path(tempfile.mkdtemp()) / 'import.sqlite'))
     app = importlib.import_module('app')
+    # These legacy lifecycle fixtures exercise the configured BAC branch.
+    monkeypatch.setattr(app, '_bac_mode', lambda: 'configured')
     import httpx
     for name in ('post', 'get', 'Client'):
         monkeypatch.setattr(httpx, name, no_network)

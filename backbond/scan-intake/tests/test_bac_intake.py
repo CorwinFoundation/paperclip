@@ -110,7 +110,7 @@ def test_start_scan_no_submit_on_unconfirmed():
                  transport='http', model=None, connection_proof=None, auth='secret')
     body = NS(code='private', email='x', connection_proof=None, terms_version='v1',
               consent_improvement=False, pack_id='starter-100@4', model_dump=lambda: dict(clean))
-    env = dict(_flag=lambda *a: True, _private_acceptance=lambda *a: False,
+    env = dict(_bac_mode=lambda:"configured", _flag=lambda *a: True, _private_acceptance=lambda *a: False,
                _mail_configured=lambda: True, WEBHOOK_SECRET='fixture',
                os=NS(environ={'QA_READY':'1'}), _terms_version=lambda:'v1',
                _resolve_code=lambda c:dict(public=False,code=c,partner='p'),
@@ -572,6 +572,7 @@ def test_actual_public_backend_response_renders_in_page_owner_consumer(tmp_path,
                      (hashlib.sha256(token.encode()).hexdigest(), sid))
     monkeypatch.setattr(app, 'store', store)
     monkeypatch.setattr(app, 'bac', c)
+    monkeypatch.setattr(app, '_bac_mode', lambda: 'configured')
     # Authenticated progress transport is independently covered; no network here.
     monkeypatch.setattr(app, '_engine_progress', lambda _: {})
     response = TestClient(app.app).post('/scan/v1/scan-status', json={'status_token': token})

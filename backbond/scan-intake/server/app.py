@@ -21,6 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from bac_intake import BACIntake, BACUnconfirmed
+from findings_intake import FindingsIntake
 from operations_client import OperationsClient, OperationsOutbox
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
 from report_release import ReportRelease, RevisionTampered
@@ -55,17 +56,39 @@ def _operations_enqueue(request_id, scan_id):
     operations.enqueue(bac, store, request_id=request_id, scan_id=scan_id, client=_operations_client())
 
 
+def _bac_mode():
+    keys = ('QA_BAC_URL', 'QA_BAC_COMPANY_ID', 'QA_BAC_LEAD_ID', 'QA_BAC_TOKEN')
+    values = [os.environ.get(key, '').strip() for key in keys]
+    if not any(values):
+        return 'absent'
+    if not all(values):
+        return 'invalid'
+    from urllib.parse import urlsplit
+    try:
+        url = urlsplit(values[0])
+        valid = url.scheme in {'http', 'https'} and bool(url.hostname) and not url.username and not url.password
+    except ValueError:
+        valid = False
+    return 'configured' if valid else 'invalid'
+
+
 def worker_tick():
     """One lifespan worker iteration. BEAAA-42596: intake sends no report mail at all, to a
     customer or to info@backbond.ai; the Operations workflow writes and sends the final report.
     Intake records the finished result there and reads its public status back."""
-    bac.reconcile_pending(limit=1)
-    queue.recover_bac(bac)
-    bac.capture_scans(store, queue, _terminal_scan, fetch_progress=_engine_progress,
-                      on_finished=_operations_enqueue)
-    bac.flush_events(limit=1)
-    operations.flush(_operations_client(), limit=1)
-    operations.poll_status(_operations_client())
+    if _bac_mode() == "invalid":
+        return
+    if _bac_mode() == "configured" or (store is not None and bac.db.execute(
+            "SELECT 1 FROM bac_scan_bindings LIMIT 1").fetchone()):
+        bac.reconcile_pending(limit=1)
+        queue.recover_bac(bac)
+        bac.capture_scans(store, queue, _terminal_scan, fetch_progress=_engine_progress,
+                          on_finished=_operations_enqueue)
+        bac.flush_events(limit=1)
+        operations.flush(_operations_client(), limit=1)
+        operations.poll_status(_operations_client())
+    if _bac_mode() != "configured":
+        findings.capture(store, queue, _terminal_scan, _engine_progress)
     queue.expire_pending()
 
 
@@ -92,6 +115,7 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
                    allow_headers=["Content-Type"])
 store = IntakeStore(DB_PATH)
+findings = FindingsIntake(DB_PATH)
 bac = BACIntake(DB_PATH, base_url=os.environ.get('QA_BAC_URL', ''),
                 company_id=os.environ.get('QA_BAC_COMPANY_ID', ''),
                 owner_id=os.environ.get('QA_BAC_LEAD_ID', ''),
@@ -423,8 +447,10 @@ def connection_check(body: ConnectionFields, request: Request):
 def start_scan(body: ScanRequest, request: Request):
     if not _flag("QA_TERMS_APPROVED", "0"):
         raise HTTPException(503, "This review preview cannot start scans. Terms and launch approval are pending.")
+    if _bac_mode() == "invalid":
+        raise HTTPException(503, "BAC configuration is incomplete or invalid")
     private_acceptance = _private_acceptance(request, body.code, body.email)
-    if not _mail_configured() or not WEBHOOK_SECRET or (os.environ.get('QA_READY') != '1' and not private_acceptance):
+    if (_bac_mode() == "configured" and not _mail_configured()) or not WEBHOOK_SECRET or (os.environ.get('QA_READY') != '1' and not private_acceptance):
         raise HTTPException(503, "QA scans are temporarily unavailable")
     # Legacy mode keeps the prior API (no proof, no terms version) and rechecks before launch.
     legacy = not _flag('QA_REQUIRE_CONNECTION_PROOF', '1') and body.connection_proof is None
@@ -459,12 +485,16 @@ def start_scan(body: ScanRequest, request: Request):
         scan_ref = reservation['scan_id']
         intake_ref = scan_ref
         try:
-            intake_ref = bac.retry_identity(scan_ref, clean)
-            bac.acknowledge(intake_ref, customer_ref='intake:' + intake_ref,
-                            agent_ref='intake:' + intake_ref,
-                            scope_ref=body.pack_id,
-                            code_ref='intake:' + intake_ref)
-            status = queue.submit(scan_ref, payload)
+            if _bac_mode() == "configured":
+                intake_ref = bac.retry_identity(scan_ref, clean)
+                bac.acknowledge(intake_ref, customer_ref='intake:' + intake_ref,
+                                agent_ref='intake:' + intake_ref,
+                                scope_ref=body.pack_id,
+                                code_ref='intake:' + intake_ref)
+                status = queue.submit(scan_ref, payload)
+            else:
+                findings.accept(scan_ref, body.pack_id)
+                status = queue.submit(scan_ref, payload)
         except BACUnconfirmed:
             try:
                 queue.defer_bac(scan_ref, intake_ref, payload)
@@ -549,7 +579,7 @@ def _engine_progress(scan_id: str) -> dict:
                 'usable_count': usable, 'unavailable_count': len(tests) - usable,
                 'updated_at': row['finished_at'], 'last_activity_at': row['finished_at']}
         # Terminal totals come only from recorded Scanner progress, never the pack name (f7dfa14ba).
-        accepted_total = bac.latest_progress(scan_id).get('accepted_pack_total')
+        accepted_total = (findings if findings.accepted_scope(scan_id) else bac).latest_progress(scan_id).get('accepted_pack_total')
         if accepted_total is not None:
             value['accepted_pack_total'] = accepted_total
         return value
@@ -611,50 +641,93 @@ def _acknowledged_intake(scan_id):
 
 @app.post("/scan/v1/scan-status")
 def scan_status(body: StatusRequest):
-    # POST so the bearer-style token never lands in access-log URLs.
-    value = _status(body.status_token)
-    progress = _engine_progress(value["scan_id"])
-    if progress:
-        value.update(progress)
-        value["status"] = progress.get("state", value["status"])
-    value["lifecycle"] = _merge_lifecycle(bac.public_lifecycle(value["scan_id"]),
-                                          value["scan_id"], value["status"])
-    scan_id = value.pop('scan_id')
-    # Public reference is a stable, non-authorizing digest of the persisted reservation.
-    # Neither the internal case identity nor the bearer status token is exposed.
-    value['request_reference'] = 'BB-' + hashlib.sha256(('starter-public:' + scan_id).encode()).hexdigest()[:20]
-    accepted = _acknowledged_intake(scan_id)
-    try:
-        scope = json.loads(json.loads(accepted[0])['description']).get('scope_ref') if accepted else None
-    except (KeyError, TypeError, ValueError):
-        scope = None
-    value['accepted_scope_version'] = scope if scope in STARTER_PACK_IDS else None
-    value['last_confirmed_progress_at'] = bac.confirmed_progress_at(scan_id)
-    with queue.lock:
-        queued = scan_id in queue.pending
-    value['queue_acknowledged'] = bool(queued and accepted and value['status'] == 'queued')
-    value['cancel_available'] = value['queue_acknowledged']
-    return value
+    if _bac_mode() == "invalid":
+        raise HTTPException(503, "BAC configuration is incomplete or invalid")
+    if _bac_mode() == "configured" or not findings.accepted_scope(_status(body.status_token)["scan_id"]):
+        # POST so the bearer-style token never lands in access-log URLs.
+        value = _status(body.status_token)
+        progress = _engine_progress(value["scan_id"])
+        if progress:
+            value.update(progress)
+            value["status"] = progress.get("state", value["status"])
+        value["lifecycle"] = _merge_lifecycle(bac.public_lifecycle(value["scan_id"]),
+                                              value["scan_id"], value["status"])
+        scan_id = value.pop('scan_id')
+        # Public reference is a stable, non-authorizing digest of the persisted reservation.
+        # Neither the internal case identity nor the bearer status token is exposed.
+        value['request_reference'] = 'BB-' + hashlib.sha256(('starter-public:' + scan_id).encode()).hexdigest()[:20]
+        accepted = _acknowledged_intake(scan_id)
+        try:
+            scope = json.loads(json.loads(accepted[0])['description']).get('scope_ref') if accepted else None
+        except (KeyError, TypeError, ValueError):
+            scope = None
+        value['accepted_scope_version'] = scope if scope in STARTER_PACK_IDS else None
+        value['last_confirmed_progress_at'] = bac.confirmed_progress_at(scan_id)
+        with queue.lock:
+            queued = scan_id in queue.pending
+        value['queue_acknowledged'] = bool(queued and accepted and value['status'] == 'queued')
+        value['cancel_available'] = value['queue_acknowledged']
+        return value
+    else:
+        # POST so the bearer-style token never lands in access-log URLs.
+        value = _status(body.status_token)
+        progress = _engine_progress(value["scan_id"])
+        if progress:
+            value.update(progress)
+            value["status"] = progress.get("state", value["status"])
+        value["lifecycle"] = {"intake_status": "accepted",
+                              "report_status": "awaiting_findings_handoff",
+                              "delivery_status": "not_ready", "updated_at": None, "version": "starter_lifecycle@1"}
+        scan_id = value.pop('scan_id')
+        # Public reference is a stable, non-authorizing digest of the persisted reservation.
+        # Neither the internal case identity nor the bearer status token is exposed.
+        value['request_reference'] = 'BB-' + hashlib.sha256(('starter-public:' + scan_id).encode()).hexdigest()[:20]
+        scope = findings.accepted_scope(scan_id)
+        value['accepted_scope_version'] = scope if scope in STARTER_PACK_IDS else None
+        value['last_confirmed_progress_at'] = findings.confirmed_progress_at(scan_id)
+        with queue.lock:
+            queued = scan_id in queue.pending
+        value['queue_acknowledged'] = bool(queued and scope and value['status'] == 'queued')
+        value['cancel_available'] = value['queue_acknowledged']
+        return value
 
 
 @app.post("/scan/v1/scan-cancel")
 def scan_cancel(body: StatusRequest):
-    value = _status(body.status_token)
-    if value["status"] == "queued":
-        if not _acknowledged_intake(value["scan_id"]):
-            raise HTTPException(409, "Request confirmation is pending; cancellation is unavailable.")
-        with queue.lock:
-            if value["scan_id"] in queue.pending and queue.cancel(value["scan_id"]):
-                return {"status": "cancelled"}
-    if value["status"] == "dispatch_unknown":
-        raise HTTPException(409, "We could not confirm whether this scan started. It may still be sending "
-                                 "test messages to your agent and cannot be stopped from here. "
-                                 "Contact support@backbond.ai.")
-    if value["status"] in {"reserved", "starting", "running"}:
-        # The scanner exposes no remote cancel; do not claim one.
-        raise HTTPException(409, "This scan has already been sent to the scanner and cannot be stopped "
-                                 "from here. Contact support@backbond.ai.")
-    raise HTTPException(409, "This scan is no longer active.")
+    if _bac_mode() == "invalid":
+        raise HTTPException(503, "BAC configuration is incomplete or invalid")
+    if _bac_mode() == "configured" or not findings.accepted_scope(_status(body.status_token)["scan_id"]):
+        value = _status(body.status_token)
+        if value["status"] == "queued":
+            if not _acknowledged_intake(value["scan_id"]):
+                raise HTTPException(409, "Request confirmation is pending; cancellation is unavailable.")
+            with queue.lock:
+                if value["scan_id"] in queue.pending and queue.cancel(value["scan_id"]):
+                    return {"status": "cancelled"}
+        if value["status"] == "dispatch_unknown":
+            raise HTTPException(409, "We could not confirm whether this scan started. It may still be sending "
+                                     "test messages to your agent and cannot be stopped from here. "
+                                     "Contact support@backbond.ai.")
+        if value["status"] in {"reserved", "starting", "running"}:
+            # The scanner exposes no remote cancel; do not claim one.
+            raise HTTPException(409, "This scan has already been sent to the scanner and cannot be stopped "
+                                     "from here. Contact support@backbond.ai.")
+        raise HTTPException(409, "This scan is no longer active.")
+    else:
+        value = _status(body.status_token)
+        if value["status"] == "queued":
+            with queue.lock:
+                if value["scan_id"] in queue.pending and queue.cancel(value["scan_id"]):
+                    return {"status": "cancelled"}
+        if value["status"] == "dispatch_unknown":
+            raise HTTPException(409, "We could not confirm whether this scan started. It may still be sending "
+                                     "test messages to your agent and cannot be stopped from here. "
+                                     "Contact support@backbond.ai.")
+        if value["status"] in {"reserved", "starting", "running"}:
+            # The scanner exposes no remote cancel; do not claim one.
+            raise HTTPException(409, "This scan has already been sent to the scanner and cannot be stopped "
+                                     "from here. Contact support@backbond.ai.")
+        raise HTTPException(409, "This scan is no longer active.")
 
 
 @app.post("/scan/v1/scanner-webhook", status_code=204)
