@@ -771,3 +771,16 @@ Networking behavior for this smoke script:
 - auto-detects and prints a Paperclip host URL reachable from inside OpenClaw Docker
 - default container-side host alias is `host.docker.internal` (override with `PAPERCLIP_HOST_FROM_CONTAINER` / `PAPERCLIP_HOST_PORT`)
 - if Paperclip rejects container hostnames in authenticated/private mode, allow `host.docker.internal` via `pnpm paperclipai allowed-hostname host.docker.internal` and restart Paperclip
+
+### Dev supervisor restart idle precondition
+
+Both manual and automatic dev supervisor restarts require a successful health
+response with the supervisor enabled and an explicit integer active-run count of
+zero. Missing or malformed counts defer restart. Manual requests stay pending
+across busy or unavailable health polls; manual requests only override the
+automatic-restart preference.
+
+This snapshot check does not lock dispatch between the health response and
+restart. It is not a session-preserving drain mechanism. Native processes without
+a dev supervisor cannot use this control. Do not use plain PM2 restart or SIGTERM
+as proof that active agent sessions have drained.

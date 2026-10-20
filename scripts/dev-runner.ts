@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --import tsx
 import { spawn } from "node:child_process";
+import { restartIsIdle } from "./dev-runner-restart-guard.mjs";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -587,9 +588,13 @@ async function startServerChild() {
   await markChildAsCurrent();
 }
 
+let pendingManualRestart = false;
+
 async function maybeAutoRestartChild() {
   if (mode !== "dev" || restartInFlight || !child) return;
-  const manualRestartRequested = consumeDevServerRestartRequest();
+  // Keep a consumed request pending across busy or unavailable health polls.
+  pendingManualRestart = consumeDevServerRestartRequest() || pendingManualRestart;
+  const manualRestartRequested = pendingManualRestart;
   if (!manualRestartRequested && dirtyPaths.size === 0 && pendingMigrations.length === 0) return;
 
   restartInFlight = true;
@@ -610,7 +615,9 @@ async function maybeAutoRestartChild() {
     restartInFlight = false;
     return;
   }
-  if (!manualRestartRequested && (devServer.activeRunCount ?? 0) > 0) {
+  // Manual requests may override automation preference, never active execution.
+  // Missing/invalid counts are unknown, not evidence of idle.
+  if (!restartIsIdle(devServer)) {
     restartInFlight = false;
     return;
   }
@@ -621,6 +628,7 @@ async function maybeAutoRestartChild() {
       interactive: false,
       exitOnDecline: false,
     });
+    pendingManualRestart = false;
     await stopChildForRestart();
     await startServerChild();
   } catch (error) {
