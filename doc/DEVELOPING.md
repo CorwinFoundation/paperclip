@@ -833,8 +833,12 @@ replacement relies on the new process's initially open admission. The adapter
 does not cancel sessions, modify queues, configure PM2 or bypass authorization.
 
 This is source-level supervisor integration infrastructure, not an installed live
-supervisor or a first-load solution. The current dev runner still uses its health
-snapshot path. An uninstrumented server returns an error and the adapter refuses
+supervisor or a first-load solution. The dev runner now requires an explicit instance-admin authorization in
+`PAPERCLIP_INSTANCE_ADMIN_AUTHORIZATION` to enable automatic replacement. It
+uses the health snapshot only as a preliminary check, then drains and checks
+authoritative status before migrations or child termination. Missing authorization,
+unknown activity, or failed drain defers replacement and keeps the runner alive.
+The authorization is removed from build/server child environments. An uninstrumented server returns an error and the adapter refuses
 to replace it. Concurrent operators can still resume after the final status
 observation; exclusive supervisor ownership is required. A restart failure after
 process termination cannot restore the old process through the HTTP resume call.

@@ -8,6 +8,8 @@ import { stdin, stdout } from "node:process";
 import { fileURLToPath } from "node:url";
 import { createCapturedOutputBuffer, parseJsonResponseWithLimit } from "./dev-runner-output.mjs";
 import { shouldTrackDevServerPath } from "./dev-runner-paths.mjs";
+import { dispatchRequester, replaceAfterDrain } from "./dispatch-supervisor.mjs";
+import { restartIsIdle } from "./dev-runner-restart-guard.mjs";
 
 const mode = process.argv[2] === "watch" ? "watch" : "dev";
 const cliArgs = process.argv.slice(3);
@@ -82,6 +84,10 @@ const env = {
   ...process.env,
   PAPERCLIP_UI_DEV_MIDDLEWARE: "true",
 };
+
+// Keep the supervisor operator credential out of server and build children.
+const dispatchAuthorization = env.PAPERCLIP_INSTANCE_ADMIN_AUTHORIZATION;
+delete env.PAPERCLIP_INSTANCE_ADMIN_AUTHORIZATION;
 
 if (mode === "dev") {
   env.PAPERCLIP_DEV_SERVER_STATUS_FILE = devServerStatusFilePath;
@@ -256,7 +262,7 @@ async function runPnpm(args, options = {}) {
   return await new Promise((resolve, reject) => {
     const spawned = spawn(pnpmBin, args, {
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
-      env: options.env ?? process.env,
+      env: options.env ?? env,
       cwd: options.cwd,
       shell: process.platform === "win32",
     });
@@ -515,23 +521,31 @@ async function maybeAutoRestartChild() {
     restartInFlight = false;
     return;
   }
-  if ((devServer.activeRunCount ?? 0) > 0) {
+  if (!restartIsIdle(devServer) || !dispatchAuthorization) {
     restartInFlight = false;
     return;
   }
 
+  let replacementStarted = false;
   try {
-    await maybePreflightMigrations({
-      autoApply: true,
-      interactive: false,
-      exitOnDecline: false,
-    });
-    await stopChildForRestart();
-    await startServerChild();
+    const serverPort = env.PORT ?? "3100";
+    const request = dispatchRequester(`http://127.0.0.1:${serverPort}`, dispatchAuthorization);
+    await replaceAfterDrain({ request, replace: async () => {
+      await maybePreflightMigrations({
+        autoApply: true,
+        interactive: false,
+        exitOnDecline: false,
+      });
+      replacementStarted = true;
+      await stopChildForRestart();
+      await startServerChild();
+    } });
   } catch (error) {
     const err = toError(error, "Auto-restart failed");
     process.stderr.write(`${err.stack ?? err.message}\n`);
-    process.exit(1);
+    // Drain denial must leave the owning runner and its current child alive.
+    // Once replacement begins, retain the existing fatal-error behavior.
+    if (replacementStarted) process.exit(1);
   } finally {
     restartInFlight = false;
   }
