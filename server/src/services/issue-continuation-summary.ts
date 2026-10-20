@@ -153,7 +153,14 @@ export function buildContinuationSummaryMarkdown(input: {
   const objective = extractMarkdownSection(issue.description, "Objective") ?? issue.description?.trim() ?? "No objective captured.";
   const acceptanceCriteria = extractMarkdownSection(issue.description, "Acceptance Criteria") ?? "No explicit acceptance criteria captured.";
   const mode = inferMode(issue, run);
-  const nextAction = inferNextAction(issue, run, extractPreviousNextAction(input.previousSummaryBody));
+  const previousNextAction = extractPreviousNextAction(input.previousSummaryBody);
+  // The default review wait describes the prior issue state, not a durable hold.
+  // Carrying it into resumed implementation cancels otherwise runnable continuations.
+  // Preserve explicit/custom waits and all current in_review behavior.
+  const staleGeneratedReviewWait =
+    /^- Status: in_review\s*$/m.test(input.previousSummaryBody ?? "") &&
+    previousNextAction === "Wait for reviewer feedback or approval before continuing executor work.";
+  const nextAction = inferNextAction(issue, run, staleGeneratedReviewWait ? null : previousNextAction);
 
   const body = [
     "# Continuation Summary",

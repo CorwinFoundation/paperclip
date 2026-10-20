@@ -113,3 +113,39 @@ describe("issue continuation summaries", () => {
     expect(continuationSummaryParksExecutor(body)).toBe(false);
   });
 });
+
+
+describe("continuation summary review-to-work transitions", () => {
+  const issue = { id: "issue-resume", identifier: "BEAAA-42719", title: "Finish own-seat tool binding", description: null, status: "in_progress", priority: "high" };
+  const run = { id: "run-resume", status: "succeeded", error: null, resultJson: { summary: "Committed launcher; next implement the authorized MCP binding. No approval wait." } };
+  const agent = { id: "platform", name: "Platform", adapterType: "codex_local" };
+  const build = (status: string, previousSummaryBody?: string) => buildContinuationSummaryMarkdown({ issue: { ...issue, status }, run, agent, previousSummaryBody });
+
+  it.each(["in_progress", "todo"])("does not inherit an automatic review wait after work is returned to %s", (status) => {
+    const review = build("in_review");
+    expect(continuationSummaryParksExecutor(review)).toBe(true);
+    const resumed = build(status, review);
+    expect(continuationSummaryParksExecutor(resumed)).toBe(false);
+    expect(extractContinuationSummaryNextAction(resumed)).toContain("Resume implementation");
+    expect(continuationSummaryParksExecutor(build("in_progress", resumed))).toBe(false);
+  });
+
+  it("preserves a real current review wait", () => {
+    expect(continuationSummaryParksExecutor(build("in_review", build("in_review")))).toBe(true);
+  });
+
+  it("preserves an explicit runnable implementation action across return from review", () => {
+    const prior = "# Continuation Summary\n- Status: in_review\n\n## Next Action\n\n- Implement the Reviewer MCP binding and run its permission tests.";
+    expect(extractContinuationSummaryNextAction(build("in_progress", prior))).toBe("Implement the Reviewer MCP binding and run its permission tests.");
+  });
+
+  it("does not erase an explicit review hold on an in-progress issue", () => {
+    const prior = "# Continuation Summary\n- Status: in_progress\n\n## Next Action\n\n- Wait for operator approval of the exact deployment artifact.";
+    expect(continuationSummaryParksExecutor(build("in_progress", prior))).toBe(true);
+  });
+
+  it("preserves a custom hold rather than treating it as the generated review default", () => {
+    const prior = "# Continuation Summary\n- Status: in_review\n\n## Next Action\n\n- Wait for human approval of the deployment; implementation is complete.";
+    expect(continuationSummaryParksExecutor(build("in_progress", prior))).toBe(true);
+  });
+});
