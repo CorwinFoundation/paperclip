@@ -439,6 +439,42 @@ def _probe_cap_for_request(scan_request: ScanRequest) -> int:
 # ---------------------------------------------------------------------------
 
 
+def endpoint_requires_no_credential(endpoint_config: Mapping[str, Any] | None) -> bool:
+    """True only for an endpoint that explicitly declares ``auth: {type: none}``."""
+    auth = endpoint_config.get("auth") if isinstance(endpoint_config, Mapping) else None
+    return isinstance(auth, Mapping) and auth.get("type") == "none"
+
+
+def register_scan_credential(
+    vault: Any, credential_ref: str, secret: str,
+    endpoint_config: Mapping[str, Any] | None,
+) -> None:
+    """API-edge registration. An ``auth: none`` endpoint has no secret to hold.
+
+    BEAAA-42388: the scan API accepts ``auth: none`` with an empty secret, so
+    registering ``""`` (which the vault rejects) failed every credential-free
+    scan. Any other endpoint still fails closed on an empty secret.
+    """
+    if not secret and endpoint_requires_no_credential(endpoint_config):
+        return
+    vault.register(credential_ref, secret)
+
+
+def resolve_scan_secret(
+    vault: Any, credential_ref: str, endpoint_config: Mapping[str, Any] | None,
+) -> str:
+    """Prober-side read; an unregistered ref is a wiring bug unless ``auth: none``."""
+    secret = vault.resolve(credential_ref)
+    if secret is not None:
+        return secret
+    if endpoint_requires_no_credential(endpoint_config):
+        return ""
+    raise CredentialResolveError(
+        "credential_ref not registered in vault; the API edge must "
+        "call vault.register before invoking the orchestrator"
+    )
+
+
 def run_scan(
     scan_request: ScanRequest,
     vault: CredentialVault,
@@ -497,12 +533,7 @@ def run_scan(
         # spawn; ``resolve`` reads from the per-process bucket. ``None``
         # means a wiring bug (forget ran before resolve, or register never
         # ran) — surfaced as a typed error.
-        secret = vault.resolve(cred_ref)
-        if secret is None:
-            raise CredentialResolveError(
-                "credential_ref not registered in vault; the API edge must "
-                "call vault.register before invoking the orchestrator"
-            )
+        secret = resolve_scan_secret(vault, cred_ref, scan_request.endpoint_config)
 
         # --- 3. Runner construction. ---
         # The orchestrator does NOT pick a default ModelRunner adapter
@@ -903,6 +934,9 @@ def _aggregate_band(
 
 
 __all__ = [
+    "endpoint_requires_no_credential",
+    "register_scan_credential",
+    "resolve_scan_secret",
     "ALLOWED_K_REPLICATES",
     "CorpusSnapshotMismatchError",
     "CredentialResolveError",

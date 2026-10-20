@@ -88,6 +88,7 @@ from scanners.live_probe_orchestrator import (
     ProbeRunFn,
     ScanRequest,
     ScanResult,
+    register_scan_credential,
     run_scan,
 )
 from scanners.live_probe_workers import (
@@ -465,7 +466,9 @@ def make_production_scan_runtime(
             # Prober subprocess is spawned. Fork-inherited memory carries
             # the vault into the child via copy-on-write; the secret is
             # never re-serialized across the boundary.
-            vault.register(scan_request.credential_ref, secret)
+            register_scan_credential(
+                vault, scan_request.credential_ref, secret, scan_request.endpoint_config,
+            )
 
             # AC#1 step (b) — WorkerChannel + fork context.
             channel = WorkerChannel(max_queue=256)
