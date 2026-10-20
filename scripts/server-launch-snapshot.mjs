@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // Capture an explicit launch input set. Runtime data and environment secrets do
 // not belong in this directory. Callers must include the full dependency closure.
-export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs }) {
+export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs, captureDependencyLinks = false }) {
   const root = path.resolve(sourceRoot);
   const parent = path.resolve(snapshotParent);
   if (parent === root || parent.startsWith(root + path.sep)) {
@@ -14,11 +14,36 @@ export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const directory = await mkdtemp(path.join(parent, 'launch-'));
   const files = [];
+  const links = [];
+  const visited = new Set();
   const directories = new Set([directory]);
   try {
     async function capture(relativePath) {
       const absolute = path.resolve(root, relativePath);
       if (absolute === root || !absolute.startsWith(root + path.sep)) throw Error('Invalid launch input path');
+      if (visited.has(absolute)) return;
+      visited.add(absolute);
+      let parentComponent = root;
+      for (const part of path.relative(root, path.dirname(absolute)).split(path.sep).filter(Boolean)) {
+        parentComponent = path.join(parentComponent, part);
+        if ((await lstat(parentComponent)).isSymbolicLink()) throw Error('Symlinked launch input parent');
+      }
+      const stats = await lstat(absolute);
+      if (stats.isSymbolicLink() && captureDependencyLinks) {
+        const target = await realpath(absolute);
+        if (!target.startsWith(root + path.sep)) throw Error('Dependency link escapes source root');
+        const relative = path.relative(root, absolute);
+        const targetRelative = path.relative(root, target);
+        const destination = path.join(directory, relative);
+        await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+        let ancestor = path.dirname(destination);
+        while (ancestor !== directory) { directories.add(ancestor); ancestor = path.dirname(ancestor); }
+        const linkTarget = path.relative(path.dirname(destination), path.join(directory, targetRelative));
+        await symlink(linkTarget, destination);
+        links.push(Object.freeze({ path: relative, target: linkTarget }));
+        await capture(targetRelative);
+        return;
+      }
       // Check each component: a parent symlink could otherwise escape the root.
       const relative = path.relative(root, absolute);
       let component = root;
@@ -26,7 +51,6 @@ export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs
         component = path.join(component, part);
         if ((await lstat(component)).isSymbolicLink()) throw Error('Symlinks are not launch snapshot inputs');
       }
-      const stats = await lstat(absolute);
       const destination = path.join(directory, relative);
       if (stats.isDirectory()) {
         await mkdir(destination, { recursive: true, mode: 0o700 });
@@ -46,7 +70,7 @@ export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs
     files.sort((a, b) => a.path.localeCompare(b.path));
     if (!files.length) throw Error('Launch snapshot contains no files');
     for (const dir of [...directories].sort((a, b) => b.length - a.length)) await chmod(dir, 0o500);
-    return Object.freeze({ directory, files: Object.freeze(files) });
+    return Object.freeze({ directory, directories: Object.freeze([...directories].map(dir => path.relative(directory, dir))), files: Object.freeze(files), links: Object.freeze(links) });
   } catch (error) {
     for (const dir of directories) await chmod(dir, 0o700).catch(() => {});
     await rm(directory, { recursive: true, force: true });
@@ -55,7 +79,20 @@ export async function captureLaunchSnapshot({ sourceRoot, snapshotParent, inputs
 }
 
 export async function verifyLaunchSnapshot(snapshot) {
+  for (const directory of snapshot.directories ?? ['']) {
+    if (!(await lstat(path.join(snapshot.directory, directory))).isDirectory()) {
+      throw Error(`Launch snapshot directory replaced: ${directory}`);
+    }
+  }
+  for (const link of snapshot.links ?? []) {
+    if (await readlink(path.join(snapshot.directory, link.path)) !== link.target) {
+      throw Error(`Launch snapshot link changed: ${link.path}`);
+    }
+  }
   for (const file of snapshot.files) {
+    if (!(await lstat(path.join(snapshot.directory, file.path))).isFile()) {
+      throw Error(`Launch snapshot file replaced: ${file.path}`);
+    }
     const bytes = await readFile(path.join(snapshot.directory, file.path));
     if (createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
       throw Error(`Launch snapshot changed: ${file.path}`);
