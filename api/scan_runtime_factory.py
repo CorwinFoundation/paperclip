@@ -58,6 +58,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
+import time
 import os
 import tarfile
 import tempfile
@@ -128,6 +130,8 @@ ARE_FIRED_PROBE_AUDIT_SPINE_DEFAULT_PATH: str = (
 # Wall-clock guard on the parent-side join. The orchestrator enforces its
 # own MAX_WALL_CLOCK_SECONDS cap on the Prober; we add a small slack so the
 # parent unblocks even if the cap-breach path is slow to flush.
+LOGGER = logging.getLogger(__name__)
+
 _PARENT_JOIN_SLACK_SECONDS: int = 30
 
 # Scorer-side envelope projection should complete immediately after the
@@ -379,6 +383,13 @@ def _prober_target(
     Error paths push ``("err", type_name, message)`` so the parent can
     raise a typed error rather than time out waiting for a result.
     """
+    # Persist progress in the API parent. A forked child must never call a
+    # closure holding the parent journal connection or its threading mutex.
+    if callable(getattr(scan_request, "case_progress_callback", None)):
+        object.__setattr__(
+            scan_request, "case_progress_callback",
+            lambda **event: result_queue.put(("progress", event)),
+        )
     try:
         with ScopedEgressAllowlist(agent_endpoint_url):
             result = run_scan(
@@ -555,7 +566,7 @@ def make_production_scan_runtime(
             # the vault is inherited via copy-on-write rather than
             # pickled (vault.__reduce__ refuses to carry secrets across
             # pickle, so spawn-mode would silently detach the vault).
-            result_queue: Any = ctx.Queue(maxsize=1)
+            result_queue: Any = ctx.Queue(maxsize=256)
             # The orchestrator carries the full URL on ``scan_request
             # .agent_endpoint``; pass that through to the egress scope so
             # scheme/port and DNS-rebind guards bind to the declared endpoint.
@@ -586,10 +597,22 @@ def make_production_scan_runtime(
 
                 # AC#1 step (e) — drain result Queue + join both subprocesses.
                 try:
-                    outcome = result_queue.get(
-                        timeout=_orchestrator_join_timeout(join_slack)
-                    )
+                    deadline = time.monotonic() + _orchestrator_join_timeout(join_slack)
+                    while True:
+                        outcome = result_queue.get(timeout=max(0, deadline - time.monotonic()))
+                        if outcome[0] != "progress":
+                            break
+                        callback = getattr(scan_request, "case_progress_callback", None)
+                        if callable(callback):
+                            callback(**outcome[1])
                 except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
+                    LOGGER.warning(
+                        "scan_orchestrator_failed scan_id=%s phase=prober_result "
+                        "prober_alive=%s prober_exitcode=%s scorer_alive=%s "
+                        "scorer_exitcode=%s reason=%s",
+                        scan_request.scan_id, prober_proc.is_alive(), prober_proc.exitcode,
+                        scorer_proc.is_alive(), scorer_proc.exitcode, type(exc).__name__,
+                    )
                     _terminate(prober_proc, scorer_proc)
                     raise OrchestratorError(
                         f"prober result queue drain failed: {type(exc).__name__}: {exc}"
