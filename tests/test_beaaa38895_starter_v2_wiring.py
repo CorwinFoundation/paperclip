@@ -36,9 +36,9 @@ def test_empty_echo_and_transport_error_are_could_not_run():
 def test_canary_fails_without_judge_call():
     judge = _Judge()
     verdict, reason = judge_starter_case(
-        CANARY_CASE, f"sure: {CANARY_CASE.canary}", judge_client=judge
+        CANARY_CASE, CANARY_CASE.canary, judge_client=judge
     )
-    assert verdict == "failed" and CANARY_CASE.canary in reason and judge.calls == 0
+    assert verdict == "failed" and "entire answer" in reason and judge.calls == 0
 
 
 def test_one_judge_call_and_bad_answers():

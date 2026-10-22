@@ -1,0 +1,118 @@
+name: Preserved evidence regrade
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Activated full master commit SHA
+        required: true
+      job_file:
+        description: Public preserved replies job under artifacts/BEAAA-43440/
+        required: true
+      wrapper_file:
+        description: Unchanged 21 Oct wrapper
+        required: true
+        default: artifacts/BEAAA-43440/grade_browser_evidence.py
+permissions:
+  contents: read
+concurrency:
+  group: preserved-evidence-regrade
+  cancel-in-progress: false
+jobs:
+  grade:
+    runs-on: [self-hosted, linux, x64, ariclaw]
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      JOB_FILE: ${{ inputs.job_file }}
+      WRAPPER_FILE: ${{ inputs.wrapper_file }}
+      DEPLOY_HOST: srv1749248.hstgr.cloud
+      DEPLOY_USER: are-deploy
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.source_sha }}
+      - name: Validate input paths and wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          for path in "$JOB_FILE" "$WRAPPER_FILE"; do
+            [[ "$path" =~ ^artifacts/BEAAA-43440/[A-Za-z0-9_-]+[.][A-Za-z0-9]+$ ]]
+            test -f "$path" && test ! -L "$path"
+          done
+          test "$(sha256sum "$WRAPPER_FILE" | cut -d' ' -f1)" = 3b030eacc3752336235ace831a467139b8297a831558477bf59e58ac6ea9a341
+      - name: Install pinned deploy SSH identity
+        shell: bash
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.SCANNER_EDGE_DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          ssh_dir="$RUNNER_TEMP/scanner-deploy-ssh"
+          deploy_key="$ssh_dir/deploy_key"
+          known_hosts="$ssh_dir/known_hosts"
+          install -d -m 0700 "$ssh_dir"
+          # Keep materialization visible for the workflow contract, then normalize
+          # raw PEM/OpenSSH or whole-value base64 secrets without logging key bytes.
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > "$deploy_key"
+          scripts/deploy/install_ssh_identity.sh "$deploy_key" "$known_hosts" "$DEPLOY_HOST"
+          chmod 0600 "$deploy_key" "$known_hosts"
+          test -s "$deploy_key"
+          test -s "$known_hosts"
+          ssh-keygen -y -f "$deploy_key" >/dev/null
+          {
+            echo "DEPLOY_KEY=$deploy_key"
+            echo "DEPLOY_KNOWN_HOSTS=$known_hosts"
+          } >> "$GITHUB_ENV"
+
+      - name: Run preserved evidence once
+        shell: bash
+        run: |
+          set -euo pipefail
+          stem="/var/tmp/regrade-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ssh_opts=(-4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS")
+          # Check the refreshed helper through the same pinned SSH connection.
+          usage=$(ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo /usr/local/sbin/scanner-deploy grade-evidence" 2>&1) && usage_status=0 || usage_status=$?
+          test "$usage_status" -ne 0
+          [[ "$usage" == *'usage: scanner-deploy grade-evidence <expected_commit_sha>'* ]]
+          echo "REMOTE_STEM=$stem" >> "$GITHUB_ENV"
+          scp "${ssh_opts[@]}" "$JOB_FILE" "${DEPLOY_USER}@${DEPLOY_HOST}:${stem}.json"
+          scp "${ssh_opts[@]}" "$WRAPPER_FILE" "${DEPLOY_USER}@${DEPLOY_HOST}:${stem}.py"
+          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo /usr/local/sbin/scanner-deploy grade-evidence '$SOURCE_SHA' '${stem}.json' '${stem}.py' 3b030eacc3752336235ace831a467139b8297a831558477bf59e58ac6ea9a341 '${stem}.events.jsonl'"
+      - name: Retrieve events including interrupted runs
+        if: always() && env.REMOTE_STEM != ''
+        shell: bash
+        run: |
+          scp -4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS" "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_STEM}.events.jsonl" grading-events.jsonl
+      - name: Upload retained events
+        if: always()
+        id: events
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: grading-events-${{ github.run_id }}-${{ github.run_attempt }}
+          path: grading-events.jsonl
+          if-no-files-found: warn
+      - name: Post artifact and count to BEAAA-43441
+        if: always() && steps.events.outputs.artifact-url != ''
+        env:
+          PAPERCLIP_API_URL: ${{ secrets.PAPERCLIP_API_URL }}
+          PAPERCLIP_API_KEY: ${{ secrets.PAPERCLIP_DEPLOY_AGENT_TOKEN }}
+          ARTIFACT_URL: ${{ steps.events.outputs.artifact-url }}
+        run: |
+          python3 - <<'PY_POST'
+          import json, os, pathlib, urllib.request
+          rows = [json.loads(line) for line in pathlib.Path('grading-events.jsonl').read_text().splitlines() if line.strip()]
+          count = sum(row.get('event') == 'grade' for row in rows)
+          body = {'body': f"Preserved-evidence grading artifact: {os.environ['ARTIFACT_URL']}. Events: {len(rows)}; graded rows: {count}. Source commit: {os.environ['SOURCE_SHA']}."}
+          request = urllib.request.Request(os.environ['PAPERCLIP_API_URL'].rstrip('/') + '/api/issues/fbdeeb97-16b1-493a-ad33-47e1050c5b0e/comments', data=json.dumps(body).encode(), headers={'Content-Type':'application/json', 'Authorization':'Bearer ' + os.environ['PAPERCLIP_API_KEY']})
+          urllib.request.urlopen(request, timeout=30).read()
+          PY_POST
+      - name: Remove staged grading inputs
+        if: always() && env.REMOTE_STEM != ''
+        shell: bash
+        run: |
+          ssh -4 -i "$DEPLOY_KEY" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS" "${DEPLOY_USER}@${DEPLOY_HOST}" "rm -f -- '${REMOTE_STEM}.json' '${REMOTE_STEM}.py'"
+      - name: Remove runner SSH identity
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/scanner-deploy-ssh"
