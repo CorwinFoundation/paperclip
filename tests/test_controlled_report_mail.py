@@ -64,8 +64,10 @@ class DeliveryTests(unittest.TestCase):
             mail.Outbox(self.db).send(self.path, self.transport, config)
     def test_cli_refuses_alternate_paths_before_transport(self):
         with patch.object(mail, 'resend_transport') as transport:
-            with self.assertRaises(ValueError):
-                mail.main(['--outbox', str(self.root / 'second.sqlite'), 'status'])
+            for alternate in (str(self.root / 'second.sqlite'),
+                              '/var/lib/backbond/controlled-report-mail.sqlite'):
+                with self.assertRaises(ValueError):
+                    mail.main(['--outbox', alternate, 'status'])
             with self.assertRaises(ValueError):
                 mail.main(['send', '--config', str(self.config), '--acceptance', str(self.path)])
             transport.assert_not_called()

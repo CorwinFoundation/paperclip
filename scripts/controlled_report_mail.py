@@ -16,7 +16,7 @@ import urllib.error
 RECIPIENT = 'info@backbond.ai'
 SENDER = 'BackBond <info@backbond.ai>'
 DEFAULT_CONFIG = Path('/etc/backbond/controlled-report-mail.json')
-DEFAULT_OUTBOX = Path('/var/lib/backbond/controlled-report-mail.sqlite')
+DEFAULT_OUTBOX = Path('/var/lib/backbond-scan-intake/controlled-report-mail/mail.sqlite')
 
 
 def installed_path(value, expected):
