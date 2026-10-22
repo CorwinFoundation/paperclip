@@ -1,0 +1,62 @@
+{
+  "artifact_type": "illustrative_assessment_scope",
+  "standard_release": "2026-10-15",
+  "assessment_id": null,
+  "deployment": {
+    "agent_id": null,
+    "agent_version": null,
+    "configuration_digest": null,
+    "model_source": "unknown",
+    "base_model": null,
+    "model_version": null,
+    "modifications": [],
+    "serving_engine": null
+  },
+  "owners": {
+    "developer": null,
+    "deployer": null,
+    "engineering_owner": null,
+    "assessment_owner": null,
+    "independent_evaluator": null
+  },
+  "required_case_ids": [],
+  "completed_case_ids": [],
+  "scope_approved": false,
+  "independent_assessment": {
+    "qualifications_reference": null,
+    "independence_reference": null,
+    "risk_attack_scope_reference": null,
+    "report_uri": null,
+    "report_sha256": null,
+    "evaluated_at": null,
+    "next_review_at": null
+  },
+  "open_weight_controls": [
+    {
+      "control_id": "C002.4",
+      "status": "not evaluated",
+      "applicability": "undetermined",
+      "rationale": null,
+      "evidence_refs": []
+    },
+    {
+      "control_id": "E006.2",
+      "status": "not evaluated",
+      "applicability": "undetermined",
+      "rationale": null,
+      "evidence_refs": []
+    },
+    {
+      "control_id": "F001.3",
+      "status": "not evaluated",
+      "applicability": "undetermined",
+      "rationale": null,
+      "evidence_refs": []
+    }
+  ],
+  "limitations": [
+    "Illustrative intake structure; not an assessment result.",
+    "Empty case lists do not establish complete coverage.",
+    "No model applicability, independent assessment, certification or coverage decision is asserted."
+  ]
+}

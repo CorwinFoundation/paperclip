@@ -4,7 +4,7 @@ owner: cmo
 persona_audience: internal
 phase: 1
 canonical_terms_only: true
-focus_claim: "This watchlist protects BackBond's vendor-embedded trust-layer position by defining evidence thresholds for competitive action while preventing isolated market signals from changing the locked Focus."
+focus_claim: "This watchlist helps BackBond prepare for AIUC-1 interoperation while preserving its position as the rating-and-insurance layer for AI agents."
 contracts_referenced: []
 ticket_refs: ["BEAAA-18312", "BEAAA-18363", "BEAAA-18366", "BEAAA-28318", "BEAAA-37336"]
 proof_points_cited:
@@ -18,7 +18,7 @@ proof_points_cited:
   - "AIUC-1 lists Sensiba and A-LIGN as provisionally accredited auditors from 2026-08-01"
   - "MSCI used AIUC-1 testing and reporting for a high-risk SecOps agent and as input to its 2026 SOX audit"
   - "Sierra achieved AIUC-1 certification for its conversational AI system"
-version: 0.5
+version: 0.6
 prior_version: "BackBond_Ecosystem_Watchlist.md"
 self_audit_passed: true
 escalations_noted:
@@ -33,7 +33,7 @@ escalations_noted:
 **Status:** Internal operating ledger  
 **Owner:** CMO  
 **Cadence:** Monthly, first calendar day at 09:00 America/New_York, beginning 2026-08-01  
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-22
 **Issue authority:** BEAAA-18312  
 
 ## Purpose
@@ -47,6 +47,7 @@ Detect changes that affect BackBond's category position without reacting to isol
 3. Evaluate the trigger table. One tooling vendor alone does not trigger a strategy change.
 4. Record one disposition: `observe`, `prepare interoperation`, or `escalate for Founder decision`.
 5. Link supporting evidence and the resulting Paperclip issue in the entry. External use of any competitor or carrier name requires the existing sign-off path.
+6. For each January 15, April 15, July 15 and October 15 standard release, retain a technical delta under [the AIUC-1 evidence operating procedure](../../docs/governance/aiuc-1-evidence-operations.md). Track source version, applicability, evidence gaps and disposition separately from ecosystem traction. The next published release date is January 15, 2027.
 
 ## Trigger table
 
@@ -130,6 +131,19 @@ Detect changes that affect BackBond's category position without reacting to isol
 | Owner and follow-up issue | CMO; [BEAAA-37336](/BEAAA/issues/BEAAA-37336). No separate follow-up issue: this execution records the monthly evidence and retains the existing interoperation posture. |
 | Strategy impact | No strategy change. MSCI's use of AIUC-1 evidence in a SOX context increases the value of audit-ready interoperability, while Sierra extends adoption in customer-facing agents. Continue preparing Scanner evidence and continuity signals for AIUC-1 readiness and audit workflows. Keep certification distinct from BackBond's company promise, the protection path TBD, and the `1,180+` figure frozen. |
 | Sources | [AIUC-1 MSCI case study](https://www.aiuc-1.com/research/how-msci-secures-its-highest-risk-ai-agents-with-aiuc-1) (published 2026-09-24; checked 2026-10-01); [AIUC-1 Sierra certification announcement](https://www.aiuc-1.com/research/sierra-achieves-aiuc-1-certification) (published 2026-09-17; checked 2026-10-01); [AIUC company update](https://aiuc.com/updates/series-a-announcement) (published 2026-09-15; checked 2026-10-01); [AIUC-1 accredited-auditor directory](https://standard.aiuc-1.com/accredited-auditors) (checked 2026-10-01) |
+
+### 2026-10-22 - standards and evidence follow-up
+
+| Field | Entry |
+|---|---|
+| Scope | Targeted review of the October standard, evaluation evidence, scoping and maintenance guidance, and AIUC company announcements. This is an off-cycle technical update; it is not a complete repeat of the monthly ecosystem search. |
+| Standards response | October crosswalk landed in PR #1202 on October 21. Follow-up corrects evidence aggregation and adds disclosure-bypass evidence to E018 while retaining E016.1. Model-change, model-intake and modified-model cyber controls remain not evaluated until target-specific evidence and applicability are recorded. |
+| Competitive corrections | Describe quarterly technical retesting and annual renewal accurately. Current safety testing includes biased outputs, so claims of no AIUC fairness coverage need scoped comparison evidence. Public scenario totals vary by page and assessment scope; avoid a single universal comparison count. |
+| Company signal | AIUC reports a $40M Series A and $55M total funding and expansion toward frontier models. Its September 23 mutual-insurer article proposes a structure; that article does not establish a launched mutual or available policies. |
+| Appetite-guide and procurement triggers | Not reassessed in this scoped review. Earlier monthly findings remain dated historical observations. |
+| Disposition | `prepare interoperation`; no strategy or coverage change. BackBond remains the rating-and-insurance layer for AI agents. |
+| Evidence boundary | Scanner observations support technical evidence. Full requirement coverage, assessor independence, official certification and insurance decisions require their own evidence and authority. |
+| Sources | [October changelog](https://standard.aiuc-1.com/changelog/); [evaluation evidence](https://standard.aiuc-1.com/evidence/third-party-evals); [risk taxonomy](https://standard.aiuc-1.com/evals-taxonomy/risks); [maintenance](https://standard.aiuc-1.com/re-certification-maintaining-aiuc-1); [funding announcement](https://aiuc.com/updates/series-a-announcement); [mutual proposal](https://aiuc.com/updates/frontier-ai-mutual-insurer). Checked October 22, 2026. |
 
 ## Monthly entry template
 

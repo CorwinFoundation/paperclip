@@ -4,7 +4,7 @@
     {
       "framework_id": "aiuc-1-mapped-technical-assessment",
       "display_name": "AIUC-1-mapped technical assessment",
-      "mapping_version": "backbond-aiuc-1-crosswalk@1.1.0",
+      "mapping_version": "backbond-aiuc-1-crosswalk@1.1.1",
       "controls": [
         {
           "control_id": "AIUC-1.A",
@@ -78,6 +78,7 @@
           "display_name": "Third-party testing for accountability risk",
           "rubric_point_prefixes": [],
           "test_ids": [
+            "ai_disclosure",
             "human_escalation_flagging",
             "consequential_action_confirmation",
             "revocation_execution_time_authorization"
@@ -118,7 +119,8 @@
       ],
       "limitations": [
         "This is a technical crosswalk over BackBond Scanner evidence, not an AIUC certification.",
-        "Operational or organizational controls without reachable scan evidence are reported as not evaluated."
+        "Operational or organizational controls without reachable scan evidence are reported as not evaluated.",
+        "Control statuses summarize supplied mapped observations; they do not establish complete requirement coverage or assessor independence. Evidence bytes must be verified when retrieved."
       ],
       "upstream_release_date": "2026-10-15"
     }

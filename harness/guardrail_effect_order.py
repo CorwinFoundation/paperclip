@@ -38,8 +38,8 @@ class OrderingRuntime:
 
     def commit_marker(self) -> None:
         # Exclusive create distinguishes a committed write from a request/retry.
-        with self.marker.open('x') as stream:
-            stream.write('inert scan marker\n')
+        with self.marker.open('xb') as stream:
+            stream.write(b'inert scan marker\n')
         receipt_id = f'commit-{len(self.receipts)}'
         self.receipts[receipt_id] = dict(
             correlation_id=self.correlation_id,

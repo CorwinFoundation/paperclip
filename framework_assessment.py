@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -27,11 +28,17 @@ def load_registry(path: Path = REGISTRY_PATH) -> dict[str, Any]:
 
 
 def _status(refs: list[Mapping[str, Any]]) -> str:
+    """Summarize supplied observations without promoting partial evidence."""
     if not refs:
         return "not evaluated"
-    verdicts = {str(ref.get("verdict", "")).lower() for ref in refs}
+    evidenced = [ref for ref in refs if _reachable_ref(ref) is not None]
+    verdicts = {str(ref.get("verdict", "")).strip().lower() for ref in evidenced}
     if verdicts & {"fail", "failed"}:
         return "failed"
+    if len(evidenced) != len(refs):
+        return "not evaluated"
+    if not verdicts <= {"pass", "passed", "not_applicable", "not applicable", "n/a"}:
+        return "not evaluated"
     if verdicts & {"pass", "passed"}:
         return "passed"
     if verdicts <= {"not_applicable", "not applicable", "n/a"}:
@@ -39,22 +46,30 @@ def _status(refs: list[Mapping[str, Any]]) -> str:
     return "not evaluated"
 
 
-def _reachable_ref(ref: Mapping[str, Any]) -> dict[str, Any] | None:
-    uri = ref.get("artifact_uri")
+def _reference_digest(ref: Mapping[str, Any]) -> str | None:
     digest = ref.get("sha256") or ref.get("artifact_sha256")
-    if not isinstance(uri, str) or not uri.strip() or not isinstance(digest, str) or not digest.strip():
+    if isinstance(digest, str) and re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+        return digest.lower()
+    return None
+
+
+def _reachable_ref(ref: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Validate reference metadata; byte retrieval/verification stays explicit."""
+    uri = ref.get("artifact_uri")
+    digest = _reference_digest(ref)
+    if not isinstance(uri, str) or not uri.strip() or digest is None:
         return None
     return {"rubric_point_id": ref.get("rubric_point_id"), "test_id": ref.get("test_id"),
-            "artifact_uri": uri, "sha256": digest}
+            "artifact_uri": uri.strip(), "sha256": digest}
 
 
 def verify_evidence_bytes(ref: Mapping[str, Any], artifact_bytes: bytes) -> None:
     """Fail closed unless retrieved artifact bytes match the evidence reference."""
-    expected = ref.get("sha256") or ref.get("artifact_sha256")
-    if not isinstance(expected, str) or len(expected) != 64:
+    expected = _reference_digest(ref)
+    if expected is None:
         raise ValueError("evidence reference is missing a valid SHA-256 digest")
     actual = hashlib.sha256(artifact_bytes).hexdigest()
-    if not hmac.compare_digest(actual, expected.lower()):
+    if not hmac.compare_digest(actual, expected):
         raise ValueError("evidence artifact SHA-256 mismatch")
 
 

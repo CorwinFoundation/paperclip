@@ -10,4 +10,4 @@ rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
 runner: harness.bench.aiuc_path_b_lane_a
 case_count: 12
 
-aiuc_1_crosswalk: ["E016.1"]
+aiuc_1_crosswalk: ["E016.1", "E018"]
