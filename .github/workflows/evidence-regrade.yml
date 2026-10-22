@@ -102,6 +102,8 @@ jobs:
         run: |
           python3 - <<'PY_POST'
           import json, os, pathlib, urllib.request
+          if not os.environ.get('PAPERCLIP_API_KEY'):
+              raise SystemExit('Missing PAPERCLIP_DEPLOY_AGENT_TOKEN repository secret; configure a durable deploy-agent credential. Grading events remain in the uploaded artifact.')
           rows = [json.loads(line) for line in pathlib.Path('grading-events.jsonl').read_text().splitlines() if line.strip()]
           count = sum(row.get('event') == 'grade' for row in rows)
           body = {'body': f"Preserved-evidence grading artifact: {os.environ['ARTIFACT_URL']}. Events: {len(rows)}; graded rows: {count}. Source commit: {os.environ['SOURCE_SHA']}."}
