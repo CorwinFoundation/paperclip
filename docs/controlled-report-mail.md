@@ -64,7 +64,7 @@ No mail, scan, deployment, runtime config change or historical-report send occur
 QA43363 owns independent candidate checks and actual transport/receipt evidence
 for the new controlled report after the report passes the existing review chain.
 
-Installed CLI paths are fixed: /etc/backbond/controlled-report-mail.json and
+Installed CLI paths are fixed: /etc/backbond-scan-intake/controlled-report-mail.json and
 /var/lib/backbond-scan-intake/controlled-report-mail/mail.sqlite. Alternate --config or --outbox
 paths are rejected before opening the outbox or loading credentials. Root must provision the dedicated private parent as described below.
 The packaged config is an unarmed installation template.
@@ -96,8 +96,8 @@ mail.sqlite outbox. Use umask0077 for adapter invocations so DB/WAL/SHM files ar
 private. Preserve the containing directory's ownership/mode and existing policies.
 Do not create an alternate outbox or migrate a prior send reservation implicitly.
 
-/etc/backbond/controlled-report-mail.json remains the fixed config path; it was
-absent at attestation. Install the unarmed template root-owned, service-readable
+/etc/backbond-scan-intake/controlled-report-mail.json remains the fixed config path; it was
+absent at attestation. The existing /etc/backbond parent is root:GID982 mode0750 and must not be widened for UID987/GID980. Root must provision the dedicated /etc/backbond-scan-intake parent root:GID980 mode0750. Install the unarmed template root-owned, service-readable
 (e.g. root:GID980 mode0640), without granting new credential access. Leave its
 run/report/revision null until the new accepted report is available. The template
 has no configurable outbox path; both installed CLI paths remain pinned in source.

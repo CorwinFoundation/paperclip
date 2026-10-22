@@ -62,6 +62,10 @@ class DeliveryTests(unittest.TestCase):
         config.write_text(json.dumps(dict(recipient='other@example.com', allowed_recipients=['other@example.com'])))
         with self.assertRaises(ValueError):
             mail.Outbox(self.db).send(self.path, self.transport, config)
+    def test_installed_paths_match_service_custody(self):
+        self.assertEqual(str(mail.DEFAULT_CONFIG), '/etc/backbond-scan-intake/controlled-report-mail.json')
+        self.assertEqual(str(mail.DEFAULT_OUTBOX), '/var/lib/backbond-scan-intake/controlled-report-mail/mail.sqlite')
+
     def test_cli_refuses_alternate_paths_before_transport(self):
         with patch.object(mail, 'resend_transport') as transport:
             for alternate in (str(self.root / 'second.sqlite'),
@@ -70,6 +74,8 @@ class DeliveryTests(unittest.TestCase):
                     mail.main(['--outbox', alternate, 'status'])
             with self.assertRaises(ValueError):
                 mail.main(['send', '--config', str(self.config), '--acceptance', str(self.path)])
+            with self.assertRaises(ValueError):
+                mail.main(['send', '--config', '/etc/backbond/controlled-report-mail.json', '--acceptance', str(self.path)])
             transport.assert_not_called()
         self.assertFalse((self.root / 'second.sqlite').exists())
     def test_missing_artifacts_raise_value_error(self):
