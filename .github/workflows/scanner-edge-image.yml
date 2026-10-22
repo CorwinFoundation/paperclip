@@ -198,6 +198,15 @@ jobs:
           docker save "$local_tag" -o release-candidate/scanner-edge-image.tar
           printf '%s\n' "${{ steps.image.outputs.signed_ref }}" > release-candidate/scanner-edge-image.digest
           sha256sum release-candidate/scanner-edge-image.tar > release-candidate/scanner-edge-image.tar.sha256
+          signed_ref="${{ steps.image.outputs.signed_ref }}"
+          docker buildx imagetools inspect --raw "$signed_ref" > release-candidate/scanner-edge-registry-manifest.json
+          config_id="$(docker image inspect --format '{{.Id}}' "$local_tag")"
+          python scripts/verify_image_transport_link.py \
+            --manifest release-candidate/scanner-edge-registry-manifest.json \
+            --archive release-candidate/scanner-edge-image.tar \
+            --source "$SOURCE_SHA" --expected-source "$SOURCE_SHA" \
+            --signed-ref "$signed_ref" --expected-subject "${signed_ref##*@}" \
+            --config "$config_id" --receipt release-candidate/scanner-edge-transport-link.json
 
       - name: Install Syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0

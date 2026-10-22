@@ -170,3 +170,52 @@ def test_governed_release_evidence_upload_excludes_the_image_tars() -> None:
         if step.get("name") == "Download image built by this run"
     )
     assert deploy_download["with"]["name"] == "scanner-immutable-image-${{ github.sha }}"
+
+
+def test_transport_link_rejects_wrong_hash_config_source_subject(tmp_path):
+    import importlib.util
+    import io
+    import json
+    import tarfile
+    import pytest
+    spec = importlib.util.spec_from_file_location('transport_link', Path(__file__).resolve().parents[1] / 'scripts/verify_image_transport_link.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    config_bytes = json.dumps({'architecture': 'amd64', 'config': {'Labels': {'org.opencontainers.image.revision': 'a'*40}}}).encode()
+    config = module.sha(config_bytes)
+    manifest = json.dumps({'schemaVersion': 2, 'mediaType': 'application/vnd.oci.image.manifest.v1+json', 'config': {'digest': config}}).encode()
+    subject = module.sha(manifest)
+    archive = tmp_path / 'image.tar'
+    def write_archive(raw, config_name=None):
+        config_name = config_name or config.removeprefix("sha256:") + ".json"
+        with tarfile.open(archive, 'w') as saved:
+            for name, body in [('manifest.json', json.dumps([{'Config': config_name}]).encode()), (config_name, raw)]:
+                member = tarfile.TarInfo(name)
+                member.size = len(body)
+                saved.addfile(member, io.BytesIO(body))
+    write_archive(config_bytes)
+    args = dict(manifest=manifest, archive=archive, source='a'*40,
+                signed_ref='ghcr.io/example/image@'+subject, config=config,
+                expected_source='a'*40, expected_subject=subject)
+    result = module.verify(**args)
+    assert result['tarSHA'] == module.sha(archive.read_bytes())
+    assert result['manifestSHA'] == subject
+    for delta in ({'manifest': manifest+b' '}, {'config': 'sha256:'+'0'*64},
+                  {'source': 'b'*40}, {'source': 'b'*40, 'expected_source': 'b'*40}, {'expected_subject': 'sha256:'+'0'*64}):
+        with pytest.raises(ValueError):
+            module.verify(**(args | delta))
+    for media in ('application/vnd.oci.image.index.v1+json', 'unknown', None):
+        malformed = json.dumps({'schemaVersion': 2, 'mediaType': media, 'config': {'digest': config}}).encode()
+        digest = module.sha(malformed)
+        with pytest.raises(ValueError, match='media shape'):
+            module.verify(**(args | dict(manifest=malformed, signed_ref='ghcr.io/example/image@'+digest, expected_subject=digest)))
+    for name in ('../../etc/passwd', 'layer.tar', '/config.json'):
+        write_archive(config_bytes, name)
+        with pytest.raises(ValueError, match='not allowlisted'):
+            module.verify(**args)
+    write_archive(b'wrong config')
+    with pytest.raises(ValueError, match='tar config'):
+        module.verify(**args)
+    workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/scanner-edge-image.yml').read_text()
+    assert 'docker buildx imagetools inspect --raw "$signed_ref"' in workflow
+    assert 'scripts/verify_image_transport_link.py' in workflow
