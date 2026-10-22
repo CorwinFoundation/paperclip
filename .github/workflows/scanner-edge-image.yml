@@ -263,7 +263,7 @@ jobs:
             --arg imageDigest "$SIGNED_REF" \
             --arg sbomHash "$SBOM_HASH" \
             --arg recordedAt "$recorded_at" \
-            '{buildDefinition:{buildType:"https://backbond.ai/build/scanner-release-evidence@v1",externalParameters:{sourceSha:$sourceSha,imageDigest:$imageDigest,sbomSha256:$sbomHash},internalParameters:{workflowSha:$workflowSha,workflowRef:$workflowRef},resolvedDependencies:[{uri:"git+https://github.com/CorwinFoundation/are-scanner",digest:{gitCommit:$sourceSha}}]},runDetails:{builder:{id:$workflowRef},metadata:{invocationId:$runUrl,startedOn:$recordedAt,finishedOn:$recordedAt}}}' \
+            '{buildDefinition:{buildType:"https://backbond.ai/build/scanner-release-evidence@v1",externalParameters:{sourceSha:$sourceSha,imageDigest:$imageDigest,sbomSha256:$sbomHash},internalParameters:{workflowSha:$workflowSha,workflowRef:$workflowRef},resolvedDependencies:[{uri:"git+https://github.com/CorwinFoundation/are-scanner",digest:{gitCommit:$sourceSha}}]},runDetails:{builder:{id:$workflowRef},metadata:{invocationID:$runUrl,startedOn:$recordedAt,finishedOn:$recordedAt}}}' \
             > release-candidate/scanner-edge-slsa-provenance.json
 
       - name: Attest CycloneDX SBOM
@@ -295,7 +295,7 @@ jobs:
           timeout --signal=TERM --kill-after=15s "$COSIGN_WALL_TIMEOUT" \
             cosign attest --timeout 90s --yes --new-bundle-format=true --bundle "$bundle" \
             --predicate release-candidate/scanner-edge-slsa-provenance.json \
-            --type slsaprovenance \
+            --type slsaprovenance1 \
             "$SIGNED_REF"
           sha256sum "$bundle" | tee release-candidate/scanner-edge-provenance-attestation.sigstore.sha256
           printf 'bundle_hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-provenance-attestation.sigstore.sha256)" >> "$GITHUB_OUTPUT"
@@ -317,8 +317,16 @@ jobs:
             --check-claims=true \
             --digest "$subject_digest" \
             --digestAlg sha256 \
-            --type slsaprovenance \
+            --type slsaprovenance1 \
             --output-file release-candidate/scanner-edge-provenance-verify.json
+          python3 scripts/verify_signed_provenance.py \
+            --bundle release-candidate/scanner-edge-provenance-attestation.sigstore.json \
+            --predicate release-candidate/scanner-edge-slsa-provenance.json \
+            --sbom release-candidate/scanner-edge-sbom.cdx.json \
+            --image "$SIGNED_REF" --source "$SOURCE_SHA" \
+            --workflow-sha "$WORKFLOW_SHA" --workflow-ref "$WORKFLOW_REF" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            > release-candidate/scanner-edge-provenance-verify.json
 
       - name: Verify CycloneDX SBOM attestation
         timeout-minutes: 4
@@ -389,7 +397,7 @@ jobs:
               },
               sbom: {format: "cyclonedx-json", sha256: $sbomSha256,
                      attestation_bundle_sha256: $sbomAttestationBundleSha256},
-              provenance: {predicate_type: "slsaprovenance",
+              provenance: {predicate_type: "https://slsa.dev/provenance/v1",
                            attestation_bundle_sha256: $provenanceAttestationBundleSha256},
               builder: {workflow_ref: $workflowRef, workflow_sha: $workflowSha, run_url: $runUrl},
               deploy_authorized: true,
@@ -427,7 +435,7 @@ jobs:
             --arg signatureSubject "$EXPECTED_SIGNER" \
             --arg signatureOidcIssuer "$OIDC_ISSUER" \
             --arg signatureWorkflowRef "$WORKFLOW_REF" \
-            --arg provenanceRef "cosign-slsaprovenance:${SIGNED_REF}" \
+            --arg provenanceRef "cosign-slsaprovenance1:${SIGNED_REF}" \
             --arg provenanceBundleRef "oci-payload:scanner-edge-provenance-attestation.sigstore.json" \
             --arg provenanceBundleSha256 "$PROVENANCE_ATTESTATION_BUNDLE_HASH" \
             --arg sbomHash "$SBOM_HASH" \

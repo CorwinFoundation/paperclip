@@ -100,7 +100,11 @@ def test_release_evidence_has_sbom_bundle_and_in_toto_provenance() -> None:
     assert "--new-bundle-format=true" in text
     assert "scanner-edge-image.sigstore.sha256" in text
     assert "--type cyclonedx" in text
-    assert "--type slsaprovenance" in text
+    assert text.count("--type slsaprovenance1 ") == 2
+    assert "--type slsaprovenance " not in text
+    verify_step = next(step for step in steps if step.get("name") == "Verify SLSA provenance attestation")
+    assert verify_step["run"].index("cosign verify-blob-attestation") < verify_step["run"].index("python3 scripts/verify_signed_provenance.py")
+    assert "--sbom release-candidate/scanner-edge-sbom.cdx.json" in verify_step["run"]
     assert "verify-blob-attestation" in text
     assert "--check-claims=true" in text
     assert "--digestAlg sha256" in text

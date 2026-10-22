@@ -1,0 +1,42 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "predicate.json",
+      "digest": {
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://backbond.ai/build/scanner-release-evidence@v1",
+      "externalParameters": {
+        "imageDigest": "ghcr.io/corwinfoundation/are-scanner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sbomSha256": "2e01b8740d2b1c7ff47487ab94ff0f7f4d2853f3d985cd6d7e381c4aa5ef9afa",
+        "sourceSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "internalParameters": {
+        "workflowRef": "repo/workflow@refs/heads/master",
+        "workflowSha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "resolvedDependencies": [
+        {
+          "digest": {
+            "gitCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "uri": "git+https://github.com/CorwinFoundation/are-scanner"
+        }
+      ]
+    },
+    "runDetails": {
+      "builder": {
+        "id": "repo/workflow@refs/heads/master"
+      },
+      "metadata": {
+        "invocationId": "https://github.com/repo/actions/runs/123"
+      }
+    }
+  }
+}
