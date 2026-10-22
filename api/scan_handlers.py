@@ -31,6 +31,13 @@ retains it. ``GET /scan/{scan_id}`` selects the payload variant via a
 """
 from __future__ import annotations
 
+from harness.controlled_permit_loader import (
+    AdmissionClosed as ControlledPermitClosed,
+    validate_permit_context,
+    bind_scanner_permit,
+)
+
+
 import hashlib
 import ipaddress
 import json
@@ -130,6 +137,7 @@ from scanners.starter_judge import starter_pack_id_for_rows, starter_score
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_PACK_V2_TEST_COUNT
 from scanners.starter_pack_v3 import STARTER_PACK_V3_ID, STARTER_PACK_V3_TEST_COUNT
 from scanners.starter_pack_v4 import STARTER_PACK_V4_ID, STARTER_PACK_V4_TEST_COUNT
+from scanners.starter_pack_v5 import STARTER_PACK_V5_ID, STARTER_PACK_V5_TEST_COUNT
 from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, STARTER_VOICE_TEST_COUNT
 
 
@@ -149,12 +157,13 @@ def _redacted_worker_diagnostics(exc: BaseException, *, secret: str) -> tuple[st
 # New Starter intakes use variable @4 forms, including clients naming older
 # packs. Historical results retain their original identities. The existing
 # operator rollback flag can still select an explicitly requested legacy pack.
-_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID, STARTER_PACK_V4_ID, STARTER_VOICE_PACK_ID)
+_STARTER_PACK_IDS = (STARTER_PACK_ID, STARTER_PACK_V2_ID, STARTER_PACK_V3_ID, STARTER_PACK_V4_ID, STARTER_PACK_V5_ID, STARTER_VOICE_PACK_ID)
 _STARTER_PACK_TEST_COUNTS = {
     STARTER_PACK_ID: STARTER_PACK_TEST_COUNT,
     STARTER_PACK_V2_ID: STARTER_PACK_V2_TEST_COUNT,
     STARTER_PACK_V3_ID: STARTER_PACK_V3_TEST_COUNT,
     STARTER_PACK_V4_ID: STARTER_PACK_V4_TEST_COUNT,
+    STARTER_PACK_V5_ID: STARTER_PACK_V5_TEST_COUNT,
     STARTER_VOICE_PACK_ID: STARTER_VOICE_TEST_COUNT,
 }
 
@@ -684,6 +693,7 @@ class ScanRuntime:
         scanner_invocation_context: dict[str, Any] | None = None,
         webhook_cfg: dict[str, str] | None = None,
         on_terminal: Callable[[], None] | None = None,
+        controlled_execution_payload: dict | None = None,
     ) -> ScanResult:
         """Run the scan now; record the result by scan_id.
 
@@ -701,6 +711,9 @@ class ScanRuntime:
         # run_scan_fn closure so scorer paths can read the request and
         # invocation context during kickoff. The envelope factory reads the
         # same registries after result construction.
+        if (scan_request.endpoint_config or {}).get('_controlled_permit') is not None:
+            if controlled_execution_payload is None or self._uses_full_scan_registry(scan_request):
+                raise ControlledPermitClosed('Controlled memory context required')
         self._purge_expired_in_memory_state()
         created_at = self._now()
         self._scan_requests[scan_request.scan_id] = scan_request
@@ -767,11 +780,14 @@ class ScanRuntime:
                 secret=secret,
                 agent_id=agent_id,
                 on_terminal=on_terminal,
+                controlled_execution_payload=controlled_execution_payload,
             )
             return queued
 
         try:
-            result = self._run_scan_fn(scan_request, secret)
+            result = self._run_scan_fn(scan_request, secret, **(
+                {'controlled_execution_payload': controlled_execution_payload}
+                if controlled_execution_payload is not None else {}))
             result = self._apply_registry_dispatch_guard(
                 scan_request, result, agent_id=agent_id, secret=secret
             )
@@ -803,6 +819,7 @@ class ScanRuntime:
         secret: str,
         agent_id: str | None,
         on_terminal: Callable[[], None] | None,
+        controlled_execution_payload: dict | None = None,
     ) -> threading.Thread:
         thread = threading.Thread(
             target=target,
@@ -811,6 +828,8 @@ class ScanRuntime:
                 "secret": secret,
                 "agent_id": agent_id,
                 "on_terminal": on_terminal,
+                **({"controlled_execution_payload": controlled_execution_payload}
+                   if controlled_execution_payload is not None else {}),
             },
             name=f"are-full-scan-{scan_request.scan_id[:8]}",
             daemon=True,
@@ -832,6 +851,7 @@ class ScanRuntime:
         secret: str,
         agent_id: str | None,
         on_terminal: Callable[[], None] | None = None,
+        controlled_execution_payload: dict | None = None,
     ) -> None:
         """Durable-mode worker for scans that are not registry jobs.
 
@@ -860,7 +880,9 @@ class ScanRuntime:
                     )
                     object.__setattr__(scan_request, "case_progress_callback", callback)
                 try:
-                    result = self._run_scan_fn(scan_request, secret)
+                    result = self._run_scan_fn(scan_request, secret, **(
+                        {'controlled_execution_payload': controlled_execution_payload}
+                        if controlled_execution_payload is not None else {}))
                 finally:
                     if callback is not None:
                         object.__delattr__(scan_request, "case_progress_callback")
@@ -2241,11 +2263,32 @@ def _augment_with_chain_envelope(
 def connectivity_check_handler(
     body: dict[str, Any],
     *,
+    tenant_id: str | None = None,
+    controlled_transport=None,
     runner_factory: Callable[..., Any] = customer_agent_http_runner_factory,
 ) -> tuple[int, dict[str, Any]]:
     """Send one bounded probe without retaining the credential or response."""
     if not isinstance(body, dict):
         raise HandlerError(422, "body_invalid")
+    if "controlled_permit_id" in body:
+        from harness.controlled_target_transport import ControlledTargetTransport
+        if type(controlled_transport) is not ControlledTargetTransport:
+            raise HandlerError(503, "controlled_preflight_unavailable")
+        if not tenant_id:
+            raise HandlerError(401, "controlled_tenant_required")
+        payload = dict(body)
+        opaque_id = payload.pop("controlled_permit_id")
+        try:
+            controlled_transport.preflight(
+                opaque_id, tenant_id=tenant_id, payload=payload,
+                prompt=CONNECTIVITY_PROMPT)
+            return 200, {"success": True, "error": None}
+        except ControlledPermitClosed as exc:
+            raise HandlerError(403, "controlled_permit_unavailable") from exc
+        except CustomerEndpointHTTPError as exc:
+            return 200, {"success": False, "error": f"endpoint_http_{exc.status_code}"}
+        except RunnerError:
+            return 200, {"success": False, "error": "connection_failed"}
     endpoint = dict(_validate_agent_endpoint(_require(body, "agent_endpoint")))
     endpoint.setdefault("url", f"https://{endpoint['host']}")
     endpoint.setdefault("auth", {"type": "bearer"})
@@ -2299,6 +2342,19 @@ def _kickoff_live_probe_scan(
     if not isinstance(body, dict):
         raise HandlerError(422, "body_invalid")
 
+    controlled_context = None
+    if "controlled_permit_id" in body:
+        execution_body = dict(body)
+        opaque_id = execution_body.pop("controlled_permit_id")
+        try:
+            controlled_context = validate_permit_context(
+                opaque_id, tenant_id=tenant_header, payload=execution_body)
+        except ControlledPermitClosed as exc:
+            raise HandlerError(403, "controlled_permit_unavailable") from exc
+    # This internal descriptor is server-generated, never accepted from a caller.
+    if isinstance(body.get("agent_endpoint"), dict) and "_controlled_permit" in body["agent_endpoint"]:
+        raise HandlerError(422, "controlled_descriptor_reserved")
+
     raw_context = body.get("context_envelope")
     if raw_context is not None:
         try:
@@ -2320,12 +2376,17 @@ def _kickoff_live_probe_scan(
     if not isinstance(credential_secret, str) or (not credential_secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
     pack_id = body.get("pack_id")
+    if controlled_context is None and pack_id == STARTER_PACK_V5_ID:
+        raise HandlerError(422, 'pack_id_invalid')
     if pack_id is not None and pack_id not in {
         *_STARTER_PACK_IDS,
         "full-scan-conv-en@1.0",
     }:
         raise HandlerError(422, "pack_id_invalid")
-    if pack_id is not None:
+    if controlled_context is not None:
+        if pack_id != STARTER_PACK_V4_ID:
+            raise HandlerError(422, 'controlled_pack_unsupported')
+    elif pack_id is not None:
         pack_id = _effective_starter_pack_id(pack_id)
     is_starter = pack_id in _STARTER_PACK_IDS
     include_result_rows = body.get("include_result_rows", False)
@@ -2500,6 +2561,9 @@ def _kickoff_live_probe_scan(
     # AFTER scan_id so the toggle-on default can derive a fresh per-run seed
     # from the server-minted scan_id (see _resolve_surface_seed).
     surface_seed = _resolve_surface_seed(body.get("surface_seed"), scan_id)
+    if controlled_context is not None:
+        agent_endpoint["_controlled_permit"] = controlled_context
+
     try:
         scan_request = ScanRequest(
             scan_id=scan_id,
@@ -2528,6 +2592,12 @@ def _kickoff_live_probe_scan(
     except InvalidKReplicatesError as exc:
         raise HandlerError(422, "k_replicates_invalid") from exc
 
+    if controlled_context is not None:
+        try:
+            bind_scanner_permit(controlled_context, scan_id=scan_id)
+        except ControlledPermitClosed as exc:
+            raise HandlerError(403, "controlled_permit_unavailable") from exc
+
     try:
         result = runtime.kickoff(
             scan_request,
@@ -2536,6 +2606,8 @@ def _kickoff_live_probe_scan(
             scanner_invocation_context=scanner_invocation_context,
             webhook_cfg=_webhook_cfg,
             on_terminal=on_terminal,
+            **({"controlled_execution_payload": execution_body}
+               if controlled_context is not None else {}),
         )
     except CorpusSnapshotMismatchError as exc:
         raise HandlerError(422, "corpus_snapshot_mismatch") from exc

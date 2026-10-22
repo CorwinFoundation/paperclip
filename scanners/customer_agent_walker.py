@@ -247,6 +247,18 @@ def customer_agent_probe_run_fn(
       scope holds for the entire walker iteration; the Scorer's
       deny-all scope is untouched).
     """
+    controlled_permit = getattr(runner, "controlled_permit", None)
+    controlled_target = getattr(runner, "controlled_target_transport", None)
+    if controlled_permit is not None:
+        from harness.controlled_permit_loader import BoundScannerPermit
+        from harness.controlled_target_transport import ControlledTargetTransport
+        if (type(controlled_permit) is not BoundScannerPermit
+                or type(controlled_target) is not ControlledTargetTransport
+                or getattr(runner, "pack_id", None) != STARTER_PACK_V4_ID):
+            raise ProbeRunIncompleteError(
+                "controlled_target_transport_unavailable",
+                "controlled target paid-call transport is unavailable",
+            )
     deadline_seconds = _runner_deadline_seconds(runner)
     deadline = (
         time.monotonic() + deadline_seconds
@@ -260,7 +272,11 @@ def customer_agent_probe_run_fn(
     if judged_pack_id in _JUDGED_STARTER_CASES:
         # BEAAA-38895 / BEAAA-38898 — real prompts, one pinned judge call per
         # case. A transport error is recorded as could_not_run, never passed.
-        judge_client = judge_client_from_env()
+        judge_client = (
+            judge_client_from_env(controlled_permit=controlled_permit)
+            if controlled_permit is not None
+            else judge_client_from_env()
+        )
         record_verdict = getattr(runner, "record_starter_verdict", None)
         replies = errors = 0
         cases = _JUDGED_STARTER_CASES[judged_pack_id]
@@ -305,7 +321,18 @@ def customer_agent_probe_run_fn(
             reply: Any
             try:
                 if isinstance(case, StarterCaseV5MT):
-                    reply = _dispatch_multiturn(runner, case)
+                    if controlled_permit is None:
+                        reply = _dispatch_multiturn(runner, case)
+                    else:
+                        messages = []
+                        if getattr(case, "system", None):
+                            messages.append({"role": "system", "content": case.system})
+                        for turn_index, turn in enumerate(case.turns):
+                            messages.append({"role": "user", "content": turn})
+                            reply = controlled_target.complete_turn(
+                                controlled_permit, test_id=case.case_id,
+                                turn_index=turn_index, messages=messages)
+                            messages.append({"role": "assistant", "content": reply})
                 else:
                     prompt = (
                         case.user_message
@@ -314,7 +341,11 @@ def customer_agent_probe_run_fn(
                         == "kaltura-genie:public-learning-browser"
                         else case.prompt
                     )
-                    reply = runner.complete(prompt)
+                    reply = (
+                        controlled_target.complete(controlled_permit, test_id=case.case_id,
+                                                   phase="target", prompt=prompt)
+                        if controlled_permit is not None else runner.complete(prompt)
+                    )
             except RunnerError as exc:
                 if (
                     (deadline is not None and time.monotonic() >= deadline)

@@ -38,7 +38,7 @@ def fixture(tmp_path, capacity=3):
     fields = dict(code='code', email='a@example.com', agent_label='agent', endpoint_url='https://fixture.invalid',
                   transport='http', model=None, connection_proof='proof', auth='fixture-secret', pack_id='starter-100@4')
     body = NS(**fields, terms_version='v1', consent_improvement=False, model_dump=lambda:dict(fields))
-    env = dict(_flag=lambda *a:True, _private_acceptance=lambda *a:False, WEBHOOK_SECRET='fixture', PROOF_MESSAGE='fixture proof expired',
+    env = dict(controlled_operator=None, _controlled_claim=lambda *a:None, _flag=lambda *a:True, _private_acceptance=lambda *a:False, WEBHOOK_SECRET='fixture', PROOF_MESSAGE='fixture proof expired',
                os=NS(environ={'QA_READY':'1'}), _terms_version=lambda:'v1',
                _resolve_code=lambda c:dict(public=False,code=c,partner='p'), proofs=NS(redeem=lambda *a:True),
                _payload=lambda c:dict(auth=c['auth']), _mail_configured=lambda:True, store=store, queue=queue, bac=bac, findings=FindingsIntake(path),
@@ -225,3 +225,128 @@ def test_invalid_config_worker_holds_all_work():
                _terminal_scan=None, _engine_progress=None)
     function('worker_tick', env)()
     assert calls == []
+
+
+def test_controlled_pre_io_denial_frees_slot_without_resetting_one_use(tmp_path):
+    from controlled_admission import ControlledAdmission, AdmissionClosed
+    path, store, queue, calls, body, env = fixture(tmp_path)
+    binding = dict(actor='operator', request_id='request', target='root-pending')
+    admission = ControlledAdmission(path)
+    admission.provision(**binding)
+    admission.enable()
+    admission.claim(**binding)
+    admission.disable()
+    queue.before_dispatch = lambda *_: admission.begin_dispatch(**binding)
+    with pytest.raises(HTTPError) as exc:
+        function('start_scan', env)(body, NS())
+    assert exc.value.status_code == 502
+    assert calls == []
+    assert queue.active == {}
+    assert store.db.execute('SELECT status FROM scans').fetchone()[0] == 'launch_failed'
+    admission.enable()
+    with pytest.raises(AdmissionClosed):
+        admission.claim(**binding)
+    # Restart cannot turn the rejected launch into dispatch_unknown or hold capacity.
+    restarted = ScanQueue(IntakeStore(path), lambda _: pytest.fail('Scanner I/O'))
+    assert restarted.active == {}
+
+
+@pytest.mark.parametrize('route', ['connection_check', 'start_scan'])
+@pytest.mark.parametrize('client_host', ['127.0.0.1', '::1', '198.51.100.1'])
+def test_closed_http_routes_reject_expired_private_allowance(tmp_path, route, client_host):
+    _, store, queue, calls, body, env = fixture(tmp_path)
+    env['os'] = NS(environ={'QA_READY': '0', 'QA_ACCEPTANCE_TOKEN': 'expired-token'})
+    # Even a successful legacy helper must not bypass the current hold.
+    env['_private_acceptance'] = lambda *args: True
+    body.code = 'QA-ACCEPT-20261006'
+    body.email = 'ari@backbond.ai'
+    request = NS(client=NS(host=client_host), headers={'x-qa-acceptance': 'expired-token'})
+    env['_scanner_check'] = lambda *args: pytest.fail('closed connectivity I/O')
+    with pytest.raises(HTTPError) as exc:
+        function(route, env)(body, request)
+    assert exc.value.status_code == 503
+    assert calls == []
+    assert queue.active == {} and not queue.pending
+    assert store.db.execute('SELECT count(*) FROM scans').fetchone()[0] == 0
+
+
+def test_terms_hold_rejects_private_allowance(tmp_path):
+    _, store, _, calls, body, env = fixture(tmp_path)
+    env['_flag'] = lambda name, default: name != 'QA_TERMS_APPROVED'
+    env['_private_acceptance'] = lambda *args: True
+    with pytest.raises(HTTPError) as exc:
+        function('start_scan', env)(body, NS())
+    assert exc.value.status_code == 503
+    assert calls == []
+    assert store.db.execute('SELECT count(*) FROM scans').fetchone()[0] == 0
+
+
+def test_operator_http_verification_precedes_quota_and_claim_precedes_dispatch(tmp_path):
+    import hashlib
+    from controlled_admission import ControlledAdmission, OperatorAdmission, AdmissionClosed
+    _, store, queue, calls, body, env = fixture(tmp_path)
+    payload = {'agent_endpoint': {'url': 'https://inert.invalid', 'model': 'inert'},
+               'credential_secret': 'inert-only', 'pack_id': body.pack_id}
+    ledger = ControlledAdmission(str(tmp_path / 'operator.sqlite'))
+    binding = dict(actor='operator', request_id='one-request', target=OperatorAdmission.fingerprint(payload))
+    ledger.provision(**binding); ledger.enable()
+    operator = OperatorAdmission(ledger, **binding,
+        token_sha256=hashlib.sha256(b'inert-token').hexdigest())
+    operator.scanner_permit_id = 'inert-permit'
+    env.update(controlled_operator=operator, AdmissionClosed=AdmissionClosed,
+               _payload=lambda c:dict(payload),
+               _flag=lambda name, default: name not in {'QA_TERMS_APPROVED'},
+               os=NS(environ={'QA_READY':'0'}))
+    env['_controlled_claim'] = function('_controlled_claim', env)
+    queue.before_dispatch = lambda scan_id, p: operator.before_dispatch(
+        scan_id, {k:v for k,v in p.items() if k != 'controlled_permit_id'})
+    route = function('start_scan', env)
+    # Ordinary callers cannot reserve quota even though this fixture has an operator.
+    with pytest.raises(HTTPError) as exc: route(body, NS(headers={}))
+    assert exc.value.status_code == 403
+    assert store.db.execute('SELECT COUNT(*) FROM scans').fetchone()[0] == 0
+    request = NS(headers={'authorization': 'Bearer inert-token', 'x-controlled-request-id':'one-request'})
+    original_reserve = store.reserve
+    def reserve(**kwargs):
+        assert ledger.db.execute('SELECT consumed FROM controlled_admission').fetchone() == (0,)
+        return original_reserve(**kwargs)
+    store.reserve = reserve
+    assert route(body, request)['status'] == 'running'
+    assert calls == [dict(payload, controlled_permit_id='inert-permit')]
+    assert ledger.db.execute('SELECT dispatch_state FROM controlled_admission').fetchone() == ('dispatch_unknown',)
+    store.reserve = original_reserve
+    with pytest.raises(HTTPError): route(body, request)
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize('hold', ['terms', 'ready'])
+def test_controlled_http_refuses_global_hold_removal(hold):
+    from unittest.mock import Mock
+    operator = Mock()
+    env = dict(controlled_operator=operator, HTTPException=HTTPError,
+               _flag=lambda *a: hold == 'terms',
+               os=NS(environ={'QA_READY': '1' if hold == 'ready' else '0'}))
+    with pytest.raises(HTTPError) as exc:
+        function('_controlled_claim', env)(NS(headers={}), {})
+    assert exc.value.status_code == 503
+    operator.claim_http.assert_not_called()
+
+
+@pytest.mark.parametrize('ready', ['0', '1'])
+@pytest.mark.parametrize('client_host', ['127.0.0.1', '::1', '198.51.100.1'])
+def test_controlled_connection_check_cannot_use_unmetered_legacy_route(tmp_path, ready, client_host):
+    _, store, queue, calls, body, env = fixture(tmp_path)
+    env['os'] = NS(environ={'QA_READY': ready})
+    from controlled_admission import AdmissionClosed
+    env['AdmissionClosed'] = AdmissionClosed
+    env['_flag'] = lambda *a: False
+    env['controlled_operator'] = object()
+    env['_resolve_code'] = lambda *args: pytest.fail('legacy code resolution')
+    env['_scanner_check'] = lambda *args: pytest.fail('unmetered connectivity I/O')
+    request = NS(client=NS(host=client_host), headers={})
+    with pytest.raises(HTTPError) as exc:
+        function('connection_check', env)(body, request)
+    assert exc.value.status_code == (503 if ready == '1' else 403)
+    assert calls == []
+    assert queue.active == {} and not queue.pending
+    assert store.db.execute('SELECT count(*) FROM scans').fetchone()[0] == 0

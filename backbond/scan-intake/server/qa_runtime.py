@@ -2,6 +2,7 @@
 import threading
 import time
 from collections import OrderedDict
+from controlled_admission import AdmissionClosed
 
 # Statuses that hold one of the scanner's concurrent slots. 'starting' and
 # 'dispatch_unknown' may already be sending requests to the customer's agent.
@@ -21,8 +22,12 @@ class DispatchUnknown(RuntimeError):
 
 
 class ScanQueue:
-    def __init__(self, store, start, capacity=3, max_pending=10, pending_ttl=900):
+    def __init__(self, store, start, capacity=3, max_pending=10, pending_ttl=900,
+                 before_dispatch=None):
         self.store, self.start, self.capacity = store, start, capacity
+        # Service-owned callback; never supplied through a caller payload. Controlled
+        # deployments must bind this to the persistent reservation before enabling.
+        self.before_dispatch = before_dispatch
         self.max_pending, self.pending_ttl = max_pending, pending_ttl
         self.lock = threading.RLock()
         # A start that was in flight when the process died may have reached the scanner.
@@ -92,6 +97,16 @@ class ScanQueue:
     def _launch(self, scan_id, payload):
         try:
             try:
+                if self.before_dispatch is not None:
+                    # A definitive denial here precedes Scanner I/O. Preserve any
+                    # earlier ambiguous attempt; denial cannot reconcile that attempt.
+                    try:
+                        self.before_dispatch(scan_id, payload)
+                    except AdmissionClosed as exc:
+                        row = self.store.scan(scan_id)
+                        if row and row['status'] == 'dispatch_unknown':
+                            raise DispatchUnknown() from exc
+                        raise DispatchNotSent() from exc
                 response = self.start(payload)
             except DispatchNotSent:
                 with self.lock:

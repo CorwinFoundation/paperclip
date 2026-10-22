@@ -15,14 +15,15 @@ from typing import Annotated
 from urllib.parse import urlsplit
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, model_validator
 from bac_intake import BACIntake, BACUnconfirmed
 from findings_intake import FindingsIntake
 from operations_client import OperationsClient, OperationsOutbox
+from controlled_admission import AdmissionClosed
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
 from report_release import ReportRelease, RevisionTampered
 
@@ -190,14 +191,17 @@ class ConnectionFields(BaseModel):
     pack_id: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
-    def consent_and_transport(self):
+    def consent_and_transport(self, info: ValidationInfo):
         if self.pack_id is not None and self.pack_id not in STARTER_PACK_IDS:
             raise ValueError("pack_id must be a registered Starter pack")
         endpoint_host = (urlsplit(self.endpoint_url).hostname or "").lower().rstrip(".")
         if endpoint_host in {
             "backbond.ai", "www.backbond.ai", "scanner.backbond.ai", "api.backbond.ai",
         }:
-            raise ValueError("endpoint_url must not target a BackBond scanner service")
+            verify = (info.context or {}).get('controlled_target_verifier')
+            if verify is None:
+                raise ValueError("endpoint_url must not target a BackBond scanner service")
+            verify(self.model_dump())
         if self.transport == "openai_chat" and not self.model:
             raise ValueError("model is required for openai_chat")
         if self.transport == "json_map":
@@ -342,8 +346,36 @@ def _send_report_code(to: str, code: str) -> None:
             raise RuntimeError('Report mail delivery unavailable')
 
 
+# Optional protected startup configuration; loading never arms a reservation.
+from controlled_startup import load_operator
+controlled_operator = load_operator()
+
+
+def _controlled_claim(request, payload):
+    if controlled_operator is None:
+        return None
+    # Both general admission holds must remain closed, including for the operator.
+    if _flag('QA_TERMS_APPROVED', '0') or os.environ.get('QA_READY') == '1':
+        raise HTTPException(503, 'Controlled admission requires general holds')
+    try:
+        controlled_operator.claim_http(request.headers, payload)
+    except AdmissionClosed:
+        raise HTTPException(403, 'Controlled admission unavailable') from None
+    return controlled_operator
+
+
+def _controlled_dispatch(scan_id, payload):
+    if controlled_operator is not None:
+        execution = dict(payload)
+        opaque_id = execution.pop('controlled_permit_id', None)
+        if opaque_id != getattr(controlled_operator, 'scanner_permit_id', None):
+            raise AdmissionClosed('Scanner permit binding unavailable')
+        controlled_operator.before_dispatch(scan_id, execution)
+
+
 queue = ScanQueue(store, lambda payload: _scanner_start(payload),
-                   pending_ttl=int(os.environ.get('QA_QUEUE_TTL_SECONDS', '900')))
+                   pending_ttl=int(os.environ.get('QA_QUEUE_TTL_SECONDS', '900')),
+                   before_dispatch=_controlled_dispatch)
 
 
 class CodeRequest(BaseModel):
@@ -361,14 +393,6 @@ def _flag(name: str, default: str) -> bool:
 
 def _terms_version() -> str:
     return os.environ.get('QA_TERMS_VERSION', 'v0.2.2')
-
-
-def _private_acceptance(request: Request, code: str, email: str) -> bool:
-    acceptance_token = os.environ.get('QA_ACCEPTANCE_TOKEN', '')
-    return bool(acceptance_token and request.client and
-        request.client.host in {'127.0.0.1', '::1'} and
-        secrets.compare_digest(request.headers.get('x-qa-acceptance', ''), acceptance_token) and
-        code == 'QA-ACCEPT-20261006' and email.lower() == 'ari@backbond.ai')
 
 
 def _client(request: Request) -> str:
@@ -416,17 +440,65 @@ def config():
             "connection_proof_ttl_seconds": proofs.ttl}
 
 
+async def _controlled_request(request: Request, model):
+    # No caller-provided flag can enable contextual validation. The adapter is
+    # service-owned and remains absent in production until integrated activation.
+    context = None
+    if controlled_operator is not None:
+        if _flag('QA_TERMS_APPROVED', '0') or os.environ.get('QA_READY') == '1':
+            raise HTTPException(503, 'Controlled admission requires general holds')
+        try:
+            controlled_operator.authenticate_http(request.headers)
+        except AdmissionClosed:
+            raise HTTPException(403, 'Controlled admission unavailable') from None
+
+        def verify(fields):
+            resolved = _resolve_code(fields['code'])
+            fields.pop('connection_proof', None)
+            fields['code'], fields['partner'] = resolved['code'], resolved['partner']
+            try:
+                controlled_operator.verify_http(request.headers, _payload(fields))
+            except AdmissionClosed:
+                raise HTTPException(403, 'Controlled admission unavailable') from None
+        context = {'controlled_target_verifier': verify}
+    try:
+        return model.model_validate(await request.json(), context=context)
+    except (ValidationError, ValueError):
+        raise HTTPException(422, 'Check the submitted fields and required consent.') from None
+
+
+async def _scan_request(request: Request):
+    return await _controlled_request(request, ScanRequest)
+
+
+async def _connection_request(request: Request):
+    return await _controlled_request(request, ConnectionFields)
+
+
 @app.post("/scan/v1/connection-checks")
-def connection_check(body: ConnectionFields, request: Request):
+def connection_check(body: Annotated[ConnectionFields, Depends(_connection_request)], request: Request):
     """Connectivity only: one message, no reservation, no quota, cannot start a scan."""
-    if os.environ.get('QA_READY') != '1' and not _private_acceptance(request, body.code, body.email):
+    if controlled_operator is None and os.environ.get('QA_READY') != '1':
         raise HTTPException(503, "QA scans are temporarily unavailable")
+    if controlled_operator is not None:
+        if _flag('QA_TERMS_APPROVED', '0') or os.environ.get('QA_READY') == '1':
+            raise HTTPException(503, 'Controlled admission requires general holds')
+        try:
+            controlled_operator.authenticate_http(request.headers)
+        except (AdmissionClosed, AttributeError):
+            raise HTTPException(403, 'Controlled admission unavailable') from None
     resolved = _resolve_code(body.code)
     if not check_gate.allow(email=body.email.strip().lower(), ip=_client(request), all='all'):
         raise HTTPException(429, "Too many connection tests. Wait a few minutes and try again.")
     fields = body.model_dump()
     clean = dict(fields, code=resolved["code"], partner=resolved["partner"])
     payload = _payload(clean)
+    if controlled_operator is not None:
+        try:
+            controlled_operator.verify_http(request.headers, payload)
+            payload['controlled_permit_id'] = controlled_operator.scanner_permit_id
+        except (AdmissionClosed, AttributeError):
+            raise HTTPException(403, 'Controlled admission unavailable') from None
     try:
         ok, error = _scanner_check(payload)
     except Exception:
@@ -444,13 +516,13 @@ def connection_check(body: ConnectionFields, request: Request):
 
 
 @app.post("/scan/v1/scans")
-def start_scan(body: ScanRequest, request: Request):
-    if not _flag("QA_TERMS_APPROVED", "0"):
+def start_scan(body: Annotated[ScanRequest, Depends(_scan_request)], request: Request):
+    controlled = controlled_operator is not None
+    if not controlled and not _flag("QA_TERMS_APPROVED", "0"):
         raise HTTPException(503, "This review preview cannot start scans. Terms and launch approval are pending.")
     if _bac_mode() == "invalid":
         raise HTTPException(503, "BAC configuration is incomplete or invalid")
-    private_acceptance = _private_acceptance(request, body.code, body.email)
-    if (_bac_mode() == "configured" and not _mail_configured()) or not WEBHOOK_SECRET or (os.environ.get('QA_READY') != '1' and not private_acceptance):
+    if (_bac_mode() == "configured" and not _mail_configured()) or not WEBHOOK_SECRET or (not controlled and os.environ.get('QA_READY') != '1'):
         raise HTTPException(503, "QA scans are temporarily unavailable")
     # Legacy mode keeps the prior API (no proof, no terms version) and rechecks before launch.
     legacy = not _flag('QA_REQUIRE_CONNECTION_PROOF', '1') and body.connection_proof is None
@@ -464,6 +536,20 @@ def start_scan(body: ScanRequest, request: Request):
     if not legacy and not proofs.redeem(proof, clean):
         raise HTTPException(409, PROOF_MESSAGE)
     clean["code"], clean["partner"] = resolved["code"], resolved["partner"]
+    payload = _payload(clean)
+    if controlled:
+        if _flag('QA_TERMS_APPROVED', '0') or os.environ.get('QA_READY') == '1':
+            raise HTTPException(503, 'Controlled admission requires general holds')
+        try:
+            controlled_operator.verify_http(request.headers, payload)
+        except AdmissionClosed:
+            raise HTTPException(403, 'Controlled admission unavailable') from None
+    # Validate all non-consuming prerequisites before reserving the sole use.
+    operator = controlled_operator
+    if operator and legacy:
+        raise HTTPException(503, "Controlled admission requires a connection proof")
+    if operator and not getattr(operator, 'scanner_permit_id', None):
+        raise HTTPException(503, 'Controlled Scanner binding unavailable')
     try:
         reservation = store.reserve(code=clean["code"], email=str(clean["email"]),
             agent_label=clean["agent_label"], endpoint_url=clean["endpoint_url"],
@@ -473,9 +559,25 @@ def start_scan(body: ScanRequest, request: Request):
                         'model_versions': {'target_requested': clean['model']} if clean.get('model') else {}})
     except IntakeError as exc:
         raise HTTPException(429 if "limit" in str(exc) or "used" in str(exc) else 400, str(exc))
-    payload = _payload(clean)
+    try:
+        operator = _controlled_claim(request, payload)
+    except HTTPException:
+        store.cancel_unsent(reservation["scan_id"])
+        payload.clear()
+        clean.clear()
+        raise
+    if operator:
+        payload['controlled_permit_id'] = operator.scanner_permit_id
     connection_passed = not legacy
     try:
+        if operator:
+            try:
+                operator.bind_scan(reservation["scan_id"])
+            except Exception:
+                # Provably before queue/Scanner I/O. Retain the consumed permit
+                # and scan record; release the unsent slot via terminal status.
+                store.launch_failed(reservation["scan_id"])
+                return {"status": "launch_failed", "status_token": reservation["status_token"]}
         if legacy:
             ok, error = _scanner_check(payload)
             if not ok:

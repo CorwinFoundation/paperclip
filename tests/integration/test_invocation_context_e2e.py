@@ -83,7 +83,9 @@ def _fake_prober_target(
     agent_endpoint_url: str,
     result_queue: Any,
     fired_probe_ledger: Any = None,
+    controlled_execution_payload: Any = None,
 ) -> None:
+    assert controlled_execution_payload is None
     # Lightweight prober path for test process model parity: no network,
     # no vault usage, no score input mutation.
     del vault, channel, corpus_tarball_path, probe_run_fn, runner_factory

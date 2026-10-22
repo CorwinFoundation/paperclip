@@ -485,6 +485,8 @@ def run_scan(
     runner: ModelRunner | None = None,
     runner_factory: Callable[[str, str, str | None], ModelRunner] | None = None,
     fired_probe_ledger: FiredProbeLedger | None = None,
+    controlled_target_config: dict | None = None,
+    controlled_execution_payload: dict | None = None,
 ) -> ScanResult:
     """Prober-side driver — see module docstring.
 
@@ -516,6 +518,8 @@ def run_scan(
     # ``importlib.reload(harness.credentials)`` in the test infrastructure.
     cred_ref = scan_request.credential_ref
     rows_emitted = 0
+    controlled_permit = None
+    controlled_target = None
     try:
         # --- 1. AC#2 — corpus pin enforcement. ---
         # Mismatch is a typed error so T1's API-edge handler can translate
@@ -534,6 +538,23 @@ def run_scan(
         # means a wiring bug (forget ran before resolve, or register never
         # ran) — surfaced as a typed error.
         secret = resolve_scan_secret(vault, cred_ref, scan_request.endpoint_config)
+
+        # Load the API-validated bound descriptor before constructing an adapter.
+        descriptor = (scan_request.endpoint_config or {}).get("_controlled_permit")
+        if descriptor is not None:
+            from harness.controlled_permit_loader import AdmissionClosed, load_bound_scanner_permit
+            if (not isinstance(descriptor, dict)
+                    or descriptor.get("tenant_id") != scan_request.tenant_id):
+                raise AdmissionClosed("Controlled tenant mismatch")
+            controlled_permit = load_bound_scanner_permit(
+                descriptor, scan_id=scan_request.scan_id,
+            )
+            # Service-only argument: never read policy paths/prices from endpoint_config.
+            from harness.controlled_target_policy import load_bound_target_transport
+            controlled_target = load_bound_target_transport(
+                controlled_target_config, permit=controlled_permit, secret=secret,
+                endpoint=scan_request.agent_endpoint, payload=controlled_execution_payload,
+            )
 
         # --- 3. Runner construction. ---
         # The orchestrator does NOT pick a default ModelRunner adapter
@@ -557,6 +578,11 @@ def run_scan(
                 scan_request.agent_endpoint, secret, scan_request.agent_id,
                 **factory_kwargs,
             )
+
+        if controlled_permit is not None:
+            # Mandatory: an adapter cannot fall back to an independent allowance.
+            active_runner.controlled_permit = controlled_permit
+            active_runner.controlled_target_transport = controlled_target
 
         # BEAAA-11864 / ADR-0046 — carry the per-run probe-surface rotation
         # seed to the Prober-side walker via the runner, WITHOUT widening the
@@ -585,6 +611,9 @@ def run_scan(
         except AttributeError:
             pass
         if scan_request.pack_id == "starter-100@4":
+            # Mandatory identity propagation: retries/restarts reuse scan_id.
+            active_runner.evaluator_run_id = scan_request.scan_id
+            active_runner.evaluator_max_cost_usd = scan_request.max_cost_usd
             from scanners.starter_forms import reserve_starter_cases
 
             # Required attributes; an incompatible runner fails before dispatch.
@@ -592,6 +621,12 @@ def run_scan(
                 scan_id=scan_request.scan_id,
                 tenant_id=scan_request.tenant_id,
                 agent_id=scan_request.agent_id or scan_request.agent_endpoint,
+            )
+        if controlled_permit is not None:
+            controlled_permit.bind_accepted_form(
+                tenant_id=scan_request.tenant_id,
+                agent_id=scan_request.agent_id or scan_request.agent_endpoint,
+                pack_id=scan_request.pack_id,
             )
         try:
             active_runner.operational_scan_deadline_seconds = (
@@ -836,7 +871,11 @@ def run_scan(
         # registered, so the cleanup is safe to run unconditionally even
         # when control fell through the corpus-mismatch branch (which
         # never reached ``vault.resolve``).
-        vault.forget(cred_ref)
+        try:
+            if controlled_permit is not None:
+                controlled_permit.close()
+        finally:
+            vault.forget(cred_ref)
 
 
 # ---------------------------------------------------------------------------

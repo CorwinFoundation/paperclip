@@ -524,3 +524,60 @@ def test_hosted_runner_constant_is_imported_from_intake_guard():
     from api import intake_guard
 
     assert live_probe_orchestrator.HOSTED_RUNNER is intake_guard.HOSTED_RUNNER
+
+
+def test_controlled_descriptor_loaded_before_runner_and_closed(
+    corpus_tarball, corpus_hash, loaded_vault, monkeypatch,
+):
+    from harness import controlled_permit_loader as loader
+    events = []
+    class Permit:
+        def bind_accepted_form(self, **scope):
+            assert scope['tenant_id'] == 'tenant-001'
+            events.append('bind-form')
+
+        def close(self):
+            events.append('close')
+    permit = Permit()
+    descriptor = {'tenant_id': 'tenant-001', 'permit_id': 'p'*32,
+                  'target_sha256': 'a'*64}
+    def load(context, *, scan_id):
+        assert context == descriptor and scan_id == 'scan-test-1'
+        events.append('load')
+        return permit
+    monkeypatch.setattr(loader, 'load_bound_scanner_permit', load)
+    from harness import controlled_target_policy as policy
+    target = object()
+    monkeypatch.setattr(policy, 'load_bound_target_transport', lambda *a, **kw: target)
+    def factory(*args):
+        assert events == ['load']
+        events.append('factory')
+        return MockRunner(name="fixture", responder=lambda prompt: "fixture")
+    def probe(runner):
+        assert runner.controlled_permit is permit
+        assert runner.controlled_target_transport is target
+        raise RuntimeError('fixture probe failure')
+    request = _scan_request(corpus_hash, endpoint_config={'_controlled_permit': descriptor})
+    with pytest.raises(RuntimeError, match='fixture probe failure'):
+        run_scan(request, loaded_vault, _CollectingIPC(),
+                 corpus_tarball_path=corpus_tarball, runner_factory=factory,
+                 probe_run_fn=probe)
+    assert events == ['load', 'factory', 'bind-form', 'close']
+    assert loaded_vault.resolve(CRED_REF) is None
+
+
+def test_invalid_controlled_binding_never_constructs_runner(
+    corpus_tarball, corpus_hash, loaded_vault, monkeypatch,
+):
+    from harness import controlled_permit_loader as loader
+    def reject(*args, **kwargs):
+        raise loader.AdmissionClosed('fixture unbound scan')
+    monkeypatch.setattr(loader, 'load_bound_scanner_permit', reject)
+    request = _scan_request(corpus_hash, endpoint_config={
+        '_controlled_permit': {'tenant_id': 'tenant-001'}})
+    with pytest.raises(loader.AdmissionClosed):
+        run_scan(request, loaded_vault, _CollectingIPC(),
+                 corpus_tarball_path=corpus_tarball,
+                 runner_factory=lambda *a: pytest.fail('runner constructed'),
+                 probe_run_fn=lambda r: ())
+    assert loaded_vault.resolve(CRED_REF) is None

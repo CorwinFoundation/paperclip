@@ -516,13 +516,34 @@ def create_app(
 
     @app.post("/scanner/v1/connectivity-check")
     async def post_connectivity_check(request: Request) -> Any:
+        # Existing service authentication also protects controlled preflight.
+        # Local development bypass cannot authorize a controlled permit.
+        tenant = _authenticated_tenant_id(
+            request, runtime_profile, governed_scope="POST /scanner/v1/connectivity-check")
         body = await request.json()
+        if isinstance(body, dict) and "controlled_permit_id" in body and not tenant:
+            raise _http_error(401, "controlled_tenant_required")
         try:
             # Customer runners are synchronous. Browser-backed transports use
             # Playwright's sync API, which must not execute on this ASGI event
             # loop thread. The handler owns runner creation/use/cleanup, so the
             # complete lifecycle remains on one worker thread.
-            status, payload = await asyncio.to_thread(connectivity_check_handler, body)
+            controlled_transport = None
+            if isinstance(body, dict) and 'controlled_permit_id' in body:
+                from harness.controlled_target_policy import startup_target_config, load_fixed_handler_transport
+                from harness.controlled_permit_loader import AdmissionClosed, validate_permit_context
+                execution = dict(body)
+                opaque_id = execution.pop('controlled_permit_id')
+                try:
+                    validate_permit_context(opaque_id, tenant_id=tenant, payload=execution)
+                    config = startup_target_config({'_controlled_permit': True})
+                    controlled_transport = load_fixed_handler_transport(**config, payload=execution)
+                except AdmissionClosed:
+                    raise _http_error(403, 'controlled_preflight_unavailable') from None
+            status, payload = await asyncio.to_thread(
+                connectivity_check_handler, body,
+                **({'tenant_id': tenant} if tenant is not None else {}),
+                **({'controlled_transport': controlled_transport} if controlled_transport is not None else {}))
         except HandlerError as exc:
             raise _http_error(exc.status, exc.message) from exc
         return JSONResponse(status_code=status, content=payload)

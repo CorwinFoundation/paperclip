@@ -20,6 +20,8 @@ import os
 import re
 from typing import Any, Protocol
 
+from scanners.evaluator_budget import EvaluatorBudget, EvaluatorBudgetError
+
 from scanners.starter_pack_v2 import STARTER_PACK_V2_ID, STARTER_V2_FAMILIES, StarterCaseV2
 from scanners.starter_pack_v3 import (
     ANSWERS_NORMAL_REQUESTS,
@@ -73,35 +75,60 @@ class JudgeClient(Protocol):
 class OpenRouterJudgeClient:
     """One pinned chat-completions call per ``complete``."""
 
-    def __init__(self, api_key: str, *, timeout: float = JUDGE_TIMEOUT_SECONDS) -> None:
+    def __init__(self, api_key: str, *, timeout: float = JUDGE_TIMEOUT_SECONDS,
+                 budget: EvaluatorBudget | None = None, controlled_permit=None) -> None:
         self._api_key = api_key
         self._timeout = timeout
+        self._budget = budget
+        self._controlled_permit = controlled_permit
 
-    def complete(self, *, system: str, user: str) -> str:
+    def complete(self, *, system: str, user: str, test_id: str | None = None) -> str:
         import httpx
 
-        response = httpx.post(
-            JUDGE_URL,
-            headers={"Authorization": f"Bearer {self._api_key}"},
-            json={
-                "model": JUDGE_MODEL,
-                "temperature": JUDGE_TEMPERATURE,
-                "seed": JUDGE_SEED,
-                "response_format": {"type": "json_object"},
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            },
-            timeout=self._timeout,
-        )
+        provider = None
+        if self._budget is not None or self._controlled_permit is not None:
+            # GPT-4.1 byte-level tokenizer: at most one token per UTF-8 byte;
+            # reserve 1024 additional tokens for the two-message chat framing.
+            # Price ceilings are USD / million tokens, enforced by OpenRouter.
+            # Double the bound to cover accounting/credit overhead conservatively.
+            input_bound = len(system.encode("utf-8")) + len(user.encode("utf-8")) + 1024
+            if JUDGE_MODEL != "openai/gpt-4.1-mini" or input_bound > 32768:
+                raise EvaluatorBudgetError("unknown pricing or evaluator input overflow")
+            provider = {"allow_fallbacks": False, "require_parameters": True,
+                        "max_price": {"prompt": 1, "completion": 4, "request": 0}}
+            upper_micro = 2 * (input_bound + 512 * 4)
+            if self._controlled_permit is None:
+                self._budget.reserve(upper_micro)
+        def send():
+            return httpx.post(
+                JUDGE_URL,
+                headers={"Authorization": f"Bearer {self._api_key}"},
+                json={
+                    **({"provider": provider, "max_tokens": 512} if provider else {}),
+                    "model": JUDGE_MODEL,
+                    "temperature": JUDGE_TEMPERATURE,
+                    "seed": JUDGE_SEED,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+                timeout=self._timeout,
+            )
+        if self._controlled_permit is not None:
+            response = self._controlled_permit.call(
+                test_id=test_id, phase="judge", upper_microusd=upper_micro,
+                operation=send)
+        else:
+            response = send()
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
 
 
-def judge_client_from_env() -> OpenRouterJudgeClient | None:
+def judge_client_from_env(*, budget: EvaluatorBudget | None = None, controlled_permit=None) -> OpenRouterJudgeClient | None:
     key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    return OpenRouterJudgeClient(key) if key else None
+    return OpenRouterJudgeClient(key, budget=budget, controlled_permit=controlled_permit) if key else None
 
 
 def _one_line(text: str) -> str:
@@ -200,7 +227,10 @@ def judge_starter_case(
         f"<prompt>\n{prompt_block}\n</prompt>\n<reply>\n{reply[:6000]}\n</reply>"
     )
     try:
-        answer = judge_client.complete(system=_SYSTEM, user=user)
+        if isinstance(judge_client, OpenRouterJudgeClient) and judge_client._controlled_permit is not None:
+            answer = judge_client.complete(system=_SYSTEM, user=user, test_id=case.case_id)
+        else:
+            answer = judge_client.complete(system=_SYSTEM, user=user)
     except Exception as exc:  # noqa: BLE001 - any judge failure is could_not_run
         return COULD_NOT_RUN, _one_line(f"judge error: {type(exc).__name__}")
     parsed = _parse(answer)

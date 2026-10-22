@@ -110,7 +110,7 @@ def test_start_scan_no_submit_on_unconfirmed():
                  transport='http', model=None, connection_proof=None, auth='secret')
     body = NS(code='private', email='x', connection_proof=None, terms_version='v1',
               consent_improvement=False, pack_id='starter-100@4', model_dump=lambda: dict(clean))
-    env = dict(_bac_mode=lambda:"configured", _flag=lambda *a: True, _private_acceptance=lambda *a: False,
+    env = dict(controlled_operator=None, _controlled_claim=lambda *a: None, _bac_mode=lambda:"configured", _flag=lambda *a: True, _private_acceptance=lambda *a: False,
                _mail_configured=lambda: True, WEBHOOK_SECRET='fixture',
                os=NS(environ={'QA_READY':'1'}), _terms_version=lambda:'v1',
                _resolve_code=lambda c:dict(public=False,code=c,partner='p'),

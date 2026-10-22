@@ -133,3 +133,25 @@ def test_progress_closes_pre_case_deadline_as_timeout(tmp_path, monkeypatch):
         list(walker.customer_agent_probe_run_fn(runner))
     assert runner.progress_events[-1]["state"] == "failed"
     assert runner.progress_events[-1]["error_category"] == "timeout"
+
+
+def test_ordinary_v4_needs_no_controlled_budget_configuration(tmp_path, monkeypatch):
+    """Ordinary saved forms retain the no-argument judge factory contract."""
+    monkeypatch.delenv("SCANNER_EVALUATOR_BUDGET_DB", raising=False)
+    constructed = []
+
+    def ordinary_judge():
+        constructed.append(True)
+        return FixtureJudge()
+
+    monkeypatch.setattr(walker, "judge_client_from_env", ordinary_judge)
+    cases, _ = reserve_starter_cases(
+        scan_id="ordinary-no-budget", tenant_id="t", agent_id="a",
+        store=FormStore(tmp_path / "forms.sqlite"),
+    )
+    runner = FixtureRunner(cases)
+    assert not hasattr(runner, "evaluator_max_cost_usd")
+    assert not hasattr(runner, "evaluator_run_id")
+    assert len(list(walker.customer_agent_probe_run_fn(runner))) == 100
+    assert len(runner.prompts) == len(runner.rows) == 100
+    assert constructed == [True]

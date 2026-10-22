@@ -368,6 +368,7 @@ def _prober_target(
     agent_endpoint_url: str,
     result_queue: Any,
     fired_probe_ledger: FiredProbeLedger | None = None,
+    controlled_execution_payload: dict | None = None,
 ) -> None:
     """Prober subprocess entrypoint.
 
@@ -391,6 +392,14 @@ def _prober_target(
             lambda **event: result_queue.put(("progress", event)),
         )
     try:
+        from harness.controlled_target_policy import startup_target_config
+        controlled_config = startup_target_config(scan_request.endpoint_config)
+        if controlled_config is not None and not isinstance(controlled_execution_payload, dict):
+            from harness.controlled_permit_loader import AdmissionClosed
+            raise AdmissionClosed('Controlled memory context unavailable')
+        controlled_kwargs = ({"controlled_target_config": controlled_config,
+                              "controlled_execution_payload": controlled_execution_payload}
+                             if controlled_config is not None else {})
         with ScopedEgressAllowlist(agent_endpoint_url):
             result = run_scan(
                 scan_request,
@@ -400,6 +409,7 @@ def _prober_target(
                 probe_run_fn=probe_run_fn,
                 runner_factory=runner_factory,
                 fired_probe_ledger=fired_probe_ledger,
+                **controlled_kwargs,
             )
         result_queue.put(("ok", result))
     except BaseException as exc:  # noqa: BLE001 — surface every failure
@@ -465,7 +475,7 @@ def make_production_scan_runtime(
         else _PARENT_JOIN_SLACK_SECONDS
     )
 
-    def run_scan_fn(scan_request: ScanRequest, secret: str) -> ScanResult:
+    def run_scan_fn(scan_request: ScanRequest, secret: str, *, controlled_execution_payload=None) -> ScanResult:
         if scan_request.corpus_version != server_corpus_version:
             raise CorpusProvenanceMismatchError("corpus_version_mismatch")
         if scan_request.seed != server_seed:
@@ -590,6 +600,7 @@ def make_production_scan_runtime(
                         "agent_endpoint_url": agent_endpoint_url,
                         "result_queue": result_queue,
                         "fired_probe_ledger": fired_probe_ledger,
+                        "controlled_execution_payload": controlled_execution_payload,
                     },
                     name="are-prober",
                 )
