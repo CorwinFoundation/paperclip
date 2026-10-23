@@ -152,6 +152,88 @@ def test_duplicate_identical_native_verdict_is_idempotent(tmp_path):
     assert not any(method=='POST' and path.endswith('/comments') for method,path in native.calls)
 
 
+def resolved_handoff_review(native):
+    ship = native.comments['reviewer'][0]
+    ship.update(id='ship', createdAt='2026-10-23T16:26:00Z')
+    fix = deepcopy(ship)
+    fix.update(id='fix', createdAt='2026-10-23T16:21:00Z')
+    value = json.loads(fix['body'])
+    value.update(verdict='FIX', fixes=[{'component':'Writer handoff', 'instruction':'Add the missing security family note.'}])
+    fix['body'] = canonical(value)
+    # Native API ordering is not chronological.
+    native.comments['reviewer'] = [ship, fix]
+    return ship, fix
+
+
+def test_same_reviewer_resolves_unchanged_handoff_fix_and_delivers_once(tmp_path):
+    native, flow, value = setup(tmp_path); publish(native, flow, value)
+    resolved_handoff_review(native); flow.tick(now=20)
+    assert flow.status('scan1')['state'] == 'approved'
+    client=FindingsReports(str(tmp_path/'intake.sqlite'));client.enqueue(value);http=MailHTTP(flow)
+    kwargs=dict(base_url='https://bac.example',token='existing',http=http,
+                mail_credentials=lambda:dict(provider='resend',api_key='protected'))
+    client.tick(now=100,**kwargs);client.tick(now=120,**kwargs);client.tick(now=140,**kwargs)
+    assert len(http.sends)==1 and flow.status('scan1')['state']=='sent'
+    assert base64.b64decode(http.sends[0][1]['attachments'][0]['content']) == native.files['pdf'][1]
+
+
+@pytest.mark.parametrize('invalid', ['reverse','same_time','missing_time','naive_time','escalate',
+    'changed_hash','changed_measurements','later_fix','duplicate_fix_tied_with_ship',
+    'other_issue','open_review','wrong_author'])
+def test_fix_resolution_keeps_ambiguous_or_unapproved_delivery_closed(tmp_path, invalid):
+    native,flow,value=setup(tmp_path);publish(native,flow,value)
+    ship,fix=resolved_handoff_review(native)
+    if invalid=='reverse':ship['createdAt']='2026-10-23T16:20:00Z'
+    elif invalid=='same_time':ship['createdAt']=fix['createdAt']
+    elif invalid=='missing_time':fix.pop('createdAt')
+    elif invalid=='naive_time':fix['createdAt']='2026-10-23T16:21:00'
+    elif invalid=='escalate':
+        v=json.loads(fix['body']);v['verdict']='ESCALATE';fix['body']=canonical(v)
+    elif invalid in {'changed_hash','changed_measurements'}:
+        v=json.loads(fix['body'])
+        if invalid=='changed_hash':v['artifacts']['pdf']['sha256']='0'*64
+        else:v['mechanical']['gaps_px']=[101,100]
+        fix['body']=canonical(v)
+    elif invalid=='later_fix':
+        again=deepcopy(fix);again.update(id='revoked',createdAt='2026-10-23T16:27:00Z')
+        native.comments['reviewer'].append(again)
+    elif invalid=='duplicate_fix_tied_with_ship':
+        again=deepcopy(fix);again.update(id='ambiguous',createdAt=ship['createdAt'])
+        native.comments['reviewer'].append(again)
+    elif invalid=='other_issue':
+        native.issues['other']=dict(native.issues['reviewer'],id='other')
+        native.comments['other']=[native.comments['reviewer'].pop()]
+    elif invalid=='open_review':native.issues['reviewer']['status']='in_progress'
+    elif invalid=='wrong_author':ship['authorAgentId']=WRITER
+    flow.tick(now=20)
+    assert flow.status('scan1')['state']!='approved'
+    assert flow.status('scan1')['artifacts'] is None
+
+
+def test_conflict_recovery_rereads_closed_independent_review_without_new_work(tmp_path):
+    native,flow,value=setup(tmp_path);publish(native,flow,value)
+    resolved_handoff_review(native)
+    flow.update('scan1',state='needs_attention',error='conflicting_reviewer_verdicts')
+    calls=len(native.calls)
+    result=flow.recheck_conflicted_review('scan1')
+    assert result['state']=='approved'
+    assert all(method=='GET' for method,_ in native.calls[calls:])
+    with pytest.raises(WorkflowError,match='not_a_conflicted_review'):
+        flow.recheck_conflicted_review('scan1')
+
+
+def test_conflict_recovery_cannot_clear_an_unresolved_or_unrelated_hold(tmp_path):
+    native,flow,value=setup(tmp_path);publish(native,flow,value)
+    ship,fix=resolved_handoff_review(native);fix.pop('createdAt')
+    flow.update('scan1',state='needs_attention',error='conflicting_reviewer_verdicts')
+    with pytest.raises(WorkflowError,match='conflicting_reviewer_verdicts'):
+        flow.recheck_conflicted_review('scan1')
+    assert flow.status('scan1')['state']=='needs_attention' and flow.status('scan1')['artifacts'] is None
+    flow.update('scan1',error='review_escalate')
+    with pytest.raises(WorkflowError,match='not_a_conflicted_review'):
+        flow.recheck_conflicted_review('scan1')
+
+
 class MailHTTP:
     def __init__(self, flow): self.flow=flow; self.sends=[]; self.accepted={}; self.lose=False
     def get(self, url, **kwargs): return response(self.flow.status('scan1'))
