@@ -617,13 +617,7 @@ def make_production_scan_runtime(
                         if callable(callback):
                             callback(**outcome[1])
                 except Exception as exc:  # noqa: BLE001 — Queue.Empty / timeout
-                    LOGGER.warning(
-                        "scan_orchestrator_failed scan_id=%s phase=prober_result "
-                        "prober_alive=%s prober_exitcode=%s scorer_alive=%s "
-                        "scorer_exitcode=%s reason=%s",
-                        scan_request.scan_id, prober_proc.is_alive(), prober_proc.exitcode,
-                        scorer_proc.is_alive(), scorer_proc.exitcode, type(exc).__name__,
-                    )
+                    _log_worker_failure("prober_result_receive", prober_proc, scorer_proc)
                     _terminate(prober_proc, scorer_proc)
                     raise OrchestratorError(
                         f"prober result queue drain failed: {type(exc).__name__}: {exc}"
@@ -645,6 +639,7 @@ def make_production_scan_runtime(
                             timeout=_scorer_envelope_drain_timeout(scorer_proc)
                         )
                     except Exception as exc:  # noqa: BLE001
+                        _log_worker_failure("scorer_envelope_receive", prober_proc, scorer_proc)
                         _terminate(prober_proc, scorer_proc)
                         raise OrchestratorError(
                             f"scorer envelope queue drain failed: "
@@ -660,11 +655,15 @@ def make_production_scan_runtime(
                     else:
                         # ("err", type_name, message) — surface as
                         # OrchestratorError on the kickoff path.
+                        _log_worker_failure("scorer_reported_error", prober_proc, scorer_proc)
                         _terminate(prober_proc, scorer_proc)
                         raise OrchestratorError(
                             f"scorer subprocess raised {env_outcome[1]}: "
                             f"{env_outcome[2]}"
                         )
+
+                if outcome[0] != "ok":
+                    _log_worker_failure("prober_reported_error", prober_proc, scorer_proc)
 
                 prober_proc.join(timeout=join_slack)
                 scorer_proc.join(timeout=join_slack)
@@ -1046,6 +1045,24 @@ def _utc_now_iso() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
         "+00:00", "Z"
+    )
+
+
+def _log_worker_failure(phase: str, prober: Any, scorer: Any) -> None:
+    """Log fixed phases and primitive child facts before cleanup, never payloads."""
+    def status(proc: Any) -> tuple[bool | None, int | None]:
+        try:
+            alive, code = proc.is_alive(), proc.exitcode
+            return (alive if type(alive) is bool else None,
+                    code if type(code) is int else None)
+        except Exception:
+            return None, None
+
+    pa, pc = status(prober)
+    sa, sc = status(scorer)
+    logging.getLogger(__name__).warning(
+        "scan_orchestrator_failed phase=%s prober_alive=%s prober_exitcode=%s "
+        "scorer_alive=%s scorer_exitcode=%s", phase, pa, pc, sa, sc,
     )
 
 
