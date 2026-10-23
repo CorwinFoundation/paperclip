@@ -41,6 +41,7 @@ from harness.controlled_permit_loader import (
 import hashlib
 import ipaddress
 import json
+import sqlite3
 import logging
 import math
 import re
@@ -3004,6 +3005,18 @@ def scan_status_handler(
         owning_request = runtime.current_scan_request(scan_id)
         if owning_request is not None and owning_request.pack_id in _STARTER_PACK_IDS:
             response.update(runtime.accepted_scan_progress(scan_id))
+            if (authenticated_tenant_id is not None and owning_request.pack_id == STARTER_PACK_V4_ID
+                    and result.status in {"complete", "completed"}):
+                # Existing owner-authenticated route only; never reserve or rebuild a form.
+                from api.selection_capture import export_selection
+                from pathlib import Path
+                import os
+                try:
+                    directory = str(Path(os.environ.get("ARE_SCAN_LOG_PATH", "/var/lib/are-scanner/scan_log.sqlite3")).parent)
+                    response["selection"] = export_selection(
+                        {"scan_id": scan_id, "tenant_id": authenticated_tenant_id}, directory)
+                except (ValueError, KeyError, TypeError, OSError, sqlite3.Error):
+                    response["selection_status"] = "unavailable"
         return 200, response
     if audience == "ci_plugin":
         return 200, _ci_plugin_payload(

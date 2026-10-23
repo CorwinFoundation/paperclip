@@ -551,6 +551,10 @@ class IntakeStore:
         for scan_id in ids:
             self.db.execute("DELETE FROM mail_outbox WHERE scan_id=?", (scan_id,))
             self.db.execute("DELETE FROM acceptances WHERE scan_id=?", (scan_id,))
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='findings_report_outbox'").fetchone():
+                self.db.execute('DELETE FROM findings_report_outbox WHERE scan_id=?', (scan_id,))
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='findings_capture_errors'").fetchone():
+                self.db.execute('DELETE FROM findings_capture_errors WHERE scan_id=?', (scan_id,))
         cursor = self.db.execute("DELETE FROM scans WHERE created_at < ? AND status NOT IN "
                                  "('reserved','queued','starting','running','dispatch_unknown')", (cutoff,))
         self.db.execute("DELETE FROM callbacks")

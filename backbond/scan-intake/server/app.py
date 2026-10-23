@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, model_validator
 from bac_intake import BACIntake, BACUnconfirmed
 from findings_intake import FindingsIntake
+from findings_client import FindingsReports
 from operations_client import OperationsClient, OperationsOutbox
 from controlled_admission import AdmissionClosed
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
@@ -58,6 +59,8 @@ def _operations_enqueue(request_id, scan_id):
 
 
 def _bac_mode():
+    if os.environ.get('QA_FINDINGS_REPORTS') == '1':
+        return 'absent'
     keys = ('QA_BAC_URL', 'QA_BAC_COMPANY_ID', 'QA_BAC_LEAD_ID', 'QA_BAC_TOKEN')
     values = [os.environ.get(key, '').strip() for key in keys]
     if not any(values):
@@ -74,9 +77,24 @@ def _bac_mode():
 
 
 def worker_tick():
-    """One lifespan worker iteration. BEAAA-42596: intake sends no report mail at all, to a
-    customer or to info@backbond.ai; the Operations workflow writes and sends the final report.
-    Intake records the finished result there and reads its public status back."""
+    """Advance native Findings and exact reviewed delivery, or legacy compatibility.
+
+    Findings mode never invokes the retired Operations reporting chain.
+    """
+    if os.environ.get('QA_FINDINGS_REPORTS') == '1':
+        with store._lock:
+            active = list(store.db.execute("SELECT id,pack_version FROM scans WHERE status IN ('running','dispatch_unknown') AND scanner_id IS NOT NULL"))
+        for row in active:
+            findings.accept(row['id'], row['pack_version'])
+        findings.capture(store, queue, _terminal_scan, _engine_progress)
+        findings_reports.capture(store, _findings_accepted_total,
+            selection=_findings_selection_row,
+            since=os.environ.get('QA_FINDINGS_REPORTS_SINCE', ''),
+            replay=tuple(filter(None, os.environ.get('QA_FINDINGS_REPLAY_SCAN_IDS', '').split(','))))
+        findings_reports.tick(base_url=os.environ.get('QA_BAC_URL', ''), token=os.environ.get('QA_BAC_TOKEN', ''),
+            http=httpx, mail_credentials=_findings_mail_credentials, recover_selection=_findings_selection)
+        queue.expire_pending()
+        return
     if _bac_mode() == "invalid":
         return
     if _bac_mode() == "configured" or (store is not None and bac.db.execute(
@@ -98,7 +116,10 @@ async def lifespan(app):
     stopped = threading.Event()
     def worker():
         while not stopped.is_set():
-            worker_tick()
+            try:
+                worker_tick()
+            except Exception:
+                pass  # Durable work retries; private evidence never enters logs.
             stopped.wait(10)
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
@@ -117,6 +138,7 @@ app.add_middleware(CORSMiddleware,
                    allow_headers=["Content-Type"])
 store = IntakeStore(DB_PATH)
 findings = FindingsIntake(DB_PATH)
+findings_reports = FindingsReports(DB_PATH)
 bac = BACIntake(DB_PATH, base_url=os.environ.get('QA_BAC_URL', ''),
                 company_id=os.environ.get('QA_BAC_COMPANY_ID', ''),
                 owner_id=os.environ.get('QA_BAC_LEAD_ID', ''),
@@ -331,6 +353,57 @@ def _mail_configured() -> bool:
         return False
 
 
+def _findings_mail_credentials():
+    path = _mail_credentials_path()
+    return json.loads(path.read_text()) if path else {}
+
+
+def _findings_selection(ident):
+    with store._lock:
+        row = store.db.execute('SELECT scanner_id,partner FROM scans WHERE id=?', (ident,)).fetchone()
+    if not row:
+        raise ValueError('unknown_selection_owner')
+    return _findings_selection_row(dict(row))
+
+
+def _findings_selection_row(row):
+    tenant = 'partner-' + row['partner']
+    response = httpx.get(SCANNER_URL.removesuffix('/scanner/v1') + '/scan/' + row['scanner_id'],
+        headers=_headers({'tenant_id': tenant}), timeout=15, follow_redirects=False)
+    if response.status_code != 200:
+        raise ValueError('selection_transport_unavailable')
+    value = response.json().get('selection')
+    if not isinstance(value, dict) or value.get('tenant_id') != tenant or value.get('scanner_id') != row['scanner_id']:
+        raise ValueError('selection_owner_unconfirmed')
+    return value
+
+
+def _findings_configured():
+    try:
+        url = urlsplit(os.environ.get('QA_BAC_URL', ''))
+        since = datetime.fromisoformat(os.environ.get('QA_FINDINGS_REPORTS_SINCE', ''))
+        return bool(url.scheme == 'https' and url.hostname and not url.username and not url.password
+                    and not url.query and not url.fragment and since.tzinfo
+                    and os.environ.get('QA_BAC_TOKEN') and _mail_configured())
+    except ValueError:
+        return False
+
+
+def _findings_accepted_total(row):
+    for source in (findings, bac):
+        total = source.latest_progress(row['id']).get('accepted_pack_total')
+        if type(total) is int and total > 0:
+            return total
+    # Terminal webhooks can precede our first progress poll. Read the accepted
+    # denominator from Scanner; never infer it from the pack name.
+    response = httpx.get(SCANNER_URL + '/scans/' + row['scanner_id'] + '/progress',
+        headers=_headers({'tenant_id': 'partner-' + row['partner']}), timeout=10, follow_redirects=False)
+    if response.status_code != 200:
+        return None
+    total = response.json().get('accepted_pack_total')
+    return total if type(total) is int and total > 0 else None
+
+
 def _send_report_code(to: str, code: str) -> None:
     path = _mail_credentials_path()
     if not path or not path.is_file():
@@ -518,6 +591,8 @@ def connection_check(body: Annotated[ConnectionFields, Depends(_connection_reque
 @app.post("/scan/v1/scans")
 def start_scan(body: Annotated[ScanRequest, Depends(_scan_request)], request: Request):
     controlled = controlled_operator is not None
+    if os.environ.get('QA_FINDINGS_REPORTS') == '1' and not _findings_configured():
+        raise HTTPException(503, 'Scan reporting is temporarily unavailable')
     if not controlled and not _flag("QA_TERMS_APPROVED", "0"):
         raise HTTPException(503, "This review preview cannot start scans. Terms and launch approval are pending.")
     if _bac_mode() == "invalid":
@@ -719,6 +794,8 @@ def _merge_lifecycle(lifecycle: dict, scan_id: str, scan_status: str) -> dict:
     delivery_status from the Operations workflow's last good status snapshot once Operations has
     acknowledged the BAC-bound result. Missing acknowledgment stays pending; local release
     records are never an authority for BAC-bound scans. Store errors read unavailable."""
+    if os.environ.get('QA_FINDINGS_REPORTS') == '1':
+        return findings_reports.lifecycle(scan_id)
     try:
         if bac.is_bound(scan_id):
             released = operations.public_lifecycle(scan_id)
@@ -777,7 +854,7 @@ def scan_status(body: StatusRequest):
         if progress:
             value.update(progress)
             value["status"] = progress.get("state", value["status"])
-        value["lifecycle"] = {"intake_status": "accepted",
+        value["lifecycle"] = findings_reports.lifecycle(value['scan_id']) if os.environ.get('QA_FINDINGS_REPORTS') == '1' else {"intake_status": "accepted",
                               "report_status": "awaiting_findings_handoff",
                               "delivery_status": "not_ready", "updated_at": None, "version": "starter_lifecycle@1"}
         scan_id = value.pop('scan_id')

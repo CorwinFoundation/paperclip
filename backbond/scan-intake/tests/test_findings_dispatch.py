@@ -15,6 +15,7 @@ from findings_intake import FindingsIntake
 
 
 def function(name, env):
+    env.setdefault('os', NS(environ={}))
     tree = ast.parse(Path(os.environ.get('FINDINGS_ROUTE_SOURCE', str(SERVER / 'app.py'))).read_text())
     fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     fn.decorator_list = []; fn.returns = None
@@ -98,7 +99,7 @@ def test_terminal_recovery_without_bac_and_private_progress(tmp_path):
 
 def test_worker_has_no_bac_operations_or_delivery_calls(tmp_path):
     calls=[]
-    env=dict(_bac_mode=lambda:"absent", findings=NS(capture=lambda *a:calls.append('capture')), store=None,
+    env=dict(os=NS(environ={}), _bac_mode=lambda:"absent", findings=NS(capture=lambda *a:calls.append('capture')), store=None,
              queue=NS(expire_pending=lambda:calls.append('expire')), _terminal_scan=None, _engine_progress=None)
     function('worker_tick', env)()
     assert calls == ['capture','expire']

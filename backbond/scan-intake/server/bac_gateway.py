@@ -7,7 +7,8 @@ import re
 import sqlite3
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
+import threading
 from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, Request
@@ -343,13 +344,32 @@ def create_evidence_app(*, intake, store, actors, grants):
     return create_app(None, tool)
 
 
-def create_app(gateway, evidence_tool=None):
+def create_app(gateway, evidence_tool=None, findings_workflow=None):
     if gateway is not None and evidence_tool is not None and any(
             hmac.compare_digest(token, reserved)
             for token in evidence_tool.actors
             for reserved in (gateway.client_token, gateway.upstream_token)):
         raise ValueError('evidence credentials must be distinct')
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False)
+    @asynccontextmanager
+    async def lifespan(app):
+        stopped = threading.Event()
+        def worker():
+            while not stopped.is_set():
+                try:
+                    findings_workflow.tick()
+                except Exception:
+                    pass
+                stopped.wait(10)
+        thread = threading.Thread(target=worker, daemon=True) if findings_workflow else None
+        if thread:
+            thread.start()
+        try:
+            yield
+        finally:
+            stopped.set()
+            if thread:
+                thread.join(timeout=1)
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False, lifespan=lifespan)
 
     @app.api_route('/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
     async def dispatch(request: Request, path: str):
@@ -361,10 +381,26 @@ def create_app(gateway, evidence_tool=None):
             if not evidence_path and (gateway is None or not hmac.compare_digest(auth[0], 'Bearer ' + gateway.client_token)):
                 return JSONResponse({'error': 'unauthorized'}, status_code=401)
             raw = request.scope['raw_path'].decode('ascii')
-            if '%' in raw or '//' in raw or len(await request.body()) > 8192:
+            findings_path = raw.startswith('/findings/v1/workflows')
+            if '%' in raw or '//' in raw or len(await request.body()) > (2_000_000 if findings_path else 8192):
                 raise Denied()
             body = await request.body()
             payload = strict_json(body) if body else None
+            if findings_path:
+                from starlette.concurrency import run_in_threadpool
+                if findings_workflow is None or request.url.query:
+                    raise Denied()
+                if raw == '/findings/v1/workflows' and request.method == 'GET':
+                    return JSONResponse(await run_in_threadpool(findings_workflow.readiness))
+                if raw == '/findings/v1/workflows' and request.method == 'POST':
+                    return JSONResponse(await run_in_threadpool(findings_workflow.submit, payload))
+                match = re.fullmatch(r'/findings/v1/workflows/([A-Za-z0-9_-]{1,128})(/delivery|/evidence)?', raw)
+                if match and request.method == 'GET' and not match[2]:
+                    return JSONResponse(await run_in_threadpool(findings_workflow.status, match[1]))
+                if match and request.method == 'POST' and match[2]:
+                    action = findings_workflow.receipt if match[2] == '/delivery' else findings_workflow.supplement
+                    return JSONResponse(await run_in_threadpool(action, match[1], payload))
+                raise Denied()
             if evidence_path:
                 if evidence_tool is None or request.method != 'POST' or request.url.query:
                     raise Denied()
@@ -392,4 +428,6 @@ def app_from_env():
         upstream_agent=os.environ['BAC_UPSTREAM_AGENT_ID'],
         upstream_token=(credentials / 'upstream-token').read_text().strip(),
         client_token=(credentials / 'client-token').read_text().strip(), transport=httpx.Client())
-    return create_app(gateway)
+    from findings_workflow import FindingsWorkflow
+    workflow = FindingsWorkflow(gateway.path, gateway) if os.environ.get('BAC_FINDINGS_ENABLED') == '1' else None
+    return create_app(gateway, findings_workflow=workflow)

@@ -175,8 +175,8 @@ async function page(sequence) {
     report_status:'drafting', delivery_status:'not_ready', updated_at:null};
   const stages = {
     intake_status: {pending:/acknowledgement is pending/,recorded:/Intake recorded/,failed:/acknowledgement failed/,unknown:/Intake status is unconfirmed/,unavailable:/Intake status is unconfirmed/},
-    report_status: {awaiting_results:/awaiting scan results/,drafting:/report is in preparation/,review:/under BackBond review/,changes_requested:/report is in preparation/,awaiting_ceo_approval:/under BackBond review/,approved:/review is complete/,unavailable:/Report status is unconfirmed/},
-    delivery_status: {not_ready:/delivery is not ready/,pending:/delivery is pending/,sending:/delivery is in progress/,provider_accepted:/Report prepared for BackBond review/,failed:/Report delivery failed/,unknown:/Report delivery status is unconfirmed/,unavailable:/Report delivery status is unconfirmed/},
+    report_status: {awaiting_results:/awaiting scan results/,drafting:/Findings Report is in preparation/,review:/under independent BackBond review/,changes_requested:/report is in preparation/,awaiting_ceo_approval:/under BackBond review/,approved:/review is complete/,unavailable:/Report status is unconfirmed/},
+    delivery_status: {not_ready:/delivery is not ready/,pending:/delivery is pending/,sending:/delivery is in progress/,provider_accepted:/Findings Report has been submitted for email delivery/,failed:/Report delivery failed/,unknown:/Report delivery status is unconfirmed/,unavailable:/Report delivery status is unconfirmed/},
   };
   let lifecycleChecks=0;
   for(const [field, values] of Object.entries(stages)){
@@ -205,9 +205,9 @@ async function page(sequence) {
     {...stopped,lifecycle:{...lifecycle,report_status:'approved',delivery_status:'provider_accepted'}}]);
   await updates.tick();
   assert.match(updates.text(),/stopped before completion/);
-  assert.match(updates.text(),/under BackBond review/);
+  assert.match(updates.text(),/under independent BackBond review/);
   await updates.tick();
-  assert.match(updates.text(),/Report prepared for BackBond review/);
+  assert.match(updates.text(),/Findings Report has been submitted for email delivery/);
   assert.match(updates.text(),/3 of 100 cases processed/);
   lifecycleChecks++;
   // Optional real backend fixture: feed a saved public scan-status response,
