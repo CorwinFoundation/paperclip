@@ -8,6 +8,24 @@ closed independent SHIP review with passing mechanical checks releases files.
 Routine FIX requests route automatically to the same Writer. Incomplete evidence
 or unresolved review failures remain held; there is no legacy report fallback.
 
+Handoffs use native `[@Name](agent://agent-id)` mentions, committed in the same
+PATCH as the Writer's blocked status or Reviewer's done status. The CEO immediately
+assigns independent review, or returns the same Writer task with precise fixes and
+a native wake mention. Ordinary `/agents/` links do not wake agents. The existing
+two-round limit and separate Writer/Reviewer identities remain enforced.
+
+The gateway listens to the native company's authenticated WebSocket event stream
+using its existing protected credential. Issue events only wake reconciliation;
+all author, closure, evidence and artifact checks reread durable native records.
+Intake waits on the gateway's authenticated `/findings/v1/workflows/changes`
+cursor endpoint and wakes its existing delivery outbox after committed changes.
+Notifications cannot approve files, change recipients or clear delivery leases.
+Reconnects reconcile durable state, and periodic checks remain recovery only.
+Install `server/requirements-findings-events.txt` in the gateway virtual environment
+before deployment. The WebSocket is local to the native host; no new public route,
+native permission or credential is required. The changes route stays inside the
+existing intake-host-only gateway prefix and uses the existing intake token.
+
 The existing owner-authenticated Scanner result route supplies `selection`
 from its saved accepted request and pre-dispatch form. It exports expected
 family counts, selected case IDs and integrity hashes; credentials, scenario

@@ -355,20 +355,29 @@ def create_app(gateway, evidence_tool=None, findings_workflow=None):
         stopped = threading.Event()
         def worker():
             while not stopped.is_set():
+                findings_workflow.work.clear()
                 try:
-                    findings_workflow.tick()
+                    findings_workflow.tick(limit=50, force=True)
                 except Exception:
                     pass
-                stopped.wait(10)
+                findings_workflow.work.wait(10)
         thread = threading.Thread(target=worker, daemon=True) if findings_workflow else None
+        events_thread = None
         if thread:
+            from findings_events import NativeEvents
+            from findings_workflow import COMPANY
+            events = NativeEvents(gateway, COMPANY, findings_workflow.native_changed)
+            events_thread = threading.Thread(target=events.run, args=(stopped,), daemon=True)
             thread.start()
+            events_thread.start()
         try:
             yield
         finally:
             stopped.set()
             if thread:
+                findings_workflow.work.set()
                 thread.join(timeout=1)
+                events_thread.join(timeout=2)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False, lifespan=lifespan)
 
     @app.api_route('/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
@@ -388,7 +397,15 @@ def create_app(gateway, evidence_tool=None, findings_workflow=None):
             payload = strict_json(body) if body else None
             if findings_path:
                 from starlette.concurrency import run_in_threadpool
-                if findings_workflow is None or request.url.query:
+                if findings_workflow is None:
+                    raise Denied()
+                if raw == '/findings/v1/workflows/changes' and request.method == 'GET':
+                    params = list(request.query_params.multi_items())
+                    if body or len(params) > 1 or any(key != 'cursor' for key, _ in params):
+                        raise Denied()
+                    return JSONResponse(await run_in_threadpool(findings_workflow.wait_changes,
+                        request.query_params.get('cursor', '')))
+                if request.url.query:
                     raise Denied()
                 if raw == '/findings/v1/workflows' and request.method == 'GET':
                     return JSONResponse(await run_in_threadpool(findings_workflow.readiness))

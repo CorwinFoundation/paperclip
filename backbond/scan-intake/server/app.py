@@ -111,24 +111,40 @@ def worker_tick():
     queue.expire_pending()
 
 
+_worker_wakeup = threading.Event()
+
+
 @asynccontextmanager
 async def lifespan(app):
     stopped = threading.Event()
     def worker():
         while not stopped.is_set():
+            _worker_wakeup.clear()
             try:
                 worker_tick()
             except Exception:
                 pass  # Durable work retries; private evidence never enters logs.
-            stopped.wait(10)
+            _worker_wakeup.wait(10)
+    def changed():
+        findings_reports.expedite()
+        _worker_wakeup.set()
     thread = threading.Thread(target=worker, daemon=True)
+    events_thread = None
+    if os.environ.get('QA_FINDINGS_REPORTS') == '1' and _findings_configured():
+        from findings_events import IntakeEvents
+        events = IntakeEvents(os.environ.get('QA_BAC_URL', ''), os.environ.get('QA_BAC_TOKEN', ''), httpx, changed)
+        events_thread = threading.Thread(target=events.run, args=(stopped,), daemon=True)
+        events_thread.start()
     thread.start()
     try:
         yield
     finally:
         stopped.set()
+        _worker_wakeup.set()
         queue.close()
         thread.join(timeout=1)
+        if events_thread:
+            events_thread.join(timeout=1)
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.add_middleware(CORSMiddleware,
@@ -932,6 +948,7 @@ async def scanner_webhook(request: Request, x_backbond_signature: str = Header(d
                 or not all(isinstance(row, dict) for row in rows)):
             raise ValueError('invalid result rows')
         queue.callback(scan_id, translate_callback(body))
+        _worker_wakeup.set()
     except (ValueError, IntakeError):
         raise HTTPException(400, 'invalid scanner callback')
 

@@ -16,6 +16,7 @@ import sqlite3
 import threading
 import time
 import zipfile
+import uuid
 from urllib.parse import quote
 
 COMPANY = '60bcddf3-87be-4197-8f1c-846bd967db11'
@@ -222,15 +223,19 @@ MACHINE HANDOFF: each role must post its following JSON as its OWN standalone na
 Reviewer posts on its own review child, binding the SAME artifact references and hashes, round and evidence hash:
 {canonical(verdict)}
 Use verdict FIX with exact fixes when needed; ESCALATE for blocked evidence/round limit. Never assert mechanical pass without measurements. A SHIP comment is valid only after full review and closing the review issue. CEO verifies both structured comments exist and role attribution is correct. Do not manufacture another role's comment.
-NATIVE NOTIFICATION: immediately after the standalone JSON, Writer and Reviewer each post a SECOND normal comment on their OWN child: [@CEO](/agents/{CEO}): round N handoff is ready. Use that native mention before blocking/closing the child. The integration service cannot write into CEO-owned tasks; these role-authored mentions are required for prompt automatic coordination. Keep the structured JSON comment separate and unchanged. CEO keeps a monitor as recovery for missed native notifications.
+NATIVE EVENT HANDOFF: after uploading both files and posting its standalone JSON, Writer MUST PATCH its OWN production child with status="blocked" and comment="[@CEO](agent://{CEO}): round N handoff ready; coordinate the next review on parent <this parent ID>." Reviewer MUST PATCH its OWN review child with status="done" and comment="[@CEO](agent://{CEO}): round N verdict ready; coordinate the verdict on parent <this parent ID>." Use the actual round, verdict and parent ID in those comments. The status and notification must commit in the SAME PATCH, so the wake cannot race an unfinished review. Keep the structured JSON separate and unchanged. Ordinary /agents/ navigation links DO NOT trigger native wake events. No reminder-only ten-minute wait: native agent:// mentions are the primary continuation.
+CEO EVENT ROUTING: a child mention is a handoff notification, not a request to take the Writer's or Reviewer's production seat. Read that child's exact handoff, then coordinate on THIS CEO-owned parent without changing either role's assignee. On Writer handoff, immediately create/assign the independent Reviewer child. On FIX below the round limit, PATCH the SAME Writer child to status="todo" with the precise Reviewer corrections and [@Findings Report Writer](agent://{WRITER}) in the comment; this wakes the Writer immediately. Never manufacture a role's attestation or approve its files yourself. Keep any monitor only as missed-event recovery, never as the ordinary handoff path.
 AUTOMATIC RELEASE: this portal workflow has the founder's standing delivery authorization above, conditional on actual independent SHIP. No additional founder/Lead delivery click is required for this workflow. The service, not agents, validates author identities, parentage, exact attachment hashes and mechanical attestations, then sends the exact reviewed PDF/HTML to the bound intake recipient. Do not create a manual board release card for a normal SHIP. Record report completion and leave delivery to the service. On SHIP publish the held delivery note through normal practice; any note-only review remains separate from the approved artifact bytes.
-The workflow service polls durable native records and records delivery receipt. No raw JSON report and no replacement renderer. Preserve all originals and unrelated work.'''
+The workflow service consumes native change events, rechecks durable role records and wakes exact reviewed delivery; periodic reconciliation recovers missed events. No raw JSON report and no replacement renderer. Preserve all originals and unrelated work.'''
 
 
 class FindingsWorkflow:
     def __init__(self, path, gateway):
         self.path, self.gateway = path, gateway
         self.lock = threading.RLock()
+        self.work = threading.Event()
+        self.changes = threading.Condition()
+        self.change_epoch, self.change_number = uuid.uuid4().hex, 0
         with self.db() as db:
             db.execute('''CREATE TABLE IF NOT EXISTS findings_workflows (
                 id TEXT PRIMARY KEY, request TEXT NOT NULL, request_sha TEXT NOT NULL,
@@ -257,7 +262,25 @@ class FindingsWorkflow:
     def update(self, ident, **fields):
         fields['updated_at'] = time.time()
         with self.db() as db:
+            before = db.execute('SELECT * FROM findings_workflows WHERE id=?', (ident,)).fetchone()
+            changed = before and any(before[k] != v for k, v in fields.items() if k not in {'next_at', 'updated_at'})
             db.execute('UPDATE findings_workflows SET ' + ','.join(k + '=?' for k in fields) + ' WHERE id=?', (*fields.values(), ident))
+        if changed:
+            with self.changes:
+                self.change_number += 1
+                self.changes.notify_all()
+
+    def wait_changes(self, cursor='', timeout=25):
+        if cursor and not re.fullmatch(r'[a-f0-9]{32}:[0-9]{1,20}', cursor):
+            raise WorkflowError('invalid_change_cursor')
+        with self.changes:
+            current = lambda: self.change_epoch + ':' + str(self.change_number)
+            self.changes.wait_for(lambda: current() != cursor, timeout=min(max(timeout, 0), 25))
+            return {'schema_version': 'findings_changes@1', 'cursor': current()}
+
+    def native_changed(self, event=None):
+        # Events are hints, never verdicts. evaluate() rereads and validates every role record.
+        self.work.set()
 
     def submit(self, value):
         value = checked_request(value)
@@ -268,6 +291,7 @@ class FindingsWorkflow:
                 raise WorkflowError('immutable_request_conflict')
             db.execute('INSERT OR IGNORE INTO findings_workflows (id,request,request_sha,evidence_sha,updated_at) VALUES (?,?,?,?,?)',
                        (value['workflow_id'], encoded, digest(encoded.encode()), digest(evidence_archive(value)), time.time()))
+        self.work.set()
         return self.status(value['workflow_id'])
 
     def status(self, ident):
@@ -508,11 +532,11 @@ class FindingsWorkflow:
             artifacts[kind] = {**ref, 'content': base64.b64encode(data).decode(), 'filename': 'BackBond-Findings-Report.' + kind}
         self.update(row['id'], state='approved', reviewer_id=reviewer['id'], artifacts=canonical(artifacts), error=None)
 
-    def tick(self, now=None, limit=2):
+    def tick(self, now=None, limit=2, force=False):
         now = time.time() if now is None else now
         with self.lock:
             with self.db() as db:
-                rows = db.execute("SELECT * FROM findings_workflows WHERE state NOT IN ('approved','sent','needs_attention') AND next_at<=? ORDER BY next_at,id LIMIT ?", (now, limit)).fetchall()
+                rows = db.execute("SELECT * FROM findings_workflows WHERE state NOT IN ('approved','sent','needs_attention') AND (? OR next_at<=?) ORDER BY next_at,id LIMIT ?", (force, now, limit)).fetchall()
             for row in rows:
                 self.update(row['id'], next_at=now + 15)
                 try:

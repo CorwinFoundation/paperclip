@@ -42,6 +42,11 @@ class FindingsReports:
             self.db.execute('UPDATE findings_report_outbox SET ' + ','.join(k + '=?' for k in fields) + ' WHERE scan_id=?',
                             (*fields.values(), ident))
 
+    def expedite(self):
+        # A notification only removes the scheduling delay, never a lease or review gate.
+        with self.lock:
+            self.db.execute("UPDATE findings_report_outbox SET next_at=0 WHERE state NOT IN ('sent','failed')")
+
     def capture(self, store, accepted_total, *, since, replay=(), limit=2, selection=None):
         # Never backfill historical customers as a side effect of deployment.
         if not since:
