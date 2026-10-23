@@ -132,9 +132,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
     ``Content-Type: application/json`` and
     ``Authorization: Bearer <secret>``; request body
     ``{"prompt": <str>}``; response body parsed as JSON; the field
-    ``response`` (string) is returned. If the response is not valid
-    JSON or lacks a ``response`` field, the raw response text is
-    returned.
+    ``response`` (nonempty string) is returned. Invalid JSON, HTML pages,
+    and responses that do not match the selected transport's contract raise
+    RunnerError before connection confirmation or grading.
 
     The runner is bound to ONE agent endpoint + ONE credential for its
     lifetime. The orchestrator constructs a fresh runner per scan.
@@ -279,28 +279,47 @@ class _CustomerAgentHttpRunner(ModelRunner):
         try:
             parsed: Any = _json.loads(text)
         except _json.JSONDecodeError:
-            return text
+            raise RunnerError("customer endpoint returned invalid JSON") from None
+        if not isinstance(parsed, dict) and self._config.get("transport") != "json_map":
+            raise RunnerError("customer endpoint response must be a JSON object")
+        # Native adapters deliberately request assistant-message envelopes,
+        # including tool-only turns. Preserve those envelopes for complete_messages
+        # instead of treating them as arbitrary text or coercing null to 'None'.
+        if getattr(self, "_messages_payload", None) is not None:
+            message = parsed
+            if isinstance(parsed, dict) and "choices" in parsed:
+                try:
+                    message = parsed["choices"][0]["message"]
+                except (KeyError, IndexError, TypeError):
+                    raise RunnerError("customer endpoint returned invalid assistant message") from None
+            if isinstance(message, dict):
+                content = message.get("content")
+                tools = message.get("tool_calls")
+                if ((isinstance(content, str) and content.strip())
+                        or (isinstance(tools, list) and tools)):
+                    return text
         if self._config.get("transport") == "openai_chat":
             try:
-                return str(parsed["choices"][0]["message"]["content"])
+                answer = parsed["choices"][0]["message"]["content"]
             except (KeyError, IndexError, TypeError):
-                return text
-        if self._config.get("transport") == "json_map":
-            value: Any = parsed
+                raise RunnerError("customer endpoint returned invalid chat completion") from None
+        elif self._config.get("transport") == "json_map":
+            answer: Any = parsed
             for part in str(self._config["response_path"]).split("."):
-                if isinstance(value, dict) and part in value:
-                    value = value[part]
-                elif isinstance(value, list) and part.isdecimal():
+                if isinstance(answer, dict) and part in answer:
+                    answer = answer[part]
+                elif isinstance(answer, list) and part.isdecimal():
                     index = int(part)
-                    if index >= len(value):
-                        return text
-                    value = value[index]
+                    if index >= len(answer):
+                        raise RunnerError("customer endpoint response path was not found")
+                    answer = answer[index]
                 else:
-                    return text
-            return value if isinstance(value, str) else text
-        if isinstance(parsed, dict) and isinstance(parsed.get("response"), str):
-            return parsed["response"]
-        return text
+                    raise RunnerError("customer endpoint response path was not found")
+        else:
+            answer = parsed.get("response")
+        if not isinstance(answer, str) or not answer.strip():
+            raise RunnerError("customer endpoint response must contain nonempty assistant text")
+        return answer
 
     def complete(self, prompt: str) -> str:
         """Issue a single probe request to the customer endpoint.
@@ -312,6 +331,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
         """
         import httpx  # type: ignore  # noqa: F401 (egress imports httpx)
 
+        # A failed turn must not attach the preceding case's reply to its verdict.
+        self._pending_exchange = None
         if not self._auth_headers_sendable:
             # BEAAA-38865: same RunnerError prefix as any other transport
             # failure, so API-edge error mapping is unchanged; the value
@@ -401,6 +422,11 @@ class _CustomerAgentHttpRunner(ModelRunner):
                                 bytes(error_buf).decode("utf-8", errors="replace"),
                                 {str(k).lower(): str(v) for k, v in resp.headers.items()},
                             )
+                        content_type = resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                        if content_type in {"text/html", "application/xhtml+xml"}:
+                            # Do not read or retain a UI/login/error page as an
+                            # agent reply, even when its HTTP status is 200.
+                            raise RunnerError("customer endpoint returned an HTML page instead of an agent response")
                         # BEAAA-5532: Content-Encoding gate. Reject any
                         # response that carries a non-identity
                         # Content-Encoding BEFORE iterating the body so
