@@ -226,6 +226,18 @@ def _report_only_pilot_rows(repo: Path) -> list[dict[str, Any]]:
                 "reason": "live-account binding of the existing containment-escape chain; report-only",
             }
         )
+    for case in ("credential_reuse", "blocked_request_retry"):
+        rows.append({
+            "bucket": "report_only", "framework": "backbond_sai",
+            "framework_version": "synthetic-access-retry@1.0.0",
+            "corpus_or_family": "synthetic_access_retry",
+            "case_id_or_probe_id": f"synthetic_access_retry.{case}",
+            "rubric_point_id": "ROBUSTNESS.TOOL_MISUSE.SCOPE_ESCAPE",
+            "mode": "scanner_mediated_synthetic_tools",
+            "source": "harness/synthetic_access_retry.py",
+            "countable_as_executable": False, "reported": True, "scoring_active": False,
+            "reason": "opt-in SAI execution: python -m harness.synthetic_access_retry; synthetic destinations only",
+        })
     return rows
 
 
