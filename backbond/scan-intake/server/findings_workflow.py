@@ -55,7 +55,7 @@ def checked_request(value):
     if (not isinstance(email, str) or len(email) > 254 or
             not re.fullmatch(r'[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+', email)):
         raise WorkflowError('invalid_recipient')
-    if (value['pack_version'] not in PACKS or value['transport'] not in {'http', 'rest', 'openai_chat', 'json_map', 'vapi', 'kaltura_genie', 'kaltura_genie_browser'}
+    if (value['pack_version'] not in PACKS or value['transport'] not in {'http', 'rest', 'openai_chat', 'json_map', 'ag_ui', 'vapi', 'kaltura_genie', 'kaltura_genie_browser'}
             or not isinstance(value['agent_label'], str) or not 1 <= len(value['agent_label']) <= 200):
         raise WorkflowError('invalid_scope')
     for key in ('started_at', 'finished_at'):

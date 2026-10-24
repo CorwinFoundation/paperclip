@@ -330,6 +330,44 @@ def test_capture_cutover_does_not_mail_historical_customers(tmp_path):
     reports.capture(store,lambda row:pytest.fail('read again'),since='2026-10-23T00:00:00+00:00',replay=[ident])
 
 
+def test_completed_agui_scan_captures_and_hands_off_original_evidence_once(tmp_path):
+    from qa_service import IntakeStore
+    path=str(tmp_path/'intake.sqlite');store=IntakeStore(path)
+    store.db.execute("INSERT INTO codes VALUES ('test','p','P','standard',10,10,'2099-12-31',1)")
+    reservation=store.reserve(code='test',email='owner@example.com',agent_label='AG-UI agent',
+        endpoint_url='https://agent.example/crew_chat',transport='ag_ui',terms_version='v0.2.2',
+        pack_version='starter-100@4',improvement_consent=False)
+    ident=reservation['scan_id'];store.bind_scanner(ident,'agui-remote')
+    tests=[dict(request()['tests'][0],id='CASE-'+str(i),verdict='fail' if i<8 else 'pass') for i in range(100)]
+    store.finish(ident,tests,now='2026-10-24T10:04:00+00:00')
+    before=store.db.execute('SELECT tests_json FROM scans WHERE id=?',(ident,)).fetchone()[0]
+    reports=FindingsReports(path)
+    blocked=request();blocked['workflow_id']='previous-invalid'
+    reports.enqueue(blocked)
+    reports.update('previous-invalid',state='failed',error='invalid_target_response_delivery_blocked')
+    reports.capture(store,lambda row:100,since='2026-10-23T00:00:00+00:00')
+    captured=reports.db.execute('SELECT payload FROM findings_report_outbox WHERE scan_id=?',(ident,)).fetchone()
+    assert captured is not None  # Previously failed with evidence_capture_unconfirmed / invalid_scope.
+    value=json.loads(captured[0]);assert value['transport']=='ag_ui' and value['tests']==tests
+    assert reports.db.execute('SELECT count(*) FROM findings_capture_errors').fetchone()[0]==0
+    native=Native()
+    gateway=NS(transport=native,upstream='http://127.0.0.1:3100',upstream_token='fixture',agent='service')
+    flow=FindingsWorkflow(str(tmp_path/'workflow.sqlite'),gateway)
+    flow.submit(value);flow.tick(now=1)
+    assert flow.status(ident)['state']=='writing'
+    archive=next(data for owner,data in native.files.values())
+    with zipfile.ZipFile(io.BytesIO(archive)) as evidence:
+        assert json.loads(evidence.read('target.json'))['transport']=='ag_ui'
+        cases=json.loads(evidence.read('run.json'))['cases']
+        assert len(cases)==100 and cases[0]['exchanges'][0]['reply']==tests[0]['reply']
+    reports.capture(store,lambda row:pytest.fail('must not recapture'),since='2026-10-23T00:00:00+00:00')
+    flow.submit(value)
+    assert sum(method=='POST' and route.endswith('/issues') for method,route in native.calls)==1
+    assert store.db.execute('SELECT tests_json FROM scans WHERE id=?',(ident,)).fetchone()[0]==before
+    old=reports.db.execute('SELECT state,error,send_started,message_id FROM findings_report_outbox WHERE scan_id=?',('previous-invalid',)).fetchone()
+    assert tuple(old)==('failed','invalid_target_response_delivery_blocked',None,None)
+
+
 def selection(value):
     return dict(schema_version='scanner-selection@1', scanner_id=value['scanner_id'], tenant_id='partner-test',
         pack_version=value['pack_version'], corpus_version='0.1.0', corpus_snapshot_hash='sha256:'+'1'*64,
