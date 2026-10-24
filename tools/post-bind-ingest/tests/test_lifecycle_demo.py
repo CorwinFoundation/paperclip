@@ -225,7 +225,12 @@ def test_partner_quota_is_raised_per_visitor_with_plain_exhaustion_copy() -> Non
 
 
 def test_completed_quota_restore_reveals_all_executable_rows_as_clean() -> None:
-    if shutil.which("node") is None or shutil.which("google-chrome") is None:
+    requested_browser = os.environ.get("BACKBOND_TEST_CHROME")
+    if requested_browser:
+        # A CI-provisioned browser is required, never an excuse to skip coverage.
+        assert Path(requested_browser).is_file(), "configured test browser is missing"
+        assert shutil.which("node"), "configured browser regression requires Node"
+    elif shutil.which("node") is None or shutil.which("google-chrome") is None:
         pytest.skip("host-only browser regression requires Node and Google Chrome")
     subprocess.run(
         ["node", str(Path(__file__).with_name("quota_restore_state.cjs")), str(DESIGN_PATH)],

@@ -13,7 +13,10 @@ WORKFLOW = ROOT / ".github" / "workflows" / "weekly-branch-hygiene.yml"
 
 def _run_report(tmp_path: Path, branch_result: str, open_head: str) -> subprocess.CompletedProcess[str]:
     workflow = yaml.safe_load(WORKFLOW.read_text())
-    script = workflow["jobs"]["report"]["steps"][0]["run"]
+    reports = [step for step in workflow["jobs"]["report"]["steps"]
+               if step.get("name") == "Report branch convention violations"]
+    assert len(reports) == 1, "expected exactly one branch-report step"
+    script = reports[0]["run"]
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     gh = bin_dir / "gh"

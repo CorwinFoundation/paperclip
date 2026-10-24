@@ -46,7 +46,10 @@ concurrency:
 jobs:
   changes:
     name: classify scanner image inputs
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
     if: github.event_name == 'push'
     outputs:
       scanner: ${{ steps.classify.outputs.scanner }}

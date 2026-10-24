@@ -29,26 +29,36 @@ concurrency:
 jobs:
   test:
     name: log-listener tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/ci-python
         with:
           python-version: "3.11"
-          cache: pip
           cache-dependency-path: |
             requirements-dev.txt
             tools/log-tracker/pyproject.toml
             tools/post-bind-ingest/pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: ${{ runner.environment != 'self-hosted' }}
+          cache-dependency-path: tools/are-collector/go.sum
       - name: Install focused log-listener dependencies
         run: |
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e tools/log-tracker -e tools/post-bind-ingest
           npm install --no-save --ignore-scripts playwright@1.61.1
+      - name: Prepare dedicated browser regression
+        if: runner.environment == 'self-hosted'
+        run: bash scripts/ci/prepare-test-browser.sh
       - name: Run log-listener checks
         run: |
-          python -m pytest -q \
+          python -m pytest -q --junitxml="$RUNNER_TEMP/log-listener.xml" \
             tools/log-tracker/tests \
             tests/test_log_tracker_beaaa6159.py \
             tools/post-bind-ingest/tests/test_synthetic_voice_e2e.py \
@@ -59,3 +69,11 @@ jobs:
             tools/post-bind-ingest/tests/test_collector_receiver_e2e.py \
             tools/post-bind-ingest/tests/test_continuity_gate.py \
             tools/post-bind-ingest/tests/test_detector_input.py
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          report = ET.parse(os.path.join(os.environ['RUNNER_TEMP'], 'log-listener.xml'))
+          cases = report.findall(".//testcase[@name='test_completed_quota_restore_reveals_all_executable_rows_as_clean']")
+          assert len(cases) == 1, 'Browser regression was not collected'
+          assert cases[0].find('skipped') is None, 'Browser regression must not skip in CI'
+          PY

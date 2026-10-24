@@ -26,6 +26,10 @@ jobs:
           test -w "$RUNNER_TOOL_CACHE"
           df -h "$GITHUB_WORKSPACE"
           free -m
+          for tool in python3 node npm go gh pdftotext docker nginx ssh-keygen openssl; do
+            command -v "$tool" || true
+          done
+          pdftotext -v
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -42,3 +46,31 @@ jobs:
           python -c "import ssl, sqlite3, venv; print(ssl.OPENSSL_VERSION)"
           python -m pip install pytest==9.0.3
           python -m pytest --noconftest -q tests/test_ci_select_tests.py tests/test_ci_shard_tests_beaaa35635.py tests/test_ci_solution_changes.py
+      - uses: ./.github/actions/ci-python
+        with:
+          python-version: '3.11'
+      - name: Check migrated job environment and routing guards
+        run: |
+          python -c 'import sys; assert sys.prefix != sys.base_prefix'
+          python -m pip install pytest==9.0.3 PyYAML==6.0.3
+          python -m pytest --noconftest -q tests/test_founder_ci_cost_policy.py tests/test_beaaa36018_pr_trigger_selfhosted_runner_guard.py tests/test_weekly_branch_hygiene_beaaa21598.py tests/test_beaaa39354_activate_kaltura_intake.py
+      - name: Prepare GitHub CLI without host privileges
+        run: bash scripts/ci/prepare-gh.sh
+      - name: Check GitHub CLI
+        run: gh --version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare dedicated browser regression
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.61.1
+          bash scripts/ci/prepare-test-browser.sh
+      - name: Verify quota-restore browser coverage
+        run: node tools/post-bind-ingest/tests/quota_restore_state.cjs tools/post-bind-ingest/demo/design/BackBond-Underwriting-Desk-3D.html
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: false
+      - name: Check collector unit and integration tests
+        working-directory: tools/are-collector
+        run: go test ./...

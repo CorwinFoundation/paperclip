@@ -45,7 +45,7 @@ const scan = {
 async function main() {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: "/usr/bin/google-chrome",
+    executablePath: process.env.BACKBOND_TEST_CHROME || "/usr/bin/google-chrome",
   });
   try {
     const html = fs.readFileSync(designPath, "utf8");

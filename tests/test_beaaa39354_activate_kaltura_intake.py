@@ -14,13 +14,28 @@ SPEC.loader.exec_module(activate)
 
 def test_patch_is_surgical_and_idempotent():
     source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
-    legacy = source.replace(activate.NEW_TRANSPORT, activate.OLD_TRANSPORT).replace(activate.VALIDATION, "")
+    # Recreate a legacy install even when the current app adds newer transports.
+    # The activator must not learn to overwrite those newer declarations.
+    declarations = [line for line in source.splitlines()
+                    if line.strip().startswith("transport: str = Field(pattern=")]
+    assert len(declarations) == 1
+    legacy = source.replace(declarations[0], "    " + activate.OLD_TRANSPORT, 1).replace(activate.VALIDATION, "")
     custom = legacy.replace("class ScanRequest", "# locally preserved recovery/mail guards\nclass ScanRequest")
     patched = activate.patch_app(custom)
     assert patched == activate.patch_app(patched)
     assert "# locally preserved recovery/mail guards" in patched
     assert 'self.endpoint_url != "https://learning.kaltura.com/"' in patched
     assert 'self.auth.type != "none"' in patched
+    assert patched.replace(activate.NEW_TRANSPORT, activate.OLD_TRANSPORT).replace(activate.VALIDATION, "") == custom
+
+
+@pytest.mark.parametrize("declaration", [
+    'transport: str = Field(pattern="^(rest|ag_ui)$")',
+    activate.OLD_TRANSPORT + "\n" + activate.OLD_TRANSPORT,
+])
+def test_patch_still_refuses_unknown_or_ambiguous_transport_declarations(declaration):
+    with pytest.raises(RuntimeError, match="expected exactly one legacy transport declaration"):
+        activate.patch_app(declaration + "\n" + activate.ANCHOR)
 
 
 @pytest.mark.parametrize("declaration", [

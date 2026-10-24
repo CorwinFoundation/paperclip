@@ -30,13 +30,14 @@ jobs:
   # ---------------------------------------------------------------------------
   # What did this push/PR change, and which jobs can that affect?
   # scripts/ci_select_tests.py is fail-closed: when in doubt it answers ALL,
-  # and every job below treats a missing answer (this job failed) as ALL too.
+  # Malformed input still selects ALL. A failed selector job instead fails the
+  # required aggregate, so missing outputs cannot purchase hosted heavy checks.
   # Docs/evidence-only changes therefore run nothing; a rubric change runs the
   # scoring lint + the tests that import it; a lock change runs everything.
   # ---------------------------------------------------------------------------
   changes:
     name: select affected CI
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -104,7 +105,7 @@ jobs:
   min-python-cli-render:
     name: python 3.11 CLI render smoke
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.scanner == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.scanner == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     env:
@@ -190,7 +191,7 @@ jobs:
     # A skipped job counts as passed for branch protection, so the matrix is
     # only skipped when the selector positively said "no Python test can be
     # affected"; if the selector itself failed, run everything.
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.code == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     # Warm shards target <= 5 minutes. The larger ceiling allows cold
     # dependency installs and the dedicated runner's two-CPU resource cap.
@@ -367,7 +368,7 @@ jobs:
   native-integrations:
     name: Docker and nginx integration coverage
     needs: changes
-    if: ${{ !cancelled() && contains(needs.changes.outputs.runner, 'backbond-ci') && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && contains(needs.changes.outputs.runner, 'backbond-ci') && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -407,7 +408,7 @@ jobs:
   kaltura-browser-image:
     name: Kaltura browser image readiness
     needs: changes
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -446,15 +447,25 @@ jobs:
     name: python pytest
     needs: [changes, pytest, native-integrations, kaltura-browser-image]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
       - name: Require every shard to have passed
         env:
+          SELECTOR_RESULT: ${{ needs.changes.result }}
+          SELECTOR_RUNNER: ${{ needs.changes.outputs.runner }}
           SHARDS_RESULT: ${{ needs.pytest.result }}
           NATIVE_RESULT: ${{ needs.native-integrations.result }}
           KALTURA_IMAGE_RESULT: ${{ needs.kaltura-browser-image.result }}
         run: |
+          test "$SELECTOR_RESULT" = success || {
+            echo '::error::CI selection failed; no hosted heavy-test fallback is permitted.' >&2
+            exit 1
+          }
+          test -n "$SELECTOR_RUNNER" || {
+            echo '::error::CI runner selection is missing; no hosted heavy-test fallback is permitted.' >&2
+            exit 1
+          }
           case "$NATIVE_RESULT" in
             success|skipped) ;;
             *) echo '::error::Docker/nginx integration coverage did not pass.' >&2; exit 1 ;;
@@ -479,7 +490,7 @@ jobs:
   eval-framework-venvs:
     name: eval venv (${{ matrix.framework }})
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.evalvenv == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.evalvenv == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 40
     strategy:
@@ -647,7 +658,7 @@ jobs:
   aiuc1-production-binding:
     name: AIUC-1 production binding and report-only invariants
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.aiuc1 == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.aiuc1 == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     env:
@@ -743,7 +754,7 @@ jobs:
   authoritative-probe-registry:
     name: authoritative probe registry drift
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.registry == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.registry == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
@@ -776,7 +787,7 @@ jobs:
   golden-regression:
     name: golden scanner regression
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.regression == 'true') }}
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.regression == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     timeout-minutes: 30
     env:

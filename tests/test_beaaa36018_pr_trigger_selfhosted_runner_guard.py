@@ -66,6 +66,7 @@ DEDICATED_ELIGIBILITY = (
 )
 # Eligible jobs wait for dedicated capacity rather than buying hosted overflow.
 DEDICATED_OUTPUT = DEDICATED_ELIGIBILITY
+DEDICATED_DIRECT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3] + ") }}"
 DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]') }}"
 DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3].replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
@@ -81,7 +82,7 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
     permissions = job.get("permissions", workflow.get("permissions"))
     if not isinstance(permissions, dict) or any(v != "read" for v in permissions.values()):
         return False
-    if job.get("runs-on") == DEDICATED_PREFLIGHT:
+    if job.get("runs-on") in (DEDICATED_PREFLIGHT, DEDICATED_DIRECT):
         return True
     if job.get("runs-on") != DEDICATED_RUNS_ON:
         return False
@@ -90,7 +91,7 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
         return False
     selector = workflow.get("jobs", {}).get("changes", {})
     return (
-        selector.get("runs-on") == "ubuntu-latest"
+        selector.get("runs-on") in ("ubuntu-latest", DEDICATED_DIRECT)
         and selector.get("outputs", {}).get("runner") == DEDICATED_OUTPUT
     )
 
@@ -388,6 +389,33 @@ def test_guarded_preflight_route_is_accepted_but_deploy_label_is_rejected() -> N
     assert self_hosted_findings(workflow) == []
     workflow["jobs"]["preflight"]["runs-on"] = DEDICATED_PREFLIGHT.replace("backbond-ci", "ariclaw")
     assert self_hosted_findings(workflow)
+
+
+@pytest.mark.parametrize("mutation", [
+    "owner", "qa_actor", "fork", "deploy_label", "secret", "write", "pr_target",
+    "busy_fallback",
+])
+def test_direct_dedicated_route_rejects_unsafe_changes(mutation: str) -> None:
+    job = {"runs-on": DEDICATED_DIRECT, "steps": [{"run": "true"}]}
+    workflow = {"on": {"pull_request": {}}, "permissions": {"contents": "read"},
+                "jobs": {"selector": job}}
+    assert self_hosted_findings(workflow) == []
+    replacements = {
+        "owner": ("CorwinFoundation", "someone"),
+        "qa_actor": ("backbond-qa", "someone"),
+        "fork": ("github.event.pull_request.head.repo.full_name == github.repository", "true"),
+        "deploy_label": ("backbond-ci", "ariclaw"),
+        "busy_fallback": ("vars.BACKBOND_LOCAL_CI", "!runner.busy && vars.BACKBOND_LOCAL_CI"),
+    }
+    if mutation in replacements:
+        job["runs-on"] = DEDICATED_DIRECT.replace(*replacements[mutation])
+    elif mutation == "secret":
+        job["env"] = {"TOKEN": "${{ secrets.DEPLOY_TOKEN }}"}
+    elif mutation == "write":
+        job["permissions"] = {"contents": "write"}
+    elif mutation == "pr_target":
+        workflow["on"]["pull_request_target"] = {}
+    assert self_hosted_findings(workflow), mutation
 
 
 def test_trusted_jobs_queue_without_paid_busy_overflow() -> None:

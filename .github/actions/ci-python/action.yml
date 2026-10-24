@@ -1,0 +1,28 @@
+name: Isolated CI Python
+description: Set up Python with a fresh per-job environment on the dedicated runner
+inputs:
+  python-version:
+    description: Python version
+    required: true
+  cache-dependency-path:
+    description: Requirements used for the hosted pip cache
+    default: requirements-dev.txt
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: ${{ runner.environment != 'self-hosted' && 'pip' || '' }}
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+    - name: Prepare disposable dedicated Python environment
+      if: runner.environment == 'self-hosted'
+      shell: bash
+      run: |
+        bash scripts/ci/prepare-python-runtime.sh
+        job_venv=$(mktemp -d "$RUNNER_TEMP/backbond-python.XXXXXX")
+        python -m venv "$job_venv"
+        "$job_venv/bin/python" -c 'import sys; assert sys.prefix != sys.base_prefix'
+        echo "$job_venv/bin" >> "$GITHUB_PATH"
+        echo "VIRTUAL_ENV=$job_venv" >> "$GITHUB_ENV"
+        echo 'PYTHONNOUSERSITE=1' >> "$GITHUB_ENV"
