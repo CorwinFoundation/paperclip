@@ -44,6 +44,8 @@ import json as _json
 import gzip
 import os
 import re
+import math
+import time
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -379,6 +381,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
         # mandatory — ``iter_bytes`` decodes any Content-Encoding the
         # response carries, which would re-open the compression-bomb
         # hazard the Content-Encoding gate below is defending against.
+        request_timeout = self._request_timeout()
         try:
             with ScopedEgressAllowlist(self._agent_endpoint) as scope:
                 # BEAAA-5552: redirects rejected outright. Customer
@@ -395,7 +398,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 # the initial (and only) request through
                 # ``_AllowlistTransport``.
                 with scope.client(
-                    timeout=_REQUEST_TIMEOUT_SECONDS,
+                    timeout=request_timeout,
                     follow_redirects=False,
                 ) as client:
                     reservation_id = (
@@ -497,7 +500,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
             ) from exc
         except httpx.TimeoutException as exc:
             raise RunnerError(
-                f"customer endpoint timeout after {_REQUEST_TIMEOUT_SECONDS}s"
+                f"customer endpoint timeout after {request_timeout}s"
             ) from exc
         except httpx.HTTPError as exc:
             # BEAAA-38865: exception text is copied into scan errors and
@@ -569,12 +572,91 @@ class _CustomerAgentHttpRunner(ModelRunner):
             redacted = redacted.replace(secret_value, "[REDACTED]")
         return redacted
 
+    def _request_timeout(self) -> float:
+        return _REQUEST_TIMEOUT_SECONDS
+
     @staticmethod
     def _cap_result_text(value: str) -> str:
         if len(value) <= _MAX_RESULT_TEXT_CHARS:
             return value
         keep = _MAX_RESULT_TEXT_CHARS - len(_RESULT_TEXT_TRUNCATION_MARKER)
         return value[:keep] + _RESULT_TEXT_TRUNCATION_MARKER
+
+
+class _PollinationsCustomerAgentRunner(_CustomerAgentHttpRunner):
+    """Respect the free endpoint's one-request-per-30-seconds limit.
+
+    Retry only its explicit FREE_LIMIT pre-generation rejection. Billing,
+    authentication and other HTTP failures retain the normal fail-closed path.
+    No endpoint, model, request body, credential or egress policy is changed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._next_request_at = 0.0
+        self._scan_deadline = None
+
+    def set_scan_deadline(self, deadline_monotonic):
+        if not math.isfinite(deadline_monotonic):
+            raise RunnerError('invalid customer endpoint scan deadline')
+        self._scan_deadline = min(self._scan_deadline or deadline_monotonic, deadline_monotonic)
+
+    def _wait_until(self, when):
+        delay = max(0.0, when - time.monotonic())
+        if self._scan_deadline is not None and time.monotonic() + delay >= self._scan_deadline:
+            raise RunnerError('customer endpoint scan deadline exceeded')
+        if delay:
+            time.sleep(delay)
+
+    def _request_timeout(self):
+        from harness.pollinations_pacing import REQUEST_TIMEOUT_SECONDS
+        remaining = REQUEST_TIMEOUT_SECONDS if self._scan_deadline is None else self._scan_deadline - time.monotonic()
+        if remaining <= 0:
+            raise RunnerError('customer endpoint scan deadline exceeded')
+        return min(REQUEST_TIMEOUT_SECONDS, remaining)
+
+    def complete(self, prompt):
+        from harness.pollinations_pacing import MAX_RATE_LIMIT_ATTEMPTS, MAX_RETRY_AFTER_SECONDS, REQUEST_INTERVAL_SECONDS
+        for attempt in range(MAX_RATE_LIMIT_ATTEMPTS):
+            self._wait_until(self._next_request_at)
+            self._next_request_at = time.monotonic() + REQUEST_INTERVAL_SECONDS
+            try:
+                return super().complete(prompt)
+            except CustomerEndpointHTTPError as exc:
+                try:
+                    rate_limited = exc.status_code == 402 and _json.loads(exc.body)['error']['code'] == 'FREE_LIMIT'
+                    retry_after = float(exc.headers.get('retry-after', REQUEST_INTERVAL_SECONDS))
+                except (ValueError, TypeError, KeyError):
+                    rate_limited = False
+                    retry_after = 0
+                if (not rate_limited or attempt == MAX_RATE_LIMIT_ATTEMPTS - 1
+                        or not math.isfinite(retry_after) or not 0 <= retry_after <= MAX_RETRY_AFTER_SECONDS):
+                    raise
+                self._next_request_at = max(self._next_request_at, time.monotonic() + retry_after)
+            finally:
+                # The free window can start when generation finishes. Starting
+                # the next call 31s after the previous start can still get 402
+                # when that response took several seconds to complete.
+                self._next_request_at = max(self._next_request_at, time.monotonic() + REQUEST_INTERVAL_SECONDS)
+        raise RunnerError('customer endpoint rate limit retry exhausted')
+
+    def _parse_response(self, text):
+        try:
+            choices = _json.loads(text)['choices']
+            complete = isinstance(choices, list) and choices and choices[0].get('finish_reason') == 'stop'
+        except (ValueError, TypeError, KeyError, AttributeError):
+            complete = False
+        if not complete:
+            raise RunnerError('customer endpoint reply completeness unconfirmed')
+        return super()._parse_response(text)
+
+    @staticmethod
+    def _cap_result_text(value):
+        # The Findings request already bounds a whole reply at 65,536 chars
+        # and the whole evidence payload at 2 MB. Never silently cut a reply.
+        if len(value) > 65536:
+            raise RunnerError('customer endpoint reply exceeds complete-capture limit')
+        return value
 
 
 class _VapiCustomerAgentRunner(_CustomerAgentHttpRunner):
@@ -830,6 +912,9 @@ def customer_agent_http_runner_factory(
     :func:`api.scan_runtime_factory.v0_mock_runner_factory`.
     """
     host = _extract_host(agent_endpoint)
+    from harness.pollinations_pacing import needs_free_tier_pacing
+    if needs_free_tier_pacing(agent_endpoint, endpoint_config):
+        return _PollinationsCustomerAgentRunner(agent_endpoint, secret, endpoint_config)
     if (endpoint_config or {}).get("transport") == "kaltura_genie_browser":
         from harness.kaltura_genie_browser import KalturaGenieBrowserRunner
         return KalturaGenieBrowserRunner(

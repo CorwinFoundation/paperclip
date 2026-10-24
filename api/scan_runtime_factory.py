@@ -569,7 +569,7 @@ def make_production_scan_runtime(
                 score_runtime=score_runtime,
                 score_inputs=score_inputs,
                 behavioral_receipt_ingestors=behavioral_ingestors,
-                row_recv_timeout_seconds=_scorer_row_recv_timeout(),
+                row_recv_timeout_seconds=_scorer_timeout_for_scan(scan_request),
             )
 
             # AC#1 step (d) — Prober subprocess. Fork-multiprocessing so
@@ -608,7 +608,7 @@ def make_production_scan_runtime(
 
                 # AC#1 step (e) — drain result Queue + join both subprocesses.
                 try:
-                    deadline = time.monotonic() + _orchestrator_join_timeout(join_slack)
+                    deadline = time.monotonic() + _parent_timeout_for_scan(join_slack, scan_request)
                     while True:
                         outcome = result_queue.get(timeout=max(0, deadline - time.monotonic()))
                         if outcome[0] != "progress":
@@ -1015,6 +1015,18 @@ def _orchestrator_join_timeout(slack: int) -> int:
 def _scorer_row_recv_timeout() -> float:
     """Bound scorer-side wait for a row or END_OF_SCAN sentinel."""
     return max(0.1, SCORER_ROW_RECV_TIMEOUT_SECONDS)
+
+
+def _parent_timeout_for_scan(slack, scan_request):
+    from harness.pollinations_pacing import starter_wait_budget
+    return _orchestrator_join_timeout(slack) + starter_wait_budget(scan_request)
+
+
+def _scorer_timeout_for_scan(scan_request):
+    from harness.pollinations_pacing import row_wait_budget, starter_wait_budget
+    # A bounded FREE_LIMIT wait/retry must not be mistaken for a dead Prober.
+    # Keep the normal row/grading allowance in addition to the whole retry path.
+    return _scorer_row_recv_timeout() + (row_wait_budget() if starter_wait_budget(scan_request) else 0.0)
 
 
 def _scorer_envelope_drain_timeout(scorer_proc: Any) -> float:

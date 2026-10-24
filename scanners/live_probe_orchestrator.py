@@ -84,6 +84,7 @@ from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
 # intake-guard's enforced value is prevented by the import.
 from api.intake_guard import HOSTED_RUNNER
 from harness.credentials import CredentialVault
+from harness.pollinations_pacing import starter_wait_budget as _starter_wait_budget
 from harness.runner import ModelRunner
 from scanners.canary_anti_gaming import (
     AntiGamingCanaryResult,
@@ -222,6 +223,11 @@ MAX_TOKENS_PER_SCAN: int = 1_000_000
 #: to :func:`_now` inside ``run_scan`` to the elapsed-time check after each
 #: row emit. Phase-1 sizing — 30 min.
 MAX_WALL_CLOCK_SECONDS: int = 1800
+
+
+def scan_wall_clock_seconds(scan_request) -> float:
+    """The paced free endpoint needs bounded idle time, not extra probes."""
+    return MAX_WALL_CLOCK_SECONDS + _starter_wait_budget(scan_request)
 
 
 def _now() -> float:
@@ -633,7 +639,7 @@ def run_scan(
                 # BEAAA-38895: starter-100@2 makes 100 serial sends + 100 judge
                 # calls. 600s stopped a live real-model scan at 43 rows (~14s a
                 # test); size for ~15s a test so a slow agent finishes.
-                STARTER_V2_SCAN_DEADLINE_SECONDS
+                STARTER_V2_SCAN_DEADLINE_SECONDS + _starter_wait_budget(scan_request)
                 if scan_request.pack_id in _JUDGED_STARTER_PACK_IDS
                 else 45.0 if scan_request.scan_tier in {"smoke", "dev"} else None
             )
@@ -762,7 +768,7 @@ def run_scan(
                     if tokens_used > MAX_TOKENS_PER_SCAN:
                         cap_reason = "token_cap"
                         break
-                    if _now() - scan_started_at > MAX_WALL_CLOCK_SECONDS:
+                    if _now() - scan_started_at > scan_wall_clock_seconds(scan_request):
                         cap_reason = "wallclock_cap"
                         break
             except ProbeRunIncompleteError as exc:
