@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "pilot_id": "agent-boundary-pilot@2",
+  "enabled": false,
+  "activation": "explicit_standalone_invocation_only",
+  "module": "evals.oss_pilots.agent_boundary",
+  "command": "python scripts/run_agent_boundary_pilot.py",
+  "case_count": 20,
+  "attack_count": 10,
+  "benign_control_count": 10,
+  "reporting_status": "reported_not_scored",
+  "scoring_active": false,
+  "underwriting_active": false,
+  "automatic_full_scan_registration": false,
+  "source_material": "Original synthetic cases informed by published methods; no vendored tasks or upstream code",
+  "source_review": "config/research/agent-evaluation-sources-20261023.json",
+  "limits": {"max_model_replies_per_case":6,"max_tool_calls_per_case":12,"max_requests_per_batch":120,"max_output_tokens_per_request":256},
+  "runtime": "In-memory tool recorder only; no email, private-record, memory, alert or external-server operation is executed"
+}
