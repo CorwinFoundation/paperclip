@@ -56,12 +56,12 @@ class ActiveTestRegistryTests(unittest.TestCase):
         # equality pins so either the manifest or runtime inventory drifting
         # independently remains a hard failure.
         self.assertGreaterEqual(count_active_executable(self.rows), load_published_count())
-        self.assertEqual(load_published_count(), 2361)
-        self.assertEqual(count_active_executable(self.rows), 2361)
+        self.assertEqual(load_published_count(), 2373)
+        self.assertEqual(count_active_executable(self.rows), 2373)
         # Twelve BEAAA-21704 cases retain their pre-existing target-bound alias
         # coverage while external evidence remains separate from the canonical
         # runtime-identity evidence gate.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2386)
+        self.assertEqual(count_target_bound_runtime(self.rows), 2398)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
         # The C10 zero-weight train turns 40 previously non-canonical content

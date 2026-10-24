@@ -72,7 +72,18 @@ def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_
     before_rows = build_registry(mapping_dir)
     # BEAAA-24273: +60 on the no-content-candidate view.
     # BEAAA-33810: +8 for the agent-escape incident tranche.
-    assert count_active_executable(before_rows) == 490
+    # E018 adds twelve report-only disclosure cases outside this rollback.
+    assert count_active_executable(before_rows) == 502
+    bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
+    bypass_rows = [
+        row for row in before_rows
+        if row["test_id"] == "ai_disclosure" and row["case_id"] in bypass_ids
+    ]
+    assert {row["case_id"] for row in bypass_rows} == bypass_ids
+    assert len(bypass_rows) == 12
+    assert {row["reporting_status"] for row in bypass_rows} == {"reported_not_scored"}
+    assert {row["scoring_active"] for row in bypass_rows} == {False}
+    assert count_active_executable(bypass_rows) == 12
 
     unrelated_before = {
         (row["test_id"], row["case_id"], row["risk_or_rubric_id"]): row
@@ -94,11 +105,9 @@ def test_beaaa16972_executable_rollback_restores_305_without_touching_unrelated_
         path.write_text(yaml.safe_dump(row, sort_keys=False), encoding="utf-8")
 
     after_rows = build_registry(mapping_dir)
-    # BEAAA-24273: the post-rollback count moves by the same +60. The 60 new rows
-    # sit outside AIUC_PATH_B_SCORING_ACTIVE_FAMILIES, so the rollback does not
-    # touch them and they survive it. Measured by replicating this test's own
-    # procedure on the merge tree, not inferred from the +60: 382 -> 442.
-    assert count_active_executable(after_rows) == 455
+    # The 35-row rollback preserves unrelated cases, including the twelve E018
+    # disclosure cases. Their addition moves the prior exact count 455 to 467.
+    assert count_active_executable(after_rows) == 467
 
     for family in AIUC_PATH_B_SCORING_ACTIVE_FAMILIES:
         restored_rows = [row for row in after_rows if row["test_id"] == family]

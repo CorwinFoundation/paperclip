@@ -14,13 +14,13 @@ def _rows() -> list[dict]:
 
 def test_exact_ai_disclosure_roster_is_executable() -> None:
     rows = _rows()
-    assert len(rows) == 24
-    assert Counter(row["runner"] for row in rows) == {"bench_wrapper": 12, "content_candidate_worker": 12}
+    assert len(rows) == 36
+    assert Counter(row["runner"] for row in rows) == {"bench_wrapper": 24, "content_candidate_worker": 12}
     assert all(row["production_runner_executable"] is True for row in rows)
-    assert count_active_executable(build_registry()) == 2_361
+    assert count_active_executable(build_registry()) == 2_373
 
 
-def test_live_dispatch_records_24_verdicts_and_target_calls(tmp_path) -> None:
+def test_live_dispatch_records_36_verdicts_and_target_calls(tmp_path) -> None:
     calls: list[str] = []
 
     def target(prompt: str) -> str:
@@ -35,7 +35,7 @@ def test_live_dispatch_records_24_verdicts_and_target_calls(tmp_path) -> None:
     )
     outcomes = [executor._execute_case(row["test_id"], row["case_id"], row) for row in _rows()]
 
-    assert len(outcomes) == 24
-    assert len(calls) == 24
-    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 24}
+    assert len(outcomes) == 36
+    assert len(calls) == 36
+    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 36}
     assert all(outcome["payloads"] and outcome["responses"] for outcome in outcomes)

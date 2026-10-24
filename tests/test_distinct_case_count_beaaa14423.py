@@ -56,20 +56,22 @@ class DistinctCaseCountTests(unittest.TestCase):
         counts = distinct_case_counts(self.rows)
         runnable = count_target_bound_runtime(self.rows)
         # BEAAA-24273 added 60 independently evidenced, non-text rows to the
-        # no-content-candidate view. The collision set is unchanged.
-        self.assertEqual(runnable, 535)
+        # no-content-candidate view. E018 adds twelve distinct disclosure cases;
+        # the collision set is unchanged.
+        self.assertEqual(runnable, 547)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 535)
+        self.assertEqual(counts["declared_total"], 547)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
-        # Global unique (prompts, expected) pairs follow the current registry
-        # source of truth: 510 declared - 22 dupes plus the newly bound
-        # eval-representation row = 487.
-        self.assertEqual(counts["total"], 499)
+        # The twelve E018 additions move distinct coverage from 499 to 511,
+        # preserving all 36 duplicate rows in the prior registry view.
+        self.assertEqual(counts["total"], 511)
         self.assertEqual(counts["declared_total"] - counts["total"], 36)
+        self.assertEqual(counts["declared_by_family"]["ai_disclosure"], 24)
+        self.assertEqual(counts["by_family"]["ai_disclosure"], 24)
 
     def test_total_reconciles_intra_and_cross_family_collapse(self) -> None:
-        # 34 total dupes = 26 within-family + 8 shared across families.
+        # 36 total dupes = 28 within-family + 8 shared across families.
         counts = distinct_case_counts(self.rows)
         intra = sum(c["collapsed"] for c in distinct_case_collapses(self.rows))
         self.assertEqual(intra, 28)

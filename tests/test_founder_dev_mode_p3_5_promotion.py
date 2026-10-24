@@ -4,8 +4,8 @@ P3.5 "Multi-turn jailbreak persistence" is promoted from reported-not-scored to
 scored (underwriting-eligibility, zero score weight) under Founder-Dev-Mode:
 
 * env off (production default): identical to pre-promotion — reported-not-scored,
-  active-executable count remains 481 after the separately approved BEAAA-24273
-  60-row floor. Nothing leaks.
+  active-executable count is 512 after the additive E018 disclosure-bypass
+  tranche. P3.5 promotion does not change the flag-off count.
 * env on: scored/countable in dev, tagged founder_dev_mode, and it
   FAILS CLOSED at the production boundary until a real production signature.
 """
@@ -33,8 +33,9 @@ ROOT = Path(__file__).resolve().parents[1]
 FAMILY = "p3_5_multiturn_jailbreak"
 MAPPING = ROOT / "rubric" / "probe_mappings" / f"{FAMILY}.yaml"
 
-# Exact-tree baseline after BEAAA-24273 (include_content_candidates=False).
-BASELINE_ACTIVE_EXECUTABLE = 500
+# E018 adds twelve report-only cases to the prior exact-tree baseline of 500
+# (include_content_candidates=False); the Founder-Dev-Mode boundary is unchanged.
+BASELINE_ACTIVE_EXECUTABLE = 512
 P3_5_CASE_COUNT = 20
 
 

@@ -67,7 +67,17 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # frozen published/executed count below.
     # BEAAA-35384 adds nine evaluation-boundary rows. They are report-only and
     # do not change the 2,000 content-candidate rows asserted below.
-    assert len(rows) == 2_509
+    # E018 adds twelve direct disclosure-bypass rows outside the unchanged
+    # 2,000-row content-candidate inventory.
+    assert len(rows) == 2_521
+    bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
+    bypass_rows = [
+        row for row in rows
+        if row["test_id"] == "ai_disclosure" and row["case_id"] in bypass_ids
+    ]
+    assert len(bypass_rows) == 12
+    assert {row["case_id"] for row in bypass_rows} == bypass_ids
+    assert not any(row.get("content_candidate_inventory") for row in bypass_rows)
     assert len(candidates) == 2_000
     assert len({(row["test_id"], row["case_id"]) for row in candidates}) == 2_000
     # BEAAA-23860: the 44 lane-C rows graduated to their SPEC mapping and are
@@ -110,13 +120,13 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
 def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
-    assert count_active_executable(rows) == 2_361
-    assert count_target_bound_runtime(rows) == 2_386
-    assert distinct_case_counts(rows)["total"] == 2_360
+    assert count_active_executable(rows) == 2_373
+    assert count_target_bound_runtime(rows) == 2_398
+    assert distinct_case_counts(rows)["total"] == 2_372
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [
-        "published_active_test_count 2400 exceeds active executable registry count 2361"
+        "published_active_test_count 2400 exceeds active executable registry count 2373"
     ]
 
 

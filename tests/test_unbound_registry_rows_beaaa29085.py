@@ -48,8 +48,10 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     # three families and 76 rows. BEAAA-33810 adds the eight-case agent-escape
     # incident tranche to out_of_scope_containment: one family unchanged, that
     # family 60 -> 68 rows, so 2,458 -> 2,466 and the map hash moves with it.
+    # E018 adds twelve ai_disclosure cases, 24 -> 36, taking rows to 2,478.
+    # Subtracting only those twelve reproduces the prior full-map hash.
     assert len(counts) == 130
-    assert sum(counts.values()) == 2466
+    assert sum(counts.values()) == 2478
     assert hashlib.sha256(serialized).hexdigest() == (
-        "0fbcf97ee405939347fb060c80ec0ed9f1083c444da1e4d660e0e5a56e24a5bc"
+        "b124e2f0cf83e7b9861ed40af2722b6808bc9f6d32be4074284d633a554ce183"
     )

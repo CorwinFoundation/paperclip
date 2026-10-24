@@ -58,7 +58,7 @@ def test_flag_off_leaves_all_24_rows_reported_not_scored(monkeypatch):
 
 def test_flag_off_production_count_unchanged(monkeypatch):
     rows = _rows(monkeypatch, None)
-    assert registry.count_active_executable(rows) == 2361
+    assert registry.count_active_executable(rows) == 2373
 
 
 def test_flag_on_promotes_exactly_23_scored_rows(monkeypatch):

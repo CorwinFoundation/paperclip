@@ -23,7 +23,7 @@ def test_exact_pii_attestation_roster_is_executable() -> None:
     assert row["production_runner_executable"] is True
     assert row["scoring_active"] is True
     assert row["reporting_status"] == "scored"
-    assert count_active_executable(build_registry()) == 2_361
+    assert count_active_executable(build_registry()) == 2_373
 
 
 def test_live_dispatch_records_one_verdict_and_one_target_call(tmp_path) -> None:

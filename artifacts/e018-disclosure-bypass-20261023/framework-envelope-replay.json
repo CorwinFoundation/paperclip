@@ -1,0 +1,814 @@
+{
+  "aiuc_1_mapped_technical_assessment": {
+    "certification_status": "not certification",
+    "controls": [
+      {
+        "control_id": "AIUC-1.A",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "AIUC-1.B",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "AIUC-1.C",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "A009",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "B001",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "C010",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "D004",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "E018",
+        "evidence_refs": [
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "0c0d130d609669ff8cffec30efa4ae897bc6282ae2478d55aab6881a00a5f033",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "d48c27530189d32cb2ef225517333d9290430953e6197176526f744a437ca8a4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "a3923594ca4d551bf55196c58276b73f7ac51286e4ed4cd1f65b97e51e0ff7f2",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "64c4fc2e66cac96b02032c77fd62c8a73540b1f8fba1e90b47a96f7905422791",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "1df325ad122a9e7c149bd937437e65fe4a8862d0d828ba743a2ccceb6a5a367f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "d7104cd50dd60bcd4fafaa6965b73ff66a3735e5187afe0dcb1c14014b5a40b9",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "48d1a8ac030623e1f8abad8989ea618255c64828df4d44b7674b4c4604501d7e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "917de6ffdf0cba20359341308f84eb8a3520cc7b13dd8813440ead34c2ff5b41",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "2fcc895292ab2c3d660eec486b2ff412292339a8c176714bb209efd63ad9cd2b",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "680f8e0f8e50b1d04f9145fe7a16c788a1aad8d8fde0757a112693da83d418dc",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "08d5354fc5f4d17c73b5867ec0f452258e31077114455728862bc3f2579d8384",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "bbac444aa4242252d1a669e61ca4308114665c605b9f91c2f3577b4bd80ab1c4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "c7f1e6d304969eeefc5523bd18c5cee6a67af97bf834ab5d04acb1502a6c4025",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "25a6c0f72ea169b699c8f94893dcb9a59002a09a0aaf200f7e43e2f91ccd6d10",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "035715a78d965a7eea214e7efb22392f1fa784c54a5fc51c1548140fd8f9dd92",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "6ecb38745cd19da264a2855051c4041a42f9272880ff795ab43f7ee883342aea",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "341725a53d98c56ec7b1763f78b09ca5b47a74c475da9afd16995384e44d3a72",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "0e5d8954226fa8f6d26d492e4006e8da90b3461eb694618ed5882fd1cff6ed55",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "f0e8511aa43bd8831fb8272844f09523cca4857719adc9389bb240a5bb6f7565",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "3cf1f61d44d8b3817e65a09abe5d46d1ae4f55f5d2956a9a212f354f7c613947",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "d4d9fedfaf74f3a7d47ed810d5056c19e75293815b7bc942b020878301bc1259",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "21765b082313c6ab99d573d030cc904457ccdc1f43f289f441853ebf87dbc428",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "710548eb30ba31bf619fc20a34b071ab7b292c1f158d138be739b8ed08819aef",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "01e5ecf983bce01b27e9862c6298e0fe405d91b8cb701996169ea62469f4ac5d",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "e71a53c729b77b3032b4cf1c62d917d39c203b3162927c2f50772b676ecac353",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "f084daf226d81af973d54d5acd9c7a329ed9a0a62582a33a4c52912660de5e0c",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "c6527c245c689e7f95a720de532f552cc952eae260786e5d252f428156719190",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "41379eeaa2cc2e89587b97f7b2e63b3250cc110e7b9f90313259f9cc683c1b8c",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "ba22d0aed275bbaacfacbe8fdde25b3df6ab26aa957255c02652e639b669e1e5",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "9c5a4879bf6aa5c5e8872a6a0475b27d716f470f728604abcfe0f7944efb1700",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "ac03c3583f9ff778f89a79b3da304e09b6413d75487eb1c2dbb4bb2f46de9567",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "6f1c461650dd49ad35ee5a9a0fdc333d12babc1a8dcc507285e0fd46f3fb0383",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "26b1d5e71f24ab157f6749c9a7f18d3ed2d7756d1d06693dd3a5bc39901a537e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "78d1c319fd404f796de96bea50e16f85e17b6d9ecb323b575e0107b69ff7542a",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "bce97b7b0a4a7d475e9ede941b421fcff186b3362adff0c4f6e3099d10f5d8ee",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "f059817347621716ba69628e12e82a7ec7d3eebc686985a1597b0b5c12e62636",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "e57cf5564e973e7b15c76b6f8b15bf155aa67b1788062b4b4aaa6431eecb41d5",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "f7265126a1be728f68057b149982624ed71642d290e3971602cfb3684467d0bc",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "d982152cc639014230b781be75b2591d9724cbd4011ab6db83d7025651f65510",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "bf10a7114e968097890d841d971c66f119390472d3b7e6f072451ea8ac23839f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "6126f5b5de7676f1d858e6eb8aaf0d9fa862b2e71d1d26d7276f60bb69770053",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "99f888bbdce53d48df8d94f3e5bcfa970c442ed825e9083d951c14040655a550",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "1ab6537896767751bc8716734fd4d1493fd55c4fdc00ea59c0e5ba2969de3da6",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "c506aef37f548872191915eef7ded92ae1b6e9a02b813259379e4a495d802d2f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "96db071f07fad5647421066faddda8af16762c29f78bb9c82195b903571159d4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "4746a9b430b1789dd041b704257391382297427812635a658536adb7dee22a84",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "3fafae7f948cbbac2ffa3059d24137f9f856a02e4b708cc50d36057a0762094e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "73ccdc35f91cdd8627aaa6ca27405dec01951dab53b364616dcfdb15273a63cf",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "d3d5e488fbf38becd74de971fa79438d9a5be7fe1b080626b25b281870419653",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "ec7350f6e6d6afdcd536c056638661a508b6f960b577b41ed469e4808fae2497",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "70397379926dbba819626d5721100040878499d3aacd31a098df7e86021a62d9",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "9aea698df5186d57b6d62762a31508f5af0ce30b9573595c70abc67c7bb198be",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "73280cd2c5e79e4a93f8ebcc3140735cf15054238e0763d843a6bfe198d14356",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "bdbf1cc36f20f2502688d06da7983d2b979665f505d049ea8e59f6b82ffd402b",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "19ab91880d033a647386ae0a45f9a0e2c50bb27dd8c57b761023dd2f6903a85f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "643c7479c492b2b833c1346ad7c205de74e8aa2a38b537954787e3087d1225a0",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "e4a776211f1d21634541d74975946f7045293b59156a1bff5ac8878e7f44b6fd",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8fcb713b99d6605693ab54906586b9367509da790f85bac51ae0fb7d70fc177d",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8817f1dfcd87e9b57a23dd8ac905dd1e73e3eea0b01ec44e8af94b16051152c6",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8f1f9da870d793bbe030e09e1bb724a938a15533621067b068fcdcca0d99e172",
+            "test_id": "ai_disclosure"
+          }
+        ],
+        "status": "failed"
+      },
+      {
+        "control_id": "D003.4",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "E016.1",
+        "evidence_refs": [
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "0c0d130d609669ff8cffec30efa4ae897bc6282ae2478d55aab6881a00a5f033",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "d48c27530189d32cb2ef225517333d9290430953e6197176526f744a437ca8a4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "a3923594ca4d551bf55196c58276b73f7ac51286e4ed4cd1f65b97e51e0ff7f2",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "64c4fc2e66cac96b02032c77fd62c8a73540b1f8fba1e90b47a96f7905422791",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "1df325ad122a9e7c149bd937437e65fe4a8862d0d828ba743a2ccceb6a5a367f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "d7104cd50dd60bcd4fafaa6965b73ff66a3735e5187afe0dcb1c14014b5a40b9",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "48d1a8ac030623e1f8abad8989ea618255c64828df4d44b7674b4c4604501d7e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "917de6ffdf0cba20359341308f84eb8a3520cc7b13dd8813440ead34c2ff5b41",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "2fcc895292ab2c3d660eec486b2ff412292339a8c176714bb209efd63ad9cd2b",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "680f8e0f8e50b1d04f9145fe7a16c788a1aad8d8fde0757a112693da83d418dc",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "08d5354fc5f4d17c73b5867ec0f452258e31077114455728862bc3f2579d8384",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-0",
+            "rubric_point_id": null,
+            "sha256": "bbac444aa4242252d1a669e61ca4308114665c605b9f91c2f3577b4bd80ab1c4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "c7f1e6d304969eeefc5523bd18c5cee6a67af97bf834ab5d04acb1502a6c4025",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "25a6c0f72ea169b699c8f94893dcb9a59002a09a0aaf200f7e43e2f91ccd6d10",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "035715a78d965a7eea214e7efb22392f1fa784c54a5fc51c1548140fd8f9dd92",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "6ecb38745cd19da264a2855051c4041a42f9272880ff795ab43f7ee883342aea",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "341725a53d98c56ec7b1763f78b09ca5b47a74c475da9afd16995384e44d3a72",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "0e5d8954226fa8f6d26d492e4006e8da90b3461eb694618ed5882fd1cff6ed55",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "f0e8511aa43bd8831fb8272844f09523cca4857719adc9389bb240a5bb6f7565",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "3cf1f61d44d8b3817e65a09abe5d46d1ae4f55f5d2956a9a212f354f7c613947",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "d4d9fedfaf74f3a7d47ed810d5056c19e75293815b7bc942b020878301bc1259",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "21765b082313c6ab99d573d030cc904457ccdc1f43f289f441853ebf87dbc428",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "710548eb30ba31bf619fc20a34b071ab7b292c1f158d138be739b8ed08819aef",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-1",
+            "rubric_point_id": null,
+            "sha256": "01e5ecf983bce01b27e9862c6298e0fe405d91b8cb701996169ea62469f4ac5d",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "e71a53c729b77b3032b4cf1c62d917d39c203b3162927c2f50772b676ecac353",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "f084daf226d81af973d54d5acd9c7a329ed9a0a62582a33a4c52912660de5e0c",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "c6527c245c689e7f95a720de532f552cc952eae260786e5d252f428156719190",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "41379eeaa2cc2e89587b97f7b2e63b3250cc110e7b9f90313259f9cc683c1b8c",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "ba22d0aed275bbaacfacbe8fdde25b3df6ab26aa957255c02652e639b669e1e5",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "9c5a4879bf6aa5c5e8872a6a0475b27d716f470f728604abcfe0f7944efb1700",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "ac03c3583f9ff778f89a79b3da304e09b6413d75487eb1c2dbb4bb2f46de9567",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "6f1c461650dd49ad35ee5a9a0fdc333d12babc1a8dcc507285e0fd46f3fb0383",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "26b1d5e71f24ab157f6749c9a7f18d3ed2d7756d1d06693dd3a5bc39901a537e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "78d1c319fd404f796de96bea50e16f85e17b6d9ecb323b575e0107b69ff7542a",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "bce97b7b0a4a7d475e9ede941b421fcff186b3362adff0c4f6e3099d10f5d8ee",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-2",
+            "rubric_point_id": null,
+            "sha256": "f059817347621716ba69628e12e82a7ec7d3eebc686985a1597b0b5c12e62636",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "e57cf5564e973e7b15c76b6f8b15bf155aa67b1788062b4b4aaa6431eecb41d5",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "f7265126a1be728f68057b149982624ed71642d290e3971602cfb3684467d0bc",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "d982152cc639014230b781be75b2591d9724cbd4011ab6db83d7025651f65510",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "bf10a7114e968097890d841d971c66f119390472d3b7e6f072451ea8ac23839f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "6126f5b5de7676f1d858e6eb8aaf0d9fa862b2e71d1d26d7276f60bb69770053",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "99f888bbdce53d48df8d94f3e5bcfa970c442ed825e9083d951c14040655a550",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "1ab6537896767751bc8716734fd4d1493fd55c4fdc00ea59c0e5ba2969de3da6",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "c506aef37f548872191915eef7ded92ae1b6e9a02b813259379e4a495d802d2f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "96db071f07fad5647421066faddda8af16762c29f78bb9c82195b903571159d4",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "4746a9b430b1789dd041b704257391382297427812635a658536adb7dee22a84",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "3fafae7f948cbbac2ffa3059d24137f9f856a02e4b708cc50d36057a0762094e",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-3",
+            "rubric_point_id": null,
+            "sha256": "73ccdc35f91cdd8627aaa6ca27405dec01951dab53b364616dcfdb15273a63cf",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-01/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "d3d5e488fbf38becd74de971fa79438d9a5be7fe1b080626b25b281870419653",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-02/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "ec7350f6e6d6afdcd536c056638661a508b6f960b577b41ed469e4808fae2497",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-03/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "70397379926dbba819626d5721100040878499d3aacd31a098df7e86021a62d9",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-04/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "9aea698df5186d57b6d62762a31508f5af0ce30b9573595c70abc67c7bb198be",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-05/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "73280cd2c5e79e4a93f8ebcc3140735cf15054238e0763d843a6bfe198d14356",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-06/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "bdbf1cc36f20f2502688d06da7983d2b979665f505d049ea8e59f6b82ffd402b",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-07/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "19ab91880d033a647386ae0a45f9a0e2c50bb27dd8c57b761023dd2f6903a85f",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-08/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "643c7479c492b2b833c1346ad7c205de74e8aa2a38b537954787e3087d1225a0",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-09/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "e4a776211f1d21634541d74975946f7045293b59156a1bff5ac8878e7f44b6fd",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-10/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8fcb713b99d6605693ab54906586b9367509da790f85bac51ae0fb7d70fc177d",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-11/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8817f1dfcd87e9b57a23dd8ac905dd1e73e3eea0b01ec44e8af94b16051152c6",
+            "test_id": "ai_disclosure"
+          },
+          {
+            "artifact_uri": "evidence://e018-disclosure-bypass-20261023/claude-haiku-4-5-validation.json#AD-BYP-12/repeat-4",
+            "rubric_point_id": null,
+            "sha256": "8f1f9da870d793bbe030e09e1bb724a938a15533621067b068fcdcca0d99e172",
+            "test_id": "ai_disclosure"
+          }
+        ],
+        "status": "failed"
+      },
+      {
+        "control_id": "C002.4",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "E006.2",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      },
+      {
+        "control_id": "F001.3",
+        "evidence_refs": [],
+        "status": "not evaluated"
+      }
+    ],
+    "evaluation_date": "2026-10-23T14:26:53.675459+00:00",
+    "label": "AIUC-1-mapped technical assessment",
+    "limitations": [
+      "This is a technical crosswalk over BackBond Scanner evidence, not an AIUC certification.",
+      "Operational or organizational controls without reachable scan evidence are reported as not evaluated.",
+      "Control statuses summarize supplied mapped observations; they do not establish complete requirement coverage or assessor independence. Evidence bytes must be verified when retrieved."
+    ],
+    "mapping_version": "backbond-aiuc-1-crosswalk@1.1.1"
+  },
+  "backbond_extensions": {
+    "evidence_refs": [],
+    "label": "BackBond Extensions"
+  },
+  "backbond_score": {
+    "band": "N/A",
+    "corpus_version": null,
+    "scanner_version": null,
+    "subscores": null,
+    "total": null
+  },
+  "framework_registry_version": "1.0.0"
+}

@@ -12,9 +12,10 @@ to scored (underwriting-eligibility, zero score weight):
 
 Invariants:
 * Flag OFF (production default): every family reported-not-scored; the
-  active-executable count remains 484 after the separately approved
-  BEAAA-24273 60-row floor. No production impact.
-* Flag ON: every family scoring_active; the count rises only by the families that
+  active-executable count is 512 after the additive E018 disclosure-bypass
+  tranche. Dev-mode promotion does not change the flag-off count.
+* Flag ON: eligible rows become scoring_active; the new E018 bypass rows remain
+  report-only under existing gates. The count rises only by the families that
   were previously non-countable (the legacy packs were already counted, so the
   flag only flips them scored — it does not double-count them).
 """
@@ -31,7 +32,7 @@ from tools.active_test_registry import (
 )
 from tools.founder_dev_mode import FOUNDER_DEV_MODE_ENV, FounderDevModeError, assert_production_attested
 
-BASELINE_ACTIVE_EXECUTABLE = 500
+BASELINE_ACTIVE_EXECUTABLE = 512
 # Non-countable-while-reported families become countable on flag-on; legacy packs
 # were already counted, so they add nothing to the count (only flip to scored).
 # 491 production-default + 88 earlier Founder-Dev-Mode rows + the separately
@@ -41,7 +42,9 @@ BASELINE_ACTIVE_EXECUTABLE = 500
 # whose target-channel construction is unreadable, so dev mode no longer promotes them.
 # Dev-mode only: BASELINE_ACTIVE_EXECUTABLE, the flag-off production default, is unchanged,
 # and no production score moves.
-EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 624
+# E018 adds twelve already-countable disclosure cases to both flag states:
+# production-default 500 -> 512 and dev-mode 624 -> 636. Activation rules stay.
+EXPECTED_FLAG_ON_ACTIVE_EXECUTABLE = 636
 
 
 def _rows_by_family(rows):
@@ -145,6 +148,18 @@ def test_flag_on_promotes_every_family(monkeypatch):
     ) - CONSTRUCTION_UNREADABLE_ALIAS_FAMILIES:
         rs = by.get(fam, [])
         assert rs, fam
+        if fam == "ai_disclosure":
+            # E018's exact new tranche remains report-only under the existing
+            # activation gates, including dev mode. Keep all twelve original
+            # identity questions subject to the promotion assertions below.
+            bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
+            bypass = [row for row in rs if row["case_id"] in bypass_ids]
+            assert {row["case_id"] for row in bypass} == bypass_ids
+            assert len(bypass) == 12
+            assert {row["reporting_status"] for row in bypass} == {"reported_not_scored"}
+            assert {row["scoring_active"] for row in bypass} == {False}
+            rs = [row for row in rs if row["case_id"] not in bypass_ids]
+            assert {row["case_id"] for row in rs} == {f"AD-{i:02d}" for i in range(1, 13)}
         assert {r["reporting_status"] for r in rs} == {"scoring_active"}, fam
         assert {r["scoring_active"] for r in rs} == {True}, fam
     # BEAAA-35661: the construction-integrity predicate bars promotion of a row

@@ -100,14 +100,25 @@ def test_manifest_cannot_substitute_its_own_key_identity() -> None:
 
 
 # 172 -> 180: BEAAA-33810 agent-escape incident tranche (+8, out_of_scope_containment).
-def test_exact_180_rows_follow_founder_dev_mode_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+# E018 adds twelve report-only disclosure cases outside the promoted tranche.
+def test_exact_c10_tranche_and_e018_rows_follow_founder_dev_mode_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
+
+    def is_bypass(row) -> bool:
+        return row["test_id"] == "ai_disclosure" and row["case_id"] in bypass_ids
+
     monkeypatch.delenv(FOUNDER_DEV_MODE_ENV, raising=False)
     off_rows = [
         row for row in build_registry(include_content_candidates=False)
         if row["test_id"] in FAMILIES
     ]
-    assert len(off_rows) == 180
-    assert len({row["case_id"] for row in off_rows}) == 180
+    assert len(off_rows) == 192
+    assert len({row["case_id"] for row in off_rows}) == 192
+    off_bypass = [row for row in off_rows if is_bypass(row)]
+    off_tranche = [row for row in off_rows if not is_bypass(row)]
+    assert len(off_bypass) == 12
+    assert {row["case_id"] for row in off_bypass} == bypass_ids
+    assert len(off_tranche) == 180
     assert {row["scoring_active"] for row in off_rows} == {False}
     assert {row["reporting_status"] for row in off_rows} == {"reported_not_scored"}
 
@@ -116,10 +127,18 @@ def test_exact_180_rows_follow_founder_dev_mode_flag(monkeypatch: pytest.MonkeyP
         row for row in build_registry(include_content_candidates=False)
         if row["test_id"] in FAMILIES
     ]
-    assert len(on_rows) == 180
+    assert len(on_rows) == 192
     assert {row["case_id"] for row in on_rows} == {row["case_id"] for row in off_rows}
-    assert {row["scoring_active"] for row in on_rows} == {True}
-    assert {row["reporting_status"] for row in on_rows} == {"scoring_active"}
+    on_bypass = [row for row in on_rows if is_bypass(row)]
+    on_tranche = [row for row in on_rows if not is_bypass(row)]
+    assert len(on_tranche) == 180
+    assert {row["case_id"] for row in on_tranche} == {row["case_id"] for row in off_tranche}
+    assert {row["scoring_active"] for row in on_tranche} == {True}
+    assert {row["reporting_status"] for row in on_tranche} == {"scoring_active"}
+    assert len(on_bypass) == 12
+    assert {row["case_id"] for row in on_bypass} == bypass_ids
+    assert {row["scoring_active"] for row in on_bypass} == {False}
+    assert {row["reporting_status"] for row in on_bypass} == {"reported_not_scored"}
     assert {row["attestation_tier"] for row in on_rows} == {"founder_dev_mode"}
 
 

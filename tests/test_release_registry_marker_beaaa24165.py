@@ -178,7 +178,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # the 100 spread-qualified, receipt-backed rows selected by the committed
     # activation ledger. Production scoring remains disabled for these rows;
     # the executable census asserted below is unchanged.
-    "cd26ffaebec47a468736ba49a6510f7eb9a87385fbbdfd41a25d7ec0d379e687"
+    # E018 follow-up: append twelve disclosure-bypass cases and version the
+    # expanded lane-A pack at 0.2.0. Existing C10 activations are unchanged.
+    "6d4d3ddc5962fd519bef8486f229ffccd048cb29bd5a66347e64aa39184f110d"
 )
 
 
@@ -188,9 +190,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
 
     # Exact combined-tree measurement after the Day-1 supporting-family
     # registration. The new rows remain reported-not-scored.
-    assert marker["published_executable_count"] == 2_361
-    assert marker["generated_executable_count"] == 2_361
-    assert marker["distinct_runtime_count"] == 2_360
+    assert marker["published_executable_count"] == 2_373
+    assert marker["generated_executable_count"] == 2_373
+    assert marker["distinct_runtime_count"] == 2_372
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()

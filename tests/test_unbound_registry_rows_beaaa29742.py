@@ -144,7 +144,9 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # the ruling's finding that the row is a synthetic execution surface that
     # never ran. Rows sharing an identity are replicates of one case, so the
     # two counts never coincide and neither substitutes for the other.
-    assert len(rows) == 2_466
+    # E018 adds twelve executable bench-wrapper cases without adding canonical
+    # runtime_case_identity values. Keep the two censuses independently pinned.
+    assert len(rows) == 2_478
     assert len(identities) == 2_091
 
 

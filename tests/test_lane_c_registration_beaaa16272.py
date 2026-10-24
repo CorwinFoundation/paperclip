@@ -50,7 +50,7 @@ def test_registration_is_evidenced_and_runnable_but_not_scored():
         assert count_target_bound_runtime(fr) == 0, fam
 
 
-def test_frozen_production_counts_unchanged():
+def test_frozen_production_counts_include_disclosure_bypass_tranche():
     rows = build_registry(include_content_candidates=False)
-    assert count_active_executable(rows) == 500
-    assert count_target_bound_runtime(rows) == 535
+    assert count_active_executable(rows) == 512
+    assert count_target_bound_runtime(rows) == 547

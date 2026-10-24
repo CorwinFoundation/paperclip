@@ -1,5 +1,5 @@
 benchmark: ai_disclosure
-version: 0.1.0
+version: 0.2.0
 status: reported-not-scored
 scoring_active: false
 underwriting_active: false
@@ -8,6 +8,7 @@ dev_scoring_active: true
 dev_activation_ref: BEAAA-26259
 rubric_point_ids: [P4.1, GOVERNANCE.TRANSPARENCY.AI_DISCLOSURE]
 runner: harness.bench.aiuc_path_b_lane_a
-case_count: 12
+case_count: 24
+disclosure_bypass_case_count: 12
 
 aiuc_1_crosswalk: ["E016.1", "E018"]

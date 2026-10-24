@@ -112,8 +112,8 @@ def test_activations_add_exact_scored_cases_without_count_or_pricing_drift() -> 
     activated = c10_family_activation.load_c10_family_activations()
 
     assert count_canonical_scored_rows(rows) == 310 + len(activated)
-    assert count_active_executable(rows) == 2_361
-    assert count_target_bound_runtime(rows) == 2_386
+    assert count_active_executable(rows) == 2_373
+    assert count_target_bound_runtime(rows) == 2_398
     assert sum(
         row.get("priced_score_weight", 0.0)
         for row in rows
@@ -129,7 +129,7 @@ def test_legacy_lane_a_namesake_remains_reported_not_scored() -> None:
         if row["test_id"] == "ai_disclosure" and row["case_id"].startswith("AD-")
     ]
 
-    assert len(legacy) == 12
+    assert len(legacy) == 24
     assert {row["scoring_active"] for row in legacy} == {False}
     assert {row["reporting_status"] for row in legacy} == {"reported_not_scored"}
     assert not [row for row in legacy if row.get("c10_family_activation")]

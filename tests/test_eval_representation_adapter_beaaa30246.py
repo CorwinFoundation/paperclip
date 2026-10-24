@@ -17,7 +17,7 @@ def test_exact_eval_representation_roster_is_executable() -> None:
     rows = _rows()
     assert [row["case_id"] for row in rows] == ["er.derived_coverage"]
     assert rows[0]["production_runner_executable"] is True
-    assert count_active_executable(build_registry()) == 2_361
+    assert count_active_executable(build_registry()) == 2_373
 
 
 def test_live_dispatch_records_one_verdict_and_exact_calls(tmp_path) -> None:

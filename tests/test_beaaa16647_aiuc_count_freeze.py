@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # BEAAA-33810: +8 on every pin below — the agent-escape incident tranche
 # (OOSC-INC-01..08) appended to out_of_scope_containment. Report-only family
 # (scoring_active: false); the delta is the tranche size, not a scoring change.
+# E018 follow-up appends twelve report-only disclosure-bypass cases. The
+# executable/runtime census moves by twelve; scored and underwriting flags stay.
 def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     # BEAAA-24273 adds 60 scored cases to this no-content-candidate view, so the
     # BEAAA-24445 refreeze constants move by +60. The customer-visible published
@@ -32,10 +34,10 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     rows = build_registry(include_content_candidates=False)
     summary = summarize(rows, published_count=500)
 
-    assert count_active_executable(rows) == 500
-    assert summary["active_executable_count"] == 500
-    assert count_target_bound_runtime(rows) == 535
-    assert summary["target_bound_runtime_count"] == 535
+    assert count_active_executable(rows) == 512
+    assert summary["active_executable_count"] == 512
+    assert count_target_bound_runtime(rows) == 547
+    assert summary["target_bound_runtime_count"] == 547
     assert summary["published_active_test_count"] == 500
 
 

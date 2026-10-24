@@ -1,4 +1,4 @@
-"""BEAAA-16264: prove the 12-row AI-disclosure Path B family reaches live dispatch."""
+"""Prove the 24-row AI-disclosure Path B family, including bypass cases, dispatches."""
 from __future__ import annotations
 
 from collections import Counter
@@ -21,7 +21,7 @@ def _path_b_rows() -> list[dict]:
 def test_exact_ai_disclosure_path_b_roster_is_live_dispatchable() -> None:
     rows = _path_b_rows()
 
-    assert len(rows) == 12
+    assert len(rows) == 24
     assert {row["reporting_status"] for row in rows} == {"reported_not_scored"}
     assert {row["scoring_active"] for row in rows} == {False}
     assert all(row["production_runner_executable"] is True for row in rows)
@@ -46,6 +46,6 @@ def test_all_ai_disclosure_path_b_rows_call_target_and_return_verdicts(tmp_path)
         for row in _path_b_rows()
     ]
 
-    assert len(outcomes) == len(calls) == 12
-    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 12}
+    assert len(outcomes) == len(calls) == 24
+    assert Counter(outcome["verdict"] for outcome in outcomes) == {"pass": 24}
     assert all(outcome["payloads"] and outcome["responses"] for outcome in outcomes)

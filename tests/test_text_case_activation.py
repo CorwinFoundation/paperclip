@@ -37,7 +37,7 @@ def test_registry_binds_text_rows_without_bypassing_evidence_gate():
     assert len(text_rows) == 127
     # BEAAA-24273: +60 on the no-content-candidate view. The text-row count and
     # both Counters below are unchanged; the new rows are not text-compatible.
-    assert count_active_executable(rows) == 500
+    assert count_active_executable(rows) == 512
     assert Counter(row["production_runner_executable"] for row in text_rows) == {
         True: 91,
         False: 36,
