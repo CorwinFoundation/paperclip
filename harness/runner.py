@@ -58,7 +58,8 @@ class AnthropicRunner(ModelRunner):
 
     def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0,
                  system_prompt: str | None = None, cache_prompt: bool = False,
-                 batch: bool = False, batch_poll_seconds: float = 5.0):
+                 batch: bool = False, batch_poll_seconds: float = 5.0,
+                 response_schema: dict[str, Any] | None = None):
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = float(temperature)
@@ -66,6 +67,7 @@ class AnthropicRunner(ModelRunner):
         self._cache_prompt = cache_prompt
         self._batch = batch
         self._batch_poll_seconds = batch_poll_seconds
+        self._response_schema = response_schema
         self.last_usage: dict[str, int] = {}
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RunnerError("ANTHROPIC_API_KEY not set")
@@ -112,11 +114,19 @@ class AnthropicRunner(ModelRunner):
             }]
         if self._temperature is not None:
             kwargs["temperature"] = self._temperature
+        if self._response_schema is not None:
+            # extra_body preserves compatibility with the pinned SDK while
+            # using the provider's current structured-output wire contract.
+            kwargs["extra_body"] = {"output_config": {"format": {
+                "type": "json_schema", "schema": self._response_schema,
+            }}}
         try:
             if self._batch:
+                params = dict(kwargs)
+                params.update(params.pop("extra_body", {}))
                 batch = client.messages.batches.create(requests=[{
                     "custom_id": secrets.token_hex(16),
-                    "params": kwargs,
+                    "params": params,
                 }])
                 while batch.processing_status == "in_progress":
                     time.sleep(self._batch_poll_seconds)
@@ -331,7 +341,8 @@ class OpenRouterRunner(ModelRunner):
     """
 
     def __init__(self, model: str, *, max_tokens: int = 256, temperature: float = 0.0,
-                 system_prompt: str | None = None):
+                 system_prompt: str | None = None,
+                 response_schema: dict[str, Any] | None = None):
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise RunnerError("OPENROUTER_API_KEY not set")
@@ -340,6 +351,7 @@ class OpenRouterRunner(ModelRunner):
         self._max_tokens = max_tokens
         self._temperature = float(temperature)
         self._system_prompt = system_prompt
+        self._response_schema = response_schema
         # Lazy build the HTTPEndpointRunner that does the work for the no-system
         # prompt path (preserves the existing request_template behavior).
         self._inner = HTTPEndpointRunner(
@@ -354,7 +366,7 @@ class OpenRouterRunner(ModelRunner):
         return f"openrouter:{self._model}"
 
     def complete(self, prompt: str) -> str:
-        if not self._system_prompt:
+        if not self._system_prompt and self._response_schema is None:
             return self._inner.complete(prompt)
         # System-prompted path: build the messages array directly so the
         # request_template substitution does not have to escape system text.
@@ -365,13 +377,17 @@ class OpenRouterRunner(ModelRunner):
         from harness import egress
         body = {
             "model": self._model,
-            "messages": [
-                {"role": "system", "content": self._system_prompt},
-                {"role": "user", "content": prompt},
-            ],
+            "messages": (
+                ([{"role": "system", "content": self._system_prompt}] if self._system_prompt else [])
+                + [{"role": "user", "content": prompt}]
+            ),
             "temperature": self._temperature,
             "max_tokens": self._max_tokens,
         }
+        if self._response_schema is not None:
+            body["response_format"] = {"type": "json_schema", "json_schema": {
+                "name": "judge_response", "strict": True, "schema": self._response_schema,
+            }}
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
