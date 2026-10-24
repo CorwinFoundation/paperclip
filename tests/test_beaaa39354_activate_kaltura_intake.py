@@ -14,8 +14,7 @@ SPEC.loader.exec_module(activate)
 
 def test_patch_is_surgical_and_idempotent():
     source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
-    # Recreate a legacy install even when the current app adds newer transports.
-    # The activator must not learn to overwrite those newer declarations.
+    # Exercise legacy input independently of the current supported transports.
     declarations = [line for line in source.splitlines()
                     if line.strip().startswith("transport: str = Field(pattern=")]
     assert len(declarations) == 1
@@ -34,7 +33,7 @@ def test_patch_is_surgical_and_idempotent():
     activate.OLD_TRANSPORT + "\n" + activate.OLD_TRANSPORT,
 ])
 def test_patch_still_refuses_unknown_or_ambiguous_transport_declarations(declaration):
-    with pytest.raises(RuntimeError, match="expected exactly one legacy transport declaration"):
+    with pytest.raises(RuntimeError, match="expected exactly one recognized transport declaration"):
         activate.patch_app(declaration + "\n" + activate.ANCHOR)
 
 
