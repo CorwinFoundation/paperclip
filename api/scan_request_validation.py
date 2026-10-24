@@ -144,7 +144,7 @@ def validate_agent_endpoint(agent_endpoint: Any) -> dict[str, Any]:
         allow_private_ip_literals=True,
     )
     transport = agent_endpoint.get("transport", "rest")
-    if transport not in {"rest", "openai_chat", "json_map", "kaltura_genie", "kaltura_genie_browser"}:
+    if transport not in {"rest", "openai_chat", "json_map", "ag_ui", "kaltura_genie", "kaltura_genie_browser"}:
         raise HandlerError(422, "agent_endpoint_transport_invalid")
     if raw_url is None and set(agent_endpoint) <= {"host", "transport"}:
         return {"host": endpoint_host, "transport": transport}

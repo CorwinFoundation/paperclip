@@ -190,6 +190,13 @@ class _CustomerAgentHttpRunner(ModelRunner):
 
     def _request_payload(self, prompt: str) -> dict[str, Any]:
         messages_payload = getattr(self, "_messages_payload", None)
+        if self._config.get("transport") == "ag_ui":
+            if messages_payload is not None:
+                raise RunnerError("AG-UI text transport does not support native tool turns")
+            from harness.agui_text import request_payload
+            payload = request_payload(prompt, self._config.get("system_prompt"))
+            self._agui_identity = (payload["threadId"], payload["runId"])
+            return payload
         if messages_payload is not None:
             return messages_payload
         transport = self._config.get("transport", "rest")
@@ -247,11 +254,17 @@ class _CustomerAgentHttpRunner(ModelRunner):
 
     def _request_body(self, prompt: str) -> tuple[bytes, dict[str, str]]:
         headers = {}
+        if self._config.get("transport") == "ag_ui":
+            headers["Accept"] = "text/event-stream"
         if self._config.get("transport") == "kaltura_genie":
             headers["Accept"] = "application/x-ndjson"
         return _json.dumps(self._request_payload(prompt)).encode("utf-8"), headers
 
     def _parse_response(self, text: str) -> str:
+        if self._config.get("transport") == "ag_ui":
+            from harness.agui_text import response_text
+            thread_id, run_id = self._agui_identity
+            return response_text(text, thread_id=thread_id, run_id=run_id)
         if self._config.get("transport") == "kaltura_genie":
             chunks: list[str] = []
             for raw_line in text.splitlines():
@@ -427,6 +440,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
                             # Do not read or retain a UI/login/error page as an
                             # agent reply, even when its HTTP status is 200.
                             raise RunnerError("customer endpoint returned an HTML page instead of an agent response")
+                        if self._config.get("transport") == "ag_ui" and content_type != "text/event-stream":
+                            raise RunnerError("customer AG-UI endpoint did not return an event stream")
                         # BEAAA-5532: Content-Encoding gate. Reject any
                         # response that carries a non-identity
                         # Content-Encoding BEFORE iterating the body so
