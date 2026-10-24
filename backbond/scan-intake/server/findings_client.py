@@ -11,6 +11,7 @@ import time
 from urllib.parse import urlsplit
 
 from findings_workflow import canonical, checked_request, digest, WorkflowError
+from native_reports import NativeReports, RECIPIENT
 
 
 class FindingsReports:
@@ -18,6 +19,7 @@ class FindingsReports:
         self.db = sqlite3.connect(path, timeout=20, isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.RLock()
+        self.native = NativeReports(path)
         self.db.execute('''CREATE TABLE IF NOT EXISTS findings_report_outbox (
             scan_id TEXT PRIMARY KEY, payload TEXT NOT NULL, request_sha TEXT NOT NULL,
             state TEXT NOT NULL DEFAULT 'pending', remote_status TEXT, error TEXT,
@@ -63,7 +65,7 @@ class FindingsReports:
             if exists or deferred:
                 continue
             try:
-                value = {'workflow_id': row['id'], 'scanner_id': row['scanner_id'], 'recipient': row['email'],
+                value = {'workflow_id': row['id'], 'scanner_id': row['scanner_id'], 'recipient': RECIPIENT,
                          'agent_label': row['agent_label'], 'transport': row['transport'], 'pack_version': row['pack_version'],
                          'started_at': row['created_at'], 'finished_at': row['finished_at'],
                          'accepted_total': accepted_total(dict(row)), 'tests': json.loads(row['tests_json'] or '[]'),
@@ -112,6 +114,7 @@ class FindingsReports:
         if url.scheme != 'https' or not url.hostname or url.username or url.password or url.query or url.fragment or not token:
             return
         now = time.time() if now is None else now
+        self.native.flush(http, mail_credentials, now=now)
         route = base_url.rstrip('/') + '/findings/v1/workflows'
         headers = {'Authorization': 'Bearer ' + token}
         with self.lock:
@@ -174,6 +177,23 @@ class FindingsReports:
             self.update(ident, state='held', error='provider_idempotency_window_expired')
             return
         key = 'findings-report:' + digest((ident + '|' + artifacts['pdf']['sha256'] + '|' + artifacts['html']['sha256']).encode())
+        body = {'from': 'BackBond <info@backbond.ai>', 'to': [value['recipient']],
+                'subject': 'Your BackBond Findings Report',
+                'text': 'Your Findings Report is attached as PDF and HTML. It was prepared from your completed scan and independently reviewed.\n\nQuestions: info@backbond.ai',
+                'attachments': attachments}
+        # Freeze the new notification before sending. An older uncertain send
+        # keeps its original provider key and exact attachment payload.
+        if not first or self.native.token_for(ident):
+            report_token = self.native.publish(ident, remote)
+            self.update(ident, state='sending', send_started=first or now)
+            message = self.native.notify(report_token, http, mail_credentials, now=now)
+            if message:
+                self.update(ident, state='accepted', message_id=message, error=None)
+            else:
+                notification = self.native.db.execute('SELECT state,error FROM native_report_notifications WHERE token=?', (report_token,)).fetchone()
+                self.update(ident, state=notification['state'] if notification['state'] in {'held','failed'} else 'unknown',
+                            error=notification['error'])
+            return
         credentials = mail_credentials()
         if credentials.get('provider') != 'resend' or not credentials.get('api_key'):
             raise WorkflowError('mail_not_configured')
@@ -182,11 +202,7 @@ class FindingsReports:
         try:
             response = http.post('https://api.resend.com/emails', headers={
                 'Authorization': 'Bearer ' + credentials['api_key'], 'Idempotency-Key': key,
-                'User-Agent': 'BackBond-Findings-Delivery/1.0'}, json={
-                'from': 'BackBond <info@backbond.ai>', 'to': [value['recipient']],
-                'subject': 'Your BackBond Findings Report',
-                'text': 'Your Findings Report is attached as PDF and HTML. It was prepared from your completed scan and independently reviewed.\n\nQuestions: info@backbond.ai',
-                'attachments': attachments}, timeout=30, follow_redirects=False)
+                'User-Agent': 'BackBond-Findings-Delivery/1.0'}, json=body, timeout=30, follow_redirects=False)
         except Exception:
             self.update(ident, state='unknown', error='provider_outcome_unknown')
             return

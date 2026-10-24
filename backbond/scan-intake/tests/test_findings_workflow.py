@@ -174,7 +174,9 @@ def test_same_reviewer_resolves_unchanged_handoff_fix_and_delivers_once(tmp_path
                 mail_credentials=lambda:dict(provider='resend',api_key='protected'))
     client.tick(now=100,**kwargs);client.tick(now=120,**kwargs);client.tick(now=140,**kwargs)
     assert len(http.sends)==1 and flow.status('scan1')['state']=='sent'
-    assert base64.b64decode(http.sends[0][1]['attachments'][0]['content']) == native.files['pdf'][1]
+    token = client.native.token_for('scan1')
+    assert 'https://backbond.ai/scan/r/' + token in http.sends[0][1]['text']
+    assert client.native.artifact(token, 'pdf') == native.files['pdf'][1]
 
 
 @pytest.mark.parametrize('invalid', ['reverse','same_time','missing_time','naive_time','escalate',
@@ -257,9 +259,12 @@ def test_full_approved_flow_delivers_exact_bytes_once_across_restart(tmp_path):
                 mail_credentials=lambda:dict(provider='resend', api_key='server-only'))
     client.tick(now=100,**kwargs)
     assert len(http.sends)==1
-    body=http.sends[0][1]; assert body['to']==['owner@example.com']
-    for item,kind in zip(body['attachments'],['pdf','html']):
-        assert base64.b64decode(item['content']) == native.files[kind][1]
+    body=http.sends[0][1]; assert body['to']==['info@backbond.ai']
+    assert 'attachments' not in body
+    token = client.native.token_for('scan1')
+    assert 'https://backbond.ai/scan/r/' + token in body['text']
+    for kind in ['pdf','html']:
+        assert client.native.artifact(token, kind) == native.files[kind][1]
     restarted=FindingsReports(path); restarted.tick(now=120,**kwargs); restarted.tick(now=140,**kwargs)
     assert len(http.sends)==1 and flow.status('scan1')['state']=='sent'
     assert restarted.lifecycle('scan1')['delivery_status']=='provider_accepted'
@@ -270,7 +275,9 @@ def test_unknown_send_reuses_identical_key_and_payload(tmp_path):
     path=str(tmp_path/'intake.sqlite'); client=FindingsReports(path); client.enqueue(value); http=MailHTTP(flow); http.lose=True
     kwargs=dict(base_url='https://bac.example',token='integration',http=http,mail_credentials=lambda:dict(provider='resend',api_key='local'))
     client.tick(now=100,**kwargs); assert client.lifecycle('scan1')['delivery_status']=='unknown'
-    restarted=FindingsReports(path); restarted.tick(now=120,**kwargs); restarted.tick(now=140,**kwargs)
+    restarted=FindingsReports(path); restarted.tick(now=120,**kwargs)
+    assert len(http.sends) == 1  # Durable notification retry waits sixty seconds.
+    restarted.tick(now=200,**kwargs); restarted.tick(now=220,**kwargs)
     assert len(http.sends)==2 and http.sends[0]==http.sends[1] and len(http.accepted)==1
     assert flow.status('scan1')['state']=='sent'
 
@@ -318,6 +325,8 @@ def test_capture_cutover_does_not_mail_historical_customers(tmp_path):
     assert reports.db.execute('SELECT count(*) FROM findings_report_outbox').fetchone()[0]==0
     reports.capture(store,lambda row:1,since='2026-10-23T00:00:00+00:00',replay=[ident])
     assert reports.db.execute('SELECT count(*) FROM findings_report_outbox').fetchone()[0]==1
+    payload = reports.db.execute('SELECT payload FROM findings_report_outbox').fetchone()[0]
+    assert json.loads(payload)['recipient'] == 'info@backbond.ai'
     reports.capture(store,lambda row:pytest.fail('read again'),since='2026-10-23T00:00:00+00:00',replay=[ident])
 
 

@@ -974,11 +974,13 @@ def _report_csrf_ok(request: Request) -> bool:
 
 
 def _report_access(token: str) -> str | None:
-    """'legacy' when a historically mailed report may be reached, else None.
+    """Only published native SHIP files or already-mailed legacy reports open.
 
-    BAC-bound scans use the Operations-owned final artifact, never this local report viewer;
-    they never get a customer verification code. Unbound pre-BAC scans keep their
-    historical access only if the legacy outbox already mailed the customer their link."""
+    Native files retain the independently approved bytes and authenticate the
+    info mailbox. BAC scan results alone never enable the legacy local renderer.
+    """
+    if findings_reports.native.publication(token):
+        return 'native_findings'
     scan_id = store.scan_for_report(token)
     if not scan_id:
         return None
@@ -994,14 +996,16 @@ def _report_released(token: str) -> bool:
 
 @app.post("/scan/v1/reports/{token}/verification")
 def request_report_verification(token: str, request: Request):
-    # BEAAA-42596: a BAC report is never mailed to the customer, so only a historically
-    # released legacy report can request a code; everything else fails closed.
-    if _report_access(token) != 'legacy':
+    # Native publications authenticate the info mailbox; historical legacy
+    # reports retain their original recipient. Unapproved scans stay closed.
+    access = _report_access(token)
+    if access not in {'legacy', 'native_findings'}:
         raise HTTPException(404, "report_not_released")
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     client_key = _client(request)
-    issued = (store.issue_report_code(token, request_key=client_key)
+    issued = ((findings_reports.native.issue_code(token, client_key)
+               if access == 'native_findings' else store.issue_report_code(token, request_key=client_key))
               if report_issue_gate.allow(ip=client_key, all='all') else None)
     nonce = secrets.token_hex(16)
     if issued:
@@ -1025,8 +1029,9 @@ def create_report_session(token: str, body: ReportCode, request: Request):
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     nonce = request.cookies.get('bb_report_challenge') or ''
-    session = store.verify_report_code(token, nonce + '.' + body.code,
-                                       request_key=_client(request))
+    session = (findings_reports.native.verify_code(token, nonce + '.' + body.code)
+               if _report_access(token) == 'native_findings' else
+               store.verify_report_code(token, nonce + '.' + body.code, request_key=_client(request)))
     if not session:
         raise HTTPException(403, "verification failed")
     response = JSONResponse({"status": "verified"})
@@ -1041,6 +1046,7 @@ def delete_report_session(token: str, request: Request):
     if not _report_csrf_ok(request):
         raise HTTPException(403, "verification failed")
     store.revoke_report_session(_report_session(request))
+    findings_reports.native.revoke(_report_session(request))
     response = Response(status_code=204)
     response.delete_cookie('bb_report_session', path=f'/scan/v1/reports/{token}')
     return response
@@ -1057,6 +1063,13 @@ def report(token: str, request: Request):
         raise HTTPException(401, "authentication required")
     if not _report_released(token):
         raise HTTPException(404, "report_not_released")
+    if _report_access(token) == 'native_findings':
+        if not findings_reports.native.authorize(token, session):
+            raise HTTPException(403, 'report access denied')
+        return JSONResponse({'report_kind': 'native_findings',
+                             'html_url': PUBLIC_API + '/scan/v1/reports/' + token + '/artifacts/html',
+                             'pdf_url': PUBLIC_API + '/scan/v1/reports/' + token + '/artifacts/pdf'},
+                            headers={'Cache-Control': 'no-store'})
     if not store.authorize_report(token, session):
         raise HTTPException(403, "report access denied")
     value = store.report(token)
@@ -1069,6 +1082,23 @@ def report(token: str, request: Request):
     if not value:
         raise HTTPException(404, "report not found")
     return value
+
+
+@app.get('/scan/v1/reports/{token}/artifacts/{kind}')
+def native_report_artifact(token: str, kind: str, request: Request):
+    session = _report_session(request)
+    if not session:
+        raise HTTPException(401, 'authentication required')
+    if not findings_reports.native.authorize(token, session):
+        raise HTTPException(403, 'report access denied')
+    value = findings_reports.native.artifact(token, kind)
+    if value is None:
+        raise HTTPException(404, 'report not found')
+    headers = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+               'Referrer-Policy': 'no-referrer',
+               'Content-Disposition': 'inline; filename="BackBond-Findings-Report.' + kind + '"',
+               'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors https://backbond.ai https://www.backbond.ai; sandbox"}
+    return Response(value, media_type='application/pdf' if kind == 'pdf' else 'text/html', headers=headers)
 
 
 RELEASE_ROLES = {'lead': ('QA_RELEASE_LEAD_TOKEN_SHA256', 'QA_RELEASE_LEAD_ACTOR_ID'),

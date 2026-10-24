@@ -324,6 +324,21 @@
       const response = await request(API + match[1]);
       if (!response.ok) { if (response.status === 401 || response.status === 403) verification(match[1]); else showError(response.status === 404 || response.status === 410 ? 'This report is unavailable or has expired. Reports stay viewable for 180 days.' : 'The report service is unavailable. Try again later.'); return; }
       const data = await response.json();
+      if (data.report_kind === 'native_findings') {
+        const prefix = API + match[1] + '/artifacts/';
+        if (data.html_url !== prefix + 'html' || data.pdf_url !== prefix + 'pdf') throw new Error('report location');
+        clearStatus();
+        $('agent-name').textContent = 'Your approved Findings Report';
+        const report = $('report'); report.replaceChildren(); report.hidden = false;
+        const pdf = text('a', 'Open PDF'); pdf.href = data.pdf_url; pdf.target = '_blank'; pdf.rel = 'noopener noreferrer';
+        const signOut = text('button', 'Sign out'); signOut.type = 'button';
+        signOut.addEventListener('click', async () => { await request(API + match[1] + '/session', {method:'DELETE'}); location.reload(); });
+        const frame = document.createElement('iframe'); frame.title = 'Approved BackBond Findings Report';
+        frame.setAttribute('sandbox', ''); frame.referrerPolicy = 'no-referrer'; frame.src = data.html_url;
+        Object.assign(frame.style, {width:'100%', height:'85vh', border:'0', marginTop:'24px'});
+        report.append(pdf, signOut, frame);
+        return;
+      }
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');
       const voice = data.pack_version === 'starter-voice-50@1';
       if (voice) {

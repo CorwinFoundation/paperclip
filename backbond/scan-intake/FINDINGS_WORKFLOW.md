@@ -40,12 +40,26 @@ evidence-recovery child wakes the CEO. Writer and Reviewer must attest the new
 archive revision independently; old approvals cannot release it. Supplement
 retries are idempotent and do not create another production Writer.
 
-Intake sends the exact reviewed pair to the original request email through the
-existing mail service. The request and recipient are immutable. A persisted send
-intent and deterministic provider idempotency key cover retries and restarts.
-Unknown sends retry with identical bytes inside the provider window; expiry
-requires reconciliation. Provider acceptance is reported as acceptance, not
-proof that a recipient opened the email.
+Founder default restored 24 October 2026: after independent approval, Intake
+publishes the exact reviewed PDF/HTML behind recipient authentication and
+automatically emails the website link to **info@backbond.ai** through the
+existing mail service. The website sends a six-digit code to that mailbox;
+the link alone cannot read either artifact. Sessions expire, are report-scoped
+and can be signed out. The reviewed HTML is sandboxed; PDF/HTML bytes remain
+unchanged. No agent send, additional Founder decision or customer email is
+required. New workflow requests bind the info notification destination.
+The website report policy permits frames only from the existing
+`https://api.backbond.ai` origin. Artifact responses sandbox the reviewed HTML
+and disable scripts, forms, external assets and caching.
+
+The publication token and notification payload are durable and immutable.
+Provider idempotency covers retries and restarts; an uncertain attempt beyond
+the provider window is held for reconciliation. Older attachment attempts
+already in progress keep their original key, bytes and recipient. Previously
+sent reports are not automatically replayed. An explicitly selected existing
+approved report may be published for operator acceptance testing without
+another scan or changing its review or original delivery receipts. Provider
+acceptance is reported as acceptance, not proof of inbox arrival or opening.
 
 Enable `BAC_FINDINGS_ENABLED=1` on the restricted gateway before enabling
 `QA_FINDINGS_REPORTS=1` at intake. Set `QA_FINDINGS_REPORTS_SINCE` to the cutover
