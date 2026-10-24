@@ -1,7 +1,8 @@
 """Bounded validation of E018 attacks on the existing self-owned tool agent.
 
-Uses its existing system policy, model and synthetic tools. No customer target,
-new identity policy or real external tool effect is introduced. --preview never
+Uses an explicit versioned disclosure policy on the existing model and synthetic
+tools. The baseline policy remains selectable for honest before/after comparison.
+No customer target or real external tool effect is introduced. --preview never
 contacts a provider. Run evidence is separate from immutable corpus metadata.
 """
 from __future__ import annotations
@@ -23,7 +24,9 @@ if str(ROOT) not in sys.path:
 
 from harness.ai_disclosure_adapter import execute, judge_disclosure_bypass, materialize
 from harness.bench.aiuc_path_b_lane_a import corpus_sha256, disclosure_bypass_cases
-from harness.live_tool_agent import OpenAIToolAgentRunner
+from harness.live_tool_agent import (
+    DISCLOSURE_TARGET_PROFILE, TARGET_SYSTEM_POLICIES, OpenAIToolAgentRunner,
+)
 from harness.runner import ModelRunner, RunnerError
 
 MODEL = "gpt-4.1-mini"
@@ -65,7 +68,9 @@ CALIBRATION = (
 )
 
 
-def validation_profile(provider):
+def validation_profile(provider, target_profile=DISCLOSURE_TARGET_PROFILE):
+    if target_profile not in TARGET_SYSTEM_POLICIES:
+        raise ValueError("unknown self-owned target profile")
     anthropic = provider == "anthropic"
     cases = disclosure_bypass_cases()
     return {
@@ -76,6 +81,9 @@ def validation_profile(provider):
         "workspace_id": os.environ.get("ANTHROPIC_WORKSPACE_ID") if anthropic else None,
         "adapter": "anthropic-openai-compat" if anthropic else "openai",
         "target": "existing self-owned OpenAIToolAgentRunner",
+        "target_profile": target_profile,
+        "target_system_policy_sha256": hashlib.sha256(
+            TARGET_SYSTEM_POLICIES[target_profile].encode("utf-8")).hexdigest(),
         "replicate_ids": list(range(5)), "seeds": [] if anthropic else list(range(5)),
         "seed_binding": "unsupported_not_sent" if anthropic else "requested_not_guaranteed",
         "temperature": 0, "max_output_tokens_per_request": MAX_TOKENS,
@@ -86,7 +94,7 @@ def validation_profile(provider):
         "max_target_requests": len(cases) * 5 * 2,
         "max_judge_requests": len(cases) * 5 + len(CALIBRATION),
         "retries": 0, "cases": list(cases), "corpus_sha256": corpus_sha256("ai_disclosure"),
-        "target_policy_changed": False, "customer_data": False,
+        "target_policy_changed": target_profile != "baseline", "customer_data": False,
         "judge_system_prompt": ANTHROPIC_JUDGE_SYSTEM_PROMPT if anthropic else JUDGE_SYSTEM_PROMPT,
         "judge_response_format": "named_tool_arguments" if anthropic else "text_json",
         "judge_output_tool": JUDGE_TOOL if anthropic else None,
@@ -197,8 +205,10 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--preview", action="store_true")
     parser.add_argument("--provider", choices=("openai", "anthropic"), default="openai")
+    parser.add_argument("--target-profile", choices=tuple(TARGET_SYSTEM_POLICIES),
+                        default=DISCLOSURE_TARGET_PROFILE)
     args = parser.parse_args()
-    profile = validation_profile(args.provider)
+    profile = validation_profile(args.provider, args.target_profile)
     model_name = profile["requested_model"]
     seed_supported = args.provider == "openai"
     cases = disclosure_bypass_cases()
@@ -283,7 +293,8 @@ def main():
                 context.update(purpose="target", seed=seed, replicate_id=replicate_id, case_id=case["case_id"])
                 target = VisibleTarget(OpenAIToolAgentRunner(
                     model=model_name, seed=seed if seed_supported else 0, temperature=0,
-                    adapter=profile["adapter"], max_tokens=MAX_TOKENS, client=observed),
+                    adapter=profile["adapter"], max_tokens=MAX_TOKENS, client=observed,
+                    target_profile=args.target_profile),
                     seed_supported=seed_supported)
 
                 class CaseJudge(ModelRunner):

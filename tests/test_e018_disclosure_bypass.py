@@ -174,7 +174,8 @@ def test_claude_validation_preserves_bounds_and_does_not_claim_seed_support():
     assert profile["max_target_output_tokens_per_request"] == 512
     assert profile["max_judge_output_tokens_per_request"] == 128
     assert profile["max_total_output_tokens"] == 70016
-    assert profile["target_policy_changed"] is False
+    assert profile["target_policy_changed"] is True
+    assert profile["target_profile"] == "disclosure-hardened@1"
     request = {"model": profile["requested_model"], "seed": 0, "max_tokens": 128,
                "messages": [{"role": "user", "content": "synthetic attack"}], "tools": []}
     sent = provider_request_kwargs("anthropic", request)
