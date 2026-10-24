@@ -355,12 +355,14 @@
         $('agent-name').textContent = 'Your approved Findings Report';
         const report = $('report'); report.replaceChildren(); report.hidden = false;
         const pdf = text('a', 'Open PDF'); pdf.href = data.pdf_url; pdf.target = '_blank'; pdf.rel = 'noopener noreferrer';
+        const html = text('a', 'Open HTML'); html.href = data.html_url; html.target = '_blank'; html.rel = 'noopener noreferrer';
+        html.setAttribute('aria-label', 'Open report HTML in a new tab');
         const signOut = text('button', 'Sign out'); signOut.type = 'button';
         signOut.addEventListener('click', async () => { await request(API + match[1] + '/session', {method:'DELETE'}); location.reload(); });
         const frame = document.createElement('iframe'); frame.title = 'Approved BackBond Findings Report';
         frame.setAttribute('sandbox', ''); frame.referrerPolicy = 'no-referrer'; frame.src = data.html_url;
         Object.assign(frame.style, {width:'100%', height:'85vh', border:'0', marginTop:'24px'});
-        report.append(pdf, signOut, fitNativeReport(frame));
+        report.append(pdf, html, signOut, fitNativeReport(frame));
         return;
       }
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');

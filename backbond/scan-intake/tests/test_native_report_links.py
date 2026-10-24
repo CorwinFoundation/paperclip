@@ -56,14 +56,23 @@ def test_native_ship_through_mail_authentication_and_exact_artifacts(tmp_path, m
     assert browser.post(route + '/verification', headers=origin).status_code == 200
     assert codes[0][0] == 'info@backbond.ai'
     assert browser.post(route + '/session', headers=origin, json={'code': 'not-six-digits'}).status_code == 422
-    assert browser.post(route + '/session', headers=origin, json={'code': codes[0][1]}).status_code == 200
+    session_response = browser.post(route + '/session', headers=origin, json={'code': codes[0][1]})
+    assert session_response.status_code == 200
+    session_cookie = session_response.headers['set-cookie']
+    assert all(flag in session_cookie for flag in ['Secure', 'HttpOnly', 'SameSite=strict'])
     metadata = browser.get(route)
     assert metadata.json()['report_kind'] == 'native_findings'
     for kind in ['pdf', 'html']:
         artifact = browser.get(route + '/artifacts/' + kind)
         assert artifact.status_code == 200 and artifact.content == native.files[kind][1]
         assert artifact.headers['cache-control'] == 'no-store'
-    assert 'sandbox' in browser.get(route + '/artifacts/html').headers['content-security-policy']
+    # Direct artifact links must retain the complete document sandbox, even
+    # when a browser cannot display the embedded preview.
+    policy = browser.get(route + '/artifacts/html').headers['content-security-policy']
+    assert 'sandbox' in [directive.strip() for directive in policy.split(';')]
+    assert "default-src 'none'" in policy
+    assert 'allow-scripts' not in policy and 'allow-same-origin' not in policy
+    assert "form-action 'none'" in policy
     foreign = outbox.native.publish('approved1', approved())
     assert browser.get('/scan/v1/reports/' + foreign + '/artifacts/html',
                        headers={'Cookie': 'bb_report_session=' + browser.cookies.get('bb_report_session')}).status_code == 403
