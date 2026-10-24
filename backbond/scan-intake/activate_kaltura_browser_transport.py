@@ -14,6 +14,8 @@ import subprocess
 
 OLD_TRANSPORT = 'transport: str = Field(pattern="^(rest|openai_chat|json_map|vapi)$")'
 NEW_TRANSPORT = 'transport: str = Field(pattern="^(rest|openai_chat|json_map|vapi|kaltura_genie|kaltura_genie_browser)$")'
+OLD_TRANSPORT_AGUI = OLD_TRANSPORT.replace("json_map|vapi", "json_map|ag_ui|vapi")
+NEW_TRANSPORT_AGUI = NEW_TRANSPORT.replace("json_map|vapi", "json_map|ag_ui|vapi")
 ANCHOR = '''            if not self.response_path:
                 raise ValueError("response_path is required for json_map")
         return self'''
@@ -34,13 +36,23 @@ ACTIVE_STATUSES = ("reserved", "starting", "running", "dispatch_unknown")
 
 
 def patch_app(text: str) -> str:
-    if NEW_TRANSPORT in text and VALIDATION in text:
-        return text
-    if text.count(OLD_TRANSPORT) != 1:
-        raise RuntimeError("expected exactly one legacy transport declaration")
-    if text.count(ANCHOR) != 1:
+    declarations = {
+        OLD_TRANSPORT: NEW_TRANSPORT,
+        NEW_TRANSPORT: NEW_TRANSPORT,
+        OLD_TRANSPORT_AGUI: NEW_TRANSPORT_AGUI,
+        NEW_TRANSPORT_AGUI: NEW_TRANSPORT_AGUI,
+    }
+    matches = [value for value in declarations if value in text]
+    if len(matches) != 1 or text.count(matches[0]) != 1:
+        raise RuntimeError("expected exactly one recognized transport declaration")
+    if text.count(VALIDATION) > 1:
+        raise RuntimeError("duplicate Kaltura validation blocks")
+    needs_validation = VALIDATION not in text
+    if needs_validation and text.count(ANCHOR) != 1:
         raise RuntimeError("expected exactly one ConnectionFields validation anchor")
-    text = text.replace(OLD_TRANSPORT, NEW_TRANSPORT, 1)
+    text = text.replace(matches[0], declarations[matches[0]], 1)
+    if not needs_validation:
+        return text
     replacement = ANCHOR.removesuffix("        return self") + VALIDATION + "        return self"
     return text.replace(ANCHOR, replacement, 1)
 

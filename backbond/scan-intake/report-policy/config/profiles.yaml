@@ -1,0 +1,74 @@
+# Report profiles: what shape the report takes for each kind of scan.
+# The agent picks the profile from the payload (or the request) and sizes the report by
+# the number of findings that survive triage, not by a fixed page count.
+#
+# Sizing rule (all profiles):
+#   findings 3      -> summary page + 1 findings page            (2 pages)
+#   findings 4-5    -> summary + [reframe] + 1-2 findings pages  (3-4 pages)
+#   findings 6-8    -> summary with findings INDEX grouped by area + reframe +
+#                      findings pages grouped by area + closing   (4-6 pages)
+#   findings > 8    -> report the top 8; the rest go to the evidence appendix and are
+#                      named in the delivery note. Never more than 8 in the report.
+#   findings 0-2    -> valid 100 Scan; show only supported findings, never pad.
+#
+# reframe_page: include the "Reading the two columns" + Method page?
+#   always / first_report_only / never
+# passed_rows: how many security-review rows on page 1
+# record_detail: compact / full
+
+version: 2026-10-24
+profiles:
+  hundred_scan:
+    name: "100 Scan"
+    when: "about 100 cases, one agent, usually free and partner-gated; first contact"
+    findings_min: 0
+    findings_max: 3
+    reframe_page: never
+    passed_rows: 4
+    record_detail: compact
+    closing: "two cells: Recommended next step / What this report does not establish; next step names the full scan"
+    notes: "Floor is zero (board, 20 Oct 2026): report what is real, never pad. Zero or one finding is a legitimate 100 Scan: page 1 keeps the passed column and the right panel says what was looked for and not found, the record lists the candidates considered; the next step names the full scan. Three pages at template v2.4 type scale: page 1 summary, page 2 findings 1 and 2, page 3 finding 3, the confirm panel, next step and record. If more than three findings survive, pick three and name the rest in the delivery note as reasons to run the full scan."
+
+  full_scan:
+    name: "Agent Exposure Scan"
+    when: "full library against one agent"
+    findings_min: 3
+    findings_max: 8
+    reframe_page: first_report_only
+    passed_rows: 5
+    record_detail: full
+    closing: "three cells: next step / not established / questions and evidence; optional 'for <Customer> to confirm' panel"
+    notes: "Four to five pages at template v2.4 type scale (two findings per page). Drop the reframe page when the reader has already seen a BackBond report or the one-pager."
+
+  rescan:
+    name: "Rescan"
+    when: "same agent scanned again after changes; the story is what moved"
+    findings_min: 0
+    findings_max: 8
+    reframe_page: never
+    passed_rows: 5
+    record_detail: full
+    closing: "two cells: What changed since <date> / What this report does not establish"
+    notes: >
+      Page 1 adds a DELTA strip under the headline: for each prior finding, Fixed / Still present / Changed,
+      with the before and after exchange fragments. New findings follow the normal panel. Headline formula
+      becomes: "[N] of [M] findings from [date] no longer reproduce. [The one that still does, in plain words]."
+      Zero surviving findings is a valid rescan report; the headline then states what was fixed and what
+      was not in scope.
+
+  connected_scan:
+    name: "Connected Agent Exposure Scan"
+    when: "target has tools, systems of record or a voice path in scope; infra families become reportable"
+    findings_min: 3
+    findings_max: 8
+    reframe_page: first_report_only
+    passed_rows: 5
+    record_detail: full
+    closing: "as full_scan"
+    notes: >
+      (In every profile, a single case from an infra family is eligible when its pattern carries assertion_pattern: true
+      in pattern-catalogue.yaml and the quoted reply asserts a check or action the agent cannot perform; see
+      finding-selection.md, 'Assertion rule'.)
+      Families mapped as 'infra' in family-map.yaml are candidates for findings in this profile, subject to
+      the same triage. The passed column may add rows for transaction integrity and approval binding when
+      they held. The provenance band names the connected systems in scope.

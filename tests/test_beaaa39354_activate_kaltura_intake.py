@@ -23,6 +23,40 @@ def test_patch_is_surgical_and_idempotent():
     assert 'self.auth.type != "none"' in patched
 
 
+@pytest.mark.parametrize("declaration", [
+    activate.OLD_TRANSPORT, activate.NEW_TRANSPORT,
+    activate.OLD_TRANSPORT_AGUI, activate.NEW_TRANSPORT_AGUI,
+])
+def test_supported_declarations_keep_agui_and_restore_required_validation(declaration):
+    source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
+    source = source.replace(activate.NEW_TRANSPORT_AGUI, declaration).replace(activate.VALIDATION, "")
+    expected = activate.NEW_TRANSPORT_AGUI if "|ag_ui|" in declaration else activate.NEW_TRANSPORT
+    patched = activate.patch_app(source)
+    assert patched == source.replace(declaration, expected).replace(
+        activate.ANCHOR,
+        activate.ANCHOR.removesuffix("        return self") + activate.VALIDATION + "        return self",
+    )
+    assert activate.patch_app(patched) == patched
+
+
+def test_current_install_is_unchanged():
+    source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
+    assert activate.patch_app(source) == source
+
+
+@pytest.mark.parametrize("kind", ["duplicate", "unknown", "missing_anchor"])
+def test_ambiguous_or_unrecognized_install_refuses_patch(kind):
+    source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
+    if kind == "duplicate":
+        source += "\n" + activate.NEW_TRANSPORT_AGUI
+    elif kind == "unknown":
+        source = source.replace("json_map|ag_ui|vapi", "json_map|unknown|vapi")
+    else:
+        source = source.replace(activate.VALIDATION, "").replace(activate.ANCHOR, "")
+    with pytest.raises(RuntimeError):
+        activate.patch_app(source)
+
+
 def test_active_or_dispatch_uncertain_scan_refuses_reload(tmp_path):
     db_path = tmp_path / "intake.sqlite"
     with sqlite3.connect(db_path) as db:

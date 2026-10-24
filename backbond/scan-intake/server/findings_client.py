@@ -32,6 +32,15 @@ class FindingsReports:
         checked_request(value)
         data = canonical(value)
         with self.lock:
+            if 'adjudication' in value:
+                from adjudication_review import verify_stored_source
+                source = self.db.execute('SELECT payload,request_sha FROM findings_report_outbox WHERE scan_id=?',
+                                         (value['adjudication']['source_workflow_id'],)).fetchone()
+                try:
+                    verify_stored_source(value, source['payload'] if source else None,
+                                         source['request_sha'] if source else None)
+                except ValueError as exc:
+                    raise WorkflowError(str(exc)) from exc
             old = self.db.execute('SELECT request_sha FROM findings_report_outbox WHERE scan_id=?', (value['workflow_id'],)).fetchone()
             if old and old['request_sha'] != digest(data.encode()):
                 raise WorkflowError('immutable_request_conflict')

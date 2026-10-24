@@ -1,0 +1,133 @@
+# Family map: how each scanner family is treated in a Findings Report.
+# The org maintains this file. Adding a family to the scanner = adding one entry here.
+# The agent must not invent a classification for a family that is missing; it classifies
+# by reading the exchanges, reports the proposed entry in its delivery note, and the org
+# adds it here. Until then the family is "unmapped" and cannot appear on page 1.
+#
+# column:
+#   security   -> candidate for the "What a security review checks" column when it passes;
+#                 a finding (not the lead) when it fails
+#   business   -> candidate for findings; must pass selection triage
+#   infra      -> needs connected tools/systems; by construction on a no-tools target;
+#                 only individual observations flagged in the notes may be used
+#   utility    -> context unless the exchange proves a business decision error against
+#                 supplied rules and facts; triage the observation, not only the family
+#   internal   -> never reported (calibration, ledger, evaluator checks)
+# pattern:  default pattern from pattern-catalogue.yaml when the family fails
+# requires_owner_facts: true when a fail cannot be judged without the customer's ground truth
+#                       (goes in the "for <Customer> to confirm" panel, never a finding)
+# label_style: how pass/fail is written in this family's payload rows, if non-standard
+
+version: 2026-10-24
+families:
+  # ---- security-review column ----
+  system_prompt_extraction:        {column: security, label: "Instruction extraction"}
+  system_prompt_leak:              {column: security, label: "Instruction extraction"}
+  p3_5_multiturn_jailbreak:        {column: security, label: "Multi-turn jailbreak"}
+  jailbreak_roleplay:              {column: security, label: "Role-play jailbreaks"}
+  jailbreakbench:                  {column: security, label: "Jailbreak benchmarks"}
+  harmbench:                       {column: security, label: "Harmful requests"}
+  harmful_output_golden:           {column: security, label: "Harmful content"}
+  harmful_content:                 {column: security, label: "Harmful requests"}
+  cyber_misuse_refusal:            {column: security, label: "Cyber misuse"}
+  cbrn_refusal:                    {column: security, label: "CBRN refusal"}
+  cross_session_data_leak:         {column: security, label: "Cross-session requests"}
+  cross_customer_data_exposure:    {column: security, label: "Cross-tenant requests"}
+  prompt_injection:                {column: security, label: "Prompt injection", pattern: instruction_from_content}
+  indirect_injection:              {column: security, label: "Indirect injection", pattern: instruction_from_content}
+  indirect_injection_channels:     {column: security, label: "Indirect injection", pattern: instruction_from_content}
+  "Injection follow-ups":          {column: security, label: "Instruction overrides"}
+  authentication_bypass_resistance: {column: security, label: "Authorization", pattern: inconsistency, label_style: UPPER}
+  secrets_pii_leak:                {column: security, label: "Secret handling", pattern: secret_echoed}
+  "Sensitive-value handling":      {column: security, label: "Secret handling", pattern: secret_echoed}
+  screen_share_readback:           {column: security, label: "Password on a shared screen", pattern: secret_echoed}
+  out_of_scope_actions:            {column: security, label: "Out-of-scope actions"}
+  voice_adversarial_pack:          {column: security, label: "Voice input variations"}
+
+  # ---- business findings column ----
+  counterfactual_stability:        {column: business, pattern: differential_treatment}
+  demographic_parity:              {column: business, pattern: differential_treatment}
+  equal_opportunity:               {column: business, pattern: differential_treatment}
+  p2_5_sentiment_skew_by_attribute: {column: business, pattern: differential_treatment}
+  discrimination:                  {column: business, pattern: differential_treatment}
+  hallucination_legal:             {column: business, pattern: fabricated_fact}
+  citation_integrity_legal:        {column: business, pattern: fabricated_fact}
+  made_up_facts:                   {column: business, pattern: fabricated_fact}
+  product_fabrication:             {column: business, pattern: fabricated_fact}
+  retrieval_source_trust_poisoning: {column: business, pattern: fabricated_fact}
+  confidence_calibration:          {column: business, pattern: scope_by_phrasing}
+  p1_3_consistency_golden:         {column: business, pattern: scope_by_phrasing}
+  answers_normal_requests:         {column: business, pattern: policy_application_error}
+  "Claims and commitments":        {column: business, pattern: unsupported_commitment}
+  summary_poisoning:               {column: business, pattern: instruction_from_content}
+  multilingual_policy_consistency: {column: business, pattern: policy_bends_by_language}
+  multilingual_guardrails:         {column: business, pattern: policy_bends_by_language}
+  ai_disclosure:                   {column: business, pattern: disclosure}
+  human_disclosure:                {column: business, pattern: disclosure, requires_owner_facts: true}
+  human_escalation_flagging:       {column: business, pattern: safety_miss}
+  refusal_escalation:              {column: business, pattern: safety_miss}
+  goals_data_collection:           {column: business, pattern: data_minimisation}
+  consequential_action_confirmation: {column: business, pattern: false_completion}
+  impersonation_social_engineering: {column: business, pattern: instruction_from_content}
+  human_override_takeover_relinquishment: {column: business, pattern: false_completion}
+  "Private-instruction boundaries": {column: business, requires_owner_facts: true}
+
+  # ---- infrastructure (by construction without connected tools) ----
+  transaction_end_state:           {column: infra, pattern: false_completion}
+  idempotency_retry_double_execution: {column: infra, pattern: fabricated_verification}
+  approval_preview_mutation_binding: {column: infra, pattern: false_completion}
+  approval_freshness_replay:       {column: infra}
+  authorization_revocation_race:   {column: infra}
+  credential_secret_output_log_handling: {column: infra, pattern: secret_echoed}
+  data_residency_locality_boundary: {column: infra, pattern: fabricated_fact}
+  pii_scan_time_detection:         {column: infra}
+  checkpoint_restore_integrity:    {column: infra}
+  concurrent_shared_state_isolation: {column: infra}
+  resource_budget_enforcement:     {column: infra}
+  long_running_cancellation_race:  {column: infra}
+  code_agent_supply_chain:         {column: infra}
+  code_patch_scope_preservation:   {column: infra}
+  code_review_regression_detection: {column: infra}
+  sandbox_process_network_boundary: {column: infra}
+  mcp_tool_integrity:              {column: infra}
+  tool_misuse_param_tamper:        {column: infra}
+  tool_misuse_scope_escape:        {column: infra}
+  tool_misuse_unauthorized_call:   {column: infra}
+  multi_agent_handoff_integrity:   {column: infra}
+  agent_identity_signed_handoff:   {column: infra}
+  browser_surface_action_integrity: {column: infra}
+  file_upload_parser_boundary:     {column: infra}
+  file_temporary_link_leakage:     {column: infra}
+  provenance_chain_of_custody:     {column: infra}
+
+  # ---- utility / context only ----
+  in_domain_normal:                {column: utility}
+  "Task utility":                  {column: utility}
+  asr_shaped_input:                {column: utility}
+  abuse_toward_agent:              {column: utility}
+  accessibility_assistive_action_integrity: {column: utility}
+  context_truncation_fail_safe:    {column: utility}
+  long_context_instruction_hierarchy_retention: {column: utility}
+  evaluation_awareness_behavior_consistency: {column: utility}
+
+  # ---- internal, never reported ----
+  eval_coverage_ledger:            {column: internal}
+  evaluation_boundary_credential_use: {column: internal}
+  mitigation_evidence:             {column: internal}
+  eval_representation:             {column: internal}
+  p2_4_eval_representation:        {column: internal}
+  p2_6_mitigation_evidence:        {column: internal}
+  customer_defined_risk_pack:      {column: internal}
+  backbond-output-attack-fixtures: {column: internal}
+  garak:                           {column: internal}
+  garak_beaaa152:                  {column: internal}
+  p1_2_citation_integrity_floor30: {column: internal}
+  p1_5_confidence_calibration_floor30: {column: internal}
+  p1_6_eval_breadth_floor30:       {column: internal}
+  p3_2_indirect_injection_floor30: {column: internal}
+  p3_3_secret_exfil_floor:         {column: internal}
+  p3_3_secret_exfil_floor30:       {column: internal}
+  p2_5_sentiment_skew_floor30:     {column: internal}
+  p2_1_demographic_parity_gap:     {column: internal}
+  p2_2_equal_opportunity_gap:      {column: internal}
+  p2_3_counterfactual_stability:   {column: internal}

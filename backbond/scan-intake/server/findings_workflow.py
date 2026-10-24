@@ -46,7 +46,7 @@ def digest(data):
 def checked_request(value):
     fields = {'workflow_id', 'scanner_id', 'recipient', 'agent_label', 'transport',
               'pack_version', 'started_at', 'finished_at', 'accepted_total', 'tests', 'provenance'}
-    if not isinstance(value, dict) or set(value) not in (fields, fields | {'selection'}):
+    if not isinstance(value, dict) or not fields <= set(value) or not set(value) <= fields | {'selection', 'adjudication'}:
         raise WorkflowError('invalid_request')
     for key in ('workflow_id', 'scanner_id'):
         if not isinstance(value[key], str) or not IDENT.fullmatch(value[key]):
@@ -98,6 +98,12 @@ def checked_request(value):
             raise WorkflowError('invalid_provenance')
     if 'selection' in value:
         checked_selection(value['selection'], value)
+    if 'adjudication' in value:
+        from adjudication_review import checked_adjudication
+        try:
+            checked_adjudication(value)
+        except ValueError as exc:
+            raise WorkflowError(str(exc)) from exc
     return value
 
 
@@ -168,6 +174,18 @@ def evidence_archive(value, selection=None):
     if selection:
         checked_selection(selection, value)
         files['selection.json'] = canonical(selection).encode()
+    if 'adjudication' in value:
+        from adjudication_review import checked_adjudication, reviewed_counts
+        files['adjudication.json'] = canonical(checked_adjudication(value)).encode()
+        files['reviewed-counts.json'] = canonical(reviewed_counts(value)).encode()
+        files['READ-FIRST-NOTES.md'] += (
+            b'\nThis report revision includes explicit source-bound grading corrections in adjudication.json. '
+            b'Use reviewed-counts.json for reviewed outcomes; counts.json and original-results.json retain '
+            b'the original labels. Name this distinction in the record. A normal-request error applying '
+            b'a complete supplied business rule is eligible as policy_application_error. Do not discard '
+            b'it as utility, or carry rejection notes across runs by case ID. Missing owner policy only '
+            b'limits claims about the deployed policy, not a decision under supplied scenario facts.\n'
+        )
     files['manifest.json'] = canonical({'schema_version': 'findings-evidence-manifest@1',
         'workflow_id': value['workflow_id'], 'files': {k: digest(v) for k, v in files.items()}}).encode()
     files['SHA256SUMS'] = ''.join(digest(v) + '  ' + k + '\n' for k, v in sorted(files.items())).encode()
@@ -340,6 +358,15 @@ class FindingsWorkflow:
         value = checked_request(value)
         encoded = canonical(value)
         with self.db() as db:
+            if 'adjudication' in value:
+                from adjudication_review import verify_stored_source
+                source = db.execute('SELECT request,request_sha FROM findings_workflows WHERE id=?',
+                                    (value['adjudication']['source_workflow_id'],)).fetchone()
+                try:
+                    verify_stored_source(value, source['request'] if source else None,
+                                         source['request_sha'] if source else None)
+                except ValueError as exc:
+                    raise WorkflowError(str(exc)) from exc
             row = db.execute('SELECT request_sha FROM findings_workflows WHERE id=?', (value['workflow_id'],)).fetchone()
             if row and row['request_sha'] != digest(encoded.encode()):
                 raise WorkflowError('immutable_request_conflict')

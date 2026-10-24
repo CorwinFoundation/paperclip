@@ -317,6 +317,30 @@
   function clearPrerender() { const pre = $('prerender-summary'); if (pre) pre.remove(); }
   function showError(message) { clearPrerender(); const status = $('report-error'); if (!status) return; status.textContent = message; status.hidden = false; }
   function clearStatus() { clearPrerender(); const status = $('report-error'); if (status) status.remove(); }
+  function fitNativeReport(frame) {
+    // Approved reports use Letter pages (816px). Keep room for the frame's
+    // border and scrollbar, then scale the isolated document to the panel.
+    const viewport = document.createElement('div');
+    viewport.className = 'native-report-viewport';
+    Object.assign(viewport.style, {width:'100%', maxWidth:'860px', height:'85vh',
+      flex:'1', minHeight:'0', overflow:'hidden', position:'relative'});
+    Object.assign(frame.style, {position:'absolute', top:'0', left:'0',
+      maxWidth:'none', marginTop:'0', boxSizing:'border-box', transformOrigin:'top left'});
+    viewport.append(frame);
+    const resize = () => {
+      const available = viewport.clientWidth;
+      if (!available || !viewport.clientHeight) return;
+      const width = Math.max(840, available);
+      const scale = Math.min(1, available / width);
+      frame.style.width = width + 'px';
+      frame.style.height = Math.floor(viewport.clientHeight / scale) + 'px';
+      frame.style.transform = 'scale(' + scale + ')';
+    };
+    if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(viewport);
+    window.addEventListener('resize', resize);
+    frame.addEventListener('load', resize);
+    return viewport;
+  }
   async function load() {
     const match = location.pathname.match(/^\/scan\/r\/([a-f0-9]{32})\/?$/i);
     if (!match) { showError('This report link is invalid. Open the complete link from your report email.'); return; }
@@ -336,7 +360,7 @@
         const frame = document.createElement('iframe'); frame.title = 'Approved BackBond Findings Report';
         frame.setAttribute('sandbox', ''); frame.referrerPolicy = 'no-referrer'; frame.src = data.html_url;
         Object.assign(frame.style, {width:'100%', height:'85vh', border:'0', marginTop:'24px'});
-        report.append(pdf, signOut, frame);
+        report.append(pdf, signOut, fitNativeReport(frame));
         return;
       }
       if (!Array.isArray(data.tests) || !['starter-100@1','starter-100@2','starter-100@3','starter-100@4','starter-voice-50@1'].includes(data.pack_version)) throw new Error('schema');
