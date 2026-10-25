@@ -1,0 +1,7 @@
+{
+  "name": "backbond-amazon-quick-pilot-host",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {"build": "node build.mjs", "test": "node pilot.test.cjs"},
+  "dependencies": {"amazon-quicksight-embedding-sdk": "2.12.1"}
+}

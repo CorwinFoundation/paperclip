@@ -1,13 +1,16 @@
 'use strict';
 (() => {
   const api='https://api.backbond.ai/scan/v1', $=id=>document.getElementById(id);
-  const hints={rest:'Accepts {"prompt":"…"} and returns {"response":"…"}.',openai_chat:'Use the full chat-completions URL and model.',json_map:'Use one complete {{prompt}} JSON value and a response path.',vapi:'Provide the Vapi endpoint, assistant UUID, and credential.'};
+  const hints={rest:'Accepts {"prompt":"…"} and returns {"response":"…"}.',openai_chat:'Use the full chat-completions URL and model.',json_map:'Use one complete {{prompt}} JSON value and a response path.',vapi:'Provide the Vapi endpoint, assistant UUID, and credential.',amazon_quick:'Use the pilot connection URL and token provided for your Quick Suite agent.'};
   let config=null, proof=null, checking=false, scanToken=null, busy=false, terminalSnapshot=null, lastStatusText='';
   const status=(id,message)=>{$(id).textContent=message;};
   const clearError=()=>{$('error-summary').textContent='';$('error-summary').hidden=true;};
   function invalidate(){const had=proof!==null;proof=null;$('submit').disabled=true;if(had)status('connection-status','Connection details changed. Test the connection before starting.');}
   function update(){
     const t=$('transport').value;
+    $('auth-type').disabled=t==='amazon_quick';
+    if(t==='amazon_quick')$('auth-type').value='bearer';
+    $('firewall').hidden=t==='amazon_quick';
     document.querySelectorAll('[data-transport]').forEach(g=>{const on=g.dataset.transport===t;g.hidden=!on;g.querySelectorAll('input,textarea').forEach(f=>{f.disabled=!on;f.required=on&&f.id!=='system-prompt';});});
     $('transport-hint').textContent=hints[t]; const a=$('auth-type').value;
     $('header-field').hidden=a!=='header';$('auth-header').disabled=a!=='header';$('auth-header').required=a==='header';
@@ -15,7 +18,7 @@
     if(t!=='rest'||a!=='none')document.querySelector('.connection').open=true;
   }
   async function request(route,body){
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),body?.transport==='amazon_quick'&&route==='/connection-checks'?330000:45000);
     try{
       const response=await fetch(api+route,{method:body?'POST':'GET',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
       let data;try{data=await response.json();}catch{throw Error('The service is unavailable. Try again later.');}

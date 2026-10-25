@@ -1,0 +1,19 @@
+{
+  "schema": "backbond-amazon-quick-targets/v1",
+  "targets": [{
+    "approved": false,
+    "endpoint_url": "https://pilot.customer.example/quick/index.html",
+    "account_id": "111122223333",
+    "region": "us-east-1",
+    "agent_id": "00000000-0000-0000-0000-000000000001",
+    "user_arn": "arn:aws:quicksight:us-east-1:111122223333:user/default/backbond-pilot",
+    "log_group": "/backbond/quick-pilot",
+    "token_sha256": "REPLACE_WITH_SHA256_OF_RANDOM_PILOT_TOKEN",
+    "pilot_id": "customer-pilot-20261025",
+    "expires_at": "2026-10-26T16:00:00Z",
+    "allowed_browser_hosts": ["pilot.customer.example", "us-east-1.quicksight.aws.amazon.com"],
+    "aws_profile": "customer-quick-pilot",
+    "timeout_seconds": 120,
+    "max_calls": 20
+  }]
+}

@@ -7,6 +7,7 @@ import datetime as dt
 import os
 from pathlib import Path
 import py_compile
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -19,6 +20,7 @@ NEW_TRANSPORT_AGUI = NEW_TRANSPORT.replace("json_map|vapi", "json_map|ag_ui|vapi
 ANCHOR = '''            if not self.response_path:
                 raise ValueError("response_path is required for json_map")
         return self'''
+VALIDATION_ANCHOR = ANCHOR.removesuffix("        return self")
 VALIDATION = '''        if self.transport == "kaltura_genie":
             if not re.fullmatch(r"genie\\.[a-z0-9-]+\\.ovp\\.kaltura\\.com", endpoint_host):
                 raise ValueError("kaltura_genie requires a regional Kaltura Genie host")
@@ -42,19 +44,30 @@ def patch_app(text: str) -> str:
         OLD_TRANSPORT_AGUI: NEW_TRANSPORT_AGUI,
         NEW_TRANSPORT_AGUI: NEW_TRANSPORT_AGUI,
     }
-    matches = [value for value in declarations if value in text]
-    if len(matches) != 1 or text.count(matches[0]) != 1:
+    declarations.update({
+        old.replace(")$", "|amazon_quick)$"): new.replace(")$", "|amazon_quick)$")
+        for old, new in tuple(declarations.items())
+    })
+    # Count annotated fields, not transport= keyword arguments at call sites.
+    matches = list(re.finditer(r"(?m)^[ \t]*(transport[ \t]*:[^\r\n]*)", text))
+    declaration = matches[0].group(1).rstrip() if len(matches) == 1 else ""
+    if declaration not in declarations:
         raise RuntimeError("expected exactly one recognized transport declaration")
     if text.count(VALIDATION) > 1:
         raise RuntimeError("duplicate Kaltura validation blocks")
     needs_validation = VALIDATION not in text
-    if needs_validation and text.count(ANCHOR) != 1:
+    if needs_validation and any(
+        f'if self.transport == "{transport}":' in text
+        for transport in ("kaltura_genie", "kaltura_genie_browser")
+    ):
+        raise RuntimeError("unrecognized Kaltura validation block")
+    if needs_validation and text.count(VALIDATION_ANCHOR) != 1:
         raise RuntimeError("expected exactly one ConnectionFields validation anchor")
-    text = text.replace(matches[0], declarations[matches[0]], 1)
+    start = matches[0].start(1)
+    text = text[:start] + declarations[declaration] + text[start + len(declaration):]
     if not needs_validation:
         return text
-    replacement = ANCHOR.removesuffix("        return self") + VALIDATION + "        return self"
-    return text.replace(ANCHOR, replacement, 1)
+    return text.replace(VALIDATION_ANCHOR, VALIDATION_ANCHOR + VALIDATION, 1)
 
 
 def assert_idle(db_path: Path) -> None:

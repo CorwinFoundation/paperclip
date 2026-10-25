@@ -912,6 +912,9 @@ def customer_agent_http_runner_factory(
     :func:`api.scan_runtime_factory.v0_mock_runner_factory`.
     """
     host = _extract_host(agent_endpoint)
+    if (endpoint_config or {}).get("transport") == "amazon_quick":
+        from harness.amazon_quick import AmazonQuickRunner
+        return AmazonQuickRunner(agent_endpoint, secret, endpoint_config)
     from harness.pollinations_pacing import needs_free_tier_pacing
     if needs_free_tier_pacing(agent_endpoint, endpoint_config):
         return _PollinationsCustomerAgentRunner(agent_endpoint, secret, endpoint_config)

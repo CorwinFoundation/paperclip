@@ -12,13 +12,17 @@ activate = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(activate)
 
 
-def test_patch_is_surgical_and_idempotent():
+def source_with_transport(declaration):
     source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
+    current = [line for line in source.splitlines()
+               if line.strip().startswith("transport: str = Field(pattern=")]
+    assert len(current) == 1
+    return source.replace(current[0], "    " + declaration, 1)
+
+
+def test_patch_is_surgical_and_idempotent():
     # Exercise legacy input independently of the current supported transports.
-    declarations = [line for line in source.splitlines()
-                    if line.strip().startswith("transport: str = Field(pattern=")]
-    assert len(declarations) == 1
-    legacy = source.replace(declarations[0], "    " + activate.OLD_TRANSPORT, 1).replace(activate.VALIDATION, "")
+    legacy = source_with_transport(activate.OLD_TRANSPORT).replace(activate.VALIDATION, "")
     custom = legacy.replace("class ScanRequest", "# locally preserved recovery/mail guards\nclass ScanRequest")
     patched = activate.patch_app(custom)
     assert patched == activate.patch_app(patched)
@@ -31,6 +35,7 @@ def test_patch_is_surgical_and_idempotent():
 @pytest.mark.parametrize("declaration", [
     'transport: str = Field(pattern="^(rest|ag_ui)$")',
     activate.OLD_TRANSPORT + "\n" + activate.OLD_TRANSPORT,
+    'transport: str = Field(pattern="^(rest|unknown)$")\n' + activate.NEW_TRANSPORT_AGUI,
 ])
 def test_patch_still_refuses_unknown_or_ambiguous_transport_declarations(declaration):
     with pytest.raises(RuntimeError, match="expected exactly one recognized transport declaration"):
@@ -41,14 +46,17 @@ def test_patch_still_refuses_unknown_or_ambiguous_transport_declarations(declara
     activate.OLD_TRANSPORT, activate.NEW_TRANSPORT,
     activate.OLD_TRANSPORT_AGUI, activate.NEW_TRANSPORT_AGUI,
 ])
-def test_supported_declarations_keep_agui_and_restore_required_validation(declaration):
-    source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
-    source = source.replace(activate.NEW_TRANSPORT_AGUI, declaration).replace(activate.VALIDATION, "")
+@pytest.mark.parametrize("with_quick", [False, True])
+def test_supported_declarations_keep_agui_and_restore_required_validation(declaration, with_quick):
     expected = activate.NEW_TRANSPORT_AGUI if "|ag_ui|" in declaration else activate.NEW_TRANSPORT
+    if with_quick:
+        declaration = declaration.replace(")$", "|amazon_quick)$")
+        expected = expected.replace(")$", "|amazon_quick)$")
+    source = source_with_transport(declaration).replace(activate.VALIDATION, "")
     patched = activate.patch_app(source)
     assert patched == source.replace(declaration, expected).replace(
-        activate.ANCHOR,
-        activate.ANCHOR.removesuffix("        return self") + activate.VALIDATION + "        return self",
+        activate.VALIDATION_ANCHOR,
+        activate.VALIDATION_ANCHOR + activate.VALIDATION,
     )
     assert activate.patch_app(patched) == patched
 
@@ -56,6 +64,22 @@ def test_supported_declarations_keep_agui_and_restore_required_validation(declar
 def test_current_install_is_unchanged():
     source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
     assert activate.patch_app(source) == source
+
+
+def test_transport_example_in_comment_is_preserved():
+    example = "# Example: " + activate.OLD_TRANSPORT + "\n"
+    source = example + source_with_transport(activate.OLD_TRANSPORT).replace(activate.VALIDATION, "")
+    patched = activate.patch_app(source)
+    assert patched.startswith(example)
+    assert "    " + activate.NEW_TRANSPORT + "\n" in patched
+    assert activate.patch_app(patched) == patched
+
+
+def test_unrecognized_existing_kaltura_validation_refuses_patch():
+    source = (ROOT / "backbond/scan-intake/server/app.py").read_text()
+    source = source.replace("kaltura_genie_browser requires auth type none", "custom auth validation")
+    with pytest.raises(RuntimeError, match="unrecognized Kaltura validation block"):
+        activate.patch_app(source)
 
 
 @pytest.mark.parametrize("kind", ["duplicate", "unknown", "missing_anchor"])
@@ -66,7 +90,7 @@ def test_ambiguous_or_unrecognized_install_refuses_patch(kind):
     elif kind == "unknown":
         source = source.replace("json_map|ag_ui|vapi", "json_map|unknown|vapi")
     else:
-        source = source.replace(activate.VALIDATION, "").replace(activate.ANCHOR, "")
+        source = source.replace(activate.VALIDATION, "").replace(activate.VALIDATION_ANCHOR, "")
     with pytest.raises(RuntimeError):
         activate.patch_app(source)
 

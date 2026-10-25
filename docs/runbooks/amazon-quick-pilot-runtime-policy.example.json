@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EmbedOnlyThePilotUser",
+      "Effect": "Allow",
+      "Action": "quicksight:GenerateEmbedUrlForRegisteredUser",
+      "Resource": "arn:aws:quicksight:REGION:ACCOUNT_ID:user/NAMESPACE/PILOT_USERNAME",
+      "Condition": {
+        "ForAllValues:StringEquals": {"quicksight:AllowedEmbeddingDomains": ["https://PILOT_HOST"]},
+        "Null": {"quicksight:AllowedEmbeddingDomains": "false"}
+      }
+    },
+    {
+      "Sid": "ReadOnlyThePilotChatLogGroup",
+      "Effect": "Allow",
+      "Action": "logs:FilterLogEvents",
+      "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:log-group:PILOT_LOG_GROUP:*"
+    }
+  ]
+}

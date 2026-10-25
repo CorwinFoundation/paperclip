@@ -1922,8 +1922,15 @@ def _validate_agent_endpoint(agent_endpoint: Any) -> dict[str, Any]:
         allow_private_ip_literals=True,
     )
     transport = agent_endpoint.get("transport", "rest")
-    if transport not in {"rest", "openai_chat", "json_map", "ag_ui", "kaltura_genie", "kaltura_genie_browser"}:
+    if transport not in {"rest", "openai_chat", "json_map", "ag_ui", "kaltura_genie", "kaltura_genie_browser", "amazon_quick"}:
         raise HandlerError(422, "agent_endpoint_transport_invalid")
+    if transport == "amazon_quick":
+        from harness.amazon_quick import validate_endpoint
+        from harness.runner import RunnerError
+        try:
+            validate_endpoint(endpoint_url, (agent_endpoint.get("auth") or {}).get("type"), agent_endpoint)
+        except (RunnerError, AttributeError):
+            raise HandlerError(422, "amazon_quick_configuration_invalid") from None
     auth = agent_endpoint.get("auth", {"type": "bearer"})
     if not isinstance(auth, dict) or auth.get("type", "bearer") not in {
         "bearer", "custom_header", "none",

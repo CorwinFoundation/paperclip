@@ -217,7 +217,7 @@ class ConnectionFields(BaseModel):
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
     agent_label: str = Field(min_length=1, max_length=120)
     endpoint_url: str = Field(max_length=2048)
-    transport: str = Field(pattern="^(rest|openai_chat|json_map|ag_ui|vapi|kaltura_genie|kaltura_genie_browser)$")
+    transport: str = Field(pattern="^(rest|openai_chat|json_map|ag_ui|vapi|kaltura_genie|kaltura_genie_browser|amazon_quick)$")
     auth: Auth
     model: str | None = None
     system_prompt: str | None = Field(default=None, max_length=32000)
@@ -270,6 +270,13 @@ class ConnectionFields(BaseModel):
                 raise ValueError("kaltura_genie_browser requires the approved public URL")
             if self.auth.type != "none":
                 raise ValueError("kaltura_genie_browser requires auth type none")
+        if self.transport == "amazon_quick":
+            from harness.amazon_quick import validate_endpoint
+            from harness.runner import RunnerError
+            try:
+                validate_endpoint(self.endpoint_url, self.auth.type, self.model_dump())
+            except RunnerError:
+                raise ValueError("amazon_quick requires a registered pilot URL and bearer token") from None
         return self
 
 
@@ -309,7 +316,8 @@ def _headers(data: dict | None = None) -> dict[str, str]:
 
 
 def _scanner_check(data: dict) -> tuple[bool, str | None]:
-    with httpx.Client(timeout=35) as client:
+    timeout = 320 if data.get('agent_endpoint', {}).get('transport') == 'amazon_quick' else 35
+    with httpx.Client(timeout=timeout) as client:
         response = client.post(f"{SCANNER_URL}/connectivity-check", json=data, headers=_headers(data))
     if response.status_code >= 400:
         return False, f"HTTP {response.status_code}"

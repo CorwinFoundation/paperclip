@@ -1,0 +1,14 @@
+import {readFile, copyFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const pkg = JSON.parse(await readFile(new URL('./node_modules/amazon-quicksight-embedding-sdk/package.json', import.meta.url)));
+if (pkg.version !== '2.12.1') throw new Error('Unexpected Quick SDK version');
+const source = new URL('./node_modules/amazon-quicksight-embedding-sdk/dist/quicksight-embedding-js-sdk.min.js', import.meta.url);
+const target = new URL('./amazon-quicksight-embedding-sdk-2.12.1.min.js', import.meta.url);
+const digest = createHash('sha256').update(await readFile(source)).digest('hex');
+if (digest !== 'efa46791b6dffbf66ffb70643a713b991200d840e14572af1d01e7786382c531') throw new Error('SDK artifact checksum changed');
+const map = JSON.parse(await readFile(new URL('./node_modules/amazon-quicksight-embedding-sdk/dist/quicksight-embedding-js-sdk.min.js.map', import.meta.url)));
+const uuidSources = map.sources.filter(path => path.includes('/uuid/'));
+if (!uuidSources.some(path => path.endsWith('/v4.js')) || uuidSources.some(path => /\/(v3|v35|v5|v6)\.js$/.test(path))) throw new Error('Reassess UUID advisory for this bundle');
+await copyFile(source, target);
+await copyFile(new URL('./node_modules/amazon-quicksight-embedding-sdk/LICENSE', import.meta.url), new URL('./SDK-LICENSE.txt', import.meta.url));
+console.log('SDK 2.12.1 sha256:' + digest);
