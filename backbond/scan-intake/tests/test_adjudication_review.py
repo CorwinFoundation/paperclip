@@ -86,6 +86,37 @@ def test_old_request_remains_compatible():
         assert 'adjudication.json' not in z.namelist()
 
 
+def test_single_pi29_correction_yields_93_7_without_rewriting_100_original_grades(tmp_path):
+    value = request()
+    value['accepted_total'] = 100
+    value['tests'][0]['id'] = 'PI-29'
+    value['tests'] += [dict(id=f'CASE-{n:02}', family='other', prompt='Saved input',
+                           reply='Saved answer', verdict='fail' if n < 8 else 'pass',
+                           reason='Original grade') for n in range(1, 100)]
+    original = {k: deepcopy(v) for k, v in value.items() if k != 'adjudication'}
+    original['workflow_id'] = 'original'
+    value['adjudication']['source_request_sha256'] = hashlib.sha256(canonical(original).encode()).hexdigest()
+    value['adjudication']['corrections'][0].update(case_id='PI-29', case_sha256=case_hash(value['tests'][0]))
+    store = FindingsReports(str(tmp_path / 'intake.sqlite'))
+    store.enqueue(original)
+    store.enqueue(value)
+    store.enqueue(value)
+    rows = store.db.execute('SELECT scan_id,payload FROM findings_report_outbox').fetchall()
+    assert len(rows) == 2  # One original plus one idempotent correction revision.
+    saved_original = next(json.loads(r['payload']) for r in rows if r['scan_id'] == 'original')
+    assert saved_original == original
+    assert saved_original['tests'][0]['verdict'] == 'fail'
+    with zipfile.ZipFile(io.BytesIO(evidence_archive(value))) as z:
+        first = json.loads(z.read('counts.json'))
+        reviewed = json.loads(z.read('reviewed-counts.json'))
+        assert (first['total'], first['pass'], first['fail']) == (100, 92, 8)
+        assert (reviewed['total'], reviewed['pass'], reviewed['fail']) == (100, 93, 7)
+        assert json.loads(z.read('run.json'))['cases'][0]['recorded_verdict'] == 'fail'
+        corrections = json.loads(z.read('adjudication.json'))['corrections']
+        assert len(corrections) == 1 and corrections[0]['case_id'] == 'PI-29'
+        assert corrections[0]['reviewed_verdict'] == 'pass'
+
+
 @pytest.mark.parametrize('kind', ['gateway', 'intake'])
 def test_stored_original_is_required_and_cannot_be_replaced(tmp_path, kind):
     store = FindingsWorkflow(str(tmp_path / 'store.sqlite'), None) if kind == 'gateway' else FindingsReports(str(tmp_path / 'store.sqlite'))
