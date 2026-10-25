@@ -60,7 +60,7 @@ def _request(scan_id: str) -> ScanRequest:
     )
 
 
-def test_default_full_scan_budget_matches_authorized_ceiling(monkeypatch):
+def test_default_full_scan_budget_has_no_monetary_ceiling(monkeypatch):
     for name in (
         "ARE_FULL_SCAN_MAX_TARGET_CALLS",
         "ARE_FULL_SCAN_MAX_JUDGE_CALLS",
@@ -73,7 +73,7 @@ def test_default_full_scan_budget_matches_authorized_ceiling(monkeypatch):
 
     assert budget.max_target_calls == 6_000
     assert budget.max_judge_calls == 4_000
-    assert budget.max_estimated_judge_cost_usd == 99.99
+    assert budget.max_estimated_judge_cost_usd is None
     assert budget.max_wall_clock_seconds == 6 * 60 * 60
 
 

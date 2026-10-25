@@ -87,7 +87,7 @@ def test_secret_mapping_is_exact_and_does_not_use_obsolete_contract():
     assert "VAPI_CREDENTIAL" not in source
 
 
-def test_schedule_config_enforces_founder_caps(monkeypatch, tmp_path):
+def test_schedule_config_preserves_nonmonetary_limits(monkeypatch, tmp_path):
     values = {
         "BACKBOND_SCAN_TENANT_ID": "fixture",
         "BACKBOND_SCAN_AGENT_ENDPOINT": "https://api.vapi.ai",
@@ -101,7 +101,7 @@ def test_schedule_config_enforces_founder_caps(monkeypatch, tmp_path):
         monkeypatch.setenv(key, value)
     config = ScheduleConfig.from_environment()
     config.validate()
-    assert (config.concurrency, config.rpm, config.retries, config.cost_cap_usd) == (1, 30, 0, 100)
+    assert (config.concurrency, config.rpm, config.retries, config.cost_cap_usd) == (1, 30, 0, None)
     assert config.judge_provider == "anthropic"
 
 

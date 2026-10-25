@@ -35,7 +35,7 @@ def totals(permit):
         'SELECT tests,reserved_microusd FROM controlled_admission').fetchone()
 
 
-def test_all_100_real_selected_cases_share_cap_and_survive_restart(tmp_path, monkeypatch):
+def test_all_100_cases_account_above_old_cap_and_survive_restart(tmp_path, monkeypatch):
     cases, summary, path, ctx, permit = fixture(tmp_path, monkeypatch)
     selected = {c.case_id for c in cases}
     attempted = set()
@@ -49,15 +49,16 @@ def test_all_100_real_selected_cases_share_cap_and_survive_restart(tmp_path, mon
     ledger_ids = {json.loads(row[0])[1] for row in permit.admission.ledger.db.execute(
         "SELECT call_id FROM controlled_paid_calls")}
     assert ledger_ids == selected
-    assert totals(permit) == (100, 10_000_000)
+    permit.call(test_id=cases[0].case_id, phase='evaluator', upper_microusd=12_000_000, operation=lambda: None)
+    assert totals(permit) == (100, 22_000_000)
     unselected = next(s['payload']['case_id'] for s in starter_v4_scenarios()
                       if s['payload']['case_id'] not in selected)
     for test_id, phase in [(unselected, 'target'), ('arbitrary', 'target'),
-                           (cases[0].case_id, 'target'), (cases[0].case_id, 'evaluator')]:
+                           (cases[0].case_id, 'target')]:
         with pytest.raises(loader.AdmissionClosed):
             permit.call(test_id=test_id, phase=phase, upper_microusd=1,
                         operation=lambda: pytest.fail('extra I/O'))
-        assert totals(permit) == (100, 10_000_000)
+        assert totals(permit) == (100, 22_000_000)
     permit.close()
     replay, replay_summary = reserve_starter_cases(scan_id=SCAN, tenant_id='tenant', agent_id='agent')
     assert replay == cases and replay_summary == summary
@@ -66,7 +67,7 @@ def test_all_100_real_selected_cases_share_cap_and_survive_restart(tmp_path, mon
     with pytest.raises(loader.AdmissionClosed):
         permit.call(test_id=cases[0].case_id, phase='target', upper_microusd=1,
                     operation=lambda: pytest.fail('restart retry'))
-    assert totals(permit) == (100, 10_000_000)
+    assert totals(permit) == (100, 22_000_000)
     permit.close()
 
 
@@ -113,7 +114,7 @@ def test_unknown_replay_nonselected_and_replaced_form_stop_without_spend(tmp_pat
     permit.close()
 
 
-@pytest.mark.parametrize('price', [None, True, 0, -1, 10_000_001])
+@pytest.mark.parametrize('price', [None, True, 0, -1, 2**63])
 def test_selected_case_unknown_or_excess_price_stops_before_io(tmp_path, monkeypatch, price):
     cases, _, _, _, permit = fixture(tmp_path, monkeypatch)
     try:

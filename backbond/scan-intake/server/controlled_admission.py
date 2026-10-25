@@ -5,6 +5,9 @@ are reserved before I/O and never refunded after an unknown result.
 """
 import sqlite3
 
+# Storage representation bound, not a scan/model spending policy.
+SQLITE_MAX_INTEGER = 2**63 - 1
+
 
 class AdmissionClosed(RuntimeError):
     pass
@@ -35,7 +38,7 @@ class ControlledAdmission:
         exactly one bounded network attempt with provider retries disabled.
         """
         binding = self._binding(actor, request_id, target)
-        if (type(upper_microusd) is not int or not 0 < upper_microusd <= 10_000_000
+        if (type(upper_microusd) is not int or not 0 < upper_microusd <= SQLITE_MAX_INTEGER
                 or not callable(operation)):
             raise AdmissionClosed('Known positive integer price bound required')
         self.db.execute('BEGIN IMMEDIATE')
@@ -47,7 +50,7 @@ class ControlledAdmission:
                 WHERE singleton=1 AND enabled=1 AND consumed=0
                 AND dispatch_state='unclaimed' AND actor=? AND request_id=? AND target=?
                 AND reserved_microusd<=?""",
-                (upper_microusd, *binding, 10_000_000-upper_microusd))
+                (upper_microusd, *binding, SQLITE_MAX_INTEGER-upper_microusd))
             if result.rowcount != 1:
                 raise AdmissionClosed('Preflight budget or binding unavailable')
             self.db.execute("INSERT INTO controlled_preflight VALUES(1,'check_unknown')")
@@ -112,14 +115,14 @@ class ControlledAdmission:
         if (type(upper_microusd) is not int or upper_microusd <= 0
                 or type(tests) is not int or tests not in (0, 1)):
             raise AdmissionClosed('Known positive integer price bound required')
-        if upper_microusd > 10_000_000:
-            raise AdmissionClosed('Budget exhausted')
+        if upper_microusd > SQLITE_MAX_INTEGER:
+            raise AdmissionClosed('Accounting integer overflow')
         result = self.db.execute('''UPDATE controlled_admission
             SET reserved_microusd=reserved_microusd+?, tests=tests+?
             WHERE singleton=1 AND enabled=1 AND consumed=1
             AND dispatch_state='dispatch_unknown' AND actor=? AND request_id=? AND target=?
             AND reserved_microusd<=? AND tests<=?''',
-            (upper_microusd, tests, *binding, 10_000_000-upper_microusd, 100-tests))
+            (upper_microusd, tests, *binding, SQLITE_MAX_INTEGER-upper_microusd, 100-tests))
         if result.rowcount != 1:
             raise AdmissionClosed('Budget, test limit or binding unavailable')
 
@@ -309,7 +312,7 @@ class ScannerPermit:
         return ids
 
     def call(self, *, test_id, phase, upper_microusd, operation):
-        """One target/evaluator attempt, with a shared USD10 and 100-test cap.
+        """One target/evaluator attempt, with accounting and a shared 100-test cap.
 
         Tests are counted once before their first paid operation. A crash after
         counting can consume a test without a call; it cannot restore allowance.

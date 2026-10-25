@@ -69,12 +69,12 @@ def test_controlled_walker_uses_saved_v4_form_and_metered_rest_and_judge(tmp_pat
         permit.close()
 
 
-def test_controlled_walker_stops_before_target_when_preflight_spent_cap(tmp_path, monkeypatch):
+def test_controlled_walker_stops_before_accounting_overflow(tmp_path, monkeypatch):
     from harness import controlled_permit_loader as loader
     from harness import controlled_target_transport as transport
     from tests.test_controlled_target_transport import prepared
     from tests.test_controlled_permit_loader import context, PAYLOAD
-    path, record, target = prepared(tmp_path, monkeypatch, price=10_000_000)
+    path, record, target = prepared(tmp_path, monkeypatch, price=2**63 - 1)
     io = Mock(return_value='offline check')
     monkeypatch.setattr(transport._CustomerAgentHttpRunner, 'complete', io)
     target.preflight(record['permit_id'], tenant_id='tenant', payload=PAYLOAD, prompt='check')

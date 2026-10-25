@@ -31,8 +31,8 @@ def test_preflight_target_judge_share_budget_before_io(tmp_path, monkeypatch):
     cases = bind_cases(permit, tmp_path, monkeypatch)
     try:
         assert target.complete(permit, test_id=cases[0].case_id, phase='target', prompt='test') == 'reply'
-        with pytest.raises(loader.AdmissionClosed):
-            permit.call(test_id=cases[0].case_id, phase='judge', upper_microusd=3_000_000, operation=lambda: pytest.fail('over budget'))
+        permit.call(test_id=cases[0].case_id, phase='judge', upper_microusd=3_000_000, operation=lambda: None)
+        assert permit.admission.ledger.db.execute('SELECT reserved_microusd FROM controlled_admission').fetchone() == (11_000_000,)
         with pytest.raises(loader.AdmissionClosed):
             target.complete(permit, test_id=cases[0].case_id, phase='target', prompt='replay')
     finally:
@@ -60,7 +60,7 @@ def test_lost_target_response_stays_consumed_after_restart(tmp_path, monkeypatch
         permit.close()
 
 
-@pytest.mark.parametrize('cost', [None, True, -1, 10_000_001, 1.5])
+@pytest.mark.parametrize('cost', [None, True, -1, 2**63, 1.5])
 def test_unknown_or_invalid_price_closed_before_transport(cost):
     with pytest.raises(loader.AdmissionClosed):
         transport.ControlledTargetTransport(payload=PAYLOAD, price=transport.FixedRequestPrice(loader.fingerprint(PAYLOAD), cost))
@@ -159,7 +159,7 @@ def test_connectivity_handler_meters_and_denies_replay(tmp_path, monkeypatch, ou
     assert error.value.status == 503
 
 
-def test_handler_check_and_100_canonical_cases_share_ten_dollars(tmp_path, monkeypatch):
+def test_handler_check_and_100_cases_can_exceed_ten_dollars(tmp_path, monkeypatch):
     from api.scan_handlers import connectivity_check_handler
     path, record, target = prepared(tmp_path, monkeypatch, 100_000)
     calls = []
@@ -172,13 +172,13 @@ def test_handler_check_and_100_canonical_cases_share_ten_dollars(tmp_path, monke
     permit = loader.load_bound_scanner_permit(ctx, scan_id='d'*32)
     cases = bind_cases(permit, tmp_path, monkeypatch)
     try:
-        for case in cases[:99]:
+        for case in cases:
             target.complete(permit, test_id=case.case_id, phase='target', prompt='test')
         with pytest.raises(loader.AdmissionClosed):
             target.complete(permit, test_id=cases[99].case_id,
-                            phase='target', prompt='over budget')
-        assert len(calls) == 100
+                            phase='target', prompt='replay')
+        assert len(calls) == 101
         assert permit.admission.ledger.db.execute(
-            'SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (100, 10_000_000)
+            'SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (100, 10_100_000)
     finally:
         permit.close()

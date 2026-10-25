@@ -49,7 +49,7 @@ def test_limit_cannot_change_after_restart(tmp_path):
         budget(path, 9_000_000)
 
 
-@pytest.mark.parametrize('limit', [None, 0, -1, 10_000_001, True, float('inf'), float('nan'), 0.1])
+@pytest.mark.parametrize('limit', [-1, 2**63, True, float('inf'), float('nan'), 0.1])
 def test_explicit_budget_invalid_ceiling_fails_before_dispatch(tmp_path, monkeypatch, limit):
     monkeypatch.setattr('httpx.post', lambda *a, **k: pytest.fail('model dispatch forbidden'))
     with pytest.raises(EvaluatorBudgetError):
@@ -190,7 +190,7 @@ def real_glue(tmp_path, monkeypatch):
                            policy_path=policy_path, cases=cases, scan_id=scan_id)
 
 
-@pytest.mark.parametrize('cost', [None, -1, 10_000_001, True, float('inf'), float('nan'), 0.1, 1.5])
+@pytest.mark.parametrize('cost', [None, -1, 2**63, True, float('inf'), float('nan'), 0.1, 1.5])
 def test_controlled_invalid_budget_fails_before_target(cost, real_glue, tmp_path, monkeypatch):
     from harness.controlled_permit_loader import AdmissionClosed
     from tests.test_controlled_target_policy import policy_file
@@ -246,14 +246,14 @@ def test_real_glue_invalid_config_blocks_all_dispatch(real_glue, tmp_path, monke
         assert db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (0, 0)
 
 
-def test_real_glue_exhausted_shared_budget_blocks_all_dispatch(real_glue, monkeypatch):
+def test_real_glue_accounting_overflow_blocks_all_dispatch(real_glue, monkeypatch):
     from harness.controlled_permit_loader import AdmissionClosed
-    # The sole natural check can spend the entire cap before Scanner starts.
+    # The sole natural check can reach the integer accounting bound.
     # Reserve through the real preflight guard, without target/model I/O.
     from harness import controlled_permit_loader as loader
     admission = loader._load('p' * 32, 'tenant')
     try:
-        admission.ledger.preflight_call(**admission.binding, upper_microusd=10_000_000, operation=lambda: None)
+        admission.ledger.preflight_call(**admission.binding, upper_microusd=2**63 - 1, operation=lambda: None)
     finally:
         admission.ledger.db.close()
     monkeypatch.setattr('httpx.post', lambda *a, **k: pytest.fail('model dispatch forbidden'))
@@ -263,4 +263,4 @@ def test_real_glue_exhausted_shared_budget_blocks_all_dispatch(real_glue, monkey
     with sqlite3.connect(real_glue.path) as db:
         # Case identity is consumed before spend reservation; exhaustion never
         # permits a target call or refunds/rearms that attempt.
-        assert db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 10_000_000)
+        assert db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 2**63 - 1)

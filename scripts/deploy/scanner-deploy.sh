@@ -779,10 +779,9 @@ if [ "${1:-}" = grade-evidence ]; then
   [ "$#" = 6 ] || die 'usage: scanner-deploy grade-evidence <expected_commit_sha> <job_json_path> <wrapper_path> <wrapper_sha256> <events_out_path>'
   python3 - "$2" "$3" "$4" "$5" "$6" "$CURL" "$PUBLIC_BASE" "$DOCKER" <<'PY_GRADE'
 import hashlib, json, os, pathlib, re, subprocess, sys
-from decimal import Decimal
 sha, job_path, wrapper_path, digest, output, curl, base, docker = sys.argv[1:]
 assert re.fullmatch(r'[0-9a-f]{40}', sha), 'expected full commit SHA'
-assert digest == '3b030eacc3752336235ace831a467139b8297a831558477bf59e58ac6ea9a341', 'unregistered wrapper'
+assert digest == '3c291054d7e113a9eebaf6f589ea43d372e510a1b30f5a565efae6155afe9d6c', 'unregistered wrapper'
 for name in (job_path, wrapper_path, output):
     p = pathlib.Path(name)
     assert p.parent == pathlib.Path('/var/tmp') and re.fullmatch(r'[A-Za-z0-9_.-]+', p.name), 'path must be directly under /var/tmp'
@@ -790,7 +789,7 @@ for name in (job_path, wrapper_path, output):
 wrapper = pathlib.Path(wrapper_path).read_bytes()
 assert hashlib.sha256(wrapper).hexdigest() == digest, 'wrapper checksum mismatch'
 job = json.loads(pathlib.Path(job_path).read_bytes())
-assert 0 < Decimal(str(job.get('remaining_budget_usd', '2'))) <= 2, 'budget exceeds USD 2'
+# BEAAA-43769: monetary caps lifted; call and row limits remain.
 assert 0 < job.get('remaining_call_allowance', 400) <= 400, 'call allowance exceeds 400'
 assert 0 < len(job['rows']) <= 400, 'invalid row count'
 identity = json.loads(subprocess.check_output([curl, '-fsS', '--max-time', '20', base + '/scanner/v1/release-identity']))

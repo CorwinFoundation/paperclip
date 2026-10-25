@@ -172,12 +172,21 @@ def report(replay_evidence: Path) -> None:
         print(json.dumps({"hand_sample_error": f"{type(exc).__name__}: {exc}"}))
 
 
+def replay_budget():
+    """Founder monetary lift (BEAAA-43769); retain the exact replay bounds."""
+    from tools.registered_case_executor import ScanBudget
+    return ScanBudget(
+        max_target_calls=MAX_TARGET_CALLS, max_judge_calls=MAX_TARGET_CALLS,
+        max_estimated_judge_cost_usd=None, max_wall_clock_seconds=7200,
+    )
+
+
 def main() -> int:
     from api.full_scan_executor import FullScanJobStore, dispatch_registry_attempt, registry_cases_from_rows
     from api.full_scan_worker import load_default_full_scan_registry_rows
     from harness.customer_runner import customer_agent_http_runner_factory
     from scripts import scheduled_scan as scheduled
-    from tools.registered_case_executor import ScanBudget, build_registered_case_workers, default_judge_runner
+    from tools.registered_case_executor import build_registered_case_workers, default_judge_runner
 
     # This unit sends live traffic to the same non-production Vapi assistant as
     # the weekly `vapi` lane, so it gates on the same written authorization
@@ -220,7 +229,7 @@ def main() -> int:
     request = SimpleNamespace(agent_endpoint=config.agent_endpoint, agent_id=secrets["VAPI_ASSISTANT_ID"], tenant_id=config.tenant_id)
     subject = lambda endpoint, secret: scheduled.RateLimitedRunner(customer_agent_http_runner_factory(endpoint, secret, secrets["VAPI_ASSISTANT_ID"]), limiter)
     judge = lambda: scheduled.RateLimitedRunner(default_judge_runner(), limiter)
-    workers = build_registered_case_workers(request, secrets["VAPI_API_KEY"], budget=ScanBudget(max_target_calls=MAX_TARGET_CALLS, max_judge_calls=MAX_TARGET_CALLS, max_estimated_judge_cost_usd=10, max_wall_clock_seconds=7200), evidence_root=replay_evidence, subject_factory=subject, judge_factory=judge)
+    workers = build_registered_case_workers(request, secrets["VAPI_API_KEY"], budget=replay_budget(), evidence_root=replay_evidence, subject_factory=subject, judge_factory=judge)
     store = FullScanJobStore()
     job = store.submit(agent_id=secrets["VAPI_ASSISTANT_ID"], scanner_version=config.scanner_version, corpus_version=config.corpus_version, model_versions=next(iter(workers.values())).manifest_metadata(), seed=config.seed, registry_cases=registry_cases_from_rows(rows), scan_id="beaaa-30934-replay-remaining", wall_clock_budget_seconds=7200, rate_limit_per_minute=30)
     lease = store.lease(job.job_id, ttl_seconds=7200)

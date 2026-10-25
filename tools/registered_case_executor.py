@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -161,11 +162,21 @@ def _incomplete_reason_for_exception(exc: BaseException) -> str:
     return f"case_execution_error:{type(exc).__name__}"
 
 
+def parse_scan_cost_limit(value: str) -> float | None:
+    """An explicit unlimited value removes only the monetary ceiling."""
+    if value.strip().lower() == "unlimited":
+        return None
+    limit = float(value)
+    if not math.isfinite(limit) or limit < 0:
+        raise ValueError("scan cost limit must be finite and nonnegative or unlimited")
+    return limit
+
+
 @dataclass(frozen=True)
 class ScanBudget:
     max_target_calls: int = 6_000
     max_judge_calls: int = 4_000
-    max_estimated_judge_cost_usd: float = 99.99
+    max_estimated_judge_cost_usd: float | None = None
     max_wall_clock_seconds: int = 6 * 60 * 60
     judge_input_usd_per_million_tokens: float = 3.0
     judge_output_usd_per_million_tokens: float = 15.0
@@ -176,8 +187,8 @@ class ScanBudget:
         return cls(
             max_target_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_TARGET_CALLS", "6000")),
             max_judge_calls=int(os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_CALLS", "4000")),
-            max_estimated_judge_cost_usd=float(
-                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "99.99")
+            max_estimated_judge_cost_usd=parse_scan_cost_limit(
+                os.environ.get("ARE_FULL_SCAN_MAX_JUDGE_COST_USD", "unlimited")
             ),
             max_wall_clock_seconds=int(
                 os.environ.get("ARE_FULL_SCAN_MAX_WALL_CLOCK_SECONDS", str(6 * 60 * 60))
@@ -249,7 +260,8 @@ class ScanBudgetLedger:
                 + output_tokens * self.budget.judge_output_usd_per_million_tokens
             ) / 1_000_000
             if (
-                self.estimated_judge_cost_usd + cost
+                self.budget.max_estimated_judge_cost_usd is not None
+                and self.estimated_judge_cost_usd + cost
                 > self.budget.max_estimated_judge_cost_usd
             ):
                 raise BudgetExceeded("max_estimated_judge_cost_usd")
@@ -267,7 +279,10 @@ class ScanBudgetLedger:
     def reconcile_judge_cost(self, reserved_cost: float, actual_cost: float) -> None:
         with self._lock:
             revised = self.estimated_judge_cost_usd - reserved_cost + actual_cost
-            if revised > self.budget.max_estimated_judge_cost_usd:
+            if (
+                self.budget.max_estimated_judge_cost_usd is not None
+                and revised > self.budget.max_estimated_judge_cost_usd
+            ):
                 raise BudgetExceeded("max_estimated_judge_cost_usd")
             self.estimated_judge_cost_usd = revised
             self._case_counts()["estimated_judge_cost_usd"] += actual_cost - reserved_cost
@@ -2526,10 +2541,14 @@ def _scoped_scan_budget(scan_request: Any, budget: ScanBudget) -> ScanBudget:
                 and set(requested) == expected):
             judge_calls = min(budget.max_judge_calls, len(expected))
             judge_output_limit = min(judge_output_limit, 128)
+            # None removes a general monetary ceiling; it cannot remove this
+            # exact review's bound or a lower finite caller/server entitlement.
             judge_cost = min(
-                budget.max_estimated_judge_cost_usd,
-                DISCLOSURE_SCOPE_MAX_JUDGE_COST_USD,
-                scan_request.max_cost_usd,
+                value for value in (
+                    budget.max_estimated_judge_cost_usd,
+                    DISCLOSURE_SCOPE_MAX_JUDGE_COST_USD,
+                    scan_request.max_cost_usd,
+                ) if value is not None
             )
     return replace(
         budget,

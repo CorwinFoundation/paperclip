@@ -49,6 +49,24 @@ def test_disclosure_review_has_one_judge_per_case_and_hard_cost_ceiling():
         ledger.reserve_judge_call("one too many")
 
 
+@pytest.mark.parametrize("server,caller,expected", [
+    (None, None, 0.10), (None, 0.03, 0.03),
+    (0.02, None, 0.02), (0.0, None, 0.0),
+])
+def test_unlimited_defaults_preserve_review_and_finite_cost_limits(server, caller, expected):
+    budget = _scoped_scan_budget(
+        request(disclosure_scope(), caller),
+        replace(ScanBudget(), max_estimated_judge_cost_usd=server),
+    )
+    assert budget.max_estimated_judge_cost_usd == expected
+    assert (budget.max_target_calls, budget.max_judge_calls) == (40, 24)
+    if expected == 0:
+        ledger = ScanBudgetLedger(budget)
+        with pytest.raises(BudgetExceeded, match="max_estimated_judge_cost_usd"):
+            ledger.reserve_judge_call("zero still denies the first judge call")
+        assert ledger.judge_calls == 0
+
+
 @pytest.mark.parametrize("scope_change", [
     {"mode": "targeted"}, {"mode": "smoke"}, {"mode": "full"},
     {"scope_ids": [DISCLOSURE_SCOPE_ID, "OPS.OTHER"]},

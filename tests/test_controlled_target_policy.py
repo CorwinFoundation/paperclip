@@ -21,15 +21,19 @@ def policy_file(tmp_path, **updates):
     return path, hashlib.sha256(raw).hexdigest()
 
 
-def test_exact_policy_loads_without_network_or_enabling_permit(tmp_path):
-    path, digest = policy_file(tmp_path)
+@pytest.mark.parametrize('price', [0, 123, 10_000_001, 2**63 - 1])
+def test_exact_policy_loads_without_network_or_enabling_permit(tmp_path, price):
+    # The Founder ceiling is retired; the exact service-owned price remains
+    # finite, nonnegative and SQLite-representable. Zero is still zero.
+    path, digest = policy_file(tmp_path, upper_microusd=price)
     target = load_fixed_handler_transport(path=path, expected_sha256=digest, payload=PAYLOAD)
-    assert target._price.upper_microusd == 123
+    assert target._price.upper_microusd == price
     assert list(path.parent.iterdir()) == [path]
 
 
 @pytest.mark.parametrize('updates', [dict(kind='hostname-free'), dict(upper_microusd=None),
-    dict(upper_microusd=True), dict(upper_microusd=-1), dict(upper_microusd=10_000_001),
+    dict(upper_microusd=True), dict(upper_microusd=-1), dict(upper_microusd=2**63),
+    dict(upper_microusd=1.5),
     dict(target_sha256='0'*64), dict(version=True)])
 def test_incomplete_or_wrong_policy_closed(tmp_path, updates):
     path, digest = policy_file(tmp_path, **updates)

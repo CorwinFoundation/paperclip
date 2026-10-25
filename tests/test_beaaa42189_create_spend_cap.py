@@ -90,3 +90,27 @@ def test_invalid_deployment_configuration_fails_closed(monkeypatch, default, max
         scan_handler(
             _body(), tenant_header="tenant-001", runtime=_runtime([])
         )
+
+
+@pytest.mark.parametrize("budget", [None, 2000.0])
+def test_founder_lift_reaches_runtime_without_server_ceiling(monkeypatch, budget):
+    monkeypatch.delenv("BACKBOND_SCAN_MAX_CREATE_COST_USD", raising=False)
+    monkeypatch.delenv("BACKBOND_SCAN_DEFAULT_MAX_COST_USD", raising=False)
+    captured = []
+    body = _body() if budget is None else _body(max_cost_usd=budget)
+    status, _ = scan_handler(
+        body, tenant_header="tenant-001", runtime=_runtime(captured),
+        scan_id_factory=lambda: "scan-unlimited",
+    )
+    assert status == 202
+    assert captured[0][0].max_cost_usd == budget
+
+
+def test_explicit_null_cannot_bypass_voluntary_server_limit(monkeypatch):
+    monkeypatch.setenv("BACKBOND_SCAN_MAX_CREATE_COST_USD", "10")
+    monkeypatch.setenv("BACKBOND_SCAN_DEFAULT_MAX_COST_USD", "10")
+    captured = []
+    with pytest.raises(HandlerError, match="max_cost_usd_exceeds_server_limit"):
+        scan_handler(_body(max_cost_usd=None), tenant_header="tenant-001",
+                     runtime=_runtime(captured))
+    assert captured == []

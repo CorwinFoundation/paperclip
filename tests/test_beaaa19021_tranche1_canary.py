@@ -544,11 +544,12 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # BEAAA-42691 refreshes the scope-escape mapping pin after adding D004
     # crosswalk metadata and combines it with master's newer evaluator pin;
     # the 180/0 budget and zero-weight assertions above hold.
-    # E018 scope review preserves this canary's 180/0 budget and every
-    # invariant above; forwarding endpoint configuration and bounding its
-    # separate judge path only changes the embedded evaluator source pin.
+    # Current E018 endpoint forwarding and judge bounds compose with the
+    # reviewed unlimited monetary default. Reconcile the evaluator from the
+    # actual combined source; all 180/0 and zero-weight assertions stay above.
+    # The offline 2026-10-24 run observed 39515f96 after those assertions passed.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "19a454f4200939412d9a8e266e60f05fd0c94c23a055032f86a309b21c37bbd3"
+        "39515f96fe8def290a2f1eced97185ba2c9153513acbfad1722ad4cd49fa23e2"
     )
 
 

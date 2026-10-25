@@ -12,6 +12,7 @@ import argparse
 import hashlib
 from collections import Counter
 import json
+import math
 import os
 import re
 import socket
@@ -44,6 +45,7 @@ from harness.customer_runner import customer_agent_http_runner_factory  # noqa: 
 from harness.egress import get as egress_get, verify_live_egress_fail_closed  # noqa: E402
 from tools.registered_case_executor import (  # noqa: E402
     ScanBudget,
+    parse_scan_cost_limit,
     build_registered_case_workers,
     default_judge_runner,
 )
@@ -298,7 +300,7 @@ class ScheduleConfig:
     concurrency: int
     rpm: int
     retries: int
-    cost_cap_usd: float
+    cost_cap_usd: float | None
     timeout_seconds: int
     judge_model: str
     judge_provider: str = "anthropic"
@@ -324,7 +326,7 @@ class ScheduleConfig:
             concurrency=int(_config("BACKBOND_SCAN_CONCURRENCY", "1")),
             rpm=int(_config("BACKBOND_SCAN_RPM", "30")),
             retries=int(_config("BACKBOND_SCAN_RETRIES", "0")),
-            cost_cap_usd=float(_config("BACKBOND_SCAN_COST_CAP_USD", "100")),
+            cost_cap_usd=parse_scan_cost_limit(_config("BACKBOND_SCAN_COST_CAP_USD", "unlimited")),
             timeout_seconds=int(_config("BACKBOND_SCAN_TIMEOUT_SECONDS", "21600")),
             judge_provider=_config("BACKBOND_SCAN_JUDGE_PROVIDER", "anthropic"),
             judge_model=_config("BACKBOND_SCAN_JUDGE_MODEL"),
@@ -344,8 +346,10 @@ class ScheduleConfig:
             raise RuntimeError("scheduled scans require 1 <= rpm <= 30")
         if self.retries != 0:
             raise RuntimeError("scheduled scans require retries=0")
-        if self.cost_cap_usd > 100:
-            raise RuntimeError("scheduled scan cost cap exceeds USD 100")
+        if self.cost_cap_usd is not None and (
+            not math.isfinite(self.cost_cap_usd) or self.cost_cap_usd < 0
+        ):
+            raise RuntimeError("scheduled scan cost cap must be finite and nonnegative")
         if self.limit_per_family is not None and self.limit_per_family < 1:
             raise RuntimeError("limit-per-family must be at least 1 when set")
         if self.judge_provider not in {"anthropic", "openrouter"}:

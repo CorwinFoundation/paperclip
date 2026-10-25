@@ -42,11 +42,9 @@ def test_combined_budget_survives_restart(tmp_path):
     calls = []
     p.call(test_id=CASE_IDS[0], phase='target', upper_microusd=6_000_000, operation=lambda: calls.append('target'))
     p = permit(path, False)
-    with pytest.raises(AdmissionClosed):
-        p.call(test_id=CASE_IDS[0], phase='judge', upper_microusd=4_000_001, operation=lambda: pytest.fail('over cap'))
-    p.call(test_id=CASE_IDS[0], phase='judge', upper_microusd=4_000_000, operation=lambda: calls.append('judge'))
+    p.call(test_id=CASE_IDS[0], phase='judge', upper_microusd=4_000_001, operation=lambda: calls.append('judge'))
     assert calls == ['target', 'judge']
-    assert p.admission.ledger.db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 10_000_000)
+    assert p.admission.ledger.db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 10_000_001)
 
 
 def test_unknown_attempt_never_repeated(tmp_path):
@@ -81,7 +79,7 @@ def test_wrong_binding(tmp_path):
         ScannerPermit(p.admission, scan_id='scan', payload={'agent_endpoint': {}, 'credential_secret': 'changed'})
 
 
-def test_concurrent_target_and_judge_share_one_budget(tmp_path):
+def test_concurrent_target_and_judge_cannot_overflow_accounting(tmp_path):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
 
@@ -95,7 +93,7 @@ def test_concurrent_target_and_judge_share_one_budget(tmp_path):
         p = permit(path, False)
         ready.wait(timeout=5)
         try:
-            p.call(test_id=CASE_IDS[0], phase=phase, upper_microusd=6_000_000,
+            p.call(test_id=CASE_IDS[0], phase=phase, upper_microusd=2**62,
                    operation=lambda: calls.append(phase))
             return 'called'
         except AdmissionClosed:
@@ -109,7 +107,7 @@ def test_concurrent_target_and_judge_share_one_budget(tmp_path):
     assert len(calls) == 1
     p = permit(path, False)
     assert p.admission.ledger.db.execute(
-        'SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 6_000_000)
+        'SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 2**62)
 
 
 def test_judge_combined_reservation_precedes_io_and_replay_is_closed(tmp_path, monkeypatch):
@@ -140,7 +138,7 @@ def test_judge_denied_before_io(tmp_path, monkeypatch, failure):
     import scanners.starter_judge as judge
     p = permit(tmp_path / 'ledger.sqlite')
     if failure == 'exhausted':
-        p.call(test_id=CASE_IDS[0], phase='target', upper_microusd=10_000_000, operation=lambda: None)
+        p.call(test_id=CASE_IDS[0], phase='target', upper_microusd=2**63 - 1, operation=lambda: None)
     if failure == 'unknown_model':
         monkeypatch.setattr(judge, 'JUDGE_MODEL', 'unknown')
     monkeypatch.setattr('httpx.post', lambda *a, **kw: pytest.fail('denied paid I/O'))

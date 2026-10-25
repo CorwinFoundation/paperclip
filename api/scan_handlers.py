@@ -454,33 +454,31 @@ _NON_TERMINAL_STATUSES: frozenset[str] = frozenset({"queued", "running"})
 _TERMINAL_FULL_SCAN_JOB_STATUSES: frozenset[str] = frozenset(
     {"complete", "incomplete", "incomplete_cost_cap", "failed", "cancelled"}
 )
-DEFAULT_CREATE_COST_USD = 1_000.0
-MAX_CREATE_COST_USD = 1_000.0
+DEFAULT_CREATE_COST_USD = "unlimited"
+MAX_CREATE_COST_USD = "unlimited"
 
 
-def _create_cost_limits() -> tuple[float, float]:
-    """Return the deployment's default and maximum accepted scan budgets."""
+def _create_cost_limits() -> tuple[float | None, float | None]:
+    """Unlimited by default; deployments may retain voluntary positive limits."""
+    def parse(value: str) -> float | None:
+        if value.strip().lower() == "unlimited":
+            return None
+        parsed = float(value)
+        if not math.isfinite(parsed) or parsed <= 0:
+            raise ValueError("invalid cost limit")
+        return parsed
+
     try:
-        default = float(
-            os.environ.get(
-                "BACKBOND_SCAN_DEFAULT_MAX_COST_USD", str(DEFAULT_CREATE_COST_USD)
-            )
-        )
-        maximum = float(
-            os.environ.get(
-                "BACKBOND_SCAN_MAX_CREATE_COST_USD", str(MAX_CREATE_COST_USD)
-            )
-        )
+        default = parse(os.environ.get(
+            "BACKBOND_SCAN_DEFAULT_MAX_COST_USD", DEFAULT_CREATE_COST_USD
+        ))
+        maximum = parse(os.environ.get(
+            "BACKBOND_SCAN_MAX_CREATE_COST_USD", MAX_CREATE_COST_USD
+        ))
+        if maximum is not None and (default is None or default > maximum):
+            raise ValueError("default exceeds maximum")
     except ValueError as exc:
         raise RuntimeError("invalid Scanner create cost configuration") from exc
-    if (
-        not math.isfinite(default)
-        or not math.isfinite(maximum)
-        or default <= 0
-        or maximum <= 0
-        or default > maximum
-    ):
-        raise RuntimeError("invalid Scanner create cost configuration")
     return default, maximum
 
 
@@ -2407,16 +2405,21 @@ def _kickoff_live_probe_scan(
 
     default_max_cost_usd, server_max_cost_usd = _create_cost_limits()
     max_cost_raw = body.get("max_cost_usd", default_max_cost_usd)
-    if (
-        not isinstance(max_cost_raw, (int, float))
-        or isinstance(max_cost_raw, bool)
-        or not math.isfinite(float(max_cost_raw))
-        or float(max_cost_raw) <= 0
-    ):
-        raise HandlerError(422, "max_cost_usd_invalid")
-    max_cost_usd = float(max_cost_raw)
-    if max_cost_usd > server_max_cost_usd:
-        raise HandlerError(422, "max_cost_usd_exceeds_server_limit")
+    if max_cost_raw is None:
+        if server_max_cost_usd is not None:
+            raise HandlerError(422, "max_cost_usd_exceeds_server_limit")
+        max_cost_usd = None
+    else:
+        if (
+            not isinstance(max_cost_raw, (int, float))
+            or isinstance(max_cost_raw, bool)
+            or not math.isfinite(float(max_cost_raw))
+            or float(max_cost_raw) <= 0
+        ):
+            raise HandlerError(422, "max_cost_usd_invalid")
+        max_cost_usd = float(max_cost_raw)
+        if server_max_cost_usd is not None and max_cost_usd > server_max_cost_usd:
+            raise HandlerError(422, "max_cost_usd_exceeds_server_limit")
 
     # corpus_snapshot_hash: required for full, can default to pinned for smoke.
     if is_starter:

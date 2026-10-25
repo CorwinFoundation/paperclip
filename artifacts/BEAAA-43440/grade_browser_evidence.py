@@ -38,7 +38,6 @@ pricing = model['pricing']
 prompt_rate = Decimal(pricing['prompt'])
 completion_rate = Decimal(pricing['completion'])
 assert prompt_rate >= 0 and completion_rate >= 0
-budget = Decimal(str(job.get('remaining_budget_usd', '2')))
 reserved = Decimal('0')
 known_cost = Decimal('0')
 calls = 0
@@ -47,7 +46,7 @@ current = None
 emit({'event': 'grading_start', 'at': now(), 'rows': len(job['rows']),
       'target_calls': 0, 'reports_generated': 0, 'source_sha256': source_hash,
       'model_requested': grader.JUDGE_MODEL, 'pricing_observed': pricing,
-      'remaining_budget_usd': str(budget), 'max_output_tokens': 512})
+      'remaining_budget_usd': None, 'max_output_tokens': 512})
 
 
 class MeteredJudge:
@@ -60,8 +59,8 @@ class MeteredJudge:
         # allowance covers message wrappers; output is bounded separately.
         upper = ((len(system.encode()) + len(user.encode()) + 1024) * prompt_rate
                  + 512 * completion_rate)
-        if reserved + upper > budget or calls >= job.get('remaining_call_allowance', 400):
-            raise RuntimeError('Local evidence-grading budget exhausted')
+        if calls >= job.get('remaining_call_allowance', 400):
+            raise RuntimeError('Local evidence-grading call allowance exhausted')
         reserved += upper
         calls += 1
         self.metadata = {'call_reserved_usd': str(upper), 'cost_usd': None,

@@ -20,7 +20,7 @@ class FixedRequestPrice:
     def validate(self, payload):
         if (self.target_sha256 != fingerprint(payload)
                 or type(self.upper_microusd) is not int
-                or not 0 <= self.upper_microusd <= 10_000_000):
+                or not 0 <= self.upper_microusd <= 2**63 - 1):
             raise AdmissionClosed('Complete exact-target fixed request price required')
 
 

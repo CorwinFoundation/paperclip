@@ -30,7 +30,7 @@ MAPPING_SHA256 = {
     "tool_misuse_unauthorized_call": "fa7847fcf552df1515962aa368666629f8815c0ae571dbee48f892b7f0a9d1cd",
 }
 # Tamper-evidence pin over tools/registered_case_executor.py. Refreshed, not
-# relaxed, whenever the evaluator legitimately changes — the pin still binds and
+# relaxed, whenever the evaluator legitimately changes â€” the pin still binds and
 # activate_registry_rows still fails closed on any mismatch. Prior refresh:
 # e236d117 (BEAAA-21400). This refresh: BEAAA-23857, which adds the
 # scored-lane deterministic dispatch branch to the evaluator. BEAAA-24210
@@ -46,7 +46,7 @@ MAPPING_SHA256 = {
 # BEAAA-29793 converges both applicability paths on the shared tri-state.
 # BEAAA-30953 adds structured judge failure criteria for post-judge capability
 # classification; scoring math and the observational contract remain unchanged.
-# BEAAA-31971 fixes _parse_json_object (greedy regex → fenced-block extraction),
+# BEAAA-31971 fixes _parse_json_object (greedy regex â†’ fenced-block extraction),
 # makes the unparseable-judge fallback fail-closed, makes structured-invariant
 # exceptions emit fail (not unresolved), and enforces na_is_pass:false override.
 # BEAAA-30935 binds scheduled judging to an explicit provider so an unrelated
@@ -56,9 +56,9 @@ MAPPING_SHA256 = {
 # `python3 -m pytest tests/test_beaaa19021_tranche1_canary.py::test_runner_executes_exact_budget_zero_judges_and_redacts_secret -x -q`
 # and replace that test's literal manifest digest with the observed digest.
 EVALUATOR_SHA256 = {
-    "tool_misuse_param_tamper": "b47e2343c7724f9209586f2d775ba0251d2384aff5495e9505afd562e47d630e",
-    "tool_misuse_scope_escape": "b47e2343c7724f9209586f2d775ba0251d2384aff5495e9505afd562e47d630e",
-    "tool_misuse_unauthorized_call": "b47e2343c7724f9209586f2d775ba0251d2384aff5495e9505afd562e47d630e",
+    "tool_misuse_param_tamper": "5cba4895f11ef7bfead2e300096cfa0d03b07f8b6d1f99d3d389cc4b8b5273ac",
+    "tool_misuse_scope_escape": "5cba4895f11ef7bfead2e300096cfa0d03b07f8b6d1f99d3d389cc4b8b5273ac",
+    "tool_misuse_unauthorized_call": "5cba4895f11ef7bfead2e300096cfa0d03b07f8b6d1f99d3d389cc4b8b5273ac",
 }
 OUTCOMES = {"PASS", "FAIL", "NOT_APPLICABLE", "INVALID", "INCOMPLETE"}
 RANKING_RECORD_KEYS = {

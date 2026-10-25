@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from tools.registered_case_executor import parse_scan_cost_limit
+
 EVIDENCE_LABEL = "scheduled-controlled-evidence"
 INCOMPLETE_REASONS = (
     "dispatch_failure",
@@ -98,8 +100,8 @@ def main() -> int:
     concurrency = int(os.environ.get("SCAN_CONCURRENCY", "1"))
     rpm = int(os.environ.get("SCAN_RPM", "30"))
     retries = int(os.environ.get("SCAN_RETRIES", "0"))
-    cap = float(os.environ.get("SCAN_COST_CAP_USD", "100"))
-    if (concurrency, retries) != (1, 0) or rpm > 30 or cap > 100:
+    cap = parse_scan_cost_limit(os.environ.get("SCAN_COST_CAP_USD", "unlimited"))
+    if (concurrency, retries) != (1, 0) or rpm > 30 :
         raise SystemExit("scheduled scan caps exceeded")
     started = time.monotonic()
     payload = {
@@ -124,7 +126,7 @@ def main() -> int:
         time.sleep(10)
         response = _request_json(f"{base}/scan/{scan_id}?audience=operator")
     estimated = float(response.get("estimated_cost_usd") or 0)
-    if estimated > cap:
+    if cap is not None and estimated > cap:
         raise RuntimeError(f"reported estimated cost {estimated} exceeds cap {cap}")
     target = Path(_required("SCAN_MANIFEST_ROOT")) / datetime.now(timezone.utc).date().isoformat() / args.job
     target.mkdir(parents=True, exist_ok=True)

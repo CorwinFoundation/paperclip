@@ -51,7 +51,7 @@ def test_wrong_binding_and_public_closed(path, key):
     s.begin_dispatch(**B)
     with pytest.raises(m.AdmissionClosed): s.reserve_call(**wrong, upper_microusd=1)
 
-@pytest.mark.parametrize('price', [None, 0, -1, 1.0, True, '100', float('nan'), 10_000_001])
+@pytest.mark.parametrize('price', [None, 0, -1, 1.0, True, '100', float('nan'), 2**63])
 def test_unknown_or_invalid_price_stops_before_call(path, price):
     s = m.ControlledAdmission(path)
     s.claim(**B); s.begin_dispatch(**B)
@@ -61,16 +61,16 @@ def test_unknown_or_invalid_price_stops_before_call(path, price):
         calls.append('paid')
     assert calls == []
 
-def test_budget_and_test_caps_persist(path):
+def test_accounting_integer_and_test_bounds_persist(path):
     s = m.ControlledAdmission(path)
     s.claim(**B); s.begin_dispatch(**B)
     for _ in range(100): s.reserve_call(**B, upper_microusd=1, tests=1)
     with pytest.raises(m.AdmissionClosed): s.reserve_call(**B, upper_microusd=1, tests=1)
-    s.reserve_call(**B, upper_microusd=9_999_900)
+    s.reserve_call(**B, upper_microusd=(2**63 - 1)-100)
     s.db.close()
     s = m.ControlledAdmission(path)
     with pytest.raises(m.AdmissionClosed): s.reserve_call(**B, upper_microusd=1)
-    assert s.db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (100, 10_000_000)
+    assert s.db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (100, 2**63 - 1)
 
 def test_disabled_stops_paid_calls_without_reset(path):
     s = m.ControlledAdmission(path)
@@ -153,7 +153,7 @@ def test_concurrent_paid_attempt_runs_once(path):
     observer.close()
 
 
-@pytest.mark.parametrize('price', [None, 0, -1, True, 10_000_001])
+@pytest.mark.parametrize('price', [None, 0, -1, True, 2**63])
 def test_paid_call_invalid_price_leaves_no_attempt_or_spend(path, price):
     s = m.ControlledAdmission(path)
     s.claim(**B)
@@ -214,7 +214,7 @@ s.paid_call(actor='selected-operator', request_id='selected-request',
     assert restarted.db.execute('SELECT state FROM controlled_paid_calls').fetchone() == ('call_unknown',)
 
 
-def test_concurrent_distinct_calls_cannot_overspend(path):
+def test_concurrent_distinct_calls_cannot_overflow_accounting(path):
     s = m.ControlledAdmission(path)
     s.claim(**B)
     s.begin_dispatch(**B)
@@ -224,7 +224,7 @@ def test_concurrent_distinct_calls_cannot_overspend(path):
         ledger = m.ControlledAdmission(path)
         try:
             return ledger.paid_call(**B, call_id=f'case-{number}/target/attempt-1',
-                                    upper_microusd=6_000_000, tests=1, operation=lambda: 1)
+                                    upper_microusd=2**62, tests=1, operation=lambda: 1)
         except m.AdmissionClosed:
             return 0
         finally:
@@ -233,7 +233,7 @@ def test_concurrent_distinct_calls_cannot_overspend(path):
     with ThreadPoolExecutor(max_workers=8) as pool:
         assert sum(pool.map(attempt, range(20))) == 1
     observer = sqlite3.connect(path)
-    assert observer.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 6_000_000)
+    assert observer.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (1, 2**62)
     assert observer.execute('SELECT COUNT(*) FROM controlled_paid_calls').fetchone() == (1,)
     observer.close()
 
@@ -356,10 +356,10 @@ def test_preflight_then_100_cases_share_one_budget(tmp_path, monkeypatch):
                         operation=lambda: calls.append('case'))
     assert ledger.db.execute('SELECT COUNT(*) FROM controlled_tests').fetchone() == (100,)
     assert ledger.db.execute('SELECT tests,reserved_microusd FROM controlled_admission').fetchone() == (100, 9_999_900)
-    # Consume the last 100 micro-USD on an existing case, then deny all further I/O.
+    # Cross the former USD10 ceiling on an existing case; retain the test limit.
     permit.call(test_id=cases[-1].case_id, phase='final', upper_microusd=100, operation=lambda: None)
-    with pytest.raises(m.AdmissionClosed):
-        permit.call(test_id=cases[-1].case_id, phase='extra', upper_microusd=1, operation=lambda: pytest.fail('cap exceeded'))
+    permit.call(test_id=cases[-1].case_id, phase='extra', upper_microusd=1, operation=lambda: None)
+    assert ledger.db.execute('SELECT reserved_microusd FROM controlled_admission').fetchone() == (10_000_001,)
     with pytest.raises(m.AdmissionClosed):
         permit.call(test_id='case-101', phase='target', upper_microusd=1, operation=lambda: pytest.fail('101st test'))
     with pytest.raises(m.AdmissionClosed):
@@ -383,7 +383,7 @@ def test_unknown_preflight_blocks_restart_retry_and_scan(tmp_path):
     assert restarted.db.execute('SELECT tests,reserved_microusd,dispatch_state FROM controlled_admission').fetchone() == (0, 123, 'unclaimed')
 
 
-@pytest.mark.parametrize('price', [None, 0, -1, True, 10_000_001])
+@pytest.mark.parametrize('price', [None, 0, -1, True, 2**63])
 def test_invalid_preflight_price_never_calls_or_consumes(path, price):
     ledger = m.ControlledAdmission(path)
     with pytest.raises(m.AdmissionClosed):
