@@ -1,5 +1,11 @@
 # Dedicated test runner rollout
 
+Current operating policy: eligible checks stay on the existing VM with local
+opt-ins enabled; no congestion-based hosted rollback is authorized. The small
+control profile and its separate activation gates are documented in
+[Small-check worker](ci-control-worker.md). The historical rollout and rollback
+notes below do not override [the Founder CI spending policy](founder-ci-cost-policy.md).
+
 Internal setup note, 2026-10-07. Selected host: srv1799443.hstgr.cloud (82.29.173.38).
 Runner activation is pending validation.
 

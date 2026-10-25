@@ -1,6 +1,7 @@
 self-hosted-runner:
   labels:
     - backbond-ci
+    - backbond-ci-control
     - backbond-build
     - backbond-publish
     - ariclaw

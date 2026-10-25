@@ -71,6 +71,14 @@ DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-lat
 DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3].replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
 ) + ") }}"
+CONTROL_DIRECT = DEDICATED_DIRECT.replace('"backbond-ci"', '"backbond-ci-control"')
+CONTROL_PREFLIGHT = DEDICATED_PREFLIGHT.replace('"backbond-ci"', '"backbond-ci-control"')
+CONTROL_ONLY = (
+    "${{ vars.BACKBOND_LOCAL_CI == 'true' && "
+    "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
+    "(github.event_name != 'pull_request' || "
+    "github.event.pull_request.head.repo.full_name == github.repository) }}"
+)
 BUILD_TRUST = (
     "vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && "
     "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
@@ -93,11 +101,13 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
     permissions = job.get("permissions", workflow.get("permissions"))
     if not isinstance(permissions, dict) or any(v != "read" for v in permissions.values()):
         return False
+    if job.get("runs-on") == ["self-hosted", "linux", "x64", "backbond-ci-control"]:
+        return job.get("if") == CONTROL_ONLY
     # A distinct UID and one-job JIT identity, private Docker daemon and fresh
     # disk. The broker also binds workflow, run/attempt and job before execution.
     if job.get("runs-on") in BUILD_ROUTES:
         return True
-    if job.get("runs-on") in (DEDICATED_PREFLIGHT, DEDICATED_DIRECT):
+    if job.get("runs-on") in (DEDICATED_PREFLIGHT, DEDICATED_DIRECT, CONTROL_DIRECT, CONTROL_PREFLIGHT):
         return True
     if job.get("runs-on") != DEDICATED_RUNS_ON:
         return False
@@ -106,7 +116,7 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
         return False
     selector = workflow.get("jobs", {}).get("changes", {})
     return (
-        selector.get("runs-on") in ("ubuntu-latest", DEDICATED_DIRECT)
+        selector.get("runs-on") in ("ubuntu-latest", DEDICATED_DIRECT, CONTROL_DIRECT)
         and selector.get("outputs", {}).get("runner") == DEDICATED_OUTPUT
     )
 

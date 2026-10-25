@@ -30,6 +30,10 @@ EXISTING = (
 JOURNAL = STATE / "admission.json"
 
 
+def custom_labels(runner):
+    return {item["name"].lower() for item in runner["labels"]} - {"self-hosted", "linux", "x64"}
+
+
 def encoded(value):
     if not isinstance(value, bytes):
         value = json.dumps(value, separators=(",", ":")).encode()
@@ -112,6 +116,16 @@ class Broker:
     def __init__(self, github):
         self.github = github
 
+    def routes(self):
+        # Registration IDs vary, but repository, name and custom label do not.
+        # Missing configuration must never silently omit a live control worker.
+        identity = self.github.config.get("control_runner_id")
+        if type(identity) is not int or identity <= 0 or identity in {x[1] for x in EXISTING}:
+            raise RuntimeError("control runner identity is not configured; admission closed")
+        return tuple((*route, "backbond-ci") for route in EXISTING) + (
+            (REPOSITORY, identity, "backbond-ci-control-srv1799443", "backbond-ci-control"),
+        )
+
     def verify_egress(self):
         rules = subprocess.run(["nft", "--stateless", "list", "table", "inet", "backbond_build_pool"],
                                check=True, capture_output=True).stdout
@@ -120,25 +134,32 @@ class Broker:
 
     def drain(self, state):
         # Record every intended removal durably before changing a label.
-        for repository, identity, name in EXISTING:
+        routes = self.routes()
+        for repository, identity, name, label in routes:
             base = f"/repos/{repository}/actions/runners/{identity}"
             runner = self.github.request("GET", base)
             if runner.get("name") != name or runner.get("status") != "online":
                 raise RuntimeError("existing runner identity/health changed; admission closed")
-            if not any(label["name"] == "backbond-ci" for label in runner["labels"]):
+            if label == "backbond-ci-control" and custom_labels(runner) != {label}:
+                raise RuntimeError("control worker has unexpected routing labels; admission closed")
+            if not any(item["name"] == label for item in runner["labels"]):
                 raise RuntimeError("existing capacity is reserved elsewhere; admission closed")
-            state["restore"].append(base)
+            state["restore"].append({"base": base, "label": label})
             save(state)
-            self.github.request("DELETE", base + "/labels/backbond-ci")
+            self.github.request("DELETE", base + "/labels/" + label)
         # Labels disappearing does not interrupt already assigned work. Require
         # stable idle observations after deletion before reserving memory.
         stable, deadline = 0, time.monotonic() + 3600
         while time.monotonic() < deadline:
             runners = [self.github.request("GET", f"/repos/{repo}/actions/runners/{identity}")
-                       for repo, identity, _ in EXISTING]
+                       for repo, identity, _, _ in routes]
             if any(x.get("status") != "online" for x in runners):
                 raise RuntimeError("existing runner disconnected while draining")
-            if any(any(label["name"] == "backbond-ci" for label in x["labels"]) for x in runners):
+            if any(custom_labels(runner) for route, runner in zip(routes, runners)
+                   if route[3] == "backbond-ci-control"):
+                raise RuntimeError("control routing changed during admission")
+            if any(any(item["name"] == route[3] for item in runner["labels"])
+                   for route, runner in zip(routes, runners)):
                 raise RuntimeError("another administrator restored routing during admission")
             # API idle alone can lag. Match any Worker on this dedicated CI VM,
             # including workers in subordinate UID namespaces.
@@ -160,8 +181,15 @@ class Broker:
         Worker(state["identity"], state["role"]).cleanup()
         if state.get("runner_id"):
             self.github.request("DELETE", f"/repos/{REPOSITORY}/actions/runners/{state['runner_id']}")
-        for base in state["restore"]:
-            self.github.request("POST", base + "/labels", {"labels": ["backbond-ci"]})
+        for entry in state["restore"]:
+            # Recover old journals too, including a crash during an upgrade.
+            if isinstance(entry, str):
+                base, label = entry, "backbond-ci"
+            else:
+                base, label = entry["base"], entry["label"]
+            if label not in {"backbond-ci", "backbond-ci-control"}:
+                raise RuntimeError("unknown restoration label; admission closed")
+            self.github.request("POST", base + "/labels", {"labels": [label]})
         JOURNAL.unlink()
 
     def run_one(self, expected):

@@ -1,0 +1,47 @@
+name: CI control worker smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ci-control-smoke.yml'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/pr-unit-tests.yml'
+      - '.github/workflows/version-control-preflight.yml'
+      - 'scripts/ci/*control*'
+      - 'scripts/ci/build_pool_broker.py'
+      - 'tests/test_ci_control_worker.py'
+      - 'tests/test_build_pool_recovery.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-control-smoke-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  control-smoke:
+    name: bounded CI control worker
+    if: ${{ vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: [self-hosted, linux, x64, backbond-ci-control]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify control resource and process limits
+        run: python3 scripts/ci/control_worker_probe.py --check
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare control Python
+        run: bash scripts/ci/prepare-python-runtime.sh
+      - name: Verify selectors and preflight policy within the control budget
+        run: |
+          python -m venv "$RUNNER_TEMP/control-checks"
+          "$RUNNER_TEMP/control-checks/bin/python" -m pip install pytest==9.0.3 PyYAML==6.0.3
+          "$RUNNER_TEMP/control-checks/bin/python" -m pytest --noconftest -q tests/test_ci_select_tests.py tests/test_ci_solution_changes.py tests/test_version_control_preflight.py tests/test_ci_control_worker.py
+          python -m unittest -v tests.test_release_identity_beaaa17967
+          python scripts/release_identity_ci.py --build-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/control-release-identity.json"
+      - name: Verify resource limits and retain memory evidence after checks
+        if: always()
+        run: python3 scripts/ci/control_worker_probe.py --check

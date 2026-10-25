@@ -43,7 +43,7 @@ install -m 644 "$source_dir"/build_pool_{broker,worker,policy}.py /opt/backbond-
 install -d -m 700 /etc/backbond-build-pool
 install -d -m 711 /var/lib/backbond-build-pool
 cat > /etc/backbond-build-pool/config.example.json <<'JSON'
-{"app_id":0,"installation_id":0,"key":"/etc/backbond-build-pool/app.pem","egress_sha256":"SET_AFTER_VALIDATING_ACTIVE_EGRESS_RULES"}
+{"app_id":0,"installation_id":0,"key":"/etc/backbond-build-pool/app.pem","egress_sha256":"SET_AFTER_VALIDATING_ACTIVE_EGRESS_RULES","control_runner_id":0}
 JSON
 chmod 600 /etc/backbond-build-pool/config.example.json
 

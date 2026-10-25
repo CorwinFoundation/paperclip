@@ -37,7 +37,7 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     name: select affected CI
-    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci-control"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -449,7 +449,7 @@ jobs:
     name: python pytest
     needs: [changes, pytest, native-integrations, kaltura-browser-image]
     if: ${{ !cancelled() }}
-    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci-control"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
       - name: Require every shard to have passed

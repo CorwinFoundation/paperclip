@@ -21,7 +21,7 @@ jobs:
   # job runs, so a broken selector costs minutes, not coverage.
   changes:
     name: select affected CI
-    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_CI == 'true' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","backbond-ci-control"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     permissions:
       contents: read

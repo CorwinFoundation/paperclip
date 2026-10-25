@@ -27,6 +27,8 @@ QUEUED_JOB = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]'
 QUEUED_PREFLIGHT = "${{ fromJSON(" + TRUSTED_ROUTE.replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
 ) + ") }}"
+CONTROL_DIRECT = QUEUED_DIRECT.replace('"backbond-ci"', '"backbond-ci-control"')
+CONTROL_PREFLIGHT = QUEUED_PREFLIGHT.replace('"backbond-ci"', '"backbond-ci-control"')
 BUILD_TRUST = (
     "vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && "
     "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
@@ -66,7 +68,7 @@ def cost_policy_findings(tests, preflight):
     if normalized(tests["jobs"]["changes"]["outputs"]["runner"]) != normalized(QUEUED_SELECTOR):
         findings.append("trusted tests must queue without load/age-based paid overflow")
     for name, job in tests["jobs"].items():
-        expected = DOCKER_ROUTES.get(name, QUEUED_DIRECT if name in DIRECT_TEST_JOBS else QUEUED_JOB)
+        expected = DOCKER_ROUTES.get(name, CONTROL_DIRECT if name in DIRECT_TEST_JOBS else QUEUED_JOB)
         if normalized(job.get("runs-on")) != normalized(expected):
             findings.append(f"test job {name} expands paid routing")
         if name not in DIRECT_TEST_JOBS and "needs.changes.result == 'success'" not in job.get("if", ""):
@@ -81,7 +83,7 @@ def cost_policy_findings(tests, preflight):
             or 'test -n "$SELECTOR_RUNNER"' not in aggregate.get("run", "")):
         findings.append("missing runner outputs must fail the required pytest aggregate")
     for name in ("release-identity", "policy"):
-        if normalized(preflight["jobs"][name].get("runs-on")) != normalized(QUEUED_PREFLIGHT):
+        if normalized(preflight["jobs"][name].get("runs-on")) != normalized(CONTROL_PREFLIGHT):
             findings.append(f"preflight {name} must queue on dedicated capacity")
     return findings
 
@@ -96,7 +98,8 @@ def test_additional_jobs_queue_without_paid_overflow(filename, names):
                          Loader=yaml.BaseLoader)
     for name in names:
         job = workflow["jobs"][name]
-        assert normalized(job["runs-on"]) == normalized(QUEUED_DIRECT), (filename, name)
+        expected = CONTROL_DIRECT if (filename, name) == ("pr-unit-tests.yml", "changes") else QUEUED_DIRECT
+        assert normalized(job["runs-on"]) == normalized(expected), (filename, name)
         permissions = job.get("permissions", workflow.get("permissions"))
         assert permissions and all(value == "read" for value in permissions.values())
         assert "secrets." not in yaml.dump(job)
