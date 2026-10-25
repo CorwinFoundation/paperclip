@@ -27,7 +27,17 @@ QUEUED_JOB = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-latest\"]'
 QUEUED_PREFLIGHT = "${{ fromJSON(" + TRUSTED_ROUTE.replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
 ) + ") }}"
-HOSTED_TEST_BASELINE = {"native-integrations", "kaltura-browser-image"}
+BUILD_TRUST = (
+    "vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && "
+    "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
+    "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)"
+)
+DOCKER_ROUTES = {
+    key: "${{ fromJSON(" + BUILD_TRUST + " && format('"
+         + '["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-' + key
+         + '\"]' + "', github.run_id, github.run_attempt) || '[\"ubuntu-latest\"]') }}"
+    for key in ("native-integrations", "kaltura-browser-image")
+}
 DIRECT_TEST_JOBS = {"changes", "pytest-aggregate"}
 MIGRATED_JOBS = {
     "pr-unit-tests.yml": {
@@ -56,8 +66,8 @@ def cost_policy_findings(tests, preflight):
     if normalized(tests["jobs"]["changes"]["outputs"]["runner"]) != normalized(QUEUED_SELECTOR):
         findings.append("trusted tests must queue without load/age-based paid overflow")
     for name, job in tests["jobs"].items():
-        expected = QUEUED_DIRECT if name in DIRECT_TEST_JOBS else QUEUED_JOB
-        if name not in HOSTED_TEST_BASELINE and normalized(job.get("runs-on")) != normalized(expected):
+        expected = DOCKER_ROUTES.get(name, QUEUED_DIRECT if name in DIRECT_TEST_JOBS else QUEUED_JOB)
+        if normalized(job.get("runs-on")) != normalized(expected):
             findings.append(f"test job {name} expands paid routing")
         if name not in DIRECT_TEST_JOBS and "needs.changes.result == 'success'" not in job.get("if", ""):
             findings.append(f"test job {name} may buy execution after selector failure")
@@ -113,7 +123,7 @@ def test_required_aggregate_fails_closed_on_selector_failure(selector, runner, s
     assert result.returncode == expected, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("mutation", ["busy_fallback", "exclude_qa", "hosted_preflight", "hosted_pytest", "hosted_selector", "hosted_aggregate", "selector_failure_fallback", "missing_selector_gate", "empty_runner_fallback", "missing_runner_gate", "extra_hosted_job"])
+@pytest.mark.parametrize("mutation", ["busy_fallback", "exclude_qa", "hosted_preflight", "hosted_pytest", "hosted_selector", "hosted_aggregate", "hosted_docker", "docker_busy_fallback", "selector_failure_fallback", "missing_selector_gate", "empty_runner_fallback", "missing_runner_gate", "extra_hosted_job"])
 def test_cost_guard_rejects_spending_regressions_even_when_isolation_is_preserved(mutation):
     tests, preflight = deepcopy(workflows())
     if mutation == "busy_fallback":
@@ -135,6 +145,11 @@ def test_cost_guard_rejects_spending_regressions_even_when_isolation_is_preserve
         tests["jobs"]["changes"]["runs-on"] = "ubuntu-latest"
     elif mutation == "hosted_aggregate":
         tests["jobs"]["pytest-aggregate"]["runs-on"] = "ubuntu-latest"
+    elif mutation == "hosted_docker":
+        tests["jobs"]["native-integrations"]["runs-on"] = "ubuntu-latest"
+    elif mutation == "docker_busy_fallback":
+        tests["jobs"]["kaltura-browser-image"]["runs-on"] = DOCKER_ROUTES["kaltura-browser-image"].replace(
+            BUILD_TRUST, "steps.capacity.outputs.busy != 'true' && " + BUILD_TRUST)
     elif mutation == "selector_failure_fallback":
         tests["jobs"]["pytest"]["if"] = "${{ !cancelled() }}"
     elif mutation == "missing_selector_gate":

@@ -71,6 +71,17 @@ DEDICATED_RUNS_ON = "${{ fromJSON(needs.changes.outputs.runner || '[\"ubuntu-lat
 DEDICATED_PREFLIGHT = "${{ fromJSON(" + DEDICATED_ELIGIBILITY[4:-3].replace(
     "BACKBOND_LOCAL_CI", "BACKBOND_LOCAL_PREFLIGHT"
 ) + ") }}"
+BUILD_TRUST = (
+    "vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && "
+    "(github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && "
+    "(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)"
+)
+BUILD_ROUTES = {
+    "${{ fromJSON(" + BUILD_TRUST + " && format('"
+    + '["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-' + key
+    + '\"]' + "', github.run_id, github.run_attempt) || '[\"ubuntu-latest\"]') }}"
+    for key in ("native-integrations", "kaltura-browser-image", "acceptance-matrix")
+}
 
 
 def is_isolated_route(job: dict, workflow: dict) -> bool:
@@ -82,6 +93,10 @@ def is_isolated_route(job: dict, workflow: dict) -> bool:
     permissions = job.get("permissions", workflow.get("permissions"))
     if not isinstance(permissions, dict) or any(v != "read" for v in permissions.values()):
         return False
+    # A distinct UID and one-job JIT identity, private Docker daemon and fresh
+    # disk. The broker also binds workflow, run/attempt and job before execution.
+    if job.get("runs-on") in BUILD_ROUTES:
+        return True
     if job.get("runs-on") in (DEDICATED_PREFLIGHT, DEDICATED_DIRECT):
         return True
     if job.get("runs-on") != DEDICATED_RUNS_ON:

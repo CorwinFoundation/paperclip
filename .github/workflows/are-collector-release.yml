@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   build-sign-sbom:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/are-collector-v0.1.'))) && format('["self-hosted","linux","x64","backbond-publish","bb-{0}-{1}-build-sign-sbom"]', github.run_id, github.run_attempt) || '["ubuntu-latest"]') }}
+    timeout-minutes: 40
     env:
       IMAGE_NAME: ${{ inputs.image_name || format('ghcr.io/{0}/are-collector', github.repository) }}
       IMAGE_TAG: ${{ github.ref_name || github.sha }}

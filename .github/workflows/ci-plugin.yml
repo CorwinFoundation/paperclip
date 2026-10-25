@@ -21,17 +21,19 @@ on:
       - ".github/workflows/ci-plugin.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   acceptance-matrix:
     name: ci-plugin acceptance matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && format('["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-acceptance-matrix"]', github.run_id, github.run_attempt) || '["ubuntu-latest"]') }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/ci-python
         with:
           python-version: "3.11"
-          cache: pip
           cache-dependency-path: requirements-dev.txt
       - name: Install dev requirements
         # The acceptance matrix needs pytest on the runner; the plugin modules

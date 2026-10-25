@@ -17,7 +17,7 @@ permissions:
 jobs:
   verify:
     name: verify immutable Scanner image
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.ref == 'refs/heads/master' && format('["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-verify"]', github.run_id, github.run_attempt) || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     env:
       IMAGE_REPOSITORY: ghcr.io/corwinfoundation/are-scanner

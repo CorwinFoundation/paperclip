@@ -369,11 +369,11 @@ jobs:
     name: Docker and nginx integration coverage
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && contains(needs.changes.outputs.runner, 'backbond-ci') && needs.changes.outputs.code == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && format('["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-native-integrations"]', github.run_id, github.run_attempt) || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/ci-python
         with:
           python-version: '3.12'
       - name: Require edge integration prerequisites
@@ -382,8 +382,10 @@ jobs:
           docker pull caddy:2.8-alpine
           docker pull nginx:1.27-alpine
           docker pull python:3.12-alpine
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq nginx
+          if [ "$RUNNER_ENVIRONMENT" != self-hosted ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq nginx
+          fi
           command -v nginx
           command -v ssh-keygen
           command -v openssl
@@ -409,7 +411,7 @@ jobs:
     name: Kaltura browser image readiness
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BACKBOND_LOCAL_DOCKER == 'true' && github.repository == 'CorwinFoundation/are-scanner' && (github.actor == 'CorwinFoundation' || github.actor == 'backbond-qa') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && format('["self-hosted","linux","x64","backbond-build","bb-{0}-{1}-kaltura-browser-image"]', github.run_id, github.run_attempt) || '["ubuntu-latest"]') }}
     timeout-minutes: 25
     permissions:
       contents: read

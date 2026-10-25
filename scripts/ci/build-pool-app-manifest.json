@@ -1,0 +1,13 @@
+{
+  "name": "BackBond isolated CI admission",
+  "url": "https://github.com/CorwinFoundation/are-scanner",
+  "public": false,
+  "hook_attributes": {"url": "https://github.com/CorwinFoundation/are-scanner", "active": false},
+  "default_permissions": {
+    "administration": "write",
+    "actions": "read",
+    "contents": "read",
+    "metadata": "read"
+  },
+  "default_events": []
+}

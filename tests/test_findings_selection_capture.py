@@ -1,13 +1,10 @@
 """Original form capture must be read-only, owner-bound and credential-free."""
 import hashlib
 import json
-from pathlib import Path
 import sqlite3
-import sys
 
 import pytest
-sys.path.insert(0,str(Path(__file__).parents[1]/'api'))
-from selection_capture import export_selection, canonical
+from api.selection_capture import export_selection, canonical
 
 SCAN='282ef090-786a-4b60-bf1e-3214178b1f59'
 
