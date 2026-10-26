@@ -20,6 +20,7 @@ from tools import quick_assessment as cli
 from tools.build_quick_access_template import build as access_template
 from tools.quick_configuration_copy import prepare as copy_plan
 from tools.quick_concurrency_spike import plan as spike_plan
+from tools.quick_qualification_probe import fixture_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("quick_forwarder", ROOT / "deploy/amazon-quick/log_forwarder.py")
@@ -306,6 +307,19 @@ class PreflightTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
         targets = []
+        probe = fixture_probe(self.profile)
+        def readiness(target, count, tag):
+            nonce = _sha(tag)[:16]
+            checks = [{"index": i + 1, "exact_reply": True, "reply_sha256": _sha("20"),
+                "normalized_reply_sha256": _sha("20"), "evidence": {
+                "source": "aws_chat_logs", "response_sha256": _sha("20"),
+                "prompt_sha256": _sha(probe.prompt(f"QUICK-PILOT-{nonce}-{i}")),
+                "message_sha256": _sha("m" + tag + str(i)),
+                "conversation_sha256": _sha("c" + tag + str(i))}} for i in range(count)]
+            return dict(schema="backbond-amazon-quick-readiness/v1", live=True, status="transport_verified", completed=count,
+                checks=checks, target_binding_sha256=cli.binding(target), pilot_id_sha256=_sha(target.pilot_id),
+                probe=probe.metadata, probe_run_id=nonce,
+                started_at=(datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat(), finished_at=datetime.now(timezone.utc).isoformat())
         for role, identity in s["identities"].items():
             identity.update(endpoint="https://synthetic.example.test/" + role,
                             user_arn="arn:aws:quicksight:us-east-1:111122223333:user/default/" + role)
@@ -320,12 +334,7 @@ class PreflightTests(unittest.TestCase):
             ledger = Ledger(target)
             with ledger.db: ledger.db.execute("UPDATE pilots SET calls=3 WHERE id=?", (role,))
             ledger.close()
-            checks = [{"exact_reply": True, "reply_sha256": _sha(role + str(i)), "evidence": {
-                "source": "aws_chat_logs", "response_sha256": _sha(role + str(i)),
-                "message_sha256": _sha("m" + role + str(i)), "conversation_sha256": _sha("c" + role + str(i))}} for i in range(3)]
-            receipt = dict(schema="backbond-amazon-quick-readiness/v1", live=True, status="transport_verified", completed=3,
-                checks=checks, target_binding_sha256=cli.binding(target), pilot_id_sha256=_sha(role),
-                started_at=(datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat(), finished_at=datetime.now(timezone.utc).isoformat())
+            receipt = readiness(target, 3, role)
             path = self.root / (role + ".json")
             path.write_text(json.dumps(receipt))
             identity["readiness_receipt"] = str(path)
@@ -333,8 +342,9 @@ class PreflightTests(unittest.TestCase):
         registry = [{**t.__dict__, "approved": True, "expires_at": "2099-01-01T00:00:00Z", "allowed_browser_hosts": list(t.allowed_browser_hosts)} for t in targets]
         (self.root / "targets.json").write_text(json.dumps({"schema": TARGET_SCHEMA, "targets": registry}))
         for key, value in {
-            "platform_transport_receipt": {"status": "transport_verified", "completed": 10},
+            "platform_transport_receipt": readiness(targets[0], 10, "platform"),
             "spike_receipt": {"schema": "backbond-quick-concurrency-qualification/v1.2",
+                "probe": probe.metadata,
                 "status": "concurrency_qualified", "source_revision": "a" * 40, "qualified_concurrency": 5,
                 "target_account_sha256": _sha("111122223333"), "target_calls": 44, "judge_calls": 0,
                 "started_at": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
@@ -365,6 +375,25 @@ class PreflightTests(unittest.TestCase):
         path.write_text(json.dumps(isolation))
         with self.assertRaisesRegex(ValueError, "isolation"):
             cli.preflight(self.scope, self.profile)
+
+    def test_platform_qualification_cannot_reuse_legacy_echo_or_another_target(self):
+        path = Path(self.scope["platform_transport_receipt"])
+        original = json.loads(path.read_text())
+        for defect in ("legacy_echo", "wrong_target", "wrong_prompt", "not_exact", "reused_conversation"):
+            value = deepcopy(original)
+            if defect == "legacy_echo":
+                value.pop("probe")
+            elif defect == "wrong_target":
+                value["target_binding_sha256"] = _sha("another target")
+            elif defect == "wrong_prompt":
+                value["checks"][0]["evidence"]["prompt_sha256"] = _sha("another question")
+            elif defect == "not_exact":
+                value["checks"][0]["exact_reply"] = False
+            else:
+                value["checks"][1]["evidence"]["conversation_sha256"] = value["checks"][0]["evidence"]["conversation_sha256"]
+            path.write_text(json.dumps(value))
+            with self.subTest(defect=defect), self.assertRaises(ValueError):
+                cli.preflight(self.scope, self.profile)
 
     def test_new_defaults_do_not_authorize_real_data_identity_b_or_external_grading(self):
         for key, value in (("exposure_level", "real_data"), ("identity_path", "B"),

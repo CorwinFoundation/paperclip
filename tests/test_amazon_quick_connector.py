@@ -187,6 +187,7 @@ class PilotTests(unittest.TestCase):
         self.assertEqual(state["cases"], 2)
         self.assertEqual(state["closed"], 2)
         receipts = runner.evidence_receipts()
+        self.assertEqual([r["prompt_sha256"] for r in receipts], [quick._sha(p) for p in (prompt, "first", "second")])
         self.assertNotEqual(receipts[0]["conversation_sha256"], receipts[1]["conversation_sha256"])
         self.assertEqual(receipts[1]["conversation_sha256"], receipts[2]["conversation_sha256"])
         self.assertEqual(runner.starter_result_rows()[0]["reply"], "reply:" + prompt)

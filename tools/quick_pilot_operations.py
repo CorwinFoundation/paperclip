@@ -57,7 +57,7 @@ def binding(target):
                            target.account_id, target.region, target.log_group]))
 
 
-def check_readiness(receipt, target, not_before, now, *, required_checks=10):
+def check_readiness(receipt, target, not_before, now, *, required_checks=10, probe=None):
     if required_checks not in {3, 10}:
         raise PreflightError("invalid_readiness_requirement")
     if (receipt.get("schema") != "backbond-amazon-quick-readiness/v1"
@@ -69,12 +69,24 @@ def check_readiness(receipt, target, not_before, now, *, required_checks=10):
     start, end = timestamp(receipt["started_at"]), timestamp(receipt["finished_at"])
     if not not_before <= start <= end <= now or end >= target.expires_at:
         raise PreflightError("readiness_outside_approved_window")
+    if probe is not None:
+        import re
+        if (receipt.get("probe") != probe.metadata
+                or not isinstance(receipt.get("probe_run_id"), str)
+                or not re.fullmatch(r"[0-9a-f]{16}", receipt["probe_run_id"])):
+            raise PreflightError("profile_bound_readiness_probe_required")
     conversations, messages = set(), set()
-    for row in receipt["checks"]:
+    for index, row in enumerate(receipt["checks"]):
         evidence = row["evidence"]
         if (row.get("exact_reply") is not True or evidence.get("source") != "aws_chat_logs"
                 or row.get("reply_sha256") != evidence.get("response_sha256")):
             raise PreflightError("verified_provider_answers_required")
+        if probe is not None:
+            expected_prompt = probe.prompt(f"QUICK-PILOT-{receipt['probe_run_id']}-{index}")
+            if (row.get("index") != index + 1
+                    or evidence.get("prompt_sha256") != _sha(expected_prompt)
+                    or row.get("normalized_reply_sha256") != probe.metadata["expected_reply_sha256"]):
+                raise PreflightError("verified_source_probe_answer_required")
         for key in ("conversation_sha256", "message_sha256", "response_sha256"):
             value = evidence[key]
             if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):

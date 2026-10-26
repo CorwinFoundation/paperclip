@@ -639,6 +639,7 @@ class AmazonQuickRunner(ModelRunner):
                         self._knowledge.append(knowledge_evidence(row, self.target))
                     evidence.append({"conversation_sha256": _sha(conversation),
                                      "message_sha256": _sha(row["user_message_id"]),
+                                     "prompt_sha256": _sha(row["user_message"]),
                                      "response_sha256": _sha(row["system_text_message"]),
                                      "event_timestamp": row["event_timestamp"], "source": "aws_chat_logs",
                                      "log_read_retries": log_read_retries})

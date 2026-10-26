@@ -17,9 +17,10 @@ from harness.amazon_quick_batch import BatchCase, PersistentBrowser, QuickBatchR
 from tools.internal_agent_pilot import read_json, save_run
 from tools.quick_assessment import preflight
 from tools.quick_pilot_operations import binding
+from tools.quick_qualification_probe import fixture_probe
 
 
-def plan(roles, nonce):
+def plan(roles, nonce, probe=None):
     """Exercise every identity, including fifteen simultaneous cases, in 44 calls."""
     if len(roles) != 3 or len(set(roles)) != 3:
         raise ValueError("three_distinct_spike_roles_required")
@@ -31,8 +32,9 @@ def plan(roles, nonce):
             for index in range(count):
                 case_id = f"spike-{nonce}-{wave_index}-{role_index}-{index}"
                 marker = f"QUICK-SPIKE-{nonce}-{wave_index}-{role_index}-{index}"
-                cases.append(BatchCase(case_id, role, (f"For this connection test, reply with exactly: {marker}",)))
-                expected[case_id] = marker
+                prompt = probe.prompt(marker) if probe else f"For this connection test, reply with exactly: {marker}"
+                cases.append(BatchCase(case_id, role, (prompt,)))
+                expected[case_id] = probe.expected_reply if probe else marker
         waves.append((level, cases, expected))
     return waves
 
@@ -42,7 +44,9 @@ async def spike(scope, profile, output, receipt):
     start = time.monotonic()
     deadline = start + 900
     nonce = secrets.token_hex(8)
-    for level, cases, expected in plan(profile["fixture"]["roles"], nonce):
+    probe = fixture_probe(profile)
+    receipt["probe"] = probe.metadata
+    for level, cases, expected in plan(profile["fixture"]["roles"], nonce, probe):
         if time.monotonic() >= deadline:
             raise ValueError("spike_wall_clock_budget_exhausted")
         def checkpoint(result):
@@ -54,10 +58,12 @@ async def spike(scope, profile, output, receipt):
             registered_tokens={r: os.environ[scope["identities"][r]["token_env"]] for r in targets}, on_result=checkpoint)
         result = await runner.run(cases)
         roles = {c.case_id: c.role for c in cases}
+        prompts = {c.case_id: c.turns[0] for c in cases}
         verified = (len(result["results"]) == len(cases)
                     and {r["case_id"] for r in result["results"]} == set(expected)
                     and all(r["role"] == roles[r["case_id"]]
                        and r["status"] == "observed" and len(r["turns"]) == 1
+                       and r["turns"][0]["transport"].get("prompt_sha256") == _sha(prompts[r["case_id"]])
                        and r["turns"][0]["reply"].strip() == expected[r["case_id"]] for r in result["results"])
                     )
         wave = {"concurrency": level, "submitted_case_cap": len(cases), "verified": verified,
@@ -95,6 +101,7 @@ def main(argv=None):
         targets, _ = preflight(scope, profile, purpose="concurrency_spike")
         args.output.mkdir(parents=True, exist_ok=False)
         receipt = {"schema": "backbond-quick-concurrency-qualification/v1.2", "status": "incomplete",
+            "probe": fixture_probe(profile).metadata,
             "source_revision": scope["release_gate"]["revision"], "authorization_id": scope["authorization_id"],
             "target_account_sha256": _sha(next(iter(targets.values())).account_id),
             "started_at": datetime.now(timezone.utc).isoformat(), "waves": [], "target_call_cap": 44,

@@ -24,6 +24,8 @@ def main(argv=None) -> int:
     parser.add_argument("--live", action="store_true", help="Submit ten benign prompts; consumes pilot call budget")
     parser.add_argument("--checks", type=int, choices=(3, 10), default=10,
                         help="Three for an approved v1.2 customer qualification; ten remains the platform default")
+    parser.add_argument("--fixture-variant", choices=("hr_finance", "healthcare"),
+                        help="Use the profile's permitted common leave fact instead of an arbitrary echo")
     args = parser.parse_args(argv)
     receipt = {"schema": "backbond-amazon-quick-readiness/v1", "live": args.live,
                "status": "incomplete", "completed": 0, "expected_checks": args.checks, "checks": [], "score": "N/A",
@@ -44,6 +46,12 @@ def main(argv=None) -> int:
             os.fsync(output.fileno())
         save()
         try:
+            probe = None
+            if args.fixture_variant:
+                from evals.amazon_quick_assessment import load_profile
+                from tools.quick_qualification_probe import fixture_probe
+                probe = fixture_probe(load_profile(args.fixture_variant))
+                receipt["probe"] = probe.metadata
             runner = AmazonQuickRunner(args.endpoint, os.environ.get(args.token_env, ""))
             receipt["target_sha256"] = runner.model_id().split(":", 1)[1]
             target = runner.target
@@ -55,12 +63,15 @@ def main(argv=None) -> int:
             receipt["pilot_id_sha256"] = _sha(target.pilot_id)
             if args.live:
                 run_id = secrets.token_hex(8)
+                receipt["probe_run_id"] = run_id
                 for index in range(args.checks):
                     marker = f"QUICK-PILOT-{run_id}-{index}"
-                    answer = runner.complete(f"For this connection test, reply with exactly: {marker}")
-                    exact = answer.strip() == marker
+                    prompt = probe.prompt(marker) if probe else f"For this connection test, reply with exactly: {marker}"
+                    answer = runner.complete(prompt)
+                    exact = answer.strip() == (probe.expected_reply if probe else marker)
                     receipt["checks"].append({"index": index + 1, "exact_reply": exact,
                                               "reply_sha256": _sha(answer),
+                                              "normalized_reply_sha256": _sha(answer.strip()),
                                               "evidence": runner.evidence_receipts()[-1]})
                     receipt["completed"] += 1
                     save()

@@ -25,6 +25,7 @@ FILES = (
     "evals/quick_assessment_v1/cyberseceval.LICENSE", "evals/quick_assessment_v1/strongreject.LICENSE",
     "evals/quick_assessment_v1/harmbench.LICENSE", "evals/quick_assessment_v1/jailbreakbench.LICENSE", "evals/quick_assessment_v1/xstest.LICENSE",
     "tools/quick_assessment.py", "tools/quick_concurrency_spike.py", "tools/quick_configuration_copy.py",
+    "tools/quick_qualification_probe.py",
     "deploy/amazon-quick/Dockerfile", "deploy/amazon-quick/run-worker.sh",
     "deploy/amazon-quick/verify-fixtures.py",
 )

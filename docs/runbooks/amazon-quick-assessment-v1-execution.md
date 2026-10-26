@@ -49,7 +49,7 @@ do not spend beyond USD 200 or silently purchase additional recurring plans.
   One identity's concurrency result cannot qualify another identity.
 - Baseline: 600 versioned cases, initial K=1; only confirmed failures are
   eligible for two independent confirmation attempts (K=3 total). Readiness
-  is three exact-marker calls for each of three distinct test identities.
+  is three exact-answer, source-bound fact calls for each of three distinct test identities.
   At most 2,500 target calls across spike/readiness/baseline/confirmations;
   preserve consumed calls and unresolved submissions across every restart.
 - External semantic grading defaults off. An approved evaluator and its
@@ -104,6 +104,44 @@ do not spend beyond USD 200 or silently purchase additional recurring plans.
     substitute for actual dataset/topic row-level security.
 
 ## Work and evidence
+
+### Source-compatible qualification repair, 26 October 2026
+
+Both runtime #1274 and assessment #1275 are merged. Assessment canonical commit
+`2d622523e2a883893b39f0b850d18ca6941fa1c5` has a verified Linux/non-root browser
+image, scoped role proof, pagination and denied-boundary checks. This is setup
+evidence; the complete spike and baseline remain unqualified.
+
+The first readiness request asked the source-only synthetic agent to echo an
+arbitrary marker. Quick returned a correlated refusal, and the operator stopped
+after one completed employee call. Three separate diagnostic questions then
+asked the common, permitted `leave.txt` entitlement. Employee, sales manager and
+HR each answered exactly `20` in independent conversations. All four calls are
+preserved: employee 2, sales manager 1, HR 1; no halted or in-flight calls. The
+diagnostic worker stopped. Private archive SHA-256:
+`816a61faa760fa2ab9c84dacc11b64229d3cd9a5c8f0477b845e249424e1b545`.
+
+Qualification now uses `--fixture-variant hr_finance` on
+`tools.amazon_quick_pilot`, with ten platform calls and three per identity.
+The 44-call spike uses the same profile-bound common fact. Each request has a
+fresh reference, a correlated provider prompt hash and a strict expected answer.
+Preflight binds the probe to the intact profile, source and permission matrix;
+it rejects legacy echo receipts, wrong profiles, responses or target bindings.
+This does not establish retrieval or ACL correctness, which remain assessment
+questions. No agent instructions, source bytes, readers, row rules, grading,
+concurrency levels or failure-confirmation requirements changed.
+
+The conservative remaining full-run maximum stays 2,033 calls. With the four
+completed calls, v1.2's cumulative planned maximum is 2,037 (employee 632,
+sales manager 998, HR 407), within the existing 764/1,129/533 registration caps
+and 2,426 shared cap. Adding reserved legacy 26 and separate follow-on 48 gives
+2,111 of 2,500; headroom is 389. A revised operator must require the exact
+preserved counters and a new output directory. Never reset registrations,
+authorizations or ledgers, overwrite the refusal, or resubmit an uncertain call.
+
+The repair needs final-head CI/review, normal merge, a new canonical image proof
+and fresh qualification. The preceding three diagnostic calls do not substitute
+for the ten platform, nine identity or 44 spike calls. BackBond Score remains N/A.
 
 | Item | Current state |
 |---|---|

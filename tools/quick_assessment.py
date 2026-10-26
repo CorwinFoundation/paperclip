@@ -25,6 +25,7 @@ from scanners.evaluator_budget import EvaluatorBudget
 from scanners.starter_judge import judge_client_from_env
 from tools.internal_agent_pilot import read_json, save_run
 from tools.quick_pilot_operations import REGIONS, PreflightError, binding, check_readiness, timestamp
+from tools.quick_qualification_probe import fixture_probe
 
 SCHEMA = "backbond-quick-assessment-scope/v1.2"
 
@@ -146,7 +147,7 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
             receipt_path = Path(identity["readiness_receipt"])
             if not receipt_path.is_absolute():
                 raise PreflightError("absolute_readiness_receipt_required")
-            check_readiness(read_json(receipt_path), t, start, now, required_checks=3)
+            check_readiness(read_json(receipt_path), t, start, now, required_checks=3, probe=fixture_probe(profile))
             planned = sum(len(v["turns"]) for c in profile["cases"] for v in c["conversations"] if v["role"] == role)
             if record[1] < 3 or t.max_calls - record[1] < planned:
                 raise PreflightError("preserved_target_budget_insufficient")
@@ -168,8 +169,10 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
     if scope["max_calls"] - consumed < needed:
         raise PreflightError("preserved_aggregate_budget_insufficient")
     platform = read_json(Path(scope["platform_transport_receipt"]))
-    if platform.get("status") != "transport_verified" or platform.get("completed") != 10:
-        raise PreflightError("ten_check_platform_qualification_required")
+    # The platform receipt must prove the same employee target, profile and
+    # approved window as the three identity receipts, with ten independent calls.
+    check_readiness(platform, targets[profile["fixture"]["roles"][0]], start, now,
+                    required_checks=10, probe=fixture_probe(profile))
     if purpose == "assessment":
         spike = read_json(Path(scope["spike_receipt"]))
         if (spike.get("status") != "concurrency_qualified" or spike.get("source_revision") != gate["revision"]
@@ -177,6 +180,7 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
                 or spike.get("target_account_sha256") != _sha(next(iter(targets.values())).account_id)):
             raise PreflightError("same_revision_bounded_concurrency_qualification_required")
         if (spike.get("schema") != "backbond-quick-concurrency-qualification/v1.2"
+                or spike.get("probe") != fixture_probe(profile).metadata
                 or spike.get("target_calls") != 44 or spike.get("judge_calls") != 0
                 or spike.get("qualified_identities") != {role: {"target_binding_sha256": binding(t),
                     "pilot_id_sha256": _sha(t.pilot_id)} for role, t in targets.items()}
