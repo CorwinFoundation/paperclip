@@ -194,11 +194,12 @@ jobs:
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.runner != '' && needs.changes.outputs.code == 'true' }}
     runs-on: ${{ fromJSON(needs.changes.outputs.runner || '["ubuntu-latest"]') }}
     # Warm shards target <= 5 minutes. The larger ceiling allows cold
-    # dependency installs and the dedicated runner's two-CPU resource cap.
+    # dependency installs within each isolated runner's configured CPU quota.
     timeout-minutes: 30
     strategy:
-      # One shard at a time on the dedicated runner; retain hosted parallelism.
-      max-parallel: ${{ contains(needs.changes.outputs.runner, 'backbond-ci') && 1 || 6 }}
+      # Two isolated VMs, one heavy runner/job slot per host. Busy slots queue.
+      # Keep each runner's process/resource limits and hosted parallelism.
+      max-parallel: ${{ contains(needs.changes.outputs.runner, 'backbond-ci') && 2 || 6 }}
       # Every shard reports. One red shard must not hide the other five.
       fail-fast: false
       matrix:
