@@ -216,6 +216,148 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(state["closed"])
         self.assertTrue(all("fallback" in r["turns"][0]["pacing"] for r in report["results"]))
 
+    async def test_startup_is_paced_per_user_but_nine_conversations_remain_parallel(self):
+        state, base_aws, base_browser = self.fake_runtime()
+        all_sent = asyncio.Event()
+        opening, peak = {}, {}
+        total_opening = max_opening = opened_count = 0
+        assert_equal = self.assertEqual
+        class Aws(base_aws):
+            async def logs(self, start, end):
+                await all_sent.wait()
+                return await super().logs(start, end)
+        class Browser:
+            launches = 1
+            @asynccontextmanager
+            async def context(self, t, deadline):
+                nonlocal total_opening, max_opening, opened_count
+                async with base_browser.context(t, deadline) as chat:
+                    original_open, original_send = chat.open, chat.send
+                    async def open(url):
+                        nonlocal total_opening, max_opening, opened_count
+                        opening[t.user_arn] = opening.get(t.user_arn, 0) + 1
+                        peak[t.user_arn] = max(peak.get(t.user_arn, 0), opening[t.user_arn])
+                        total_opening += 1
+                        max_opening = max(max_opening, total_opening)
+                        try:
+                            await asyncio.sleep(0.01)
+                            await original_open(url)
+                            opened_count += 1
+                        finally:
+                            total_opening -= 1
+                            opening[t.user_arn] -= 1
+                    async def send(prompt):
+                        assert_equal(opened_count, 9)
+                        await original_send(prompt)
+                        if len(state["sends"]) == 9:
+                            all_sent.set()
+                    chat.open, chat.send = open, send
+                    yield chat
+            async def close(self): await base_browser.close()
+        targets = {r: replace(self.target, pilot_id="pilot-"+r,
+            user_arn=self.target.user_arn+"-"+r) for r in ("employee", "sales", "hr")}
+        runner = QuickBatchRunner(targets, authorization="test", max_calls=30,
+            aws_factory=Aws, browser=Browser(), sweep_seconds=0.005, start_together=True)
+        result = await asyncio.wait_for(runner.run([
+            BatchCase(r+str(i), r, (r+"-prompt-"+str(i),)) for r in targets for i in range(3)]), timeout=3)
+        self.assertEqual(result["status"], "capture_complete")
+        self.assertEqual(len(state["sends"]), 9)
+        self.assertEqual(state["max_active"], 9)
+        self.assertEqual(set(peak.values()), {1})
+        self.assertEqual(max_opening, 3)
+        self.assertEqual(result["initialized_together"], 9)
+
+    async def test_start_barrier_rejects_over_capacity_and_repeated_prompts_before_calls(self):
+        for cases in ([BatchCase(str(i), "employee", (str(i),)) for i in range(6)],
+                      [BatchCase(str(i), "employee", ("same",)) for i in range(2)]):
+            state, aws, browser = self.fake_runtime()
+            runner = QuickBatchRunner({"employee":self.target}, authorization="test", max_calls=30,
+                aws_factory=aws, browser=browser, start_together=True)
+            with self.assertRaisesRegex(RunnerError, "invalid_batch_start_barrier"):
+                await runner.run(cases)
+            self.assertEqual(state["embeds"], 0)
+            self.assertEqual(state["sends"], [])
+
+    async def test_mount_failure_aborts_peers_waiting_at_start_barrier_without_sends(self):
+        state, aws, base_browser = self.fake_runtime()
+        class Browser:
+            launches = 1
+            @asynccontextmanager
+            async def context(self, t, deadline):
+                async with base_browser.context(t, deadline) as chat:
+                    original = chat.open
+                    async def open(url):
+                        if t.pilot_id.endswith("-hr"):
+                            await asyncio.sleep(0.01)
+                            raise RunnerError("amazon quick: browser_harness_unavailable")
+                        await original(url)
+                    chat.open = open
+                    yield chat
+            async def close(self): await base_browser.close()
+        targets = {r: replace(self.target, pilot_id="pilot-"+r,
+            user_arn=self.target.user_arn+"-"+r) for r in ("employee", "hr")}
+        runner = QuickBatchRunner(targets, authorization="test", max_calls=30,
+            aws_factory=aws, browser=Browser(), start_together=True)
+        result = await asyncio.wait_for(runner.run([
+            BatchCase(r, r, (r+"-prompt",)) for r in targets]), timeout=2)
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual(result["initialized_together"], 0)
+        self.assertEqual(state["embeds"], 2)
+        self.assertEqual(state["sends"], [])
+        self.assertTrue(all(c["closed"] for c in state["contexts"]))
+
+    async def test_failed_mount_releases_startup_capacity_and_keeps_uncertainty(self):
+        state, aws, base_browser = self.fake_runtime()
+        class Browser:
+            launches = 1
+            @asynccontextmanager
+            async def context(self, t, deadline):
+                async with base_browser.context(t, deadline) as chat:
+                    async def fail(url): raise RunnerError("amazon quick: browser_harness_unavailable")
+                    chat.open = fail
+                    yield chat
+            async def close(self): await base_browser.close()
+        runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=30,
+            aws_factory=aws, browser=Browser(), sweep_seconds=0.005, start_together=True)
+        result = await runner.run([BatchCase(str(i), "employee", ("prompt-"+str(i),)) for i in range(5)])
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual(state["embeds"], 1)
+        self.assertEqual(state["sends"], [])
+        for lock in runner.startup_locks.values():
+            await asyncio.wait_for(lock.acquire(), timeout=0.1)
+            lock.release()
+        for _ in range(3): await asyncio.wait_for(runner.startup_slots.acquire(), timeout=0.1)
+        for _ in range(3): runner.startup_slots.release()
+        ledger = ConversationLedger(self.target)
+        try:
+            self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1, 1, 1))
+            self.assertEqual(ledger.db.execute("SELECT status FROM quick_batch_submissions").fetchone()[0], "unknown")
+        finally:
+            ledger.close()
+
+    async def test_websocket_policy_uses_synchronous_connect_and_async_denial(self):
+        pool = PersistentBrowser()
+        context = Mock()
+        context.close, context.route, context.route_web_socket = AsyncMock(), AsyncMock(), AsyncMock()
+        context.new_page = AsyncMock(return_value=Mock())
+        pool.browser = Mock()
+        pool.browser.new_context = AsyncMock(return_value=context)
+        socket = Mock()
+        socket.url = "wss://pilot.example.test/socket"
+        socket.connect_to_server = Mock(return_value=Mock())
+        socket.close = AsyncMock()
+        with patch.object(pool, "_launch", new=AsyncMock()), patch(
+                "harness.amazon_quick_batch.BrowserChat.allowed", return_value=True) as allowed:
+            async with pool.context(self.target, time.monotonic()+30):
+                handler = context.route_web_socket.call_args.args[1]
+                await handler(socket)
+                socket.connect_to_server.assert_called_once()
+                socket.close.assert_not_awaited()
+                allowed.return_value = False
+                await handler(socket)
+                socket.close.assert_awaited_once()
+                socket.connect_to_server.assert_called_once()
+
     async def test_same_prompts_are_serialized_and_reverse_multiturn_order_cannot_deadlock(self):
         state, aws, browser = self.fake_runtime(captured="answer")
         runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=30,

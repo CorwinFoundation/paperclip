@@ -7,6 +7,7 @@ No prompt, embed request or uncertain submission is retried.
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
@@ -311,7 +312,9 @@ class PersistentBrowser:
                     await request_route.abort()
             async def socket_route(socket):
                 if await asyncio.to_thread(policy.allowed, socket.url):
-                    await socket.connect_to_server()
+                    # Playwright returns the server route synchronously, also
+                    # in its async API. Forwarding itself remains automatic.
+                    socket.connect_to_server()
                 else:
                     await socket.close()
             await context.route("**/*", route)
@@ -507,7 +510,7 @@ class EvidenceSweep:
 class QuickBatchRunner:
     def __init__(self, targets, *, authorization, max_calls, aws_factory=BotoEvidence,
                  browser=None, sweep_seconds=15, max_wall_seconds=7200, registered_tokens=None,
-                 concurrency=None, on_result=None):
+                 concurrency=None, on_result=None, start_together=False):
         if not targets or not 0 < sweep_seconds <= 15 or not 1 <= max_wall_seconds <= 14400:
             raise _fail("invalid_batch_limits")
         self.targets, self.authorization = targets, authorization
@@ -526,6 +529,16 @@ class QuickBatchRunner:
         # Serialize submit acknowledgements, not answers. Once a submission is
         # uncertain no later queued send can pass this gate.
         self.submit_gate = asyncio.Lock()
+        # Parallel iframe initialization can exhaust the bounded worker before
+        # its mount deadline. Pace startup independently of live conversations:
+        # at most three initializers, with one initializer per registered user.
+        self.startup_slots = asyncio.Semaphore(3)
+        self.startup_locks = {}
+        if type(start_together) is not bool:
+            raise _fail("invalid_batch_start_barrier")
+        self.start_together = start_together
+        self.ready_barrier = None
+        self.initialized_together = 0
 
     def check_registration(self, role):
         ledger = self.ledgers[role]
@@ -544,6 +557,8 @@ class QuickBatchRunner:
             ledger, target = self.ledgers[case.role], self.targets[case.role]
             owner, items, locks = secrets.token_hex(16), [], []
             acquired = False
+            startup_lock = self.startup_locks.setdefault(ledger.identity, asyncio.Lock())
+            startup_locked = startup_slot = False
             try:
                 self.check_registration(case.role)
                 # Acquire all distinct prompt locks in a stable order. This
@@ -554,6 +569,13 @@ class QuickBatchRunner:
                     await lock.acquire()
                     locks.append(lock)
                 self.check_registration(case.role)
+                await startup_lock.acquire()
+                startup_locked = True
+                await self.startup_slots.acquire()
+                startup_slot = True
+                self.check_registration(case.role)
+                # Queueing consumes the overall batch deadline, but does not
+                # consume a conversation lease or its answer deadline.
                 ledger.acquire(owner)
                 acquired = True
                 case_deadline = min(deadline, time.monotonic() + target.timeout_seconds)
@@ -567,6 +589,14 @@ class QuickBatchRunner:
                                             time.time() + max(0, case_deadline - time.monotonic()))
                         embed_url = await self.aws[case.role].embed_url()
                     await chat.open(embed_url)
+                    self.startup_slots.release()
+                    startup_slot = False
+                    startup_lock.release()
+                    startup_locked = False
+                    if self.ready_barrier is not None:
+                        await asyncio.wait_for(self.ready_barrier.wait(),
+                            timeout=max(0, case_deadline-time.monotonic()))
+                        self.initialized_together = self.ready_barrier.parties
                     for index, prompt in enumerate(case.turns):
                         if index and prompt in case.turns[:index]:
                             await asyncio.gather(*(item.future for item in items))
@@ -620,6 +650,8 @@ class QuickBatchRunner:
                         for item, row in zip(items, rows)])
             except (Exception, asyncio.CancelledError) as exc:
                 self.stop.set()
+                if self.ready_barrier is not None:
+                    await self.ready_barrier.abort()
                 result["reason"] = (str(exc).removeprefix("amazon quick: ") if isinstance(exc, RunnerError)
                                     else "batch_case_runtime_failed")
                 if acquired:
@@ -639,6 +671,10 @@ class QuickBatchRunner:
                 if isinstance(exc, asyncio.CancelledError):
                     raise
             finally:
+                if startup_slot:
+                    self.startup_slots.release()
+                if startup_locked:
+                    startup_lock.release()
                 for item in items:
                     if item.future.done() and not item.future.cancelled():
                         item.future.exception()  # consume errors; preserve durable uncertainty
@@ -668,6 +704,18 @@ class QuickBatchRunner:
                        or any(not isinstance(p, str) or not p.strip() or len(p.encode()) > _MAX_TEXT for p in case.turns)
                        for case in cases)):
             raise _fail("invalid_batch_cases")
+        if self.start_together:
+            # Qualification-only barrier: every case must fit the registered
+            # concurrent slots and have a unique prompt, or it could deadlock
+            # behind the per-user/prompt locks before reaching the barrier.
+            counts = Counter(c.role for c in cases)
+            if (not cases or any(len(c.turns) != 1 for c in cases)
+                    or len({(c.role, c.turns[0]) for c in cases}) != len(cases)
+                    or any(count > (self.concurrency or self.targets[role].max_concurrent_conversations)
+                           for role, count in counts.items())
+                    or len({t.user_arn for t in self.targets.values()}) != len(self.targets)):
+                raise _fail("invalid_batch_start_barrier")
+            self.ready_barrier = asyncio.Barrier(len(cases))
         tasks, case_tasks = [], []
         started = time.monotonic()
         deadline = started + self.max_wall_seconds
@@ -690,6 +738,7 @@ class QuickBatchRunner:
                     "status": "incomplete" if self.stop.is_set() else "capture_complete",
                     "elapsed_seconds": round(time.monotonic() - started, 3), "results": results,
                     "browser_launches": getattr(self.browser, "launches", None),
+                    "initialized_together": self.initialized_together,
                     "api_calls": {role: {"embedding": getattr(client, "embed_api_calls", None),
                                          "logs": getattr(client, "log_api_calls", None)} for role, client in self.aws.items()},
                     "sweeps": {role: {"queries": sweep.sweeps, "read_retries": sweep.read_retries,

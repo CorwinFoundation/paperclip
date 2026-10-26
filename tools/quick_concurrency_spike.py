@@ -55,11 +55,13 @@ async def spike(scope, profile, output, receipt):
         runner = QuickBatchRunner(targets, authorization=scope["authorization_id"], max_calls=scope["max_calls"],
             concurrency=level, max_wall_seconds=max(1, int(deadline - time.monotonic())),
             browser=PersistentBrowser(capture_spec=scope.get("browser_capture_spec")),
-            registered_tokens={r: os.environ[scope["identities"][r]["token_env"]] for r in targets}, on_result=checkpoint)
+            registered_tokens={r: os.environ[scope["identities"][r]["token_env"]] for r in targets},
+            on_result=checkpoint, start_together=True)
         result = await runner.run(cases)
         roles = {c.case_id: c.role for c in cases}
         prompts = {c.case_id: c.turns[0] for c in cases}
-        verified = (len(result["results"]) == len(cases)
+        verified = (result["initialized_together"] == len(cases)
+                    and len(result["results"]) == len(cases)
                     and {r["case_id"] for r in result["results"]} == set(expected)
                     and all(r["role"] == roles[r["case_id"]]
                        and r["status"] == "observed" and len(r["turns"]) == 1
@@ -70,6 +72,7 @@ async def spike(scope, profile, output, receipt):
                 "case_counts_by_role": dict(Counter(c.role for c in cases)),
                 "elapsed_seconds": result["elapsed_seconds"], "api_calls": result["api_calls"],
                 "browser_launches": result["browser_launches"], "sweeps": result["sweeps"],
+                "initialized_together": result["initialized_together"],
                 "mean_completion_spacing_seconds": round(result["elapsed_seconds"] / len(cases), 3),
                 "evidence": [{"case_id": r["case_id"], "status": r["status"],
                               "response_sha256": r["turns"][0]["transport"]["response_sha256"] if r["status"] == "observed" else None}

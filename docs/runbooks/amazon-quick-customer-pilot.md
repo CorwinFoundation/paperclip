@@ -7,6 +7,30 @@ grader, durable evaluator budget and a readable report. It is a scoped report-on
 assessment with BackBond Score N/A. It does not deploy the public Scanner API or
 connect Hostinger's job queue. A build or scripted fixture is not customer evidence.
 
+## Browser startup pacing
+
+The batch runner initializes at most three browser sessions at once, with one
+initializer per registered user. A startup slot is released after the SDK mount
+completes; its independent context and conversation continue under the existing
+per-user conversation cap. Queueing still consumes the overall run deadline.
+The conversation lease and answer deadline start after a startup slot is acquired.
+No prompt or embed request is retried on initialization failure, and uncertainty
+still halts the shared authorization.
+
+Each qualification wave waits for every intended session to mount before its
+first prompt. The receipt records `initialized_together` and requires the full
+wave count, including fifteen sessions in the five-per-user wave. A failed mount
+aborts that barrier and halts the run. Assessment batches do not use the barrier.
+
+In the 26 October 2026 BackBond sandbox diagnostic on the 8-GiB worker, six
+parallel initializations failed at the SDK mount, while all six serialized
+initializations completed. The diagnostic sent zero prompts and wrote no ledger
+entries. This supports pacing initialization; it does not qualify fifteen active
+conversations or the customer assessment. Repeat the complete bounded readiness
+and concurrency qualification on the merged image before any assessment. Preserve
+failed-attempt receipts and charged reservations; never clear a halted ledger or
+replay an uncertain request solely because provider logs contain no match.
+
 ## Customer selection and acceptance
 
 AllCloud is the prospective pilot partner. No customer, account or authorization
