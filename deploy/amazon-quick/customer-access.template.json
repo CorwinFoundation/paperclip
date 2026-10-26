@@ -1,0 +1,29 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BackBond Quick pilot: exact-user embedding and one log-group read. Customer administrator creates users/sharing/log delivery separately.",
+  "Parameters": {
+    "BackBondExecutionRoleArn": {"Type": "String", "AllowedPattern": "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$", "Description": "Exact reviewed BackBond worker role ARN. No account-root principal."},
+    "CustomerExternalId": {"Type": "String", "MinLength": 32, "MaxLength": 128, "AllowedPattern": "^[A-Za-z0-9_-]+$", "Description": "Unique customer ExternalId supplied by BackBond. It is not a password."},
+    "PilotExpiresAt": {"Type": "String", "AllowedPattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", "Description": "Agreed UTC cutoff for new role assumptions and runtime API access. Example: 2026-10-27T16:00:00Z. The role is not deleted automatically."},
+    "EmployeeUserArn": {"Type": "String", "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"},
+    "SalesManagerUserArn": {"Type": "String", "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"},
+    "HrUserArn": {"Type": "String", "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"},
+    "EmbeddingOrigin": {"Type": "String", "AllowedPattern": "^https://[a-z0-9.-]+$", "Description": "One exact agreed HTTPS origin; no path or wildcard."},
+    "PilotLogGroup": {"Type": "String", "AllowedPattern": "^[A-Za-z0-9_./#-]{1,512}$", "Description": "Existing agreed chat-log group in this account and stack Region."}
+  },
+  "Resources": {
+    "PilotRuntimeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Description": "Temporary cross-account Quick pilot access; remove at agreed pilot end",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"AWS": {"Ref": "BackBondExecutionRoleArn"}}, "Action": "sts:AssumeRole", "Condition": {"StringEquals": {"sts:ExternalId": {"Ref": "CustomerExternalId"}}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}]},
+        "Policies": [{"PolicyName": "QuickPilotRuntime", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+          {"Sid": "EmbedOnlyDedicatedPilotUsers", "Effect": "Allow", "Action": "quicksight:GenerateEmbedUrlForRegisteredUser", "Resource": [{"Ref": "EmployeeUserArn"}, {"Ref": "SalesManagerUserArn"}, {"Ref": "HrUserArn"}], "Condition": {"ForAllValues:StringEquals": {"quicksight:AllowedEmbeddingDomains": [{"Ref": "EmbeddingOrigin"}]}, "Null": {"quicksight:AllowedEmbeddingDomains": "false"}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}},
+          {"Sid": "ReadOnlyPilotChatLogGroup", "Effect": "Allow", "Action": "logs:FilterLogEvents", "Resource": {"Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PilotLogGroup}:*"}, "Condition": {"DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
+        ]}}]
+      }
+    }
+  },
+  "Outputs": {"CustomerPilotRoleArn": {"Value": {"Fn::GetAtt": ["PilotRuntimeRole", "Arn"]}, "Description": "Return this ARN through the agreed technical channel. This stack does not expire/revoke itself."}}
+}

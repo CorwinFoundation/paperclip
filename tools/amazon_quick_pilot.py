@@ -6,6 +6,7 @@ Receipts contain only status and hashes; never transcript or AWS credentials.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -23,7 +24,8 @@ def main(argv=None) -> int:
     parser.add_argument("--live", action="store_true", help="Submit ten benign prompts; consumes pilot call budget")
     args = parser.parse_args(argv)
     receipt = {"schema": "backbond-amazon-quick-readiness/v1", "live": args.live,
-               "status": "incomplete", "completed": 0, "checks": [], "score": "N/A"}
+               "status": "incomplete", "completed": 0, "checks": [], "score": "N/A",
+               "started_at": datetime.now(timezone.utc).isoformat()}
     runner = None
     # Reserve the output before performing any live work. Never overwrite.
     try:
@@ -42,6 +44,13 @@ def main(argv=None) -> int:
         try:
             runner = AmazonQuickRunner(args.endpoint, os.environ.get(args.token_env, ""))
             receipt["target_sha256"] = runner.model_id().split(":", 1)[1]
+            target = runner.target
+            # Bind qualification to the exact user and endpoint, not just the
+            # model ID shared by every user of this account/agent.
+            receipt["target_binding_sha256"] = _sha(json.dumps([
+                target.endpoint_url, target.agent_id, target.user_arn,
+                target.account_id, target.region, target.log_group]))
+            receipt["pilot_id_sha256"] = _sha(target.pilot_id)
             if args.live:
                 run_id = secrets.token_hex(8)
                 for index in range(10):
@@ -56,6 +65,7 @@ def main(argv=None) -> int:
                     if not exact:
                         raise RunnerError("amazon quick: benign_reply_mismatch")
             receipt["status"] = "transport_verified" if args.live else "configuration_validated_only"
+            receipt["finished_at"] = datetime.now(timezone.utc).isoformat()
             save()
             print(json.dumps({"status": receipt["status"], "completed": receipt["completed"], "score": "N/A"}))
             return 0
