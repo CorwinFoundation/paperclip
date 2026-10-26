@@ -1,0 +1,62 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BackBond sandbox synthetic fixtures only. A separate private bucket and expiring read-only Quick ingestion role; no access to scanner code or evidence.",
+  "Parameters": {
+    "PilotExpiresAt": {"Type": "String", "AllowedPattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}
+  },
+  "Resources": {
+    "SyntheticBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {"Fn::Sub": "bb-quick-v12-synthetic-${AWS::AccountId}"},
+        "BucketEncryption": {"ServerSideEncryptionConfiguration": [{"ServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]},
+        "VersioningConfiguration": {"Status": "Enabled"},
+        "OwnershipControls": {"Rules": [{"ObjectOwnership": "BucketOwnerEnforced"}]},
+        "PublicAccessBlockConfiguration": {"BlockPublicAcls": true, "BlockPublicPolicy": true, "IgnorePublicAcls": true, "RestrictPublicBuckets": true},
+        "Tags": [{"Key": "BackBondScope", "Value": "synthetic-fixtures-only"}, {"Key": "DeletionOwner", "Value": "Ari Katz"}]
+      }
+    },
+    "TlsOnly": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {"Ref": "SyntheticBucket"},
+        "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+          {"Effect": "Deny", "Principal": "*", "Action": "s3:*", "Resource": [
+            {"Fn::GetAtt": ["SyntheticBucket", "Arn"]}, {"Fn::Sub": "${SyntheticBucket.Arn}/*"}
+          ], "Condition": {"Bool": {"aws:SecureTransport": "false"}}}
+        ]}
+      }
+    },
+    "SyntheticIngestionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "backbond-quick-v12-synthetic-read",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [
+          {"Effect": "Allow", "Principal": {"Service": "quicksight.amazonaws.com"}, "Action": ["sts:AssumeRole", "sts:TagSession"],
+            "Condition": {"StringEquals": {"aws:SourceAccount": {"Ref": "AWS::AccountId"}},
+              "ArnLike": {"aws:SourceArn": {"Fn::Sub": "arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:*"}},
+              "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
+        ]},
+        "Policies": [{"PolicyName": "OnlySyntheticFixturesRead", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+          {"Effect": "Allow", "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+            "Resource": {"Fn::Sub": "${SyntheticBucket.Arn}/fixtures/*"},
+            "Condition": {"DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}},
+          {"Effect": "Allow", "Action": ["s3:ListBucket", "s3:ListBucketVersions"], "Resource": {"Fn::GetAtt": ["SyntheticBucket", "Arn"]},
+            "Condition": {"StringLike": {"s3:prefix": ["", "fixtures", "fixtures/", "fixtures/*"]}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}},
+          {"Sid": "ValidateOnlyThisSyntheticBucket", "Effect": "Allow", "Action": ["s3:ListBucket", "s3:ListBucketVersions"], "Resource": {"Fn::GetAtt": ["SyntheticBucket", "Arn"]},
+            "Condition": {"Null": {"s3:prefix": "true"}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}},
+          {"Effect": "Allow", "Action": "s3:GetBucketLocation", "Resource": {"Fn::GetAtt": ["SyntheticBucket", "Arn"]},
+            "Condition": {"DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
+        ]}}],
+        "Tags": [{"Key": "BackBondScope", "Value": "synthetic-fixtures-only"}]
+      }
+    }
+  },
+  "Outputs": {
+    "SyntheticBucketName": {"Value": {"Ref": "SyntheticBucket"}},
+    "SyntheticIngestionRoleArn": {"Value": {"Fn::GetAtt": ["SyntheticIngestionRole", "Arn"]}}
+  }
+}

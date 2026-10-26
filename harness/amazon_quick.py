@@ -87,13 +87,14 @@ class Target:
     aws_profile: str = ""
     timeout_seconds: int = 120
     max_calls: int = 20
+    max_concurrent_conversations: int = 1
 
     @classmethod
     def parse(cls, row: dict) -> Target:
         try:
             if set(row) - {"approved", "endpoint_url", "account_id", "region", "agent_id", "user_arn",
                            "log_group", "token_sha256", "pilot_id", "expires_at", "allowed_browser_hosts",
-                           "aws_profile", "timeout_seconds", "max_calls"}:
+                           "aws_profile", "timeout_seconds", "max_calls", "max_concurrent_conversations"}:
                 raise ValueError
             required = {k: row[k] for k in (
                 "endpoint_url", "account_id", "region", "agent_id", "user_arn",
@@ -133,14 +134,18 @@ class Target:
             timeout, calls = row.get("timeout_seconds", 120), row.get("max_calls", 20)
             if type(timeout) is not int or not 10 <= timeout <= 300:
                 raise ValueError
-            if type(calls) is not int or not 1 <= calls <= 1000:
+            concurrency = row.get("max_concurrent_conversations", 1)
+            if type(calls) is not int or not 1 <= calls <= 5000:
+                raise ValueError
+            if type(concurrency) is not int or not 1 <= concurrency <= 5:
                 raise ValueError
             profile = row.get("aws_profile", "")
             if not isinstance(profile, str) or not re.fullmatch(r"[\w.-]{0,128}", profile):
                 raise ValueError
             return cls(**{**required, "expires_at": expires.timestamp(),
                           "allowed_browser_hosts": tuple(hosts)},
-                       aws_profile=profile, timeout_seconds=timeout, max_calls=calls)
+                       aws_profile=profile, timeout_seconds=timeout, max_calls=calls,
+                       max_concurrent_conversations=concurrency)
         except (KeyError, ValueError, TypeError):
             raise _fail("invalid_operator_target") from None
 
@@ -183,6 +188,12 @@ class Ledger:
               CREATE TABLE IF NOT EXISTS leases (identity TEXT PRIMARY KEY, owner TEXT, until REAL);
               CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, owner TEXT);
               CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY);
+              CREATE TABLE IF NOT EXISTS quick_conversation_leases
+                (owner TEXT PRIMARY KEY, identity TEXT, pilot TEXT, until REAL);
+              CREATE TABLE IF NOT EXISTS quick_batch_authorizations
+                (id TEXT PRIMARY KEY, binding TEXT, calls INTEGER, cap INTEGER, halted INTEGER);
+              CREATE TABLE IF NOT EXISTS quick_batch_authorization_pilots
+                (pilot TEXT PRIMARY KEY, authorization TEXT);
             """)
             self.target = target
             self.identity = _sha(target.account_id + target.region + target.user_arn)
@@ -209,6 +220,9 @@ class Ledger:
             row = self.db.execute("SELECT until FROM leases WHERE identity=?", (self.identity,)).fetchone()
             if row and row[0] > time.time():
                 raise _fail("test_identity_busy")
+            if self.db.execute("SELECT 1 FROM quick_conversation_leases WHERE identity=? AND until>?",
+                               (self.identity, time.time())).fetchone():
+                raise _fail("test_identity_busy")
             if self.db.execute("SELECT inflight FROM pilots WHERE id=?", (self.target.pilot_id,)).fetchone()[0]:
                 raise _fail("unresolved_submission_operator_review_required")
             self.db.execute("INSERT OR REPLACE INTO leases VALUES (?, ?, ?)",
@@ -227,10 +241,34 @@ class Ledger:
                 raise _fail("identity_lease_expired")
             if time.time() >= self.target.expires_at:
                 raise _fail("pilot_expired")
+            if self.db.execute("SELECT halted FROM pilots WHERE id=?", (self.target.pilot_id,)).fetchone()[0]:
+                raise _fail("pilot_halted_operator_review_required")
+            self.reserve_shared_budget()
             cur = self.db.execute("UPDATE pilots SET calls=calls+1 WHERE id=? AND calls<?",
                                   (self.target.pilot_id, self.target.max_calls))
             if cur.rowcount != 1:
                 raise _fail("call_budget_exhausted")
+
+    def reserve_shared_budget(self):
+        """Called only inside the same write transaction as the pilot increment.
+
+        Manual serial readiness calls after batch authorization consume the same
+        aggregate cap. A second authorization cannot reset a registered pilot.
+        """
+        row = self.db.execute("""SELECT a.id,a.calls,a.cap,a.halted FROM quick_batch_authorizations a
+            JOIN quick_batch_authorization_pilots p ON p.authorization=a.id WHERE p.pilot=?""",
+            (self.target.pilot_id,)).fetchone()
+        if row is None:
+            return
+        if row[3]:
+            raise _fail("batch_halted_operator_review_required")
+        consumed = self.db.execute("""SELECT COALESCE(SUM(p.calls),0) FROM pilots p
+            JOIN quick_batch_authorization_pilots b ON b.pilot=p.id WHERE b.authorization=?""",
+            (row[0],)).fetchone()[0]
+        used = max(row[1], consumed)
+        if used >= row[2]:
+            raise _fail("batch_call_budget_exhausted")
+        self.db.execute("UPDATE quick_batch_authorizations SET calls=? WHERE id=?", (used + 1, row[0]))
 
     def accept(self, owner: str, conversation: str, message: str) -> None:
         # Global hashes deliberately survive runner restarts and pilot-ID changes.

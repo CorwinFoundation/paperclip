@@ -1,6 +1,6 @@
 """Create an allowlisted AWS Quick assessment build context. No credentials/state.
 
-Uses only the report-only internal knowledge profile and its import closure.
+Includes the report-only internal knowledge and Quick v1.2 profiles and import closure.
 The image has no service listener. AWS CLI v2 is supplied by the worker host.
 """
 from __future__ import annotations
@@ -12,8 +12,8 @@ from pathlib import Path
 import subprocess
 
 FILES = (
-    "requirements-runtime.txt", "release_identity.py", "release/backbond-scanner-release.json",
-    "harness/__init__.py", "harness/runner.py", "harness/amazon_quick.py",
+    "requirements-runtime.txt", "requirements-amazon-quick.txt", "release_identity.py", "release/backbond-scanner-release.json",
+    "harness/__init__.py", "harness/runner.py", "harness/amazon_quick.py", "harness/amazon_quick_batch.py",
     "evals/__init__.py", "evals/internal_agent_knowledge.py", "evals/full_scan_q_kb_grounding.py",
     "evals/full_scan_m_claim_extractor.py", "scanners/__init__.py",
     "scanners/evaluator_budget.py", "scanners/starter_judge.py",
@@ -21,6 +21,10 @@ FILES = (
     "scanners/starter_pack_v2.py", "scanners/starter_pack_v3.py", "scanners/starter_voice_pack.py",
     "tools/internal_agent_pilot.py", "tools/amazon_quick_pilot.py",
     "tools/quick_pilot_operations.py", "tools/quick_pilot_report.py", "tools/quick_pilot_run.py",
+    "evals/amazon_quick_assessment.py", "evals/quick_assessment_v1/hr_finance.json", "evals/quick_assessment_v1/healthcare.json",
+    "evals/quick_assessment_v1/cyberseceval.LICENSE", "evals/quick_assessment_v1/strongreject.LICENSE",
+    "evals/quick_assessment_v1/harmbench.LICENSE", "evals/quick_assessment_v1/jailbreakbench.LICENSE", "evals/quick_assessment_v1/xstest.LICENSE",
+    "tools/quick_assessment.py", "tools/quick_concurrency_spike.py", "tools/quick_configuration_copy.py",
     "deploy/amazon-quick/Dockerfile", "deploy/amazon-quick/run-worker.sh",
     "deploy/amazon-quick/verify-fixtures.py",
 )
@@ -48,7 +52,8 @@ def build_context(root: Path, output: Path):
                                 capture_output=True, text=True).stdout.strip())
     manifest = {"schema": "backbond-quick-worker-source/v1", "source_revision": revision,
                 "working_tree_dirty": dirty, "files": hashes,
-                "profile_id": "internal-agent-knowledge@1", "backbond_score": "N/A"}
+                "profile_ids": ["internal-agent-knowledge@1", "amazon-quick-chat-600@1.2:hr_finance",
+                                "amazon-quick-chat-600@1.2:healthcare"], "backbond_score": "N/A"}
     (output / "worker-source.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
 

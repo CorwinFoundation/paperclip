@@ -1,0 +1,242 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BackBond synthetic knowledge source: dedicated private bucket and expiring read of one fixture by an existing Quick role; no trust changes.",
+  "Parameters": {
+    "PilotId": {
+      "Type": "String",
+      "AllowedPattern": "^[a-z0-9][a-z0-9-]{0,23}$"
+    },
+    "NativeQuickRoleName": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_+=,.@-]{1,64}$"
+    },
+    "KnowledgeObjectKey": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9][A-Za-z0-9./_-]{0,200}$"
+    },
+    "PilotExpiresAt": {
+      "Type": "String",
+      "AllowedPattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    }
+  },
+  "Resources": {
+    "KnowledgeBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "bb-quick-kb-${PilotId}-${AWS::AccountId}"
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "Tags": [
+          {
+            "Key": "BackBondScope",
+            "Value": "single-synthetic-knowledge-file"
+          },
+          {
+            "Key": "DeletionOwner",
+            "Value": "Ari Katz"
+          }
+        ]
+      }
+    },
+    "KnowledgeBucketGuard": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "KnowledgeBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "TlsOnly",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "KnowledgeBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${KnowledgeBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Sid": "OnlyApprovedKnowledgeObject",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ],
+              "NotResource": {
+                "Fn::Sub": "${KnowledgeBucket.Arn}/${KnowledgeObjectKey}"
+              },
+              "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${NativeQuickRoleName}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*/${NativeQuickRoleName}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "OriginalPilotCutoff",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "KnowledgeBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${KnowledgeBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${NativeQuickRoleName}"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*/${NativeQuickRoleName}"
+                    }
+                  ]
+                },
+                "DateGreaterThanEquals": {
+                  "aws:CurrentTime": {
+                    "Ref": "PilotExpiresAt"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "SingleKnowledgeRead": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "BackBondSyntheticKnowledge-${PilotId}"
+        },
+        "Roles": [
+          {
+            "Ref": "NativeQuickRoleName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "OnlyOneSyntheticKnowledgeFile",
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+              ],
+              "Resource": {
+                "Fn::Sub": "${KnowledgeBucket.Arn}/${KnowledgeObjectKey}"
+              },
+              "Condition": {
+                "DateLessThan": {
+                  "aws:CurrentTime": {
+                    "Ref": "PilotExpiresAt"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "ListOnlyDedicatedKnowledgeBucket",
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket",
+                "s3:ListBucketVersions",
+                "s3:GetBucketLocation"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "KnowledgeBucket",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "DateLessThan": {
+                  "aws:CurrentTime": {
+                    "Ref": "PilotExpiresAt"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "KnowledgeBucketName": {
+      "Value": {
+        "Ref": "KnowledgeBucket"
+      }
+    },
+    "KnowledgeBucketUrl": {
+      "Value": {
+        "Fn::Sub": "s3://${KnowledgeBucket}"
+      }
+    },
+    "KnowledgeObjectKey": {
+      "Value": {
+        "Ref": "KnowledgeObjectKey"
+      }
+    },
+    "NativeReadPolicyName": {
+      "Value": {
+        "Fn::Sub": "BackBondSyntheticKnowledge-${PilotId}"
+      }
+    }
+  }
+}

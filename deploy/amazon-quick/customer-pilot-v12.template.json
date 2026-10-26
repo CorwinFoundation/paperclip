@@ -1,0 +1,543 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BackBond synthetic Path C pilot: three-user expiring role, private log group, optional filtered Lambda subscription or vended-log delivery. No Quick users or sources are created.",
+  "Parameters": {
+    "BackBondExecutionRoleArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$",
+      "Description": "Exact reviewed BackBond worker role ARN. No account-root principal."
+    },
+    "CustomerExternalId": {
+      "Type": "String",
+      "MinLength": 32,
+      "MaxLength": 128,
+      "AllowedPattern": "^[A-Za-z0-9_-]+$",
+      "Description": "Unique customer ExternalId supplied by BackBond. It is not a password."
+    },
+    "PilotExpiresAt": {
+      "Type": "String",
+      "AllowedPattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "Description": "Agreed UTC cutoff for new role assumptions and runtime API access. Example: 2026-10-27T16:00:00Z. The role is not deleted automatically."
+    },
+    "EmployeeUserArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"
+    },
+    "SalesManagerUserArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"
+    },
+    "HrUserArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:quicksight:[a-z0-9-]+:[0-9]{12}:user/.+$"
+    },
+    "EmbeddingOrigin": {
+      "Type": "String",
+      "AllowedPattern": "^https://[a-z0-9.-]+$",
+      "Description": "One exact agreed HTTPS origin; no path or wildcard."
+    },
+    "PilotLogGroup": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_./#-]{1,512}$",
+      "Description": "New dedicated pilot group. Never use an existing shared production group.",
+      "Default": "/aws/quick/backbond-pilot-logs"
+    },
+    "AgentId": {
+      "Type": "String",
+      "AllowedPattern": "^[A-Za-z0-9_.+-]{1,256}$"
+    },
+    "LoggingMode": {
+      "Type": "String",
+      "Default": "forward_existing",
+      "AllowedValues": [
+        "forward_existing",
+        "new_delivery",
+        "existing_delivery_source"
+      ],
+      "Description": "Direct delivery is account-wide. Use only in a dedicated synthetic sandbox; production requires the three-user forwarder."
+    },
+    "SharedLogGroupName": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^[A-Za-z0-9_./#-]{0,512}$"
+    },
+    "DeliverySourceName": {
+      "Type": "String",
+      "Default": "backbond-quick-pilot-chat",
+      "AllowedPattern": "^[A-Za-z0-9_-]{1,60}$"
+    },
+    "RetentionDays": {
+      "Type": "Number",
+      "Default": 30,
+      "AllowedValues": [
+        1,
+        3,
+        5,
+        7,
+        14,
+        30
+      ]
+    },
+    "ForwarderReservedConcurrency": {
+      "Type": "Number",
+      "Default": 2,
+      "AllowedValues": [
+        0,
+        1,
+        2
+      ],
+      "Description": "Use 0 to omit a reservation when the account cannot retain AWS's minimum unreserved pool. Review the account concurrency quota before deployment."
+    }
+  },
+  "Resources": {
+    "PilotRuntimeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Description": "Temporary cross-account Quick pilot access; remove at agreed pilot end",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Ref": "BackBondExecutionRoleArn"
+                }
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "sts:ExternalId": {
+                    "Ref": "CustomerExternalId"
+                  }
+                },
+                "DateLessThan": {
+                  "aws:CurrentTime": {
+                    "Ref": "PilotExpiresAt"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "QuickPilotRuntime",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "EmbedOnlyDedicatedPilotUsers",
+                  "Effect": "Allow",
+                  "Action": "quicksight:GenerateEmbedUrlForRegisteredUser",
+                  "Resource": [
+                    {
+                      "Ref": "EmployeeUserArn"
+                    },
+                    {
+                      "Ref": "SalesManagerUserArn"
+                    },
+                    {
+                      "Ref": "HrUserArn"
+                    }
+                  ],
+                  "Condition": {
+                    "ForAllValues:StringEquals": {
+                      "quicksight:AllowedEmbeddingDomains": [
+                        {
+                          "Ref": "EmbeddingOrigin"
+                        }
+                      ]
+                    },
+                    "Null": {
+                      "quicksight:AllowedEmbeddingDomains": "false"
+                    },
+                    "DateLessThan": {
+                      "aws:CurrentTime": {
+                        "Ref": "PilotExpiresAt"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Sid": "ReadOnlyPilotChatLogGroup",
+                  "Effect": "Allow",
+                  "Action": "logs:FilterLogEvents",
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PilotLogGroup}:*"
+                  },
+                  "Condition": {
+                    "DateLessThan": {
+                      "aws:CurrentTime": {
+                        "Ref": "PilotExpiresAt"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "DependsOn": "PilotLogs"
+    },
+    "PilotLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "PilotLogGroup"
+        },
+        "RetentionInDays": {
+          "Ref": "RetentionDays"
+        },
+        "Tags": [
+          {
+            "Key": "BackBondScope",
+            "Value": "synthetic-only"
+          }
+        ]
+      }
+    },
+    "PilotStream": {
+      "Type": "AWS::Logs::LogStream",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "PilotLogs"
+        },
+        "LogStreamName": "pilot-chat"
+      }
+    },
+    "ForwarderRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "ForwardExisting",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "WriteOnlySyntheticPilotStream",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "logs:PutLogEvents",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PilotLogGroup}:*"
+                  },
+                  "Condition": {
+                    "DateLessThan": {
+                      "aws:CurrentTime": {
+                        "Ref": "PilotExpiresAt"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "PilotLogForwarder": {
+      "Type": "AWS::Lambda::Function",
+      "Condition": "ForwardExisting",
+      "DependsOn": "PilotStream",
+      "Properties": {
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "ForwarderRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 30,
+        "MemorySize": 128,
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "ReserveForwarderConcurrency",
+            {
+              "Ref": "ForwarderReservedConcurrency"
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "Code": {
+          "ZipFile": "\"\"\"Customer-owned log subscription adapter. No reads or outbound network calls.\n\nThe Lambda role can only PutLogEvents to the precreated pilot stream. Preserve\nthe original provider message bytes; never summarize or reconstruct evidence.\n\"\"\"\nimport base64\nfrom datetime import datetime, timezone\nimport gzip\nimport io\nimport json\nimport os\n\n\ndef select(event, *, account, source_group, users, agent_id, now, expires_at):\n    if now >= expires_at:\n        return []\n    encoded = event[\"awslogs\"][\"data\"]\n    if not isinstance(encoded, str) or len(encoded) > 8 * 1024 * 1024:\n        raise ValueError(\"invalid_subscription_envelope\")\n    # CloudWatch is the authenticated invoker; bound decoded input as well.\n    with gzip.GzipFile(fileobj=io.BytesIO(base64.b64decode(encoded, validate=True))) as stream:\n        decoded = stream.read(8 * 1024 * 1024 + 1)\n    if len(decoded) > 8 * 1024 * 1024:\n        raise ValueError(\"subscription_envelope_too_large\")\n    payload = json.loads(decoded)\n    if payload.get(\"messageType\") == \"CONTROL_MESSAGE\":\n        return []\n    if (payload.get(\"owner\") != account or payload.get(\"logGroup\") != source_group\n            or payload.get(\"messageType\") != \"DATA_MESSAGE\" or len(payload.get(\"logEvents\", [])) > 10000):\n        raise ValueError(\"unexpected_subscription_source\")\n    kept = []\n    for event in payload[\"logEvents\"]:\n        try:\n            body = json.loads(event[\"message\"])\n            if (body.get(\"logType\") == \"CHAT_LOGS\" and body.get(\"accountId\") == account\n                    and body.get(\"user_arn\") in users and body.get(\"agent_id\") == agent_id\n                    and type(event.get(\"timestamp\")) is int and isinstance(event[\"message\"], str)\n                    and len(event[\"message\"].encode()) <= 200000):\n                kept.append({\"timestamp\": event[\"timestamp\"], \"message\": event[\"message\"]})\n        except (KeyError, TypeError, ValueError, AttributeError):\n            continue\n    return sorted(kept, key=lambda item: item[\"timestamp\"])\n\n\ndef handler(event, context):\n    import boto3\n    selected = select(event, account=os.environ[\"ACCOUNT_ID\"], source_group=os.environ[\"SOURCE_GROUP\"],\n        users=set(json.loads(os.environ[\"USERS\"])), agent_id=os.environ[\"AGENT_ID\"],\n        now=datetime.now(timezone.utc), expires_at=datetime.fromisoformat(os.environ[\"EXPIRES_AT\"].replace(\"Z\", \"+00:00\")))\n    client = boto3.client(\"logs\")\n    batch, size = [], 0\n    for item in selected:\n        current = len(item[\"message\"].encode()) + 26\n        if batch and (size + current > 900000 or item[\"timestamp\"] - batch[0][\"timestamp\"] > 86400000):\n            response = client.put_log_events(logGroupName=os.environ[\"DESTINATION_GROUP\"], logStreamName=\"pilot-chat\", logEvents=batch)\n            if response.get(\"rejectedLogEventsInfo\"):\n                raise ValueError(\"pilot_log_delivery_rejected\")\n            batch, size = [], 0\n        batch.append(item)\n        size += current\n    if batch:\n        response = client.put_log_events(logGroupName=os.environ[\"DESTINATION_GROUP\"], logStreamName=\"pilot-chat\", logEvents=batch)\n        if response.get(\"rejectedLogEventsInfo\"):\n            raise ValueError(\"pilot_log_delivery_rejected\")\n    return {\"forwarded\": len(selected)}\n"
+        },
+        "Environment": {
+          "Variables": {
+            "ACCOUNT_ID": {
+              "Ref": "AWS::AccountId"
+            },
+            "SOURCE_GROUP": {
+              "Ref": "SharedLogGroupName"
+            },
+            "DESTINATION_GROUP": {
+              "Ref": "PilotLogGroup"
+            },
+            "AGENT_ID": {
+              "Ref": "AgentId"
+            },
+            "EXPIRES_AT": {
+              "Ref": "PilotExpiresAt"
+            },
+            "USERS": {
+              "Fn::Join": [
+                "",
+                [
+                  "[\"",
+                  {
+                    "Ref": "EmployeeUserArn"
+                  },
+                  "\",\"",
+                  {
+                    "Ref": "SalesManagerUserArn"
+                  },
+                  "\",\"",
+                  {
+                    "Ref": "HrUserArn"
+                  },
+                  "\"]"
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    "AllowCloudWatchInvocation": {
+      "Type": "AWS::Lambda::Permission",
+      "Condition": "ForwardExisting",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "PilotLogForwarder",
+            "Arn"
+          ]
+        },
+        "Principal": {
+          "Fn::Sub": "logs.${AWS::Region}.amazonaws.com"
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SharedLogGroupName}:*"
+        }
+      }
+    },
+    "PilotSubscription": {
+      "Type": "AWS::Logs::SubscriptionFilter",
+      "Condition": "ForwardExisting",
+      "DependsOn": "AllowCloudWatchInvocation",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "SharedLogGroupName"
+        },
+        "FilterPattern": {
+          "Fn::Join": [
+            "",
+            [
+              "{ $.logType = \"CHAT_LOGS\" && $.agent_id = \"",
+              {
+                "Ref": "AgentId"
+              },
+              "\" && ($.user_arn = \"",
+              {
+                "Ref": "EmployeeUserArn"
+              },
+              "\" || $.user_arn = \"",
+              {
+                "Ref": "SalesManagerUserArn"
+              },
+              "\" || $.user_arn = \"",
+              {
+                "Ref": "HrUserArn"
+              },
+              "\") }"
+            ]
+          ]
+        },
+        "DestinationArn": {
+          "Fn::GetAtt": [
+            "PilotLogForwarder",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "QuickDeliverySource": {
+      "Type": "AWS::Logs::DeliverySource",
+      "Condition": "NewDeliverySource",
+      "Properties": {
+        "Name": {
+          "Ref": "DeliverySourceName"
+        },
+        "LogType": "CHAT_LOGS",
+        "ResourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:quicksight:${AWS::Region}:${AWS::AccountId}:account/${AWS::AccountId}"
+        }
+      }
+    },
+    "QuickDeliveryDestination": {
+      "Type": "AWS::Logs::DeliveryDestination",
+      "Condition": "UseDelivery",
+      "DependsOn": "PilotLogs",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-destination"
+        },
+        "DestinationResourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PilotLogGroup}"
+        },
+        "OutputFormat": "json"
+      }
+    },
+    "QuickDelivery": {
+      "Type": "AWS::Logs::Delivery",
+      "Condition": "UseDelivery",
+      "Properties": {
+        "DeliveryDestinationArn": {
+          "Fn::GetAtt": [
+            "QuickDeliveryDestination",
+            "Arn"
+          ]
+        },
+        "DeliverySourceName": {
+          "Fn::If": [
+            "NewDeliverySource",
+            {
+              "Ref": "QuickDeliverySource"
+            },
+            {
+              "Ref": "DeliverySourceName"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "CustomerPilotRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "PilotRuntimeRole",
+          "Arn"
+        ]
+      },
+      "Description": "Return this ARN through the agreed technical channel. This stack does not expire/revoke itself."
+    },
+    "PilotLogGroupName": {
+      "Value": {
+        "Ref": "PilotLogs"
+      }
+    },
+    "Scope": {
+      "Value": "Synthetic configuration copy only. Direct vended delivery is account-wide; filtered mode runs a customer-owned Lambda."
+    }
+  },
+  "Conditions": {
+    "ForwardExisting": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoggingMode"
+        },
+        "forward_existing"
+      ]
+    },
+    "NewDeliverySource": {
+      "Fn::Equals": [
+        {
+          "Ref": "LoggingMode"
+        },
+        "new_delivery"
+      ]
+    },
+    "UseDelivery": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "LoggingMode"
+            },
+            "forward_existing"
+          ]
+        }
+      ]
+    },
+    "ReserveForwarderConcurrency": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ForwarderReservedConcurrency"
+            },
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "Rules": {
+    "SeparateGroups": {
+      "RuleCondition": {
+        "Fn::Equals": [
+          {
+            "Ref": "LoggingMode"
+          },
+          "forward_existing"
+        ]
+      },
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "SharedLogGroupName"
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "AssertDescription": "Existing shared group is required for the forwarder."
+        },
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "SharedLogGroupName"
+                  },
+                  {
+                    "Ref": "PilotLogGroup"
+                  }
+                ]
+              }
+            ]
+          },
+          "AssertDescription": "Source and destination must differ to prevent recursion."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BackBond-owned per-client EC2 execution role and profile. Use a dedicated worker/volume per customer; never a shared parent role with access to all clients.",
+  "Parameters": {
+    "CustomerSlug": {"Type": "String", "AllowedPattern": "^[a-z][a-z0-9-]{1,39}$"},
+    "EvidenceBucket": {"Type": "String", "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"},
+    "CustomerPilotRoleArn": {"Type": "String", "Default": "", "AllowedPattern": "^$|^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$", "Description": "Leave empty only during bootstrap; update to the exact role returned by the customer stack."},
+    "CustomerExternalId": {"Type": "String", "MinLength": 32, "MaxLength": 128, "AllowedPattern": "^[A-Za-z0-9_-]+$"},
+    "PilotExpiresAt": {"Type": "String", "AllowedPattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}
+  },
+  "Conditions": {"CustomerRoleKnown": {"Fn::Not": [{"Fn::Equals": [{"Ref": "CustomerPilotRoleArn"}, ""]}]}},
+  "Resources": {
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {"Fn::Sub": "backbond-quick-exec-${CustomerSlug}"},
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]},
+        "ManagedPolicyArns": [{"Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"}],
+        "Tags": [{"Key": "BackBondCustomer", "Value": {"Ref": "CustomerSlug"}}, {"Key": "BackBondScope", "Value": "synthetic-only"}],
+        "Policies": [
+          {"PolicyName": "OwnCustomerEvidenceOnly", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+            {"Effect": "Allow", "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"], "Resource": {"Fn::Sub": "arn:${AWS::Partition}:s3:::${EvidenceBucket}/pilots/${CustomerSlug}/*"}, "Condition": {"DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}, "Bool": {"aws:SecureTransport": "true"}}},
+            {"Effect": "Allow", "Action": "s3:ListBucket", "Resource": {"Fn::Sub": "arn:${AWS::Partition}:s3:::${EvidenceBucket}"}, "Condition": {"StringLike": {"s3:prefix": [{"Fn::Sub": "pilots/${CustomerSlug}/*"}]}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}, "Bool": {"aws:SecureTransport": "true"}}}
+          ]}},
+          {"Fn::If": ["CustomerRoleKnown", {"PolicyName": "AssumeOnlyThisCustomerPilot", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+            {"Effect": "Allow", "Action": "sts:AssumeRole", "Resource": {"Ref": "CustomerPilotRoleArn"}, "Condition": {"StringEquals": {"sts:ExternalId": {"Ref": "CustomerExternalId"}}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
+          ]}}, {"Ref": "AWS::NoValue"}]}
+        ]
+      }
+    },
+    "ExecutionProfile": {"Type": "AWS::IAM::InstanceProfile", "Properties": {"Roles": [{"Ref": "ExecutionRole"}]} }
+  },
+  "Outputs": {
+    "ExecutionRoleArn": {"Value": {"Fn::GetAtt": ["ExecutionRole", "Arn"]}},
+    "ExecutionProfileArn": {"Value": {"Fn::GetAtt": ["ExecutionProfile", "Arn"]}},
+    "EvidencePrefix": {"Value": {"Fn::Sub": "s3://${EvidenceBucket}/pilots/${CustomerSlug}/"}}
+  }
+}

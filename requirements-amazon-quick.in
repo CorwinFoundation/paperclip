@@ -1,0 +1,3 @@
+# Dedicated AWS worker closure; retain the reviewed production runtime pins.
+-r requirements-runtime.txt
+boto3==1.43.118

@@ -22,9 +22,11 @@ def main(argv=None) -> int:
     parser.add_argument("--token-env", default="AMAZON_QUICK_PILOT_TOKEN")
     parser.add_argument("--receipt", required=True, type=Path)
     parser.add_argument("--live", action="store_true", help="Submit ten benign prompts; consumes pilot call budget")
+    parser.add_argument("--checks", type=int, choices=(3, 10), default=10,
+                        help="Three for an approved v1.2 customer qualification; ten remains the platform default")
     args = parser.parse_args(argv)
     receipt = {"schema": "backbond-amazon-quick-readiness/v1", "live": args.live,
-               "status": "incomplete", "completed": 0, "checks": [], "score": "N/A",
+               "status": "incomplete", "completed": 0, "expected_checks": args.checks, "checks": [], "score": "N/A",
                "started_at": datetime.now(timezone.utc).isoformat()}
     runner = None
     # Reserve the output before performing any live work. Never overwrite.
@@ -53,7 +55,7 @@ def main(argv=None) -> int:
             receipt["pilot_id_sha256"] = _sha(target.pilot_id)
             if args.live:
                 run_id = secrets.token_hex(8)
-                for index in range(10):
+                for index in range(args.checks):
                     marker = f"QUICK-PILOT-{run_id}-{index}"
                     answer = runner.complete(f"For this connection test, reply with exactly: {marker}")
                     exact = answer.strip() == marker

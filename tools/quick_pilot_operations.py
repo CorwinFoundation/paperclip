@@ -40,7 +40,7 @@ def processing_example():
             "execution_location": "REPLACE: backbond_aws or customer_aws",
             "customer_authorization_ref": "REPLACE: customer's authorized agent, tests, identities and window",
             "processing_agreement_ref": "REPLACE: execution account/region, evidence location, evaluator and deletion",
-            "external_evaluator_approved": False, "retention_days": 7,
+            "external_evaluator_approved": False, "retention_days": 30,
             "qualification_not_before": "REPLACE: RFC3339 start of approved qualification window",
             "readiness_receipts": {role: f"/pilot/evidence/readiness-{role}.json" for role in ROLES}}
 
@@ -57,10 +57,12 @@ def binding(target):
                            target.account_id, target.region, target.log_group]))
 
 
-def check_readiness(receipt, target, not_before, now):
+def check_readiness(receipt, target, not_before, now, *, required_checks=10):
+    if required_checks not in {3, 10}:
+        raise PreflightError("invalid_readiness_requirement")
     if (receipt.get("schema") != "backbond-amazon-quick-readiness/v1"
             or receipt.get("live") is not True or receipt.get("status") != "transport_verified"
-            or receipt.get("completed") != 10 or len(receipt.get("checks", [])) != 10
+            or receipt.get("completed") != required_checks or len(receipt.get("checks", [])) != required_checks
             or receipt.get("target_binding_sha256") != binding(target)
             or receipt.get("pilot_id_sha256") != _sha(target.pilot_id)):
         raise PreflightError("fresh_identity_bound_readiness_required")
@@ -79,7 +81,7 @@ def check_readiness(receipt, target, not_before, now):
                 raise PreflightError("invalid_readiness_hash")
         conversations.add(evidence["conversation_sha256"])
         messages.add(evidence["message_sha256"])
-    if len(conversations) != 10 or len(messages) != 10:
+    if len(conversations) != required_checks or len(messages) != required_checks:
         raise PreflightError("independent_readiness_conversations_required")
 
 

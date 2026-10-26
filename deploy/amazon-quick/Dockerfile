@@ -3,8 +3,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
     PYTHONUNBUFFERED=1 PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PATH=/usr/local/aws-cli/v2/current/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 WORKDIR /app
-COPY requirements-runtime.txt ./
-RUN python -m pip install --require-hashes -r requirements-runtime.txt
+COPY requirements-amazon-quick.txt ./
+RUN python -m pip install --require-hashes -r requirements-amazon-quick.txt
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources \
     && python -m playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
 COPY . .

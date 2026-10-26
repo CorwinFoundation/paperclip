@@ -14,6 +14,7 @@ fi
 # No listener or inbound mapping is started. Keep the host SG inbound empty.
 exec docker run --rm --network host --read-only --cap-drop=ALL \
   --security-opt=no-new-privileges --shm-size=256m \
+  --tmpfs /home/scanner:rw,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700 \
   --tmpfs /tmp:rw,nosuid,size=512m --env-file "$root/config/runtime.env" \
   --env ARE_AMAZON_QUICK_ENABLED=1 \
   --env ARE_AMAZON_QUICK_TARGETS_FILE=/pilot/config/targets.json \
