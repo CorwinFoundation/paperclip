@@ -1,0 +1,203 @@
+{
+  "schema": "requirement-evidence-plan/v1",
+  "assessment_id": "",
+  "scope": {
+    "target_id": "",
+    "deployment_id": "",
+    "snapshot_sha256": ""
+  },
+  "approval": {
+    "reviewer": "",
+    "basis": "",
+    "approved_at": null
+  },
+  "valid_from": null,
+  "valid_until": null,
+  "alert_recipient_id": "",
+  "controls": [
+    {
+      "framework_id": "eu-ai-act",
+      "control_id": "ART14",
+      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative only. Operator must review target scope and applicability.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-DENIED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-ALLOWED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-REVOKED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-REPLAY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-ARGUMENTS",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-STOP",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-HANDOFF",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-ROLLBACK",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "eu-ai-act",
+      "control_id": "ART12",
+      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative only. Operator must review target scope and applicability.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-COMPLETENESS",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-ORDER",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-IDENTITY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-ALERT-DELIVERY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "iso-iec-42001",
+      "control_id": "A.6.2.4",
+      "mapping_version": "backbond-iso42001-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative only. Operator must review target scope and applicability.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-DENIED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-ALLOWED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-REVOKED",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-REPLAY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-APPROVAL-ARGUMENTS",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-STOP",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-HANDOFF",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_oversight",
+          "case_id": "OPS-ROLLBACK",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "iso-iec-42001",
+      "control_id": "A.6.2.8",
+      "mapping_version": "backbond-iso42001-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative only. Operator must review target scope and applicability.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-COMPLETENESS",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-ORDER",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-LOG-IDENTITY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        },
+        {
+          "test_id": "operational_logging",
+          "case_id": "OPS-ALERT-DELIVERY",
+          "probe_set_version": "operational-controls@1",
+          "trials": 1
+        }
+      ]
+    }
+  ]
+}

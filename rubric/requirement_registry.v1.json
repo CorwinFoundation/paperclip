@@ -1,0 +1,900 @@
+{
+  "schema": "requirement-evidence-registry/v1",
+  "baseline_date": "2026-10-26",
+  "mapping_status": "engineering draft; licensed normative validation required",
+  "test_catalog": {
+    "operational_oversight": {
+      "probe_set_version": "operational-controls@1",
+      "case_ids": [
+        "OPS-APPROVAL-DENIED",
+        "OPS-APPROVAL-ALLOWED",
+        "OPS-APPROVAL-REVOKED",
+        "OPS-APPROVAL-REPLAY",
+        "OPS-APPROVAL-ARGUMENTS",
+        "OPS-STOP",
+        "OPS-HANDOFF",
+        "OPS-ROLLBACK"
+      ]
+    },
+    "operational_logging": {
+      "probe_set_version": "operational-controls@1",
+      "case_ids": [
+        "OPS-LOG-COMPLETENESS",
+        "OPS-LOG-ORDER",
+        "OPS-LOG-IDENTITY",
+        "OPS-ALERT-DELIVERY"
+      ]
+    }
+  },
+  "frameworks": [
+    {
+      "framework_id": "eu-ai-act",
+      "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
+      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "source_urls": [
+        "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
+        "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation"
+      ],
+      "controls": [
+        {
+          "control_id": "ART4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ai-literacy-record"
+          ]
+        },
+        {
+          "control_id": "ART5",
+          "candidate_test_ids": [
+            "customer_defined_risk_pack"
+          ],
+          "required_document_ids": [
+            "prohibited-use-review"
+          ]
+        },
+        {
+          "control_id": "ART6",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "eu-scope-role-and-risk-classification"
+          ]
+        },
+        {
+          "control_id": "ART9",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "risk-register",
+            "risk-treatment-and-residual-acceptance"
+          ]
+        },
+        {
+          "control_id": "ART10",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "counterfactual_stability",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "ART11",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "technical-documentation"
+          ]
+        },
+        {
+          "control_id": "ART12",
+          "candidate_test_ids": [
+            "operational_logging"
+          ],
+          "required_document_ids": [
+            "target-logging-and-retention-policy"
+          ]
+        },
+        {
+          "control_id": "ART13",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "grounded_policy"
+          ],
+          "required_document_ids": [
+            "instructions-and-measured-limitations"
+          ]
+        },
+        {
+          "control_id": "ART14",
+          "candidate_test_ids": [
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "human-oversight-configuration-and-roles"
+          ]
+        },
+        {
+          "control_id": "ART15",
+          "candidate_test_ids": [
+            "authentication_bypass_resistance",
+            "cross_customer_data_exposure",
+            "mcp_tool_integrity",
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "accuracy-robustness-cybersecurity-plan"
+          ]
+        },
+        {
+          "control_id": "ART17",
+          "candidate_test_ids": [
+            "operational_logging",
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "qms-process-and-review-record"
+          ]
+        },
+        {
+          "control_id": "ART19",
+          "candidate_test_ids": [
+            "operational_logging"
+          ],
+          "required_document_ids": [
+            "target-log-retention-record"
+          ]
+        },
+        {
+          "control_id": "ART20",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "corrective-action-record"
+          ]
+        },
+        {
+          "control_id": "ART26",
+          "candidate_test_ids": [
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "deployer-duty-and-monitoring-record"
+          ]
+        },
+        {
+          "control_id": "ART27",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "fria-applicability-and-assessment"
+          ]
+        },
+        {
+          "control_id": "ART43",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "conformity-assessment-route-and-file"
+          ]
+        },
+        {
+          "control_id": "ART47",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "eu-declaration-of-conformity"
+          ]
+        },
+        {
+          "control_id": "ART48",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "marking-record"
+          ]
+        },
+        {
+          "control_id": "ART49",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "registration-record"
+          ]
+        },
+        {
+          "control_id": "ART50",
+          "candidate_test_ids": [
+            "ai_disclosure"
+          ],
+          "required_document_ids": [
+            "channel-disclosure-and-content-marking"
+          ]
+        },
+        {
+          "control_id": "ART53",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "gpai-provider-role-and-documentation"
+          ]
+        },
+        {
+          "control_id": "ART55",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "systemic-risk-model-applicability-and-evidence"
+          ]
+        },
+        {
+          "control_id": "ART72",
+          "candidate_test_ids": [
+            "operational_logging",
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "post-market-monitoring-plan-and-review"
+          ]
+        },
+        {
+          "control_id": "ART73",
+          "candidate_test_ids": [
+            "operational_logging"
+          ],
+          "required_document_ids": [
+            "incident-reporting-process-and-drill"
+          ]
+        }
+      ]
+    },
+    {
+      "framework_id": "iso-iec-42001",
+      "standard_edition": "ISO/IEC 42001:2023",
+      "mapping_version": "backbond-iso42001-evidence@1",
+      "source_urls": [
+        "https://webstore.iec.ch/en/publication/90574"
+      ],
+      "controls": [
+        {
+          "control_id": "4.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.4.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "4.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.4.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "4.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.4.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "4.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.4.4.customer-record"
+          ]
+        },
+        {
+          "control_id": "5.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.5.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "5.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.5.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "5.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.5.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.1.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.6.1.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.1.2",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.6.1.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.1.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.6.1.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.1.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.6.1.4.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.2",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.6.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "6.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.6.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "7.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.7.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "7.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.7.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "7.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.7.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "7.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.7.4.customer-record"
+          ]
+        },
+        {
+          "control_id": "7.5",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.7.5.customer-record"
+          ]
+        },
+        {
+          "control_id": "8.1",
+          "candidate_test_ids": [
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.8.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "8.2",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.8.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "8.3",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.8.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "8.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.8.4.customer-record"
+          ]
+        },
+        {
+          "control_id": "9.1",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.9.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "9.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.9.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "9.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.9.3.customer-record"
+          ]
+        },
+        {
+          "control_id": "10.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "ISO42001.10.1.customer-record"
+          ]
+        },
+        {
+          "control_id": "10.2",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "ISO42001.10.2.customer-record"
+          ]
+        },
+        {
+          "control_id": "A.2.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "policy-approval-and-review"
+          ]
+        },
+        {
+          "control_id": "A.2.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "policy-approval-and-review"
+          ]
+        },
+        {
+          "control_id": "A.2.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "policy-approval-and-review"
+          ]
+        },
+        {
+          "control_id": "A.3.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "roles-and-concern-reporting"
+          ]
+        },
+        {
+          "control_id": "A.3.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "roles-and-concern-reporting"
+          ]
+        },
+        {
+          "control_id": "A.4.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "resource-register"
+          ]
+        },
+        {
+          "control_id": "A.4.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "resource-register"
+          ]
+        },
+        {
+          "control_id": "A.4.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "resource-register"
+          ]
+        },
+        {
+          "control_id": "A.4.5",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "resource-register"
+          ]
+        },
+        {
+          "control_id": "A.4.6",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "resource-register"
+          ]
+        },
+        {
+          "control_id": "A.5.2",
+          "candidate_test_ids": [
+            "customer_defined_risk_pack",
+            "counterfactual_stability"
+          ],
+          "required_document_ids": [
+            "impact-assessment"
+          ]
+        },
+        {
+          "control_id": "A.5.3",
+          "candidate_test_ids": [
+            "customer_defined_risk_pack",
+            "counterfactual_stability"
+          ],
+          "required_document_ids": [
+            "impact-assessment"
+          ]
+        },
+        {
+          "control_id": "A.5.4",
+          "candidate_test_ids": [
+            "customer_defined_risk_pack",
+            "counterfactual_stability"
+          ],
+          "required_document_ids": [
+            "impact-assessment"
+          ]
+        },
+        {
+          "control_id": "A.5.5",
+          "candidate_test_ids": [
+            "customer_defined_risk_pack",
+            "counterfactual_stability"
+          ],
+          "required_document_ids": [
+            "impact-assessment"
+          ]
+        },
+        {
+          "control_id": "A.7.2",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "A.7.3",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "A.7.4",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "A.7.5",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "A.7.6",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "cross_customer_data_exposure"
+          ],
+          "required_document_ids": [
+            "data-provenance-and-quality"
+          ]
+        },
+        {
+          "control_id": "A.8.2",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "human_escalation_flagging"
+          ],
+          "required_document_ids": [
+            "stakeholder-information"
+          ]
+        },
+        {
+          "control_id": "A.8.3",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "human_escalation_flagging"
+          ],
+          "required_document_ids": [
+            "stakeholder-information"
+          ]
+        },
+        {
+          "control_id": "A.8.4",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "human_escalation_flagging",
+            "operational_oversight",
+            "operational_logging"
+          ],
+          "required_document_ids": [
+            "stakeholder-information"
+          ]
+        },
+        {
+          "control_id": "A.8.5",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "human_escalation_flagging"
+          ],
+          "required_document_ids": [
+            "stakeholder-information"
+          ]
+        },
+        {
+          "control_id": "A.9.2",
+          "candidate_test_ids": [
+            "out_of_scope_containment",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "intended-use-and-acceptance"
+          ]
+        },
+        {
+          "control_id": "A.9.3",
+          "candidate_test_ids": [
+            "out_of_scope_containment",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "intended-use-and-acceptance"
+          ]
+        },
+        {
+          "control_id": "A.9.4",
+          "candidate_test_ids": [
+            "out_of_scope_containment",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "intended-use-and-acceptance"
+          ]
+        },
+        {
+          "control_id": "A.10.2",
+          "candidate_test_ids": [
+            "mcp_tool_integrity",
+            "delegated_authority_confused_deputy"
+          ],
+          "required_document_ids": [
+            "responsibility-and-supplier-record"
+          ]
+        },
+        {
+          "control_id": "A.10.3",
+          "candidate_test_ids": [
+            "mcp_tool_integrity",
+            "delegated_authority_confused_deputy"
+          ],
+          "required_document_ids": [
+            "responsibility-and-supplier-record"
+          ]
+        },
+        {
+          "control_id": "A.10.4",
+          "candidate_test_ids": [
+            "mcp_tool_integrity",
+            "delegated_authority_confused_deputy"
+          ],
+          "required_document_ids": [
+            "responsibility-and-supplier-record"
+          ]
+        },
+        {
+          "control_id": "A.6.1.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "development-objectives"
+          ]
+        },
+        {
+          "control_id": "A.6.1.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "development-process"
+          ]
+        },
+        {
+          "control_id": "A.6.2.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "system-specification"
+          ]
+        },
+        {
+          "control_id": "A.6.2.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "design-record"
+          ]
+        },
+        {
+          "control_id": "A.6.2.4",
+          "candidate_test_ids": [
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "validation-plan-and-criteria"
+          ]
+        },
+        {
+          "control_id": "A.6.2.5",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "deployment-acceptance"
+          ]
+        },
+        {
+          "control_id": "A.6.2.6",
+          "candidate_test_ids": [
+            "operational_logging",
+            "grounded_policy",
+            "hallucination",
+            "counterfactual_stability",
+            "customer_defined_risk_pack",
+            "operational_oversight",
+            "human_escalation_flagging",
+            "consequential_action_confirmation",
+            "revocation_execution_time_authorization"
+          ],
+          "required_document_ids": [
+            "monitoring-and-change-plan"
+          ]
+        },
+        {
+          "control_id": "A.6.2.7",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "technical-documentation"
+          ]
+        },
+        {
+          "control_id": "A.6.2.8",
+          "candidate_test_ids": [
+            "operational_logging"
+          ],
+          "required_document_ids": [
+            "target-logging-and-retention-policy"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Candidate evidence associations are not normative equivalence or certification.",
+    "EN 18286:2026 supports covered Article 17 requirements; its final Annex ZA mapping is not asserted by this registry.",
+    "An approved plan defines a bounded test set and does not establish complete coverage of a standard."
+  ]
+}

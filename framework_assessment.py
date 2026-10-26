@@ -74,7 +74,9 @@ def verify_evidence_bytes(ref: Mapping[str, Any], artifact_bytes: bytes) -> None
 
 
 def build_framework_envelope(score: Mapping[str, Any], *, evaluation_date: str | None = None,
-                             registry: Mapping[str, Any] | None = None) -> dict[str, Any]:
+                             registry: Mapping[str, Any] | None = None,
+                             requirement_plan: Mapping[str, Any] | None = None,
+                             artifact_reader: Any = None) -> dict[str, Any]:
     registry_data = dict(registry or load_registry())
     framework = registry_data["frameworks"][0]
     evidence = [ref for ref in score.get("evidence_refs", []) if isinstance(ref, Mapping)]
@@ -105,6 +107,14 @@ def build_framework_envelope(score: Mapping[str, Any], *, evaluation_date: str |
                                                   if (p := _reachable_ref(ref)) is not None]},
     }
     validate_claim_labels(result)
+    # Additive evidence-only crosswalk. Without an operator-approved plan and
+    # verified artifact bytes every new requirement remains not evaluated.
+    from requirement_assessment import build_requirement_assessment
+    timestamp = date + "T00:00:00+00:00" if len(date) == 10 else date
+    result["requirements_evidence"] = build_requirement_assessment(
+        score, plan=requirement_plan, artifact_reader=artifact_reader,
+        evaluated_at=timestamp,
+    )
     return result
 
 
