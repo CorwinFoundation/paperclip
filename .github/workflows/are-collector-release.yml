@@ -48,6 +48,8 @@ jobs:
       - name: Install Syft
         uses: anchore/sbom-action/download-syft@v0
       - name: Generate Syft SBOM
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: syft "${IMAGE_NAME}:${IMAGE_TAG}" -o spdx-json=are-collector-${IMAGE_TAG}.spdx.json
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

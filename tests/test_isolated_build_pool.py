@@ -67,8 +67,9 @@ def test_workflows_use_exact_opt_in_queue_only_role_and_job_labels(path, name):
 
 
 @pytest.mark.parametrize("mutation", ["actor", "rerun_actor", "fork", "repository", "unknown_job", "unknown_workflow", "pr_target", "stale_attempt", "wrong_role", "generic_label", "extra_label", "in_progress", "empty_attempt", "bad_sha"])
-def test_admission_rejects_untrusted_or_ambiguous_jobs(mutation):
-    run, job = sample()
+@pytest.mark.parametrize("event", ["pull_request", "schedule"])
+def test_admission_rejects_untrusted_or_ambiguous_jobs(mutation, event):
+    run, job = sample(branch="master", event=event)
     if mutation == "actor": run["actor"]["login"] = "outsider"
     elif mutation == "rerun_actor": run["triggering_actor"]["login"] = "outsider"
     elif mutation == "fork": run["head_repository"]["full_name"] = "outsider/fork"
@@ -84,6 +85,18 @@ def test_admission_rejects_untrusted_or_ambiguous_jobs(mutation):
     elif mutation == "bad_sha": run["head_sha"] = "unverified"
     else: run["run_attempt"] = None
     assert policy.admit(run, job) is None
+
+
+@pytest.mark.parametrize("path,name", [(path.removeprefix('.github/workflows/'), name)
+                                      for path, jobs in policy.JOBS.items() for name in jobs])
+@pytest.mark.parametrize("branch", ["master", "topic"])
+def test_schedule_only_admits_the_two_master_nightly_build_checks(path, name, branch):
+    run, job = sample(path, name, branch, "schedule")
+    expected = policy.admit(run, job)
+    assert bool(expected) is (path == "tests.yml" and branch == "master")
+    if expected:
+        assert expected["role"] == "build"
+        policy.check_environment(expected, environment(expected))
 
 
 @pytest.mark.parametrize("event,branch,accepted", [("push", "master", True), ("workflow_dispatch", "master", True),

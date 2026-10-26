@@ -217,9 +217,12 @@ jobs:
       - name: Generate CycloneDX SBOM
         id: sbom
         shell: bash
+        env:
+          # Keep image catalog scratch on the reserved job disk, outside /tmp.
+          TMPDIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
-          syft "${{ steps.image.outputs.image_tag }}" -o cyclonedx-json=release-candidate/scanner-edge-sbom.cdx.json
+          syft "docker-archive:release-candidate/scanner-edge-image.tar" --source-name "${{ steps.image.outputs.image_tag }}" -o cyclonedx-json=release-candidate/scanner-edge-sbom.cdx.json
           sha256sum release-candidate/scanner-edge-sbom.cdx.json | tee release-candidate/scanner-edge-sbom.sha256
           printf 'hash=%s\n' "$(cut -d' ' -f1 release-candidate/scanner-edge-sbom.sha256)" >> "$GITHUB_OUTPUT"
 

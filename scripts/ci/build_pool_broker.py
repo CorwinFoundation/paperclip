@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -19,7 +20,7 @@ import urllib.request
 import uuid
 
 from build_pool_policy import REPOSITORY, admit
-from build_pool_worker import STATE, Worker
+from build_pool_worker import MIN_FREE_DISK_BYTES, STATE, Worker
 
 # Both existing runners can consume 5 GiB on this 8 GiB VM. Drain both before
 # admitting another heavy job; do not stop production services or running jobs.
@@ -193,6 +194,12 @@ class Broker:
         JOURNAL.unlink()
 
     def run_one(self, expected):
+        # A known disk shortage must leave ordinary CI available. The worker
+        # rechecks after the drain in case free space changed while jobs ended.
+        if shutil.disk_usage(STATE).free < MIN_FREE_DISK_BYTES:
+            print("Build disk budget unavailable; job remains queued", flush=True)
+            return
+        print(f"Admitting {expected['role']} job {expected['run_id']}/{expected['job']}", flush=True)
         state = {"identity": uuid.uuid4().hex, "role": expected["role"], "restore": []}
         save(state)
         try:
@@ -235,9 +242,9 @@ def main():
         while True:
             candidate = next(broker.github.candidates(), None)
             if candidate:
-                print(f"Admitting {candidate['role']} job {candidate['run_id']}/{candidate['job']}", flush=True)
                 broker.run_one(candidate)
-                # Let ordinary queued CI resume between heavy builds.
+                # Ordinary routing stays available between builds and while a
+                # known disk shortage leaves the candidate queued.
                 time.sleep(120)
             else:
                 time.sleep(30)

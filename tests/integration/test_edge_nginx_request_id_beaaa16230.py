@@ -128,7 +128,11 @@ class _Stack:
         self.edge_name = "beaaa16230edge%s" % tag
         self.up_pub = _free_port()
         self.edge_pub = _free_port()
-        self.workdir = tempfile.mkdtemp(prefix="beaaa16331edge")
+        # The CI Docker daemon shares RUNNER_TEMP with the runner. Its /tmp
+        # can be a separate filesystem, so bind-mounted configs must live here.
+        self.workdir = tempfile.mkdtemp(
+            prefix="beaaa16331edge", dir=os.environ.get("RUNNER_TEMP")
+        )
         try:
             self._run(["docker", "network", "create", self.net])
             self._run([

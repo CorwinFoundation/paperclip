@@ -63,6 +63,8 @@ jobs:
       contents: read
       packages: read
       id-token: write
+    env:
+      SBOM_IMAGE: ghcr.io/corwinfoundation/are-scanner@sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b
     steps:
       - name: Verify fresh publisher and private Docker daemon
         run: |
@@ -85,7 +87,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Prove repository-token GHCR access without publishing
-        run: docker pull ghcr.io/corwinfoundation/are-scanner@sha256:e955a2812015cf7da487c2e266e0a7f3fc9478cdafc2580dc0e02df53d96df9b
+        run: docker pull "$SBOM_IMAGE"
+      - name: Install the publisher's catalog tool without root
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+      - name: Catalog the frozen image archive on reserved job disk
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/publisher-sbom-image.tar"
+          docker tag "$SBOM_IMAGE" backbond-publish-sbom-smoke:local
+          docker save backbond-publish-sbom-smoke:local -o "$archive"
+          syft "docker-archive:$archive" --source-name "$SBOM_IMAGE" -o "cyclonedx-json=$RUNNER_TEMP/publisher-sbom.cdx.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import tempfile
+          scratch = Path(tempfile.gettempdir()).resolve()
+          assert scratch == Path(os.environ['RUNNER_TEMP']).resolve()
+          filesystem = os.statvfs(scratch)
+          assert filesystem.f_blocks * filesystem.f_frsize > 512 * 1024 ** 2
+          bom = json.loads((scratch / 'publisher-sbom.cdx.json').read_text())
+          assert bom['bomFormat'] == 'CycloneDX'
+          assert bom['components']
+          assert bom['metadata']['component']['name'] == os.environ['SBOM_IMAGE']
+          print('Frozen image cataloged with', len(bom['components']), 'components on reserved job disk')
+          PY
       - name: Prove protected master OIDC identity without printing a token
         run: |
           python3 - <<'PY'

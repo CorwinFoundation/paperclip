@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,19 @@ SHA = "a" * 40
 
 
 class ImmutableReleaseWorkflowTests(unittest.TestCase):
+    def test_sbom_catalogs_the_transport_verified_archive_on_job_disk(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/scanner-edge-image.yml").read_text())
+        steps = workflow["jobs"]["image-build"]["steps"]
+        export = next(step for step in steps if step.get("name") == "Export the exact immutable image archive")
+        sbom = next(step for step in steps if step.get("id") == "sbom")
+        verified_archive = re.search(r"--archive\s+(\S+)", export["run"]).group(1)
+        cataloged_archive = re.search(r'syft "docker-archive:([^"]+)"', sbom["run"]).group(1)
+        self.assertEqual(cataloged_archive, verified_archive)
+        self.assertLess(steps.index(export), steps.index(sbom))
+        self.assertEqual(sbom["env"]["TMPDIR"], "${{ runner.temp }}")
+        self.assertIn("verify_image_transport_link.py", export["run"])
+        self.assertIn('--source-name "${{ steps.image.outputs.image_tag }}"', sbom["run"])
+
     def test_manifest_template_and_rendered_identity(self):
         source = json.loads((ROOT / "release/backbond-scanner-release.json").read_text())
         self.assertEqual(source["scanner_version"], "0.5.0")

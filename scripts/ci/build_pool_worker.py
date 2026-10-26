@@ -13,6 +13,7 @@ import shutil
 import subprocess
 
 STATE = Path("/var/lib/backbond-build-pool")
+MIN_FREE_DISK_BYTES = 19 * 1024 ** 3
 IMAGE_ARCHIVE = Path("/opt/backbond-build-pool/images.tar")
 RUNNER_IMAGE = "localhost/backbond-build-runner:2.337.0"
 DIND_IMAGE = "docker.io/library/docker@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977"
@@ -51,7 +52,7 @@ class Worker:
 
     def prepare(self, expected: dict, jit: str):
         # No user-controlled path components and no reusable job state.
-        if shutil.disk_usage(STATE).free < 19 * 1024 ** 3:
+        if shutil.disk_usage(STATE).free < MIN_FREE_DISK_BYTES:
             raise RuntimeError("build disk reservation would leave less than 5 GiB free")
         command("systemctl", "start", f"user@{self.account.pw_uid}.service")
         self.root.mkdir(mode=0o711)

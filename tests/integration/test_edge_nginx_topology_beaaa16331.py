@@ -173,8 +173,16 @@ def test_fragments_syntax_check_inside_a_synthesized_vhost(tmp_path):
     good = tmp_path / "nginx.good.conf"
     good.write_text(
         f"pid {tmp_path/'nginx.pid'};\n"
+        "error_log stderr;\n"
         "events {}\n"
         "http {\n"
+        # nginx validates its compiled-in scratch directories even for -t.
+        # Keep them test-owned on nonroot runners with read-only system paths.
+        f"  client_body_temp_path {tmp_path/'body'};\n"
+        f"  proxy_temp_path {tmp_path/'proxy'};\n"
+        f"  fastcgi_temp_path {tmp_path/'fastcgi'};\n"
+        f"  uwsgi_temp_path {tmp_path/'uwsgi'};\n"
+        f"  scgi_temp_path {tmp_path/'scgi'};\n"
         f"  include {tmp_path/'http.conf'};\n"
         "  server {\n"
         "    listen 8080;\n"

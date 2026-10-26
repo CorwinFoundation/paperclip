@@ -24,6 +24,7 @@ def broker_module(monkeypatch, tmp_path):
     policy_spec.loader.exec_module(policy)
     worker = ModuleType("build_pool_worker")
     worker.STATE, worker.Worker = tmp_path, MagicMock()
+    worker.MIN_FREE_DISK_BYTES = 19 * 1024 ** 3
     monkeypatch.setitem(sys.modules, "build_pool_policy", policy)
     monkeypatch.setitem(sys.modules, "build_pool_worker", worker)
     monkeypatch.setitem(sys.modules, "fcntl", SimpleNamespace())
@@ -36,6 +37,52 @@ def broker_module(monkeypatch, tmp_path):
     monkeypatch.setattr(module.time, "sleep", lambda _: None)
     monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout="Runner.Listener\n"))
     return module
+
+
+@pytest.mark.parametrize("role", ["build", "publish"])
+@pytest.mark.parametrize("free", [0, 10 * 1024 ** 3, 19 * 1024 ** 3 - 1])
+def test_low_disk_keeps_ordinary_ci_labels_and_job_unclaimed(broker_module, monkeypatch, role, free):
+    module = broker_module
+    monkeypatch.setattr(module.shutil, "disk_usage", lambda _: SimpleNamespace(free=free))
+    github = github_client()
+    module.Broker(github).run_one({"role": role})
+    assert not module.JOURNAL.exists()
+    github.request.assert_not_called()
+    module.Worker.assert_not_called()
+
+
+def test_disk_at_admission_floor_still_enters_normal_drain(broker_module, monkeypatch):
+    module = broker_module
+    assert module.MIN_FREE_DISK_BYTES == 19 * 1024 ** 3
+    monkeypatch.setattr(module.shutil, "disk_usage",
+                        lambda _: SimpleNamespace(free=19 * 1024 ** 3))
+    broker = module.Broker(github_client())
+    broker.verify_egress = MagicMock()
+    broker.drain = MagicMock(side_effect=RuntimeError("normal drain reached"))
+    with pytest.raises(RuntimeError, match="normal drain reached"):
+        broker.run_one({"role": "build", "run_id": 1234, "job": "native-integrations"})
+    broker.drain.assert_called_once()
+    assert not module.JOURNAL.exists()
+
+
+def test_worker_rechecks_disk_before_creating_any_job_state(broker_module, monkeypatch, tmp_path):
+    source = Path(__file__).resolve().parents[1] / "scripts/ci/build_pool_worker.py"
+    account = SimpleNamespace(pw_name="backbond-build", pw_uid=1003, pw_gid=1003)
+    monkeypatch.setitem(sys.modules, "pwd", SimpleNamespace(getpwnam=lambda _: account))
+    spec = importlib.util.spec_from_file_location("build_pool_worker_actual_test", source)
+    worker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker)
+    assert worker.MIN_FREE_DISK_BYTES == broker_module.MIN_FREE_DISK_BYTES == 19 * 1024 ** 3
+    monkeypatch.setattr(worker, "STATE", tmp_path)
+    monkeypatch.setattr(worker.shutil, "disk_usage",
+                        lambda _: SimpleNamespace(free=19 * 1024 ** 3 - 1))
+    command = MagicMock()
+    monkeypatch.setattr(worker, "command", command)
+    job = worker.Worker("b" * 32, "build")
+    with pytest.raises(RuntimeError, match="less than 5 GiB free"):
+        job.prepare({}, "unused")
+    command.assert_not_called()
+    assert not job.root.exists()
 
 
 def test_cleanup_failure_never_restores_capacity_or_forgets_journal(broker_module):

@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && printf 'AGENT_TOOLSDIRECTORY=/home/backbond-ci/toolcache\nRUNNER_TOOL_CACHE=/home/backbond-ci/toolcache\n' > /home/backbond-ci/runner/.env \
     && chown -R backbond-ci:backbond-ci /home/backbond-ci
 ENV HOME=/home/backbond-ci \
+    PIP_NO_CACHE_DIR=1 \
     AGENT_TOOLSDIRECTORY=/home/backbond-ci/toolcache \
     RUNNER_TOOL_CACHE=/home/backbond-ci/toolcache
 USER 1001:1001

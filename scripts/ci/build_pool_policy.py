@@ -59,6 +59,11 @@ def admit(run: dict, job: dict) -> dict | None:
     elif path.endswith(("scanner-image-readonly-verify.yml", "build-pool-smoke.yml")):
         if event != "workflow_dispatch" or branch != "master":
             return None
+    elif event == "schedule":
+        # The nightly full tests already route these two jobs to the pool.
+        # Do not admit scheduled publishing or schedules from another workflow.
+        if path != ".github/workflows/tests.yml" or branch != "master":
+            return None
     elif event not in {"pull_request", "push", "workflow_dispatch"}:
         return None
     run_id, attempt = run.get("id"), run.get("run_attempt")
