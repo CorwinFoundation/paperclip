@@ -19,6 +19,7 @@ import subprocess
 from evals.internal_agent_knowledge import CASES, ROLES
 from harness.amazon_quick import load_target, _sha
 from tools.internal_agent_pilot import read_json, validate_setup, preflight_targets
+from tools.quick_qualification_probe import internal_knowledge_probe
 
 SCHEMA = "backbond-quick-processing-scope/v1"
 # Commercial regions with Agentic Features=Yes in AWS's 2026-10-25 table.
@@ -152,7 +153,7 @@ def preflight(config, scope, *, judge_openrouter=False):
             path = Path(scope["readiness_receipts"][role])
             if not path.is_absolute():
                 raise PreflightError("absolute_readiness_receipt_required")
-            check_readiness(read_json(path), target, not_before, now)
+            check_readiness(read_json(path), target, not_before, now, probe=internal_knowledge_probe())
             roles[role] = {"planned_calls": COUNTS[role], "consumed_calls": row[1],
                            "remaining_calls": target.max_calls - row[1]}
         if len(pilot_ids) != 3 or len(identity_keys) != 3:

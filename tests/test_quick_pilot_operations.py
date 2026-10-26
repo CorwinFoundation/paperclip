@@ -19,6 +19,7 @@ from tools import quick_pilot_run as run_cli
 from tools import quick_pilot_report as report
 from tools import amazon_quick_pilot as readiness_cli
 from tools.build_amazon_quick_worker import build_context
+from tools.quick_qualification_probe import fixture_probe, internal_knowledge_probe
 
 
 @pytest.fixture
@@ -38,6 +39,7 @@ def configured(tmp_path, monkeypatch):
                  customer_authorization_ref="customer://approval", processing_agreement_ref="customer://processing",
                  qualification_not_before=(now - timedelta(hours=1)).isoformat())
     rows, receipts = [], {}
+    probe = internal_knowledge_probe()
     for role in ops.ROLES:
         token = "random-token-for-" + role + "-x" * 32
         identity = config["identities"][role]
@@ -54,13 +56,17 @@ def configured(tmp_path, monkeypatch):
         ledger.close()
         receipt = {"schema": "backbond-amazon-quick-readiness/v1", "live": True,
                    "status": "transport_verified", "completed": 10,
+                   "probe": probe.metadata, "probe_run_id": "0123456789abcdef",
                    "target_binding_sha256": ops.binding(target), "pilot_id_sha256": quick._sha(target.pilot_id),
                    "started_at": (now - timedelta(minutes=20)).isoformat(),
                    "finished_at": (now - timedelta(minutes=1)).isoformat(), "checks": []}
         for index in range(10):
-            reply_hash = quick._sha(role + "reply" + str(index))
-            receipt["checks"].append({"exact_reply": True, "reply_sha256": reply_hash,
+            reply_hash = quick._sha("20")
+            prompt = probe.prompt(f"QUICK-PILOT-{receipt['probe_run_id']}-{index}")
+            receipt["checks"].append({"index": index + 1, "exact_reply": True, "reply_sha256": reply_hash,
+                                      "normalized_reply_sha256": reply_hash,
                                       "evidence": {"source": "aws_chat_logs", "response_sha256": reply_hash,
+                                                   "prompt_sha256": quick._sha(prompt),
                                                    "message_sha256": quick._sha(role + "message" + str(index)),
                                                    "conversation_sha256": quick._sha(role + "conversation" + str(index))}})
         path = tmp_path / (role + ".json")
@@ -141,6 +147,29 @@ def test_fresh_readiness_is_bound_to_each_identity(configured, defect):
         row["started_at"] = "2020-01-01T00:00:00Z"
     else:
         row["checks"][0]["exact_reply"] = False
+    Path(scope["readiness_receipts"]["employee"]).write_text(json.dumps(row))
+    with pytest.raises(ValueError):
+        ops.preflight(config, scope)
+
+
+@pytest.mark.parametrize("defect", ["generic_echo", "other_profile", "source", "prompt", "answer", "three_checks"])
+def test_internal_preflight_requires_ten_source_bound_checks(configured, defect):
+    config, scope, receipts, _ = configured
+    row = deepcopy(receipts["employee"])
+    if defect == "generic_echo":
+        del row["probe"]
+    elif defect == "other_profile":
+        from evals.amazon_quick_assessment import load_profile
+        row["probe"] = fixture_probe(load_profile("hr_finance")).metadata
+    elif defect == "source":
+        row["probe"]["source_sha256"] = quick._sha("different source")
+    elif defect == "prompt":
+        row["checks"][0]["evidence"]["prompt_sha256"] = quick._sha("different question")
+    elif defect == "answer":
+        row["checks"][0]["normalized_reply_sha256"] = quick._sha("refusal")
+    else:
+        row["completed"] = 3
+        row["checks"] = row["checks"][:3]
     Path(scope["readiness_receipts"]["employee"]).write_text(json.dumps(row))
     with pytest.raises(ValueError):
         ops.preflight(config, scope)

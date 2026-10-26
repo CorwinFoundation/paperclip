@@ -67,7 +67,22 @@ only the sources, with these boundaries:
   injects a system prompt, changes resource selection, or creates AWS assets.
 
 Complete [Quick transport qualification](amazon-quick-pilot.md) for each identity
-first. This command does not make readiness calls. The batch requests 12 employee,
+first, using this profile's source-bound probe:
+
+```sh
+python -m tools.amazon_quick_pilot --endpoint "$QUICK_ROLE_ENDPOINT" --token-env QUICK_ROLE_PILOT_TOKEN --receipt /secure/readiness-role.json --internal-knowledge --live
+```
+
+Run it separately for each registered role with a new receipt path. It retains
+ten independent conversations per identity and requires the exact answer `20` to
+the permitted common `leave.txt` question. A unique request reference and provider
+prompt/response hashes bind each check. The processing preflight rejects generic
+echo receipts, another profile's receipts, changed source/prompt/answer bindings,
+or fewer than ten checks. These checks establish correlated transport and a
+permitted task; they do not establish retrieval, document ACL or row isolation.
+No agent instruction, source, assessment case or permission is changed.
+
+The assessment command does not make readiness calls. The batch requests 12 employee,
 2 Sales manager, and 4 HR submissions. Readiness, intake checks and manual repeats
 also consume each registration's existing durable call budget.
 

@@ -11,7 +11,7 @@ from harness.amazon_quick import Target, _sha
 from tools import amazon_quick_pilot as readiness
 from tools.quick_concurrency_spike import plan
 from tools.quick_pilot_operations import check_readiness
-from tools.quick_qualification_probe import fixture_probe
+from tools.quick_qualification_probe import fixture_probe, internal_knowledge_probe
 
 
 @pytest.mark.parametrize("variant", ["hr_finance", "healthcare"])
@@ -47,8 +47,44 @@ def test_probe_rejects_tampered_or_not_common_source(defect):
         fixture_probe(profile)
 
 
+def test_internal_probe_uses_its_own_frozen_profile_and_common_source():
+    from evals.internal_agent_knowledge import export_setup
+    profile = export_setup()
+    probe = internal_knowledge_probe()
+    assert probe.expected_reply == "20"
+    assert probe.metadata["profile_id"] == "internal-agent-knowledge@1"
+    assert probe.metadata["profile_sha256"] == profile["profile_sha256"]
+    assert probe.metadata["fixture_sha256"] == profile["fixture_sha256"]
+    assert probe.metadata["source_sha256"] == _sha(profile["sources"]["leave.txt"])
+    assert probe.metadata != fixture_probe(load_profile("hr_finance")).metadata
+    assert export_setup() == profile
+
+
+@pytest.mark.parametrize("defect", ["source", "readers"])
+def test_internal_probe_rejects_changed_or_restricted_fixture(monkeypatch, defect):
+    from evals import internal_agent_knowledge as internal
+    if defect == "source":
+        monkeypatch.setitem(internal.SOURCES, "leave.txt", "Annual leave entitlement is 200 days.")
+    else:
+        monkeypatch.setitem(internal.PERMISSION_MATRIX["source_readers"], "leave.txt", ["hr"])
+    with pytest.raises(ValueError, match="intact_common_internal"):
+        internal_knowledge_probe()
+
+
+def test_internal_cli_rejects_three_checks_before_any_call_or_receipt(tmp_path, monkeypatch):
+    called = Mock()
+    monkeypatch.setattr(readiness, "AmazonQuickRunner", called)
+    path = tmp_path / "never-created.json"
+    with pytest.raises(SystemExit):
+        readiness.main(["--endpoint", "https://synthetic.example.test/employee", "--receipt", str(path),
+                        "--internal-knowledge", "--checks", "3", "--live"])
+    called.assert_not_called()
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("mode,checks", [("v12", 3), ("internal", 10)])
 @pytest.mark.parametrize("reply", ["20", "Sorry, I am unable to help with your request.", "200"])
-def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, monkeypatch, reply):
+def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, monkeypatch, reply, mode, checks):
     target = Target.parse(dict(approved=True, endpoint_url="https://synthetic.example.test/employee",
         account_id="111122223333", region="us-east-1", agent_id="synthetic-agent",
         user_arn="arn:aws:quicksight:us-east-1:111122223333:user/default/employee", log_group="/synthetic",
@@ -68,8 +104,9 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
     monkeypatch.setattr(readiness, "AmazonQuickRunner", Mock(return_value=runner))
     path = tmp_path / "readiness.json"
     before = datetime.now(timezone.utc).timestamp()
+    options = ["--fixture-variant", "hr_finance"] if mode == "v12" else ["--internal-knowledge"]
     result = readiness.main(["--endpoint", target.endpoint_url, "--receipt", str(path),
-                            "--checks", "3", "--fixture-variant", "hr_finance", "--live"])
+                            "--checks", str(checks), *options, "--live"])
     receipt = json.loads(path.read_text())
     assert all("leave.txt" in p for p in prompts)
     assert runner.close.call_count == 1
@@ -77,9 +114,9 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
         assert result == 1 and receipt["completed"] == 1
         assert receipt["status"] == "incomplete" and len(prompts) == 1
         return
-    assert result == 0 and len(prompts) == 3 and len(set(prompts)) == 3
-    probe = fixture_probe(load_profile("hr_finance"))
-    check_readiness(receipt, target, before, datetime.now(timezone.utc).timestamp(), required_checks=3, probe=probe)
+    assert result == 0 and len(prompts) == checks and len(set(prompts)) == checks
+    probe = fixture_probe(load_profile("hr_finance")) if mode == "v12" else internal_knowledge_probe()
+    check_readiness(receipt, target, before, datetime.now(timezone.utc).timestamp(), required_checks=checks, probe=probe)
     for defect in ("profile", "prompt", "answer", "conversation"):
         bad = deepcopy(receipt)
         if defect == "profile":
@@ -91,4 +128,4 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
         else:
             bad["checks"][1]["evidence"]["conversation_sha256"] = bad["checks"][0]["evidence"]["conversation_sha256"]
         with pytest.raises(ValueError):
-            check_readiness(bad, target, before, datetime.now(timezone.utc).timestamp(), required_checks=3, probe=probe)
+            check_readiness(bad, target, before, datetime.now(timezone.utc).timestamp(), required_checks=checks, probe=probe)

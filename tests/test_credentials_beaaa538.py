@@ -19,7 +19,6 @@ under T3 §5 #2, a sibling ticket).
 """
 from __future__ import annotations
 
-import importlib
 import json
 import pickle
 import subprocess
@@ -306,13 +305,25 @@ def test_credentials_module_not_imported_by_default_harness():
 
 
 def test_public_surface_matches_spec():
-    # BEAAA-538 §Scope public surface
-    importlib.reload(credentials)
-    assert hasattr(credentials, "CredentialRef")
-    assert hasattr(credentials, "CredentialVault")
-    vault = credentials.CredentialVault()
-    try:
-        for name in ("register", "resolve", "forget", "forget_all"):
-            assert callable(getattr(vault, name)), name
-    finally:
-        vault.forget_all()
+    # Reload in a child: reloading the shared module changes exception identities
+    # already imported by other tests and clears their process-local vault store.
+    script = (
+        "import importlib, json\n"
+        "import harness.credentials as credentials\n"
+        "importlib.reload(credentials)\n"
+        "vault = credentials.CredentialVault()\n"
+        "try:\n"
+        "    observed = {name: hasattr(credentials, name) for name in ('CredentialRef', 'CredentialVault')}\n"
+        "    observed.update({name: callable(getattr(vault, name, None)) for name in ('register', 'resolve', 'forget', 'forget_all')})\n"
+        "    print(json.dumps(observed))\n"
+        "finally:\n"
+        "    vault.forget_all()\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script], cwd=str(REPO), capture_output=True,
+        text=True, check=False, timeout=15,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout) == {
+        name: True for name in ("CredentialRef", "CredentialVault", "register", "resolve", "forget", "forget_all")
+    }

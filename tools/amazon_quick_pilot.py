@@ -24,9 +24,14 @@ def main(argv=None) -> int:
     parser.add_argument("--live", action="store_true", help="Submit ten benign prompts; consumes pilot call budget")
     parser.add_argument("--checks", type=int, choices=(3, 10), default=10,
                         help="Three for an approved v1.2 customer qualification; ten remains the platform default")
-    parser.add_argument("--fixture-variant", choices=("hr_finance", "healthcare"),
+    source_probe = parser.add_mutually_exclusive_group()
+    source_probe.add_argument("--fixture-variant", choices=("hr_finance", "healthcare"),
                         help="Use the profile's permitted common leave fact instead of an arbitrary echo")
+    source_probe.add_argument("--internal-knowledge", action="store_true",
+                              help="Use the frozen internal-agent-knowledge@1 common leave fact; requires ten checks")
     args = parser.parse_args(argv)
+    if args.internal_knowledge and args.checks != 10:
+        parser.error("internal-agent-knowledge@1 requires ten readiness checks per identity")
     receipt = {"schema": "backbond-amazon-quick-readiness/v1", "live": args.live,
                "status": "incomplete", "completed": 0, "expected_checks": args.checks, "checks": [], "score": "N/A",
                "started_at": datetime.now(timezone.utc).isoformat()}
@@ -51,6 +56,10 @@ def main(argv=None) -> int:
                 from evals.amazon_quick_assessment import load_profile
                 from tools.quick_qualification_probe import fixture_probe
                 probe = fixture_probe(load_profile(args.fixture_variant))
+                receipt["probe"] = probe.metadata
+            elif args.internal_knowledge:
+                from tools.quick_qualification_probe import internal_knowledge_probe
+                probe = internal_knowledge_probe()
                 receipt["probe"] = probe.metadata
             runner = AmazonQuickRunner(args.endpoint, os.environ.get(args.token_env, ""))
             receipt["target_sha256"] = runner.model_id().split(":", 1)[1]

@@ -36,10 +36,29 @@ def fixture_probe(profile: dict) -> FixtureProbe:
         raise ValueError("intact_common_fixture_probe_required")
     subject = ("the APPROVED synthetic employee handbook (leave.txt)" if profile["variant"] == "hr_finance"
                else "the fictional staff leave policy (leave.txt)")
+    return _leave_probe(profile, fixture["sources"]["leave.txt"], subject)
+
+
+def internal_knowledge_probe() -> FixtureProbe:
+    """Bind the platform's ten checks to the frozen internal@1 common source."""
+    from evals.internal_agent_knowledge import FIXTURE_VERSION, ROLES, digest, export_setup
+
+    profile = export_setup()
+    fixture = {"version": FIXTURE_VERSION, "sources": profile["sources"],
+               "permissions": profile["permission_matrix"]}
+    source = profile["sources"]["leave.txt"]
+    if (digest(fixture) != profile["fixture_sha256"]
+            or set(profile["permission_matrix"]["source_readers"].get("leave.txt", [])) != set(ROLES)
+            or "Annual leave entitlement is 20 days." not in source):
+        raise ValueError("intact_common_internal_knowledge_probe_required")
+    return _leave_probe(profile, source, "the APPROVED synthetic employee handbook (leave.txt)")
+
+
+def _leave_probe(profile: dict, source: str, subject: str) -> FixtureProbe:
     question = (f"According to {subject}, how many days of annual leave are employees entitled to? "
                 "Reply with digits only, without words, punctuation, citations, Markdown, or quotation marks.")
     metadata = {"schema": "backbond-quick-fixture-probe/v1", "profile_id": profile["profile_id"],
         "profile_sha256": profile["profile_sha256"], "fixture_sha256": profile["fixture_sha256"],
-        "source_name": "leave.txt", "source_sha256": _sha(fixture["sources"]["leave.txt"]),
+        "source_name": "leave.txt", "source_sha256": _sha(source),
         "question_sha256": _sha(question), "expected_reply_sha256": _sha("20")}
     return FixtureProbe(metadata, question, "20")
