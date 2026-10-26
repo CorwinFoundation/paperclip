@@ -87,7 +87,8 @@ class PilotTests(unittest.TestCase):
     def write_registry(self):
         self.registry.write_text(json.dumps({"schema": quick.SCHEMA, "targets": [self.row]}), encoding="utf-8")
 
-    def runner(self, *, target=None, error=None, fixed_conversation=None, logs=None):
+    def runner(self, *, target=None, error=None, fixed_conversation=None, logs=None,
+               knowledge=False, metadata=None):
         state = {"cases": 0, "sends": [], "closed": 0, "current": "", "number": 0}
         class Browser:
             def __init__(self, target):
@@ -111,11 +112,32 @@ class PilotTests(unittest.TestCase):
                 return [event(state["current"], event_timestamp=end,
                               conversation_id=fixed_conversation or f"conversation-{state['cases']}",
                               user_message_id=f"message-{state['number']}",
-                              system_text_message="reply:" + state["current"])]
-        runner = quick.AmazonQuickRunner(URL, TOKEN, {"auth": {"type": "bearer"}, "_include_result_rows": True},
+                              system_text_message="reply:" + state["current"], **(metadata or {}))]
+        runner = quick.AmazonQuickRunner(URL, TOKEN, {"auth": {"type": "bearer"}, "_include_result_rows": True,
+                                                    "_include_knowledge_evidence": knowledge},
                                         target=target or self.target, aws=Aws(), browser_factory=Browser)
         self.addCleanup(runner.close)
         return runner, state
+
+    def test_opt_in_knowledge_metadata_is_correlated_copied_and_cleared_for_each_case(self):
+        metadata = {"cited_resource": [{"citedResourceId": "source-one", "citedResourceName": "leave.txt"}],
+                    "user_selected_resources": [{"resourceId": "space-one", "resourceType": "space"}],
+                    "action_connectors": [{"actionConnectorId": "available-not-invoked"}]}
+        runner, _ = self.runner(knowledge=True, metadata=metadata)
+        runner.complete("first")
+        receipt = runner.knowledge_evidence_receipts()[0]
+        self.assertEqual(receipt["prompt_sha256"], quick._sha("first"))
+        self.assertEqual(receipt["user_arn_sha256"], quick._sha(self.target.user_arn))
+        self.assertTrue(receipt["metadata_complete"])
+        receipt["cited_resource"][0]["citedResourceId"] = "mutated"
+        self.assertEqual(runner.knowledge_evidence_receipts()[0]["cited_resource"][0]["citedResourceId"], "source-one")
+        runner.complete("second")
+        self.assertEqual(len(runner.knowledge_evidence_receipts()), 1)
+        self.assertEqual(runner.knowledge_evidence_receipts()[0]["prompt_sha256"], quick._sha("second"))
+        runner.aws.logs = Mock(side_effect=RunnerError("synthetic failure"))
+        with self.assertRaises(RunnerError):
+            runner.complete("third")
+        self.assertEqual(runner.knowledge_evidence_receipts(), ())
 
     def test_registry_gate_token_expiry_approval_and_exact_endpoint(self):
         self.assertEqual(quick.load_target(URL, TOKEN), self.target)

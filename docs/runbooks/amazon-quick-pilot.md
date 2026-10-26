@@ -8,6 +8,11 @@ The implementation is available for customer qualification. Offline tests do not
 
 ## Customer access request
 
+For the separate multi-identity, report-only internal-agent assessment, see
+[Knowledge and permissions pilot](internal-agent-knowledge-pilot.md). It adds
+source/identity-specific scenarios after transport qualification; it does not
+change the default Starter pack or public intake.
+
 Send the following technical request to the customer's Quick/AWS administrator. This is a draft for the pilot owner to review; it has not been sent.
 
 | Required item | Exact request | Access boundary |

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import hmac
+import copy
 import ipaddress
 import json
 import math
@@ -394,6 +395,42 @@ def correlated_answer(records: list[dict], target: Target, prompt: str,
     return row
 
 
+def knowledge_evidence(row: dict, target: Target) -> dict:
+    """Bounded AWS metadata for the opt-in knowledge profile, never tool proof.
+
+    Missing/malformed fields stay explicit; truncation cannot make a complete
+    permission or citation check. No arbitrary log fields or credentials pass.
+    """
+    result = {"source": "aws_chat_logs", "user_arn_sha256": _sha(target.user_arn),
+              "account_id_sha256": _sha(target.account_id), "agent_id_sha256": _sha(target.agent_id),
+              "prompt_sha256": _sha(row["user_message"]),
+              "response_sha256": _sha(row["system_text_message"]),
+              "conversation_sha256": _sha(row["conversation_id"]),
+              "message_sha256": _sha(row["user_message_id"]),
+              "event_timestamp": row["event_timestamp"], "metadata_complete": True}
+    fields = {"cited_resource": ("citedResourceType", "citedResourceId", "citedResourceName"),
+              "user_selected_resources": ("resourceId", "resourceType"),
+              "action_connectors": ("actionConnectorId",)}
+    for name, keys in fields.items():
+        values = row.get(name)
+        if not isinstance(values, list) or len(values) > 30:
+            result["metadata_complete"] = False
+            result[name] = []
+            continue
+        clean = []
+        for item in values:
+            if not isinstance(item, dict) or any(
+                value is not None and (not isinstance(value, str) or not value.strip()
+                    or len(value) > 512 or any(ord(char) < 32 for char in value))
+                for key, value in item.items() if key in keys
+            ) or not any(item.get(key) for key in keys):
+                result["metadata_complete"] = False
+                continue
+            clean.append({key: item[key] for key in keys if key in item})
+        result[name] = clean
+    return result
+
+
 class BrowserChat:
     """Control our SDK harness; read answers only from the AWS evidence path."""
 
@@ -473,6 +510,8 @@ class AmazonQuickRunner(ModelRunner):
         self.aws = aws or AwsCli(self.target)
         self.browser_factory = browser_factory or BrowserChat
         self._include_rows = bool(config.get("_include_result_rows"))
+        self._include_knowledge = bool(config.get("_include_knowledge_evidence"))
+        self._knowledge: list[dict] = []
         self._pending = None
         self._attempted: list[str] = []
         self._rows: list[dict] = []
@@ -493,6 +532,7 @@ class AmazonQuickRunner(ModelRunner):
 
     def complete_conversation(self, turns: tuple[str, ...] | list[str]) -> tuple[str, ...]:
         self._pending = None
+        self._knowledge = []
         self._attempted = []
         if not isinstance(turns, (tuple, list)) or not 1 <= len(turns) <= 10 or any(not isinstance(p, str) or not p.strip() or len(p.encode()) > _MAX_TEXT for p in turns):
             raise _fail("invalid_case_turns")
@@ -557,6 +597,8 @@ class AmazonQuickRunner(ModelRunner):
                     conversation = row["conversation_id"]
                     prior_messages.add(row["user_message_id"])
                     replies.append(row["system_text_message"])
+                    if self._include_knowledge:
+                        self._knowledge.append(knowledge_evidence(row, self.target))
                     evidence.append({"conversation_sha256": _sha(conversation),
                                      "message_sha256": _sha(row["user_message_id"]),
                                      "response_sha256": _sha(row["system_text_message"]),
@@ -593,6 +635,9 @@ class AmazonQuickRunner(ModelRunner):
 
     def evidence_receipts(self) -> tuple[dict, ...]:
         return tuple(dict(row) for row in self._evidence)
+
+    def knowledge_evidence_receipts(self) -> tuple[dict, ...]:
+        return tuple(copy.deepcopy(self._knowledge))
 
     def close(self):
         self.ledger.close()
