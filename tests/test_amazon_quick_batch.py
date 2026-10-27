@@ -237,7 +237,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         finally:
             ledger.close()
 
-    async def test_startup_is_paced_per_user_but_nine_conversations_remain_parallel(self):
+    async def test_global_startup_is_serial_but_nine_conversations_remain_parallel(self):
         state, base_aws, base_browser = self.fake_runtime()
         all_sent = asyncio.Event()
         opening, peak = {}, {}
@@ -261,6 +261,12 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
                         total_opening += 1
                         max_opening = max(max_opening, total_opening)
                         try:
+                            # Different users still share the bounded browser.
+                            # Reproduce a worker that cannot mount two SDK frames
+                            # together, while keeping ready chats concurrent.
+                            if total_opening > 1:
+                                all_sent.set()  # Let the fake log sweeps close.
+                                raise RunnerError("amazon quick: browser_harness_unavailable")
                             await asyncio.sleep(0.01)
                             await original_open(url)
                             opened_count += 1
@@ -285,7 +291,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(state["sends"]), 9)
         self.assertEqual(state["max_active"], 9)
         self.assertEqual(set(peak.values()), {1})
-        self.assertEqual(max_opening, 3)
+        self.assertEqual(max_opening, 1)
         self.assertEqual(result["initialized_together"], 9)
 
     async def test_start_barrier_rejects_over_capacity_and_repeated_prompts_before_calls(self):
@@ -347,8 +353,8 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         for lock in runner.startup_locks.values():
             await asyncio.wait_for(lock.acquire(), timeout=0.1)
             lock.release()
-        for _ in range(3): await asyncio.wait_for(runner.startup_slots.acquire(), timeout=0.1)
-        for _ in range(3): runner.startup_slots.release()
+        await asyncio.wait_for(runner.startup_slots.acquire(), timeout=0.1)
+        runner.startup_slots.release()
         ledger = ConversationLedger(self.target)
         try:
             self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1, 1, 1))

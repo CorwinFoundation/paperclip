@@ -531,8 +531,9 @@ class QuickBatchRunner:
         self.submit_gate = asyncio.Lock()
         # Parallel iframe initialization can exhaust the bounded worker before
         # its mount deadline. Pace startup independently of live conversations:
-        # at most three initializers, with one initializer per registered user.
-        self.startup_slots = asyncio.Semaphore(3)
+        # one initializer across users. Ready conversations retain their
+        # registered concurrency and release this slot before the start barrier.
+        self.startup_slots = asyncio.Semaphore(1)
         self.startup_locks = {}
         if type(start_together) is not bool:
             raise _fail("invalid_batch_start_barrier")
