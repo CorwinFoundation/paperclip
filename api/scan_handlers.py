@@ -2326,17 +2326,20 @@ def connectivity_check_handler(
     )
     if not isinstance(secret, str) or (not secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
+    import time
+    from harness.connection_diagnostics import failure_details
+    started = time.monotonic()
     runner = None
     try:
         runner = runner_factory(
             endpoint["url"], secret, body.get("agent_id"), endpoint_config=endpoint
         )
+        runner._connection_diagnostics = True
         runner.complete(CONNECTIVITY_PROMPT)
         return 200, {"success": True, "error": None}
-    except CustomerEndpointHTTPError as exc:
-        return 200, {"success": False, "error": f"endpoint_http_{exc.status_code}"}
-    except RunnerError:
-        return 200, {"success": False, "error": "connection_failed"}
+    except RunnerError as exc:
+        return 200, {"success": False, "error": "connection_failed",
+                     **failure_details(exc, runner, round((time.monotonic() - started) * 1000), [secret])}
     finally:
         if runner is not None:
             close = getattr(runner, "close", None)

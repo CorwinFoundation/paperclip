@@ -43,3 +43,18 @@ def test_intake_to_scan_payload_retains_selected_transport_and_exact_endpoint(ap
     payload = app._payload(dict(fields.model_dump(), partner='test'))
     assert payload['agent_endpoint'] == {'url': fields.endpoint_url, 'transport': 'ag_ui', 'auth': {'type': 'none'}}
     assert payload['include_result_rows'] is True
+
+
+def test_public_failure_detail_preserves_inputs_and_has_no_proof(app_env, monkeypatch):
+    app, *_ = app_env
+    monkeypatch.setenv('QA_READY', '1')
+    monkeypatch.setattr(app, 'controlled_operator', None)
+    monkeypatch.setattr(app, '_scanner_check', lambda payload: (False, {
+        'error': 'Connection check failed. Check the endpoint, authentication and response settings.',
+        'failed_stage': 'auth', 'target_status': 401, 'elapsed_ms': 12,
+        'response_excerpt': '&lt;denied&gt;'}))
+    fields = {'code': 'TEST', 'email': 'agui@example.test', 'agent_label': 'Agent',
+              'endpoint_url': 'https://agent.example.test/chat', 'transport': 'rest', 'auth': {'type': 'none'}}
+    result = TestClient(app.app).post('/scan/v1/connection-checks', json=fields).json()
+    assert result['ok'] is False and result['target_status'] == 401
+    assert result['failed_stage'] == 'auth' and 'connection_proof' not in result

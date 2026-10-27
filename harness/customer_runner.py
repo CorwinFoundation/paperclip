@@ -356,6 +356,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
 
         # A failed turn must not attach the preceding case's reply to its verdict.
         self._pending_exchange = None
+        self._connection_status = None
+        self._connection_body = ""
         if not self._auth_headers_sendable:
             # BEAAA-38865: same RunnerError prefix as any other transport
             # failure, so API-edge error mapping is unchanged; the value
@@ -420,6 +422,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
                         content=body_bytes,
                         headers=headers,
                     ) as resp:
+                        self._connection_status = resp.status_code
                         # BEAAA-5552: 3xx rejection. Fire BEFORE the
                         # >=400 check so a redirect status surfaces as
                         # a redirect-rejection error (not a generic
@@ -518,6 +521,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
                 + self._redact_result_text(str(exc))
             ) from exc
         text = raw.decode("utf-8", errors="replace")
+        if getattr(self, "_connection_diagnostics", False):
+            self._connection_body = text
         parsed_response = self._parse_response(text)
         if reservation_id is not None and self._complete_transport_attempt is not None:
             self._complete_transport_attempt(reservation_id)
@@ -797,6 +802,8 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
     ) -> Any:
         import httpx  # type: ignore
 
+        self._connection_status = None
+        self._connection_body = ""
         url = f"{self._base_url}{path}"
         body_bytes = _json.dumps(payload).encode("utf-8")
         last_exc: Exception | None = None
@@ -818,6 +825,7 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                             content=body_bytes,
                             headers=headers,
                         ) as resp:
+                            self._connection_status = resp.status_code
                             if 300 <= resp.status_code < 400:
                                 raise RunnerError(
                                     f"syllable {phase} returned redirect: "
@@ -895,6 +903,8 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
                     f"syllable {phase} request failed: {exc}"
                 ) from exc
 
+            if getattr(self, "_connection_diagnostics", False):
+                self._connection_body = raw.decode("utf-8", errors="replace")
             return _BufferedResponse(resp.status_code, raw)
 
         if last_exc is not None:
@@ -954,7 +964,11 @@ def customer_agent_http_runner_factory(
                 "SYLLABLE_CLIENT_ID_KEY", "hlw3qyTAx5inYzm2"
             ),
             host_key=os.environ.get("SYLLABLE_HOST_KEY", "https://syllable.ai"),
-            base_url=agent_endpoint,
+            base_url=(
+                urlparse(agent_endpoint)._replace(path="", params="", query="", fragment="").geturl()
+                if urlparse(agent_endpoint).path.rstrip("/") == "/api/v1/chats/send_message"
+                else agent_endpoint
+            ),
             label="syllable:apichat",
         )
     return _CustomerAgentHttpRunner(agent_endpoint, secret, endpoint_config)

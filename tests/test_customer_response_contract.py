@@ -68,7 +68,10 @@ def test_html_fails_connection_check_and_probe(endpoint, transport, content_type
         'agent_endpoint': {'url': ENDPOINT, **target._config},
     }, runner_factory=lambda *a, **kw: target)
     assert status == 200
-    assert value == {'success': False, 'error': 'connection_failed'}
+    assert value['success'] is False and value['error'] == 'connection_failed'
+    assert value['failed_stage'] == 'response_parse'
+    assert value['target_status'] == 200
+    assert value['elapsed_ms'] >= 0
     with pytest.raises(RunnerError) as error:
         target.complete('Run the next case')
     assert 'PRIVATE-BODY' not in str(error.value)
@@ -169,3 +172,13 @@ def test_html_scan_never_calls_judge_or_records_pass_fail(endpoint, monkeypatch)
     assert target.starter_result_rows()
     assert all(row['verdict'] == 'could_not_run' and 'reply' not in row
                for row in target.starter_result_rows())
+
+
+@pytest.mark.parametrize('body', ['', 'malformed', '{}'])
+def test_connection_parse_diagnostic(endpoint, body):
+    endpoint[0].append((body, 'application/json'))
+    target = runner()
+    value = connectivity_check_handler({'agent_endpoint': {'url': ENDPOINT, **target._config}},
+        runner_factory=lambda *a, **kw: target)[1]
+    assert value['failed_stage'] == 'response_parse'
+    assert value['target_status'] == 200

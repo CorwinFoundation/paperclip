@@ -74,7 +74,11 @@ def test_connectivity_handler_closes_runner_on_failure_in_same_thread():
 
     status, payload = connectivity_check_handler(ENDPOINT, runner_factory=factory)
     assert status == 200
-    assert payload == {"success": False, "error": "connection_failed"}
+    assert payload == {
+        "success": False, "error": "connection_failed",
+        "failed_stage": "transport", "elapsed_ms": payload["elapsed_ms"],
+    }
+    assert isinstance(payload["elapsed_ms"], int) and payload["elapsed_ms"] >= 0
     assert [event for event, _ in lifecycle] == ["create", "complete", "close"]
     assert len({thread_id for _, thread_id in lifecycle}) == 1
 

@@ -383,7 +383,11 @@ def test_connectivity_check_redacts_transport_failure() -> None:
         "credential_secret": "super-secret",
     }, runner_factory=lambda *args, **kwargs: Runner())
     assert status == 200
-    assert payload == {"success": False, "error": "connection_failed"}
+    assert payload == {
+        "success": False, "error": "connection_failed",
+        "failed_stage": "transport", "elapsed_ms": payload["elapsed_ms"],
+    }
+    assert isinstance(payload["elapsed_ms"], int) and payload["elapsed_ms"] >= 0
     assert "super-secret" not in str(payload)
 
 

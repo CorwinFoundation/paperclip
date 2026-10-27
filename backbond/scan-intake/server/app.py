@@ -325,7 +325,18 @@ def _scanner_check(data: dict) -> tuple[bool, str | None]:
     error = body.get("error")
     if not isinstance(error, str) or not (error in {'timeout', 'redirect refused', 'connection failed'} or re.fullmatch(r'HTTP [1-5][0-9]{2}', error)):
         error = 'Connection check failed. Check the endpoint, authentication and response settings.'
-    return bool(body.get("success")), error
+    from harness.connection_diagnostics import safe_excerpt
+    detail = {}
+    if body.get('failed_stage') in {'reachability', 'transport', 'response_parse', 'auth'}:
+        detail['failed_stage'] = body['failed_stage']
+    if body.get('error_class') in {'dns', 'tls', 'timeout', 'connection_refused', 'connection_reset'}:
+        detail['error_class'] = body['error_class']
+    for key, low, high in [('target_status', 100, 599), ('elapsed_ms', 0, 3600000)]:
+        if type(body.get(key)) is int and low <= body[key] <= high:
+            detail[key] = body[key]
+    if isinstance(body.get('response_excerpt'), str):
+        detail['response_excerpt'] = safe_excerpt(body['response_excerpt'], [data.get('credential_secret', '')])
+    return bool(body.get("success")), ({'error': error, **detail} if detail else error)
 
 
 def _scanner_start(data: dict) -> dict:
@@ -606,7 +617,7 @@ def connection_check(body: Annotated[ConnectionFields, Depends(_connection_reque
         clean.clear()
     try:
         if not ok:
-            return {"ok": False, "error": error or "connection failed"}
+            return {"ok": False, **(error if isinstance(error, dict) else {"error": error or "connection failed"})}
         return {"ok": True, "connection_proof": proofs.issue(fields), "expires_in": proofs.ttl}
     finally:
         fields.clear()

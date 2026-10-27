@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(process.argv[2] || __dirname + '/scan.js', 'utf8');
 
-async function page(sequence) {
+async function page(sequence, connection) {
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
@@ -32,7 +32,7 @@ async function page(sequence) {
     async fetch(url) {
       let body;
       if (url.endsWith('/config')) body = {scan_start_enabled: true, terms_version: 'test'};
-      else if (url.endsWith('/connection-checks')) body = {ok: true, connection_proof: 'proof', expires_in: 900};
+      else if (url.endsWith('/connection-checks')) body = connection || {ok: true, connection_proof: 'proof', expires_in: 900};
       else if (url.endsWith('/scans')) body = {status: 'running', status_token: 'synthetic-status-token'};
       else if (url.endsWith('/scan-status')) {
         polls++;
@@ -47,7 +47,7 @@ async function page(sequence) {
   vm.runInNewContext(source, context);
   await new Promise(resolve => setImmediate(resolve));
   await element('test-connection').handlers.click();
-  await element('scan-form').handlers.submit({preventDefault() {}});
+  if (!connection) await element('scan-form').handlers.submit({preventDefault() {}});
   return {
     text: () => element('status').textContent,
     element,
@@ -63,6 +63,12 @@ async function page(sequence) {
 }
 
 (async () => {
+  const failed = await page([], {ok:false,error:'Connection check failed.',failed_stage:'auth',target_status:401,response_excerpt:'<script>bad</script>'});
+  assert.ok(failed.element('connection-status').textContent.includes('target_status: 401'));
+  assert.ok(failed.element('connection-status').textContent.includes('<script>bad</script>'));
+  assert.equal(failed.element('endpoint').value, 'https://example.test/agent');
+  assert.equal(failed.element('test-connection').disabled, false);
+
   let scopeBoundaryChecks = 0;
   for (const [scope, expected] of [
     ['starter-100@3', '100 cases; starter-100@3'],
