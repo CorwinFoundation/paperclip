@@ -9,6 +9,7 @@ reads them.
 """
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -19,27 +20,34 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from tools import active_test_registry as registry  # noqa: E402
 from tools import image_artifact_allowlist as allowlist  # noqa: E402
 from tools.active_test_registry import (  # noqa: E402
-    MissingReleaseEvidenceError,
     _beaaa31092_dev_scored_rows,
     _beaaa35380_dev_scored_rows,
     _load_evidence_json,
 )
 
 
-def test_missing_required_evidence_raises(tmp_path: Path) -> None:
-    with pytest.raises(MissingReleaseEvidenceError) as excinfo:
+@pytest.mark.parametrize("reload_registry", [False, True], ids=["initial", "reloaded"])
+def test_missing_required_evidence_raises(tmp_path: Path, reload_registry: bool) -> None:
+    # Sibling suites reload the registry; exception assertions must use its live class.
+    if reload_registry:
+        importlib.reload(registry)
+    with pytest.raises(registry.MissingReleaseEvidenceError) as excinfo:
         _load_evidence_json(tmp_path / "absent.json", context="unit")
     message = str(excinfo.value)
     assert "absent.json" in message
     assert ".dockerignore" in message, "the error must name where to look"
 
 
-def test_malformed_required_evidence_raises(tmp_path: Path) -> None:
+@pytest.mark.parametrize("reload_registry", [False, True], ids=["initial", "reloaded"])
+def test_malformed_required_evidence_raises(tmp_path: Path, reload_registry: bool) -> None:
+    if reload_registry:
+        importlib.reload(registry)
     broken = tmp_path / "broken.json"
     broken.write_text("{not json", encoding="utf-8")
-    with pytest.raises(MissingReleaseEvidenceError):
+    with pytest.raises(registry.MissingReleaseEvidenceError):
         _load_evidence_json(broken, context="unit")
 
 
