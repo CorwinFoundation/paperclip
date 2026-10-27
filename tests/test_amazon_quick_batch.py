@@ -595,6 +595,43 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(checkpoints), 3)
         self.assertEqual(report["sweeps"]["employee"]["read_retries"], 2)
 
+    async def test_unexpected_sweep_failure_preserves_reason_and_blocks_queued_sends(self):
+        for error in (RuntimeError("private SDK URL must not appear"), asyncio.CancelledError()):
+            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as state_dir:
+                with patch.dict(os.environ, {"ARE_AMAZON_QUICK_STATE_DIR": state_dir}):
+                    state, base_aws, browser = self.fake_runtime()
+                    class Aws(base_aws):
+                        async def logs(self, start, end):
+                            raise error
+                    runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=10,
+                        aws_factory=Aws, browser=browser, sweep_seconds=0.005, concurrency=1)
+                    report = await runner.run([BatchCase(str(i), "employee", (f"prompt-{i}",)) for i in range(3)])
+                    self.assertEqual(report["status"], "incomplete")
+                    failure = report["sweeps"]["employee"]["failure"]
+                    self.assertEqual(failure["reason"], "evidence_sweep_runtime_failed_no_target_retry")
+                    self.assertEqual(failure["exception_type"], type(error).__name__)
+                    self.assertTrue(failure["source_locations"])
+                    self.assertNotIn("private SDK URL", json.dumps(report))
+                    self.assertEqual(len(state["sends"]), 1)
+                    self.assertTrue(state["closed"])
+                    self.assertTrue(all(c["closed"] for c in state["contexts"]))
+                    ledger = ConversationLedger(self.target)
+                    try:
+                        self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1,1,1))
+                        self.assertEqual(ledger.db.execute("SELECT calls,halted FROM quick_batch_authorizations").fetchone(), (1,1))
+                        self.assertEqual(ledger.db.execute("SELECT status,reason FROM quick_batch_submissions").fetchone(),
+                            ("unknown", "evidence_sweep_runtime_failed_no_target_retry"))
+                    finally:
+                        ledger.close()
+
+    async def test_expected_sweep_shutdown_does_not_record_runtime_failure(self):
+        state, aws, browser = self.fake_runtime()
+        runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=3,
+            aws_factory=aws, browser=browser, sweep_seconds=0.005)
+        report = await runner.run([BatchCase("one", "employee", ("hello",))])
+        self.assertEqual(report["status"], "capture_complete")
+        self.assertIsNone(runner.sweeps["employee"].failure)
+
     async def test_failed_evidence_checkpoint_stops_new_sends_and_closes_all_contexts(self):
         state, aws, browser = self.fake_runtime()
         runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=20,

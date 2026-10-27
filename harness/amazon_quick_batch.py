@@ -14,6 +14,7 @@ import json
 import secrets
 import sqlite3
 import time
+import traceback
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -187,6 +188,13 @@ class ConversationLedger(Ledger):
     def release(self, owner: str):
         with self.db:
             self.db.execute("DELETE FROM quick_conversation_leases WHERE owner=?", (owner,))
+
+    def halt_authorization(self):
+        """Stop every registered identity even when the sweep has no pending turn."""
+        with self.db:
+            self.db.execute("UPDATE quick_batch_authorizations SET halted=1 WHERE id=?", (self.authorization,))
+            self.db.execute("""UPDATE pilots SET halted=1 WHERE id IN
+                (SELECT pilot FROM quick_batch_authorization_pilots WHERE authorization=?)""", (self.authorization,))
 
 
 class BotoEvidence:
@@ -437,6 +445,7 @@ class EvidenceSweep:
         self.sweeps = self.read_retries = self.late_rows = 0
         self.accepted_by_owner = {}
         self.closed = False
+        self.failure = None
         self.allow_empty_responses = allow_empty_responses
 
     def add(self, owner, index, prompt, start_ms, deadline):
@@ -511,6 +520,24 @@ class EvidenceSweep:
             while not self.closed:
                 await asyncio.sleep(self.interval)
                 await self.sweep()
+        except (Exception, asyncio.CancelledError) as exc:
+            if isinstance(exc, asyncio.CancelledError) and self.closed:
+                raise
+            # Never emit exception text: SDK errors can contain private URLs or
+            # configuration. Keep source locations so a stopped task can be
+            # diagnosed without replaying its uncertain submissions.
+            locations = [{"function": frame.name, "line": frame.lineno}
+                         for frame in traceback.extract_tb(exc.__traceback__)
+                         if frame.filename == __file__]
+            self.failure = {"reason": "evidence_sweep_runtime_failed_no_target_retry",
+                            "exception_type": type(exc).__name__, "source_locations": locations}
+            self.stop.set()
+            try:
+                self.ledger.halt_authorization()
+            except sqlite3.Error:
+                self.failure["reason"] = "persistent_state_failure_operator_review_required"
+            for item in self.pending:
+                self.fail(item, self.failure["reason"])
         finally:
             for item in self.pending:
                 self.fail(item, "sweep_closed_with_unresolved_submission")
@@ -553,6 +580,8 @@ class QuickBatchRunner:
         self.initialized_together = 0
 
     def check_registration(self, role):
+        if any(sweep.failure is not None for sweep in self.sweeps.values()):
+            raise _fail("evidence_sweep_runtime_failed_no_target_retry")
         ledger = self.ledgers[role]
         ledger.check()
         if self.stop.is_set():
@@ -785,7 +814,8 @@ class QuickBatchRunner:
                     "api_calls": {role: {"embedding": getattr(client, "embed_api_calls", None),
                                          "logs": getattr(client, "log_api_calls", None)} for role, client in self.aws.items()},
                     "sweeps": {role: {"queries": sweep.sweeps, "read_retries": sweep.read_retries,
-                                       "late_rows": sweep.late_rows} for role, sweep in self.sweeps.items()},
+                                       "late_rows": sweep.late_rows, "failure": sweep.failure}
+                               for role, sweep in self.sweeps.items()},
                     "backbond_score": "N/A"}
         finally:
             if any(not task.done() for task in case_tasks):
