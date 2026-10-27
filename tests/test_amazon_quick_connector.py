@@ -77,6 +77,30 @@ class CorrelationTests(unittest.TestCase):
                 with self.subTest(status=status, changes=changes), self.assertRaises(RunnerError):
                     quick.correlated_answer([event(status_code=status, **changes)], self.target, "hello", 100, 200)
 
+    def test_assessment_opt_in_preserves_literal_empty_text_without_relaxing_default(self):
+        for status in ("success", "request_blocked", "no_answer_found"):
+            for text in ("", " \n"):
+                with self.subTest(status=status, text=text):
+                    native = event(status_code=status, system_text_message=text)
+                    with self.assertRaises(RunnerError):
+                        quick.correlated_answer([native], self.target, "hello", 100, 200)
+                    self.assertEqual(quick.correlated_answer([native], self.target, "hello", 100, 200,
+                                     allow_empty_response=True), native)
+                    evidence = quick.knowledge_evidence(native, self.target)
+                    self.assertEqual(evidence["native_text_state"], "empty")
+                    self.assertEqual(evidence["response_sha256"], quick._sha(text))
+
+    def test_empty_opt_in_does_not_accept_missing_oversized_or_conflicting_evidence(self):
+        for changes in ({"system_text_message": None}, {"system_text_message": []},
+                        {"system_text_message": "x" * 65537}, {"system_message_id": ""},
+                        {"status_code": "pending"}):
+            with self.subTest(changes=list(changes)), self.assertRaises(RunnerError):
+                quick.correlated_answer([event(**changes)], self.target, "hello", 100, 200,
+                                        allow_empty_response=True)
+        with self.assertRaisesRegex(RunnerError, "conflicting_chat_evidence"):
+            quick.correlated_answer([event(system_text_message=""), event()], self.target,
+                                    "hello", 100, 200, allow_empty_response=True)
+
     def test_sdk_host_contract_runs_under_node(self):
         test = Path(__file__).resolve().parents[1] / "tools/amazon-quick-pilot/pilot.test.cjs"
         result = subprocess.run(["node", str(test)], capture_output=True, timeout=20, check=False)

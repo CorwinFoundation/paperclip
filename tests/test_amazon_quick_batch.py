@@ -162,7 +162,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(env.stop)
         self.target = target()
 
-    def fake_runtime(self, *, captured=None, send_failure=False, read_failures=0, native_statuses=None):
+    def fake_runtime(self, *, captured=None, send_failure=False, read_failures=0, native_statuses=None, native_answers=None):
         state = {"contexts": [], "active": 0, "max_active": 0, "rows": [], "sends": [],
                  "reads": 0, "embeds": 0, "closed": False}
         class Aws:
@@ -194,6 +194,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
                         if send_failure:
                             raise RunnerError("amazon quick: prompt_submission_unknown_no_retry")
                         state["rows"].append(row(t, prompt, status_code=(native_statuses or {}).get(prompt, "success"),
+                                                 system_text_message=(native_answers or {}).get(prompt, "answer"),
                                                  conversation_id="c" + str(index),
                                                  user_message_id="m" + str(len(state["sends"]))))
                     async def capture(self):
@@ -205,6 +206,38 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
                     context["closed"] = True
             async def close(self): state["closed"] = True
         return state, Aws, Browser()
+
+    async def test_assessment_collects_native_empty_outcomes_and_continues_without_resend(self):
+        answers = {"empty-success": "", "empty-blocked": " ", "empty-no-answer": ""}
+        state, aws, browser = self.fake_runtime(native_answers=answers,
+            native_statuses={"empty-blocked": "request_blocked", "empty-no-answer": "no_answer_found"})
+        runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=30,
+            aws_factory=aws, browser=browser, sweep_seconds=0.005, concurrency=1, allow_empty_responses=True)
+        prompts = [*answers, "following-normal"]
+        report = await runner.run([BatchCase(p, "employee", (p,)) for p in prompts])
+        self.assertEqual(report["status"], "capture_complete")
+        self.assertEqual([p for _, p in state["sends"]], prompts)
+        for result in report["results"][:3]:
+            turn = result["turns"][0]
+            self.assertEqual(result["status"], "observed")
+            self.assertEqual(result["reason"], "correlated_provider_empty_text")
+            self.assertEqual(turn["reply"], answers[result["case_id"]])
+            self.assertEqual(turn["transport"]["native_text_state"], "empty")
+            self.assertEqual(turn["transport"]["response_sha256"], _sha(turn["reply"]))
+        db = __import__('sqlite3').connect(Path(self.temp.name) / 'amazon-quick.sqlite3')
+        self.addCleanup(db.close)
+        self.assertEqual(db.execute('SELECT calls,halted,inflight FROM pilots').fetchone(), (4, 0, 0))
+        self.assertEqual(db.execute("SELECT status,COUNT(*) FROM quick_batch_submissions GROUP BY status").fetchall(), [('verified', 4)])
+
+    async def test_default_batch_still_halts_on_native_empty_response(self):
+        state, aws, browser = self.fake_runtime(native_answers={"empty": ""})
+        runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=30,
+            aws_factory=aws, browser=browser, sweep_seconds=0.005, concurrency=1)
+        report = await runner.run([BatchCase("empty", "employee", ("empty",)),
+                                   BatchCase("later", "employee", ("later",))])
+        self.assertEqual(report["status"], "incomplete")
+        self.assertEqual(state["sends"], [(0, "empty")])
+        self.assertEqual(report["results"][0]["reason"], "chat_answer_missing_or_oversized")
 
     async def test_parallel_contexts_have_distinct_conversations_and_fallback_is_visible(self):
         state, aws, browser = self.fake_runtime()

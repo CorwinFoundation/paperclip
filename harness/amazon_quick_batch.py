@@ -431,12 +431,13 @@ class PendingTurn:
 class EvidenceSweep:
     """One bounded query per user/group sweep, shared by all its conversations."""
 
-    def __init__(self, target, aws, ledger, stop, *, interval=15):
+    def __init__(self, target, aws, ledger, stop, *, interval=15, allow_empty_responses=False):
         self.target, self.aws, self.ledger, self.stop = target, aws, ledger, stop
         self.interval, self.pending = interval, []
         self.sweeps = self.read_retries = self.late_rows = 0
         self.accepted_by_owner = {}
         self.closed = False
+        self.allow_empty_responses = allow_empty_responses
 
     def add(self, owner, index, prompt, start_ms, deadline):
         item = PendingTurn(owner, index, prompt, start_ms, deadline, asyncio.get_running_loop().create_future())
@@ -485,7 +486,8 @@ class EvidenceSweep:
             try:
                 prior = self.accepted_by_owner.get(item.owner, set())
                 candidates = [row for row in rows if row.get("user_message_id") not in prior]
-                row = correlated_answer(candidates, self.target, item.prompt, item.start_ms, now_ms)
+                row = correlated_answer(candidates, self.target, item.prompt, item.start_ms, now_ms,
+                                        allow_empty_response=self.allow_empty_responses)
                 if item.future.done():
                     if row is not None:
                         self.ledger.accept_turn(item.owner, item.index, row)
@@ -517,10 +519,13 @@ class EvidenceSweep:
 class QuickBatchRunner:
     def __init__(self, targets, *, authorization, max_calls, aws_factory=BotoEvidence,
                  browser=None, sweep_seconds=15, max_wall_seconds=7200, registered_tokens=None,
-                 concurrency=None, on_result=None, start_together=False):
+                 concurrency=None, on_result=None, start_together=False, allow_empty_responses=False):
         if not targets or not 0 < sweep_seconds <= 15 or not 1 <= max_wall_seconds <= 14400:
             raise _fail("invalid_batch_limits")
         self.targets, self.authorization = targets, authorization
+        if type(allow_empty_responses) is not bool:
+            raise _fail("invalid_empty_response_mode")
+        self.allow_empty_responses = allow_empty_responses
         self.max_calls, self.max_wall_seconds = max_calls, max_wall_seconds
         self.browser, self.aws_factory = browser or PersistentBrowser(), aws_factory
         self.registered_tokens = registered_tokens
@@ -683,6 +688,8 @@ class QuickBatchRunner:
                          "transport": knowledge_evidence(row, target), "pacing": item.pacing,
                          "browser_response_sha256": _sha(item.captured) if item.captured is not None else None}
                         for item, row in zip(items, rows)])
+                    if any(not turn["reply"].strip() for turn in result["turns"]):
+                        result["reason"] = "correlated_provider_empty_text"
             except (Exception, asyncio.CancelledError) as exc:
                 self.stop.set()
                 if self.ready_barrier is not None:
@@ -762,7 +769,8 @@ class QuickBatchRunner:
                 ledger = self.ledgers[role]
                 ledger.authorize(self.authorization, self.targets, self.max_calls)
                 self.aws[role] = self.aws_factory(target)
-                self.sweeps[role] = EvidenceSweep(target, self.aws[role], ledger, self.stop, interval=self.interval)
+                self.sweeps[role] = EvidenceSweep(target, self.aws[role], ledger, self.stop, interval=self.interval,
+                                                  allow_empty_responses=self.allow_empty_responses)
                 tasks.append(asyncio.create_task(self.sweeps[role].run()))
             semaphores = {role: asyncio.Semaphore(self.concurrency or target.max_concurrent_conversations)
                           for role, target in self.targets.items()}

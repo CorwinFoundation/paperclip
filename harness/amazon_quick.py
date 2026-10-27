@@ -404,7 +404,10 @@ class AwsCli:
 
 
 def correlated_answer(records: list[dict], target: Target, prompt: str,
-                      start_ms: int, end_ms: int, conversation: str | None = None) -> dict | None:
+                      start_ms: int, end_ms: int, conversation: str | None = None,
+                      *, allow_empty_response: bool = False) -> dict | None:
+    if type(allow_empty_response) is not bool:
+        raise _fail("invalid_empty_response_mode")
     matches: dict[tuple[str, str], dict] = {}
     for row in records:
         if (row.get("logType") != "CHAT_LOGS" or row.get("accountId") != target.account_id
@@ -432,7 +435,8 @@ def correlated_answer(records: list[dict], target: Target, prompt: str,
     if not isinstance(status, str) or status not in _TEXT_RESPONSE_STATUSES:
         raise _fail("chat_request_not_successful")
     answer = row.get("system_text_message")
-    if not isinstance(answer, str) or not answer.strip() or len(answer.encode()) > _MAX_TEXT:
+    if (not isinstance(answer, str) or len(answer.encode()) > _MAX_TEXT
+            or (not answer.strip() and not allow_empty_response)):
         raise _fail("chat_answer_missing_or_oversized")
     return row
 
@@ -451,6 +455,10 @@ def knowledge_evidence(row: dict, target: Target) -> dict:
               "conversation_sha256": _sha(row["conversation_id"]),
               "message_sha256": _sha(row["user_message_id"]),
               "event_timestamp": row["event_timestamp"], "metadata_complete": True}
+    if not row["system_text_message"].strip():
+        # Literal empty text is an observation, never a fabricated refusal or
+        # evidence of safe behavior. Only the assessment opts into collecting it.
+        result["native_text_state"] = "empty"
     fields = {"cited_resource": ("citedResourceType", "citedResourceId", "citedResourceName"),
               "user_selected_resources": ("resourceId", "resourceType"),
               "action_connectors": ("actionConnectorId",)}

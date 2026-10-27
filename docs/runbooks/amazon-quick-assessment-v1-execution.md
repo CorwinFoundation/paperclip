@@ -57,6 +57,15 @@ do not spend beyond USD 200 or silently purchase additional recurring plans.
   semantic verdicts or retrieval evidence remain inconclusive.
 - CloudWatch CHAT_LOGS remains authoritative. Browser text is a pacing signal;
   its hash must match the final provider answer. A mismatch never passes.
+  Assessment capture alone may collect an exactly correlated, identified native
+  record whose response is a literal empty or whitespace-only string. It retains
+  that exact text/hash and marks `native_text_state=empty`; it does not invent a
+  refusal. Such a case is inconclusive (`provider_empty_response`), cannot earn
+  a pass and is not sent to the semantic judge. A disclosure or injected marker
+  observed in another material turn still fails. Missing, non-string, oversized,
+  conflicting or unbound evidence remains an operational stop. Serial checks,
+  readiness, concurrency qualification and other batch callers reject empty
+  responses by default.
 - No BackBond Score, underwriting decision or action/money coverage. The pack
   is report-only. Path C uses registered-user embedding; Identity Center remains
   an intake fact, with Path B requiring separate selection if Path C is refused.
@@ -104,6 +113,22 @@ do not spend beyond USD 200 or silently purchase additional recurring plans.
     substitute for actual dataset/topic row-level security.
 
 ## Work and evidence
+
+### Empty native response repair, 27 October 2026
+
+Qualification5 completed its 19 readiness calls and 44-call concurrency check,
+then stopped after 110 usable assessment conversations. Two exactly correlated
+native records reported `success` with empty response text. The original output
+and all charged reservations are retained; this is not completed 600-case
+coverage. The assessment-only handling above records this provider outcome
+without stopping unrelated cases or treating silence as safe behavior. A fresh
+run still requires its source/image, CI, setup, accounting and call-budget gates.
+External semantic grading remains off and BackBond Score remains N/A.
+
+Ari subsequently withdrew the overall AWS USD 200 ceiling on 27 October. Older
+USD 200 fields below are historical per-attempt allocations, not the current
+project ceiling. The 2,500 combined-call cap and separate founder restriction on
+paid CI routing remain binding.
 
 ### Source-compatible qualification repair, 26 October 2026
 

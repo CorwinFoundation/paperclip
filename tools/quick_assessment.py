@@ -282,7 +282,8 @@ async def capture_cases(profile, selected_ids, attempt, scope, targets, output, 
         raise PreflightError("overall_wall_clock_budget_exhausted")
     runner = QuickBatchRunner(targets, authorization=scope["authorization_id"], max_calls=scope["max_calls"],
         max_wall_seconds=min(remaining, 14400), browser=PersistentBrowser(capture_spec=scope.get("browser_capture_spec")),
-        registered_tokens={role: os.environ[scope["identities"][role]["token_env"]] for role in targets}, on_result=checkpoint)
+        registered_tokens={role: os.environ[scope["identities"][role]["token_env"]] for role in targets},
+        on_result=checkpoint, allow_empty_responses=True)
     result = await runner.run(cases)
     run["capture_metrics"].append({k: v for k, v in result.items() if k != "results"})
     return result["status"] == "capture_complete"
