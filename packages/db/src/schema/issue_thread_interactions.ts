@@ -29,7 +29,8 @@ export const issueThreadInteractions = pgTable(
     resolvedByAgentId: uuid("resolved_by_agent_id").references(() => agents.id),
     resolvedByUserId: text("resolved_by_user_id"),
     payload: jsonb("payload").$type<IssueThreadInteractionPayload>().notNull(),
-    result: jsonb("result").$type<IssueThreadInteractionResult>(),
+    // Withdrawal metadata is persisted here and exposed as withdrawalReason, not an answer.
+    result: jsonb("result").$type<IssueThreadInteractionResult | { version: 1; withdrawalReason: string }>(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
