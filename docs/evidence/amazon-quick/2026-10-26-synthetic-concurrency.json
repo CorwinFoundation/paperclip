@@ -1,0 +1,122 @@
+{
+  "schema": "backbond-quick-synthetic-spike-measurement/v1",
+  "observed_at_utc": "2026-10-26T23:15:37.951715+00:00",
+  "scope": "BackBond-owned synthetic HR/finance Quick Chat only; three registered users; us-east-1; t3.large8GiB",
+  "source_revision": "7f643e0ee62b3d7fcbc8278bd7c50fa5724642ed",
+  "image_id": "sha256:ab61fedc68a21fccb27e351cbebed68efb3efc6681198c6fe187b5dbaa4e5f1f",
+  "fresh_platform_and_identity_checks_passed": 19,
+  "unfiltered_log_isolation_passed": true,
+  "spike_status": "concurrency_qualified",
+  "target_calls": 44,
+  "judge_calls": 0,
+  "qualified_concurrency_per_user": 5,
+  "elapsed_seconds": 784.765,
+  "started_at": "2026-10-26T23:01:11.343972+00:00",
+  "finished_at": "2026-10-26T23:14:16.172230+00:00",
+  "waves": [
+    {
+      "concurrency": 1,
+      "submitted_case_cap": 3,
+      "verified": true,
+      "case_counts_by_role": {
+        "employee": 1,
+        "sales_manager": 1,
+        "hr": 1
+      },
+      "elapsed_seconds": 108.595,
+      "browser_launches": 1,
+      "initialized_together": 3,
+      "mean_completion_spacing_seconds": 36.198,
+      "embedding_requests": 3,
+      "log_api_calls": 17,
+      "sweep_read_retries": 0,
+      "late_rows": 0
+    },
+    {
+      "concurrency": 2,
+      "submitted_case_cap": 6,
+      "verified": true,
+      "case_counts_by_role": {
+        "employee": 2,
+        "sales_manager": 2,
+        "hr": 2
+      },
+      "elapsed_seconds": 122.315,
+      "browser_launches": 1,
+      "initialized_together": 6,
+      "mean_completion_spacing_seconds": 20.386,
+      "embedding_requests": 6,
+      "log_api_calls": 15,
+      "sweep_read_retries": 0,
+      "late_rows": 0
+    },
+    {
+      "concurrency": 3,
+      "submitted_case_cap": 9,
+      "verified": true,
+      "case_counts_by_role": {
+        "employee": 3,
+        "sales_manager": 3,
+        "hr": 3
+      },
+      "elapsed_seconds": 168.821,
+      "browser_launches": 1,
+      "initialized_together": 9,
+      "mean_completion_spacing_seconds": 18.758,
+      "embedding_requests": 9,
+      "log_api_calls": 28,
+      "sweep_read_retries": 0,
+      "late_rows": 0
+    },
+    {
+      "concurrency": 5,
+      "submitted_case_cap": 15,
+      "verified": true,
+      "case_counts_by_role": {
+        "employee": 5,
+        "sales_manager": 5,
+        "hr": 5
+      },
+      "elapsed_seconds": 199.421,
+      "browser_launches": 1,
+      "initialized_together": 15,
+      "mean_completion_spacing_seconds": 13.295,
+      "embedding_requests": 15,
+      "log_api_calls": 26,
+      "sweep_read_retries": 0,
+      "late_rows": 0
+    },
+    {
+      "concurrency": 5,
+      "submitted_case_cap": 11,
+      "verified": true,
+      "case_counts_by_role": {
+        "employee": 4,
+        "sales_manager": 4,
+        "hr": 3
+      },
+      "elapsed_seconds": 185.044,
+      "browser_launches": 1,
+      "initialized_together": 11,
+      "mean_completion_spacing_seconds": 16.822,
+      "embedding_requests": 11,
+      "log_api_calls": 32,
+      "sweep_read_retries": 0,
+      "late_rows": 0
+    }
+  ],
+  "source_spike_receipt_sha256": "deedd93f215feceea09efe746c4b9077d9a574cd114dda1e722a7d7cac91b055",
+  "observed_metadata_sha256": "516d31982ce4acd7f4e8d1cba534c1a1c77d15f6b86df577aa5ccbc3775c4372",
+  "raw_transcripts_included": false,
+  "customer_configuration_tested": false,
+  "production_identity_center_qualified": false,
+  "hostinger_dispatch_qualified": false,
+  "backbond_score": "N/A",
+  "limits": [
+    "Synthetic transport/concurrency evidence only; no production or customer findings",
+    "A different target needs its own setup, readiness and scoped performance qualification",
+    "Wave wall time divided by sessions is normalized completion spacing, not individual answer latency or a scan SLA"
+  ],
+  "embedding_requests": 44,
+  "log_api_calls": 118
+}

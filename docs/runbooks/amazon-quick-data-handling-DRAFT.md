@@ -32,6 +32,12 @@ worker role is restricted to its prefix. Authorized AWS account administrators
 remain privileged; access review is a release condition, not an assertion that
 only one person can technically read the account.
 
+Any local review/export copies require an explicitly approved location, named
+readers and the same deletion plan. BackBond's own synthetic qualification uses
+local operator review copies. Running the worker in AWS does not establish
+AWS-only handling; a customer requiring that restriction needs a separately
+qualified review/export process before launch.
+
 **External processing.** The semantic judge is off by default. Enabling OpenRouter
 requires written customer/security approval in both processing and operator
 scope, an approved credential and a persistent budget. Relevant synthetic prompts,

@@ -1,11 +1,15 @@
 # Amazon Quick customer pilot operations
 
-Internal operating runbook | 25 October 2026 | Depends on connector #1269 and internal profile #1272
+Internal operating runbook | 27 October 2026 | Registered-user Quick Chat
 
 This packages `internal-agent-knowledge@1` for an AWS worker: capture, the existing
 grader, durable evaluator budget and a readable report. It is a scoped report-only
 assessment with BackBond Score N/A. It does not deploy the public Scanner API or
 connect Hostinger's job queue. A build or scripted fixture is not customer evidence.
+For the separate 600-case configuration-copy workflow, use
+[the assessment execution guide](amazon-quick-assessment-v1-execution.md) and
+[the Path C administrator guide](amazon-quick-path-c-admin.md). The 18-case
+commands below do not execute that larger assessment.
 
 ## Browser startup pacing
 
@@ -30,6 +34,35 @@ conversations or the customer assessment. Repeat the complete bounded readiness
 and concurrency qualification on the merged image before any assessment. Preserve
 failed-attempt receipts and charged reservations; never clear a halted ledger or
 replay an uncertain request solely because provider logs contain no match.
+
+## Measured synthetic concurrency qualification
+
+On 26 October 2026, the merged `7f643e0` image passed ten fresh platform checks,
+three readiness checks for each of three registered users, and the unfiltered
+pilot-group isolation audit. The subsequent 44-prompt spike passed every wave
+in **784.765 seconds**, inside its 900-second bound. The worker was `t3.large`
+with 8 GiB in BackBond's `us-east-1` sandbox; external grading was off.
+
+| Per-user conversation cap | Sessions in wave | Initialized before first prompt | Wave seconds | Seconds / completed session |
+|---|---:|---:|---:|---:|
+| 1 | 3 | 3 | 108.595 | 36.198 |
+| 2 | 6 | 6 | 122.315 | 20.386 |
+| 3 | 9 | 9 | 168.821 | 18.758 |
+| 5 | 15 | 15 | 199.421 | 13.295 |
+| 5 | 11 | 11 | 185.044 | 16.822 |
+
+Each wave used one Chromium instance and independent contexts/conversations.
+All replies matched the source-bound probe and correlated provider evidence;
+all sweep read-retry and late-row counts were zero. The full-wave barrier was
+verified at fifteen initialized sessions, followed by the eleven-session repeat.
+Five conversations per user is the measured setting for these exact three
+registrations, not a published AWS service quota or a two-hour assessment SLA.
+
+The sanitized [measurement receipt](../evidence/amazon-quick/2026-10-26-synthetic-concurrency.json)
+records source/image identities, counts, timings and the original receipt hash.
+It contains no raw transcripts. These are BackBond synthetic transport and
+concurrency results, not customer configuration findings. Full assessment,
+semantic review and each customer setup retain their separate evidence gates.
 
 ## Customer selection and acceptance
 

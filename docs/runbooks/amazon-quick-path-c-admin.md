@@ -244,9 +244,13 @@ This bound depends on the pinned grader/profile/capture/qualification hashes;
 rederive it before changing those inputs or enabling external grading.
 
 The hard allocation is **2,426 v1.2 + 48 separate follow-on + 26 retained legacy
-= 2,500 calls**, within the USD 200 incremental ceiling. The reviewed combined
-planned maximum is 2,107, leaving 393 calls within the v1.2 allocation. The
-follow-on uses separate immutable authorization and pilot IDs, sequentially,
+= 2,500 calls**, within the approved BackBond baseline's USD 200 incremental
+ceiling. The 26 October recovery started with 32 charged reservations retained.
+Adding its 2,033 fresh-call bound gives 2,065 cumulative v1.2 calls, or 2,139
+combined, leaving 361 calls within the allocation. These are pre-run bounds,
+not observed usage or permission to start another fresh run. Each customer
+needs its own reviewed cost/call plan and preserved consumption. The follow-on
+uses separate immutable authorization and pilot IDs, sequentially,
 with the same persistent ledger and identity leases. Every manual, readiness,
 uncertain submission and confirmation consumes the preserved allocation.
 
