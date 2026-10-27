@@ -258,7 +258,7 @@ describe("issueThreadInteractionService", () => {
       state.db.select.mockImplementation(() => createSelectChain([state.getInteractionRow()]));
 
       await expect(svc.acceptInteraction(
-        { id: "issue", companyId: "company" }, "card", {}, { userId: "local-board" },
+        { id: "issue", companyId: "company", projectId: null, goalId: null }, "card", {}, { userId: "local-board" },
       )).rejects.toThrow("Interaction has already been resolved");
 
       expect(state.getInteractionRow()).toMatchObject({ status: "withdrawn", continuationPolicy: "none" });
