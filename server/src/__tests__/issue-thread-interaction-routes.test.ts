@@ -20,6 +20,7 @@ const mockInteractionService = vi.hoisted(() => ({
   expireRequestConfirmationsSupersededByHistoricalComments: vi.fn(),
   answerQuestions: vi.fn(),
   cancelInteraction: vi.fn(),
+  withdrawInteraction: vi.fn(),
 }));
 
 const mockHeartbeatService = vi.hoisted(() => ({
@@ -532,6 +533,10 @@ describe.sequential("issue thread interaction routes", () => {
 
   it("lets an author withdraw a refuted question without waking the assignee", async () => {
     mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
+    mockInteractionService.withdrawInteraction.mockResolvedValueOnce({
+      id: "interaction-2", kind: "ask_user_questions", status: "withdrawn",
+      continuationPolicy: "none", withdrawalReason: "Later measurements refuted the remediation premise",
+    });
     const app = await createApp({
       type: "agent",
       agentId: ASSIGNEE_AGENT_ID,
@@ -540,11 +545,12 @@ describe.sequential("issue thread interaction routes", () => {
     });
 
     const res = await request(app)
-      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/withdraw")
       .send({ reason: "Later measurements refuted the remediation premise" });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("cancelled");
+    expect(res.body.status).toBe("withdrawn");
+    expect(mockLogActivity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "issue.thread_interaction_withdrawn" }));
     expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
   });
 

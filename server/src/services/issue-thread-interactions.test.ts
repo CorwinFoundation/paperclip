@@ -213,6 +213,35 @@ describe("issueThreadInteractionService", () => {
     expect(state.issueTouches).toHaveLength(1);
   });
 
+  it.each(["ask_user_questions", "request_confirmation", "request_checkbox_confirmation", "suggest_tasks"])("withdraws author-owned %s without answering", async (kind) => {
+    const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+    const state = createFakeDb({ interactionRow: {
+      id: "card", issueId: "issue", companyId: "company", kind, status: "pending",
+      createdByAgentId: "author", payload: {}, result: null,
+    } });
+    const result = await issueThreadInteractionService(state.db as never).withdrawInteraction(
+      { id: "issue", companyId: "company" }, "card", { reason: " Premise refuted " }, { agentId: "author" },
+    );
+    expect(result).toMatchObject({ status: "withdrawn", continuationPolicy: "none", withdrawalReason: "Premise refuted", result: null });
+    expect(state.interactionUpdates).toHaveLength(1);
+  });
+
+  it.each([
+    ["other", "pending", "Reason", "Only the authoring agent"],
+    ["author", "answered", "Reason", "already been resolved"],
+    ["author", "pending", "  ", "withdrawal reason is required"],
+  ])("rejects invalid withdrawal %#", async (agentId, status, reason, error) => {
+    const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+    const state = createFakeDb({ interactionRow: {
+      id: "card", issueId: "issue", companyId: "company", kind: "ask_user_questions", status,
+      createdByAgentId: "author", payload: {}, result: null,
+    } });
+    await expect(issueThreadInteractionService(state.db as never).withdrawInteraction(
+      { id: "issue", companyId: "company" }, "card", { reason }, { agentId },
+    )).rejects.toThrow(error);
+    expect(state.interactionUpdates).toHaveLength(0);
+  });
+
   it("cancels a pending request_confirmation", async () => {
     const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
     const state = createFakeDb({

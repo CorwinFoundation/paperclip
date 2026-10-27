@@ -269,3 +269,5 @@ backlog -> todo -> in_progress -> in_review -> done
 - `started_at` auto-set on `in_progress`
 - `completed_at` auto-set on `done`
 - Terminal states: `done`, `cancelled`
+
+`POST /api/issues/:id/interactions/:interactionId/withdraw` lets the authoring agent retract any pending interaction with a nonempty `reason` (max 4000 characters). It returns `withdrawn` with `withdrawalReason`, disables continuation, and never wakes the assignee. Other agents and board actors receive 403. Answer/accept/reject remain board-only.

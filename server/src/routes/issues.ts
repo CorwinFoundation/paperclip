@@ -6364,6 +6364,31 @@ export function issueRoutes(
   );
 
   router.post(
+    "/issues/:id/interactions/:interactionId/withdraw",
+    validate(cancelIssueThreadInteractionSchema),
+    async (req, res) => {
+      const issue = await svc.getById(req.params.id as string);
+      if (!issue) { res.status(404).json({ error: "Issue not found" }); return; }
+      assertCompanyAccess(req, issue.companyId);
+      if (req.actor.type !== "agent") {
+        res.status(403).json({ error: "Only the authoring agent may withdraw an interaction" }); return;
+      }
+      const actor = getActorInfo(req);
+      const interaction = await issueThreadInteractionService(db).withdrawInteraction(
+        issue, req.params.interactionId as string, req.body, { agentId: actor.agentId },
+      );
+      await logActivity(db, {
+        companyId: issue.companyId, actorType: actor.actorType, actorId: actor.actorId,
+        agentId: actor.agentId, runId: actor.runId,
+        action: "issue.thread_interaction_withdrawn", entityType: "issue", entityId: issue.id,
+        details: { interactionId: interaction.id, interactionKind: interaction.kind,
+          interactionStatus: interaction.status, withdrawalReason: interaction.withdrawalReason },
+      });
+      res.json(interaction);
+    },
+  );
+
+  router.post(
     "/issues/:id/interactions/:interactionId/cancel",
     validate(cancelIssueThreadInteractionSchema),
     async (req, res) => {
