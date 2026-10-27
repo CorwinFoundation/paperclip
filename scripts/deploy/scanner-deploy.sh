@@ -388,7 +388,7 @@ evidence_extract() {
   [ ! -L "$FULL_SCAN_JOB_STORE" ] || die 'full-scan job store is a symlink'
   [ -f "$FULL_SCAN_JOB_STORE" ] || die "full-scan job store missing: $FULL_SCAN_JOB_STORE"
   python3 - "$FULL_SCAN_JOB_STORE" "$ACCEPTED_SCAN_STORE" "$scan_id" <<'PY'
-import json, os, sqlite3, sys
+import json, os, re, sqlite3, sys
 
 db_path, accepted_path, scan_id = sys.argv[1:]
 # Fixed field names and counts only: never print paths, keys, rows or identity.
@@ -453,7 +453,127 @@ for (raw,) in rows:
     except (TypeError, json.JSONDecodeError) as exc:
         raise SystemExit(f"invalid durable full-scan record: {exc}")
     matches.append(record)
+
+# BEAAA-42361: smoke/dev scans never create a full-registry job; they live only
+# in accepted_scans, scan_request_identity and scan_case_progress. Project those
+# read-only with fixed fields: no tenant/agent identity, request/context JSON,
+# endpoints, prompts, responses or free-text provider errors.
+BOUNDED = re.compile(r"^[A-Za-z0-9._:@-]{1,128}$")
+def bounded(value, allowed=None):
+    if value is None:
+        return None
+    text = str(value)
+    if allowed is not None:
+        return text if text in allowed else "other"
+    return text if BOUNDED.fullmatch(text) else "nonconforming"
+def reason_category(reason):
+    if not reason:
+        return None
+    text = str(reason).lower()
+    for category in ("timeout", "transport", "cancel", "budget", "auth",
+                     "unsupported", "evaluation", "target", "internal"):
+        if category in text:
+            return category
+    return "other"
+def accepted_projection():
+    accepted = sqlite3.connect(f"file:{accepted_path}?mode=ro", uri=True)
+    try:
+        scan = accepted.execute(
+            "SELECT tenant_id, state, resumable, resume_count, completed_test_count, "
+            "result_json FROM accepted_scans WHERE scan_id = ?", (scan_id,),
+        ).fetchall()
+        if len(scan) != 1:
+            return None
+        tenant, state, resumable, resume_count, completed_test_count, result_raw = scan[0]
+        identity = accepted.execute(
+            "SELECT tenant_id, client_request_id, canonical_request_hash, scan_id "
+            "FROM scan_request_identity WHERE scan_id = ?", (scan_id,),
+        ).fetchall()
+        progress = accepted.execute(
+            "SELECT state, error_category, COUNT(*), SUM(retry_count) "
+            "FROM scan_case_progress WHERE scan_id = ? GROUP BY state, error_category",
+            (scan_id,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        accepted.close()
+    try:
+        result = json.loads(result_raw) if result_raw else None
+    except (TypeError, json.JSONDecodeError):
+        result = {"status": "unparseable"}
+    case_states = {"queued", "retrying", "executing", "evaluating", "finished", "failed"}
+    error_categories = {"transport", "timeout", "evaluation", "target", "internal"}
+    by_state, by_error, retries = {}, {}, 0
+    for row_state, error, count, retry_sum in progress:
+        key = bounded(row_state, case_states)
+        by_state[key] = by_state.get(key, 0) + int(count)
+        if error is not None:
+            key = bounded(error, error_categories)
+            by_error[key] = by_error.get(key, 0) + int(count)
+        retries += int(retry_sum or 0)
+    usable = by_state.get("finished", 0)
+    unavailable = by_state.get("failed", 0)
+    identity_out = {"present": len(identity)}
+    if len(identity) == 1:
+        id_tenant, client_request_id, request_hash, id_scan = identity[0]
+        identity_out.update({
+            "client_request_id": bounded(client_request_id),
+            "canonical_request_hash": (
+                request_hash if re.fullmatch(r"sha256:[0-9a-f]{64}", str(request_hash))
+                else "nonconforming"),
+            "scan_id_matches": id_scan == scan_id,
+            "tenant_binding_matches": id_tenant == tenant,
+        })
+    result_out = None
+    if result is not None:
+        result_out = {
+            "status": bounded(result.get("status"),
+                              {"complete", "completed", "finished", "incomplete",
+                               "failed", "error", "unparseable"}),
+            "scan_id_matches": result.get("scan_id") == scan_id,
+            "scanner_version": bounded(result.get("scanner_version")),
+            "corpus_version": bounded(result.get("corpus_version")),
+            "rows_emitted": int(result.get("rows_emitted") or 0),
+            "starter_result_rows": len(result.get("starter_result_rows") or ()),
+            "incomplete": bool(result.get("incomplete")),
+            "incomplete_reason_category": reason_category(result.get("incomplete_reason")),
+        }
+    return {
+        "schema_version": "scanner-evidence-extract-accepted@1",
+        "source": "accepted_scan_store",
+        "scan_id": scan_id,
+        "accepted": {
+            "state": bounded(state, {"accepted", "running", "terminal"}),
+            "resumable": bool(resumable),
+            "resume_count": int(resume_count or 0),
+            "completed_test_count": int(completed_test_count or 0),
+        },
+        "request_identity": identity_out,
+        "case_progress": {
+            "rows": sum(by_state.values()),
+            "by_state": dict(sorted(by_state.items())),
+            "by_error_category": dict(sorted(by_error.items())),
+            "retry_count_total": retries,
+            "usable": usable,
+            "unavailable": unavailable,
+        },
+        "result": result_out,
+        # Diagnostic only: completion semantics are not changed here.
+        "consistency": {
+            "completed_test_count_equals_usable": int(completed_test_count or 0) == usable,
+            "result_incomplete_flag_matches_unavailable": (
+                None if result_out is None
+                else result_out["incomplete"] == (unavailable > 0)),
+        },
+    }
+
 if not matches:
+    if diagnostic["accepted_scan_matches"] == 1:
+        projection = accepted_projection()
+        if projection is not None:
+            print(json.dumps(projection, indent=2, sort_keys=True))
+            raise SystemExit(0)
     missing()
 if len(matches) != 1:
     raise SystemExit(f"scan id is not unique: {scan_id}")
