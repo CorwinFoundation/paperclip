@@ -36,6 +36,7 @@ SOURCE_INPUTS = [
     "tools/active_test_registry.py",
     "tools/operational_scan.py",
     "evals/oss_pilots/operational_controls.py",
+    "evals/oss_pilots/log_quality.py",
     "rubric/requirement_registry.v1.json",
     "rubric/probe_mappings/*.yaml",
     "corpus/**",

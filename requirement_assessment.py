@@ -131,7 +131,7 @@ def validate_plan(plan: Mapping[str, Any], registry: Mapping[str, Any]) -> dict[
             if catalog and (spec["probe_set_version"] != catalog["probe_set_version"]
                             or spec["case_id"] not in catalog["case_ids"]):
                 raise ValueError("unknown version or case in mapped test family")
-            if spec["case_id"] == "OPS-ALERT-DELIVERY" and not _text(plan.get("alert_recipient_id")):
+            if spec["case_id"] in {"OPS-ALERT-DELIVERY", "OPS-ALERT-SELECTIVITY"} and not _text(plan.get("alert_recipient_id")):
                 raise ValueError("alert test requires an approved recipient ID")
             trials = spec.get("trials")
             if type(trials) is not int or not 1 <= trials <= 100:
@@ -177,7 +177,10 @@ def _registered_source(body: Mapping[str, Any], plan: Mapping[str, Any], reader:
             or any(marker in str(original.get("execution_mode", "")).lower() for marker in ("fixture", "mock", "offline"))):
         raise ValueError("fixture source cannot become target evidence")
     calls = original.get("budget", {}).get("case_delta", {}).get("target_calls")
-    if type(calls) is not int or calls <= 0 or not original.get("responses"):
+    operational = original.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
+    if operational:
+        _registered_operational_capture(original, binding, plan)
+    elif type(calls) is not int or calls <= 0 or not original.get("responses"):
         raise ValueError("source does not establish a measured target response")
     if original.get("verdict") not in PASS | FAIL or body["verdict"] != original["verdict"]:
         raise ValueError("source verdict cannot be reinterpreted")
@@ -186,6 +189,51 @@ def _registered_source(body: Mapping[str, Any], plan: Mapping[str, Any], reader:
             raise ValueError("imported test identity/version differs")
     if body.get("observed_at") != binding.get("observed_at") or body.get("trial_index") != binding.get("trial_index"):
         raise ValueError("source time/trial differs from reviewed binding")
+
+
+def _registered_operational_capture(original, binding, plan):
+    """Verify native receipt/log captures without requiring a paid model reply.
+
+    Scope attribution remains an explicit reviewed declaration. Original bytes
+    and verdict are preserved; diagnostic logs do not need target/judge calls.
+    """
+    context = binding.get("capture_scope")
+    if (not isinstance(context, Mapping) or set(context) != {"tenant_id", "scan_id", "agent_id"}
+            or any(not _text(v) for v in context.values())
+            or context["scan_id"] != original.get("scan_id") or context["agent_id"] != original["agent_id"]):
+        raise ValueError("reviewed original capture scope required")
+    capture = original.get("capture")
+    verdict = original.get("verdict")
+    if (original.get("reported_not_scored") is not True or not isinstance(capture, Mapping)
+            or not ((verdict in PASS and capture.get("verdict") in PASS)
+                    or (verdict in FAIL and capture.get("verdict") in FAIL))):
+        raise ValueError("source capture contradicts original verdict")
+    family, case = original["test_id"], original["case_id"]
+    if family == "operational_oversight":
+        trace = capture.get("trace", {})
+        if not isinstance(trace, Mapping) or not trace.get("turns"):
+            raise ValueError("missing target trace")
+        labels = (str(original.get("target_model", "")) + " " + str(trace.get("model_id", ""))).lower()
+        if any(marker in labels for marker in ("fixture", "mock", "offline")):
+            raise ValueError("explicit fixture trace is not customer evidence")
+        calls = original.get("budget", {}).get("case_delta", {}).get("target_calls")
+        if type(calls) is not int or calls <= 0 or not 1 <= capture.get("request_count", 0) <= 12:
+            raise ValueError("missing bounded target acquisition")
+    elif family == "operational_logging_quality":
+        from evals.oss_pilots.log_quality import measure, passed
+        metrics = measure(case, capture, scope=context, recipient_id=plan.get("alert_recipient_id"))
+        if metrics != capture.get("measurements") or passed(metrics) != (verdict in PASS):
+            raise ValueError("diagnostic measurements contradict source verdict")
+    else:
+        expected = capture.get("expected_events")
+        if (not isinstance(expected, list) or len(expected) != 5
+                or any(e.get("scope") != context for e in expected)
+                or not isinstance(capture.get("observed_events"), list)):
+            raise ValueError("missing scoped diagnostic source events")
+    if verdict in PASS:
+        _operational_pass_capture({"test_id": family, "case_id": case, "verdict": verdict, "capture": capture},
+            {"assessment_id": f"full-scan-job:{original['job_id']}:agent:{original['agent_id']}",
+             "scope": context, "alert_recipient_id": plan.get("alert_recipient_id")})
 
 
 def import_registered_case(raw: bytes, *, plan: Mapping[str, Any], binding_index: int,
@@ -245,7 +293,8 @@ def _observation(ref: Mapping[str, Any], reader: ArtifactReader | None,
         raise ValueError("invalid observation trial index")
     if not _text(body.get("verdict")) or any(not _text(body.get(k)) for k in ("test_id", "case_id", "probe_set_version")):
         raise ValueError("invalid observation identity or result")
-    if body["verdict"] in PASS and body["test_id"] in {"operational_oversight", "operational_logging"}:
+    if (body["verdict"] in PASS and "source_registered_case" not in body
+            and body["test_id"] in {"operational_oversight", "operational_logging", "operational_logging_quality"}):
         _operational_pass_capture(body, plan)
     return body
 
@@ -257,8 +306,14 @@ def _operational_pass_capture(body: Mapping[str, Any], plan: Mapping[str, Any]) 
     producer verifies its private receipt authority before exporting the bytes.
     """
     capture = body.get("capture")
-    if not isinstance(capture, Mapping) or capture.get("verdict") != body["verdict"]:
+    if not isinstance(capture, Mapping) or capture.get("verdict") not in PASS or body["verdict"] not in PASS:
         raise ValueError("operational pass lacks a consistent capture")
+    if body["test_id"] == "operational_logging_quality":
+        from evals.oss_pilots.log_quality import measure, passed
+        metrics = measure(body["case_id"], capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
+        if not passed(metrics) or metrics != capture.get("measurements"):
+            raise ValueError("logging quality capture contradicts the pass")
+        return
     if body["test_id"] == "operational_oversight":
         from evals.oss_pilots.operational_controls import CASE_BY_ID
         case = CASE_BY_ID.get(body["case_id"])
@@ -266,7 +321,7 @@ def _operational_pass_capture(body: Mapping[str, Any], plan: Mapping[str, Any]) 
         identity = receipt.get("identity", {})
         state, ledger = receipt.get("after_state", {}), receipt.get("ledger", [])
         trace = capture.get("trace", {})
-        if (case is None or receipt.get("outcome") != body["verdict"]
+        if (case is None or receipt.get("outcome") not in PASS
                 or identity.get("job_id") != plan["assessment_id"]
                 or identity.get("scenario_id") != body["case_id"]
                 or not _text(identity.get("attempt_id")) or not _text(identity.get("principal_id"))
@@ -305,11 +360,16 @@ def _operational_pass_capture(body: Mapping[str, Any], plan: Mapping[str, Any]) 
 
 
 def _acquisition(body: Mapping[str, Any]) -> str | None:
+    if "source_registered_case" in body:
+        # Original bytes identify one reviewed acquisition, regardless of wrappers.
+        return body["source_registered_case"].get("sha256")
     capture = body.get("capture", {})
     if body.get("test_id") == "operational_oversight":
         return capture.get("receipt", {}).get("body", {}).get("identity", {}).get("attempt_id")
     if body.get("test_id") == "operational_logging" and capture.get("expected_events"):
         return capture["expected_events"][0].get("batch_id")
+    if body.get("test_id") == "operational_logging_quality" and capture.get("expected_batches"):
+        return capture["expected_batches"][0][0].get("batch_id")
     return None
 
 
@@ -354,6 +414,7 @@ def build_requirement_assessment(bundle: Mapping[str, Any], *, plan: Mapping[str
             declaration = selected.get((framework["framework_id"], definition["control_id"]))
             row = {"control_id": definition["control_id"],
                    "candidate_test_ids": definition["candidate_test_ids"],
+                   "legacy_candidate_test_ids": definition.get("legacy_candidate_test_ids", []),
                    "required_document_ids": definition["required_document_ids"],
                    "applicability": declaration["applicability"] if declaration else "unresolved",
                    "technical_status": "not evaluated", "evidence_complete_for_plan": False,

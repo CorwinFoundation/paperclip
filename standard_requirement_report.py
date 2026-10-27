@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import re
 from typing import Any
 
 from requirement_assessment import build_requirement_assessment, load_registry
+
+DIAGNOSTIC_METRICS = frozenset({"expected_event_count", "captured_event_count", "identity_errors",
+    "payload_errors", "timestamp_errors", "repeat_difference_count", "false_alert_count", "missing_alert_count"})
 
 
 def build_standard_requirement_report(
@@ -52,11 +56,24 @@ def build_standard_requirement_report(
         for key, value in (("artifact_uri", uri), ("case_version", source.get("case_version")),
                            ("sha256", source.get("sha256")), ("status", source.get("status"))):
             if isinstance(value, str):
-                observation[key] = value
+                if key == "sha256" and not re.fullmatch(r"[0-9a-fA-F]{64}", value):
+                    observation["digest_status"] = "invalid reported digest"
+                else:
+                    observation[key] = value
         if family == "operational_oversight":
             observation["observation_scope"] = "synthetic scanner-mediated tools; native production controls not evaluated"
-        elif family == "operational_logging":
+        elif family in {"operational_logging", "operational_logging_quality"}:
             observation["observation_scope"] = "scoped synthetic diagnostic log path; retention and production coverage not evaluated"
+        for key in ("target_calls", "judge_calls", "duration_ms"):
+            if type(source.get(key)) is int and source[key] >= 0:
+                observation[key] = source[key]
+        metrics = source.get("diagnostic_measurements")
+        if isinstance(metrics, Mapping):
+            observation["diagnostic_measurements"] = {k: v for k, v in metrics.items()
+                if k in DIAGNOSTIC_METRICS and type(v) is int and 0 <= v <= 10**9}
+        method = registry.get("test_catalog", {}).get(family, {}).get("case_methods", {}).get(case)
+        if isinstance(method, str):
+            observation["method"] = method
         if identity in seen:
             # A score projection can omit the version/status retained by the
             # full manifest. Keep one acquisition and fill missing metadata.
@@ -69,7 +86,9 @@ def build_standard_requirement_report(
             candidates = set(control["candidate_test_ids"])
             matches = [dict(row) for row in observations if row["test_id"] in candidates]
             control["scan_observations"] = matches
-            control["unobserved_test_ids"] = sorted(candidates - {row["test_id"] for row in matches})
+            legacy = set(control.get("legacy_candidate_test_ids", []))
+            control["unobserved_test_ids"] = sorted(candidates - legacy - {row["test_id"] for row in matches})
+            control["unresolved_mapping_concepts"] = sorted(legacy)
             control["catalog_case_gaps"] = [
                 {"test_id": family, "case_id": case}
                 for family in sorted(candidates)
@@ -88,4 +107,23 @@ def build_standard_requirement_report(
         "Reported scan verdicts are metadata, not approved-plan or byte-verified assessments. "
         "Unobserved tests may be outside the selected pack or unsupported by the target interface."
     )
+    documents = {}
+    for framework in report["frameworks"]:
+        for control in framework["controls"]:
+            for document_id in control["required_document_ids"]:
+                documents.setdefault(document_id, []).append({"framework_id": framework["framework_id"],
+                                                             "control_id": control["control_id"]})
+    report["evidence_inventory"] = {
+        "schema": "scan-evidence-inventory/v1", "integrity_status": "reported metadata; bytes not verified",
+        "reported_case_count": len({(o["test_id"], o["case_id"]) for o in observations}),
+        "reported_observation_count": len(observations), "artifacts": observations,
+        "with_artifact_reference": sum(bool(o.get("artifact_uri")) for o in observations),
+        "with_reported_digest": sum(bool(o.get("sha256")) for o in observations),
+        "missing_artifact_references": [{"test_id": o["test_id"], "case_id": o["case_id"]}
+                                        for o in observations if not o.get("artifact_uri")],
+        "document_review_register": [{"document_id": key, "supports": value,
+            "review_status": "not supplied or reviewed by this crosswalk", "applicability": "assessor review required"}
+            for key, value in sorted(documents.items())],
+        "assessment_export": "Operator export with an approved plan and locally verified original artifacts is required for an assessor evidence pack.",
+    }
     return report

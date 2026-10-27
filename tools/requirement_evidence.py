@@ -31,10 +31,13 @@ def main(argv=None):
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--artifacts", type=Path)
     parser.add_argument("--evaluated-at")
+    parser.add_argument("--export-pack", action="store_true", help="Write a new protected assessor ZIP with verified original artifacts and gap worksheets")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    if args.init_plan and any((args.plan, args.bundle, args.artifacts, args.import_registered_case)):
+    if args.init_plan and any((args.plan, args.bundle, args.artifacts, args.import_registered_case, args.export_pack)):
         parser.error("--init-plan cannot consume evidence")
+    if args.export_pack and args.import_registered_case:
+        parser.error("import and export are separate evidence operations")
     if args.import_registered_case and (not args.plan or not args.artifacts or args.binding_index is None):
         parser.error("import requires --plan, --artifacts and --binding-index")
     if not args.init_plan and not args.import_registered_case and not all((args.plan, args.bundle, args.artifacts)):
@@ -51,6 +54,12 @@ def main(argv=None):
             if result.get("assessment_id") != plan["assessment_id"] or result.get("scope") != plan["scope"]:
                 raise ValueError("bundle scope differs")
             result["evidence_refs"].append(reference)
+        elif args.export_pack:
+            from tools.requirement_evidence_pack import export_pack
+            export_pack(plan=json.loads(args.plan.read_text(encoding="utf-8")),
+                bundle=json.loads(args.bundle.read_text(encoding="utf-8")), artifact_directory=args.artifacts,
+                output=args.output, evaluated_at=args.evaluated_at)
+            return 0
         else:
             result = build_requirement_assessment(
                 json.loads(args.bundle.read_text(encoding="utf-8")),

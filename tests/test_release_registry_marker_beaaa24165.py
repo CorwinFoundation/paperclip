@@ -182,7 +182,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # expanded lane-A pack at 0.2.0. Existing C10 activations are unchanged.
     # EU/ISO adds twelve conditional, report-only case contracts. Re-generated
     # from the reviewed registry; measured and published counts stay unchanged.
-    "9ddc849550d69d2e88c3d98306e902201e3cb62ef89dc89b21dc1be1bca9faf3"
+    # Evidence expansion adds five scoped log-quality cases, changes their source
+    # closure and retains every scoring activation and published count.
+    "72226589a62bd69720ea40efb8a80fb208db2fd9a93a229bfd71880ad00c9964"
 )
 
 
@@ -212,7 +214,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # excluded-row proof without changing executable counts.
     # Conditional operational cases extend the exclusion proof, not the
     # published measured-test census.
-    assert len(marker["excluded_rows"]) == 148 + 12
+    assert len(marker["excluded_rows"]) == 148 + 17
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

@@ -192,6 +192,8 @@ class EvidenceAttemptRow:
     # (no usage returned). ``None`` on rows that predate paid packs; the key is
     # then absent from the manifest row so existing manifests are unchanged.
     cost: dict[str, Any] | None = None
+    evidence_sha256: str | None = None
+    diagnostic_measurements: dict[str, int] | None = None
 
     def to_manifest_row(self) -> dict[str, Any]:
         row = {
@@ -231,6 +233,10 @@ class EvidenceAttemptRow:
         }
         if self.cost is not None:
             row["cost"] = dict(self.cost)
+        if self.evidence_sha256 is not None:
+            row["sha256"] = self.evidence_sha256
+        if self.diagnostic_measurements is not None:
+            row["diagnostic_measurements"] = dict(self.diagnostic_measurements)
         return row
 
 
@@ -264,6 +270,8 @@ class WorkerAttemptResult:
     observational_rejection: str | None = None
     # Judge model that produced the verdict (BEAAA-35757); None when no judge ran.
     judge_model: str | None = None
+    evidence_sha256: str | None = None
+    diagnostic_measurements: dict[str, int] | None = None
 
 
 _MAX_CASE_TRANSPORT_RETRIES = 3
@@ -1562,7 +1570,7 @@ def validate_full_scan_release_gate(
         row
         for row in active_registry_rows
         if _is_countable_active_executable(row) or (
-            row.get("test_id") in {"operational_oversight", "operational_logging"}
+            row.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
             and row.get("status") == "active"
             and row.get("production_runner_executable") is True
             and _case_id_from_row(row) in {
@@ -2237,6 +2245,8 @@ def dispatch_registry_attempt(
                     f"{case_id}:{job.seed}"
                 ),
                 judge_model=result.judge_model,
+                evidence_sha256=result.evidence_sha256,
+                diagnostic_measurements=result.diagnostic_measurements,
             )
         )
 
@@ -2773,6 +2783,13 @@ def _job_to_record(job: FullScanJob) -> dict[str, Any]:
     }
 
 
+def _evidence_row_from_record(row: Mapping[str, Any]) -> EvidenceAttemptRow:
+    values = dict(row)
+    if "sha256" in values:
+        values["evidence_sha256"] = values.pop("sha256")
+    return EvidenceAttemptRow(**values)
+
+
 def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
     """Reconstruct a ``FullScanJob`` from a durable record."""
     return FullScanJob(
@@ -2797,7 +2814,7 @@ def _job_from_record(record: Mapping[str, Any]) -> FullScanJob:
         active_attempt_id=record.get("active_attempt_id"),
         lease_expires_at=_parse_iso(record.get("lease_expires_at")),
         evidence_rows=tuple(
-            EvidenceAttemptRow(**row) for row in record.get("evidence_rows", ())
+            _evidence_row_from_record(row) for row in record.get("evidence_rows", ())
         ),
         approved_blocker_ref=record.get("approved_blocker_ref"),
         final_manifest=record.get("final_manifest"),

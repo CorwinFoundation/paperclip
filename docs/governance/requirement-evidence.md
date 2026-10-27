@@ -1,6 +1,6 @@
 # Requirement-to-evidence assessment
 
-BackBond internal | 26 October 2026 | Engineering mapping draft
+BackBond internal | 27 October 2026 | Engineering mapping draft, mapping revision 2
 
 This evidence-only extension supports partner assessment work for the EU AI Act
 and ISO/IEC 42001. It reuses Scanner evidence references, byte verification,
@@ -163,6 +163,39 @@ crosswalk. Unresolved executions remain incomplete rather than becoming passes.
 
 All twelve remain report-only with zero score contribution. Registering them
 does not increase the published executed-test claim or change underwriting math.
+
+Five additional `operational_logging_quality` cases use the same trusted scoped
+adapter to measure payload preservation, source timestamps, batch separation,
+immediate repeat reads and alert selectivity. They are versioned separately as
+`operational-log-quality@1`; the original twelve cases keep their version. All
+seventeen remain report-only. The report exposes a deduplicated artifact
+inventory, fingerprints, measurements and a document-review register. Reported
+fingerprints are not byte verification or certification.
+
+Native operational imports require the plan's reviewed binding to include
+`capture_scope` with the original `tenant_id`, `scan_id` and `agent_id`. The
+importer verifies the original scan/agent identity and capture consistency.
+Logging does not require model calls or text responses; a valid scoped log
+capture supplies that acquisition. Original bytes and verdicts are preserved.
+
+Export a protected assessor package after the approved-plan/import workflow:
+
+```sh
+python -m tools.requirement_evidence --export-pack \
+  --plan /secure/plan.json --bundle /secure/bundle.json \
+  --artifacts /secure/artifacts --output /secure/assessment.zip
+```
+
+The ZIP includes verified original evidence, assessment, plan, bundle, a checksum
+manifest and control/document CSV worksheets. It preserves failures and gaps;
+rejected bytes are not packaged. The file is new and never overwrites an existing
+export. It may contain private transcripts/documents and has no public download
+route. Approval identities remain operator-declared, and the checksum manifest
+does not authenticate original collection. Mapping revision 2 requires new plan
+review; completed report snapshots retain their earlier versions.
+
+See [the evidence review](evidence-expansion-review-2026-10-27.md) for the reused
+families, measurements, negative controls and remaining customer-input needs.
 
 Export public scenarios without target calls:
 

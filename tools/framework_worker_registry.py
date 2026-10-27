@@ -264,6 +264,7 @@ WORKERS: dict[str, WorkerDefinition] = {
             "harness/direct_family_adapter.py",
             "tools/operational_scan.py",
             "evals/oss_pilots/operational_controls.py",
+            "evals/oss_pilots/log_quality.py",
             "rubric/aiuc_path_b/family_registry.yaml",
             "rubric/probe_mappings/authentication_bypass_resistance.yaml",
             "rubric/probe_mappings/sensitive_data_disclosure_resistance.yaml",

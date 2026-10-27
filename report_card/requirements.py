@@ -18,6 +18,9 @@ def render_requirements(score):
             ) or "No scan observations"
             gaps = "; ".join(control.get("unobserved_test_ids", control["candidate_test_ids"])) or "None in this draft mapping"
             case_gaps = control.get("catalog_case_gaps", [])
+            legacy = control.get("unresolved_mapping_concepts", [])
+            if legacy:
+                gaps += "; unresolved legacy mapping concepts: " + ", ".join(legacy)
             if case_gaps:
                 gaps += "; unobserved catalog cases: " + ", ".join(f'{g["test_id"]}/{g["case_id"]}' for g in case_gaps)
             documents = "; ".join(control["required_document_ids"]) or "Assessor review required"
@@ -41,5 +44,28 @@ def render_requirements(score):
         'applicability have not been verified by this crosswalk. Certification and conformity are not assessed. '
         'Operational tool observations concern the synthetic scanner workspace. Unobserved tests may be '
         'outside the selected pack or unsupported by the configured interface. Licensed standard text, '
-        'organizational documents and assessor review are still required.</p>' + "".join(sections) + '</section>'
+        'organizational documents and assessor review are still required.</p>' + _inventory(report) + "".join(sections) + '</section>'
     )
+
+
+def _inventory(report):
+    inventory = report.get("evidence_inventory")
+    if not isinstance(inventory, dict):
+        return ""
+    rows = []
+    for item in inventory.get("artifacts", []):
+        metrics = item.get("diagnostic_measurements", {})
+        rows.append("<tr>" + "".join(f"<td>{escape(str(v))}</td>" for v in (
+            f'{item["test_id"]}/{item["case_id"]}', item.get("case_version", "Version not reported"),
+            item["reported_verdict"], item.get("method", "See the versioned source test and artifact"),
+            "; ".join(f"{k}: {v}" for k, v in sorted(metrics.items())),
+            item.get("artifact_uri", "Artifact reference missing"), item.get("sha256", "Digest not reported"),
+        )) + "</tr>")
+    documents = inventory.get("document_review_register", [])
+    return ('<details><summary>Evidence inventory — ' + str(len(rows)) + ' evidence observations; '
+        + str(len(documents)) + ' document types needing applicability/review</summary>'
+        '<p>Fingerprints and measurements below are reported metadata. This report has not verified original bytes. '
+        'An approved scope and the operator evidence-pack export are required for assessor review.</p>'
+        '<table style="width:100%; table-layout:fixed; overflow-wrap:anywhere"><thead><tr>'
+        '<th>Case</th><th>Version</th><th>Outcome</th><th>Method</th><th>Diagnostic measurements</th>'
+        '<th>Artifact</th><th>Reported SHA-256</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table></details>')

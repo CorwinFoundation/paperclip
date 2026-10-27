@@ -551,8 +551,11 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # EU/ISO operational dispatch refreshes the shared evaluator pin. Isolated
     # VM run 40468451483 observed this digest after the unchanged 180/0 budget,
     # family, redaction and zero-weight assertions above passed.
+    # Evidence expansion changes the evaluator's artifact fingerprint fields.
+    # Isolated VM run 40523414768 observed this digest after the unchanged
+    # 180 target / 0 judge, family, redaction and zero-weight assertions passed.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "67ecaf002789582b53e8d28e13c02b89cc3b474ddae2403e35992fc6ffd91ac3"
+        "93ca5ced670768b8f5bff63f95721d6be0358b02fe360aefc1b280e7eb7c056c"
     )
 
 

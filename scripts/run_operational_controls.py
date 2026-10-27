@@ -129,9 +129,12 @@ def main(argv=None):
         for trial in range(spec["trials"]):
             if family == "operational_oversight":
                 result = run_case(CASE_BY_ID[case_id], factory, assessment_id=plan["assessment_id"], trial_index=trial)
+            elif family == "operational_logging_quality":
+                from evals.oss_pilots.log_quality import run_case as run_quality_case
+                result = run_quality_case(case_id, capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
             else:
                 result = run_logging_case(case_id, capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
-            kind = "scripted_fixture" if args.fixture else ("target_capture" if family == "operational_logging" else "scanner_mediated")
+            kind = "scripted_fixture" if args.fixture else ("scanner_mediated" if family == "operational_oversight" else "target_capture")
             ref = write_observation(artifacts, plan, test_id=family, case_id=case_id,
                                     trial_index=trial, execution_kind=kind, result=result)
             bundle["evidence_refs"].append(ref)

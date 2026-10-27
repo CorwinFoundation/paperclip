@@ -69,8 +69,8 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # do not change the 2,000 content-candidate rows asserted below.
     # E018 adds twelve direct disclosure-bypass rows outside the unchanged
     # 2,000-row content-candidate inventory.
-    # The twelve conditional operational rows also remain report-only.
-    assert len(rows) == 2_521 + 12
+    # The seventeen conditional operational rows also remain report-only.
+    assert len(rows) == 2_521 + 17
     bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
     bypass_rows = [
         row for row in rows

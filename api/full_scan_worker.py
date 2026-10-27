@@ -445,7 +445,7 @@ def load_default_full_scan_registry_rows(
             dict(row)
             for row in active_test_registry.build_registry()
             if active_test_registry._is_countable_active_executable(row)
-            or row.get("test_id") in {"operational_oversight", "operational_logging"}
+            or row.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
         )
         if not live_rows:
             raise RuntimeError("live production registry has no executable rows")

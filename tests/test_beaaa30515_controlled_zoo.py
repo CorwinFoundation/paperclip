@@ -118,11 +118,11 @@ def test_approval_binding_routes_nowhere_because_no_target_declares_it(decisions
 def test_every_other_family_routes_and_all_five_surfaces_are_used(decisions):
     routed = [d for d in decisions if d.target is not None]
     # Four voice families plus approval_preview_mutation_binding (BEAAA-33657),
-    # and two conditional operational families outside the accepted census.
+    # and three conditional operational families outside the accepted census.
     # Do not invent compatible zoo surfaces for these new adapters.
-    assert len(routed) == len(decisions) - 7
-    operational = [d for d in decisions if d.family in {"operational_oversight", "operational_logging"}]
-    assert len(operational) == 2
+    assert len(routed) == len(decisions) - 8
+    operational = [d for d in decisions if d.family in {"operational_oversight", "operational_logging", "operational_logging_quality"}]
+    assert len(operational) == 3
     assert all(d.target is None and d.reason == NOT_IN_CENSUS for d in operational)
     assert {d.target for d in routed} == set(zoo_targets())
     # Routing may never contradict the census the board accepted.

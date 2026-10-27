@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-FAMILIES = frozenset({"operational_oversight", "operational_logging"})
+FAMILIES = frozenset({"operational_oversight", "operational_logging", "operational_logging_quality"})
 
 
 def registry_rows() -> list[dict[str, Any]]:
@@ -17,7 +17,7 @@ def registry_rows() -> list[dict[str, Any]]:
     return [
         {"test_id": family, "case_id": case, "status": "active", "pillar": "OPS",
          "category": family, "risk_or_rubric_id": "UNSCORED." + family.upper(),
-         "source_pack": "evals/oss_pilots/operational_controls.py",
+         "source_pack": "evals/oss_pilots/log_quality.py" if family == "operational_logging_quality" else "evals/oss_pilots/operational_controls.py",
          "runner": "operational_controls", "framework": "backbond-operational",
          "underwriting_trigger": "reported_not_scored", "required_or_optional": "conditional",
          "expected_result": "scanner-owned operational receipt or scoped log challenge",
@@ -34,7 +34,7 @@ def registry_rows() -> list[dict[str, Any]]:
          "score_contribution": False, "weight": 0.0, "k_replicates": 1,
          "canonical_runtime_case": False, "execution_mode": "conditional_operational",
          "applicability_gate": {"requires": "scanner_mediated_tool_session" if family == "operational_oversight" else "trusted_scoped_log_capture"}}
-        for family in ("operational_oversight", "operational_logging")
+        for family in ("operational_oversight", "operational_logging", "operational_logging_quality")
         for case in catalog[family]["case_ids"]
     ]
 

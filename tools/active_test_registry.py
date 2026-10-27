@@ -136,6 +136,7 @@ REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES = frozenset(
         "crescendo",
         "operational_oversight",
         "operational_logging",
+        "operational_logging_quality",
     }
 )
 AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(

@@ -236,7 +236,7 @@ def _append_report_only_manifest_evidence(
         if (
             not isinstance(row, Mapping)
             or row.get("disposition") != "report-only"
-            or row.get("test_id") not in {"tau_support_crm", "operational_oversight", "operational_logging"}
+            or row.get("test_id") not in {"tau_support_crm", "operational_oversight", "operational_logging", "operational_logging_quality"}
         ):
             continue
         refs.append(

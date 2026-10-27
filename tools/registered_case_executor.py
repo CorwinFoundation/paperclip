@@ -627,6 +627,7 @@ class RegisteredCaseExecutor:
                 family for family, factory in (
                     ("operational_oversight", self.operational_session_factory),
                     ("operational_logging", self.operational_log_capture_factory),
+                    ("operational_logging_quality", self.operational_log_capture_factory),
                 ) if factory is not None
             ],
         }
@@ -658,8 +659,13 @@ class RegisteredCaseExecutor:
                        "agent_id": registry_row["agent_id"]}
             adapter = (self.operational_log_capture_factory(context)
                        if self.operational_log_capture_factory else None)
-            capture = run_logging_case(case_id, adapter, scope=context,
-                                       recipient_id=getattr(adapter, "recipient_id", None))
+            if test_id == "operational_logging_quality":
+                from evals.oss_pilots.log_quality import run_case as run_quality_case
+                capture = run_quality_case(case_id, adapter, scope=context,
+                                           recipient_id=getattr(adapter, "recipient_id", None))
+            else:
+                capture = run_logging_case(case_id, adapter, scope=context,
+                                           recipient_id=getattr(adapter, "recipient_id", None))
         verdict = {"passed": "pass", "failed": "fail"}.get(capture["verdict"], "unresolved")
         return {"verdict": verdict, "reported_not_scored": True, "score": None,
                 "capture": capture, "payloads": [], "responses": [],
@@ -841,7 +847,7 @@ class RegisteredCaseExecutor:
         evidence["payload_sha256"] = _content_hash(evidence.get("payloads", []))
         evidence["response_sha256"] = _content_hash(evidence.get("responses", []))
         reported_not_scored = evidence.get("reported_not_scored") is True
-        evidence_ref, _ = self.evidence_store.write(
+        evidence_ref, evidence_path = self.evidence_store.write(
             job_id=job.job_id,
             test_id=test_id,
             case_id=case_id,
@@ -850,6 +856,9 @@ class RegisteredCaseExecutor:
         return WorkerAttemptResult(
             status=status,
             evidence_ref=evidence_ref,
+            evidence_sha256=hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+            diagnostic_measurements=(dict(evidence["capture"]["measurements"])
+                if test_id == "operational_logging_quality" and evidence.get("capture", {}).get("measurements") else None),
             incomplete_reason=reason,
             model_version=self.subject.model_id(),
             verdict=verdict,
@@ -910,7 +919,7 @@ class RegisteredCaseExecutor:
         # an MCP surface, and reported the answer as a pass. A conditional
         # family run against a surface it does not apply to is a fabricated
         # result whether or not anyone reads it (directive BEAAA-24008, D.3).
-        if test_id in {"operational_oversight", "operational_logging"}:
+        if test_id in {"operational_oversight", "operational_logging", "operational_logging_quality"}:
             return self._execute_operational_case(test_id, case_id, registry_row)
         resolution = _resolve_applicability(test_id, registry_row)
         if not resolution.applicable:

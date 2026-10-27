@@ -1,6 +1,6 @@
 {
   "schema": "requirement-evidence-registry/v1",
-  "baseline_date": "2026-10-26",
+  "baseline_date": "2026-10-27",
   "mapping_status": "engineering draft; licensed normative validation required",
   "test_catalog": {
     "operational_oversight": {
@@ -24,16 +24,34 @@
         "OPS-LOG-IDENTITY",
         "OPS-ALERT-DELIVERY"
       ]
+    },
+    "operational_logging_quality": {
+      "probe_set_version": "operational-log-quality@1",
+      "case_ids": [
+        "OPS-LOG-PAYLOAD",
+        "OPS-LOG-TIME",
+        "OPS-LOG-BATCH",
+        "OPS-LOG-REPEAT",
+        "OPS-ALERT-SELECTIVITY"
+      ],
+      "case_methods": {
+        "OPS-LOG-PAYLOAD": "Preserve typed nested diagnostic payloads, including Unicode and null values.",
+        "OPS-LOG-TIME": "Preserve timezone-aware source event instants and event order metadata.",
+        "OPS-LOG-BATCH": "Retrieve each of two independently identified diagnostic batches without mixing them.",
+        "OPS-LOG-REPEAT": "Return the same diagnostic records on two immediate reads; not a retention test.",
+        "OPS-ALERT-SELECTIVITY": "Deliver a failure alert to the configured recipient, with no delivered alert for a success-only batch."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "mapping_version": "backbond-eu-ai-act-evidence@2",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
-        "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation"
+        "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
+        "https://digital-strategy.ec.europa.eu/en/library/first-harmonised-standard-supporting-ai-act-published-official-journal"
       ],
       "controls": [
         {
@@ -41,7 +59,8 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ai-literacy-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART5",
@@ -50,14 +69,16 @@
           ],
           "required_document_ids": [
             "prohibited-use-review"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART6",
           "candidate_test_ids": [],
           "required_document_ids": [
             "eu-scope-role-and-risk-classification"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART9",
@@ -69,11 +90,32 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "risk-register",
             "risk-treatment-and-residual-acceptance"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -81,36 +123,58 @@
           "candidate_test_ids": [
             "grounded_policy",
             "counterfactual_stability",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration",
+            "demographic_parity",
+            "equal_opportunity",
+            "sentiment_skew",
+            "eval_representation"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
           "control_id": "ART11",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "provenance_chain_of_custody"
+          ],
           "required_document_ids": [
             "technical-documentation"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART12",
           "candidate_test_ids": [
-            "operational_logging"
+            "operational_logging",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "target-logging-and-retention-policy"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART13",
           "candidate_test_ids": [
             "ai_disclosure",
-            "grounded_policy"
+            "grounded_policy",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity"
           ],
           "required_document_ids": [
             "instructions-and-measured-limitations"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
@@ -119,11 +183,18 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "human-oversight-configuration-and-roles"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART15",
@@ -138,10 +209,30 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "tenant_account_boundary",
+            "tool_authorization_confused_deputy",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -155,27 +246,53 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement",
+            "provenance_chain_of_custody",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "qms-process-and-review-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
           "control_id": "ART19",
           "candidate_test_ids": [
-            "operational_logging"
+            "operational_logging",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "target-log-retention-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART20",
           "candidate_test_ids": [],
           "required_document_ids": [
             "corrective-action-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART26",
@@ -183,46 +300,58 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "deployer-duty-and-monitoring-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART27",
           "candidate_test_ids": [],
           "required_document_ids": [
             "fria-applicability-and-assessment"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART43",
           "candidate_test_ids": [],
           "required_document_ids": [
             "conformity-assessment-route-and-file"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART47",
           "candidate_test_ids": [],
           "required_document_ids": [
             "eu-declaration-of-conformity"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART48",
           "candidate_test_ids": [],
           "required_document_ids": [
             "marking-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART49",
           "candidate_test_ids": [],
           "required_document_ids": [
             "registration-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART50",
@@ -231,21 +360,24 @@
           ],
           "required_document_ids": [
             "channel-disclosure-and-content-marking"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART53",
           "candidate_test_ids": [],
           "required_document_ids": [
             "gpai-provider-role-and-documentation"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART55",
           "candidate_test_ids": [],
           "required_document_ids": [
             "systemic-risk-model-applicability-and-evidence"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "ART72",
@@ -258,10 +390,19 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "post-market-monitoring-plan-and-review"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -271,14 +412,15 @@
           ],
           "required_document_ids": [
             "incident-reporting-process-and-drill"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         }
       ]
     },
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@1",
+      "mapping_version": "backbond-iso42001-evidence@2",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -288,56 +430,64 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.4.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "4.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.4.2.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "4.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.4.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "4.4",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.4.4.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "5.1",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.5.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "5.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.5.2.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "5.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.5.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "6.1.1",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.6.1.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "6.1.2",
@@ -349,10 +499,25 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "ISO42001.6.1.2.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -360,14 +525,16 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.6.1.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "6.1.4",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.6.1.4.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "6.2",
@@ -379,10 +546,18 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden"
           ],
           "required_document_ids": [
             "ISO42001.6.2.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -390,42 +565,50 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.6.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "7.1",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.7.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "7.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.7.2.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "7.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.7.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "7.4",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.7.4.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "7.5",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "provenance_chain_of_custody"
+          ],
           "required_document_ids": [
             "ISO42001.7.5.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "8.1",
@@ -433,11 +616,18 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "ISO42001.8.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "8.2",
@@ -449,10 +639,25 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "ISO42001.8.2.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -465,10 +670,31 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "ISO42001.8.3.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -476,7 +702,8 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.8.4.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "9.1",
@@ -488,10 +715,25 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -499,21 +741,24 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.9.2.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "9.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.9.3.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "10.1",
           "candidate_test_ids": [],
           "required_document_ids": [
             "ISO42001.10.1.customer-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "10.2",
@@ -525,10 +770,25 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement"
           ],
           "required_document_ids": [
             "ISO42001.10.2.customer-record"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -536,159 +796,229 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "policy-approval-and-review"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.2.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "policy-approval-and-review"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.2.4",
           "candidate_test_ids": [],
           "required_document_ids": [
             "policy-approval-and-review"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.3.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "roles-and-concern-reporting"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.3.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "roles-and-concern-reporting"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.4.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "resource-register"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.4.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "resource-register"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.4.4",
           "candidate_test_ids": [],
           "required_document_ids": [
             "resource-register"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.4.5",
           "candidate_test_ids": [],
           "required_document_ids": [
             "resource-register"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.4.6",
           "candidate_test_ids": [],
           "required_document_ids": [
             "resource-register"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.5.2",
           "candidate_test_ids": [
             "customer_defined_risk_pack",
-            "counterfactual_stability"
+            "counterfactual_stability",
+            "demographic_parity",
+            "equal_opportunity",
+            "sentiment_skew",
+            "eval_representation"
           ],
           "required_document_ids": [
             "impact-assessment"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.5.3",
           "candidate_test_ids": [
             "customer_defined_risk_pack",
-            "counterfactual_stability"
+            "counterfactual_stability",
+            "demographic_parity",
+            "equal_opportunity",
+            "sentiment_skew",
+            "eval_representation"
           ],
           "required_document_ids": [
             "impact-assessment"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.5.4",
           "candidate_test_ids": [
             "customer_defined_risk_pack",
-            "counterfactual_stability"
+            "counterfactual_stability",
+            "demographic_parity",
+            "equal_opportunity",
+            "sentiment_skew",
+            "eval_representation"
           ],
           "required_document_ids": [
             "impact-assessment"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.5.5",
           "candidate_test_ids": [
             "customer_defined_risk_pack",
-            "counterfactual_stability"
+            "counterfactual_stability",
+            "demographic_parity",
+            "equal_opportunity",
+            "sentiment_skew",
+            "eval_representation"
           ],
           "required_document_ids": [
             "impact-assessment"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.7.2",
           "candidate_test_ids": [
             "grounded_policy",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
           "control_id": "A.7.3",
           "candidate_test_ids": [
             "grounded_policy",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
           "control_id": "A.7.4",
           "candidate_test_ids": [
             "grounded_policy",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
           "control_id": "A.7.5",
           "candidate_test_ids": [
             "grounded_policy",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
           "control_id": "A.7.6",
           "candidate_test_ids": [
             "grounded_policy",
-            "cross_customer_data_exposure"
+            "cross_customer_data_exposure",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy"
           ]
         },
         {
@@ -699,7 +1029,8 @@
           ],
           "required_document_ids": [
             "stakeholder-information"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.8.3",
@@ -709,7 +1040,8 @@
           ],
           "required_document_ids": [
             "stakeholder-information"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.8.4",
@@ -721,7 +1053,8 @@
           ],
           "required_document_ids": [
             "stakeholder-information"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.8.5",
@@ -731,7 +1064,8 @@
           ],
           "required_document_ids": [
             "stakeholder-information"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.9.2",
@@ -741,11 +1075,18 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "intended-use-and-acceptance"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.9.3",
@@ -755,11 +1096,18 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "intended-use-and-acceptance"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.9.4",
@@ -769,69 +1117,92 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "approval_freshness_replay",
+            "approval_preview_mutation_binding",
+            "authorization_revocation_race",
+            "human_override_takeover_relinquishment",
+            "long_running_cancellation_race",
+            "stop_resume_memory_boundary"
           ],
           "required_document_ids": [
             "intended-use-and-acceptance"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.10.2",
           "candidate_test_ids": [
             "mcp_tool_integrity",
-            "delegated_authority_confused_deputy"
+            "delegated_authority_confused_deputy",
+            "tool_authorization_confused_deputy",
+            "multi_agent_handoff_integrity",
+            "agent_identity_signed_handoff"
           ],
           "required_document_ids": [
             "responsibility-and-supplier-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.10.3",
           "candidate_test_ids": [
             "mcp_tool_integrity",
-            "delegated_authority_confused_deputy"
+            "delegated_authority_confused_deputy",
+            "tool_authorization_confused_deputy",
+            "multi_agent_handoff_integrity",
+            "agent_identity_signed_handoff"
           ],
           "required_document_ids": [
             "responsibility-and-supplier-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.10.4",
           "candidate_test_ids": [
             "mcp_tool_integrity",
-            "delegated_authority_confused_deputy"
+            "delegated_authority_confused_deputy",
+            "tool_authorization_confused_deputy",
+            "multi_agent_handoff_integrity",
+            "agent_identity_signed_handoff"
           ],
           "required_document_ids": [
             "responsibility-and-supplier-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.1.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "development-objectives"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.1.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "development-process"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.2.2",
           "candidate_test_ids": [],
           "required_document_ids": [
             "system-specification"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.2.3",
           "candidate_test_ids": [],
           "required_document_ids": [
             "design-record"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.2.4",
@@ -843,10 +1214,28 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement",
+            "credential_secret_output_log_handling",
+            "cross_session_data_leak",
+            "data_containment_transformed_exfiltration"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
@@ -854,7 +1243,8 @@
           "candidate_test_ids": [],
           "required_document_ids": [
             "deployment-acceptance"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.2.6",
@@ -867,27 +1257,48 @@
             "operational_oversight",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "peril_tool_grounded_factuality",
+            "rag_grounding_retrieval_integrity",
+            "hallucination_legal",
+            "p1_1_factuality_golden",
+            "idempotency_retry_double_execution",
+            "tool_schema_drift_partial_failure",
+            "checkpoint_restore_integrity",
+            "concurrent_shared_state_isolation",
+            "context_truncation_fail_safe",
+            "structured_output_contract_semantics",
+            "resource_budget_enforcement",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"
+          ],
+          "legacy_candidate_test_ids": [
+            "grounded_policy",
+            "hallucination"
           ]
         },
         {
           "control_id": "A.6.2.7",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "provenance_chain_of_custody"
+          ],
           "required_document_ids": [
             "technical-documentation"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         },
         {
           "control_id": "A.6.2.8",
           "candidate_test_ids": [
-            "operational_logging"
+            "operational_logging",
+            "operational_logging_quality"
           ],
           "required_document_ids": [
             "target-logging-and-retention-policy"
-          ]
+          ],
+          "legacy_candidate_test_ids": []
         }
       ]
     }
@@ -896,5 +1307,9 @@
     "Candidate evidence associations are not normative equivalence or certification.",
     "EN 18286:2026 supports covered Article 17 requirements; its final Annex ZA mapping is not asserted by this registry.",
     "An approved plan defines a bounded test set and does not establish complete coverage of a standard."
+  ],
+  "legacy_mapping_concepts": [
+    "grounded_policy",
+    "hallucination"
   ]
 }
