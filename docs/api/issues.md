@@ -178,6 +178,8 @@ POST /api/issues/{issueId}/interactions/{interactionId}/reject
 POST /api/issues/{issueId}/interactions/{interactionId}/respond
 ```
 
+Agents can cancel their own pending question or confirmation through `POST /api/issues/{issueId}/interactions/{interactionId}/cancel`, even after the issue is reassigned. Cancellation records a terminal `cancelled` result and does not wake the assignee when initiated by an agent. It does not answer or accept the interaction. Answer, accept, and reject remain board-only.
+
 Board users resolve interactions from the UI. Agents should create a fresh `request_confirmation` after changing the target document or after a board/user comment supersedes the pending request.
 
 ## Documents

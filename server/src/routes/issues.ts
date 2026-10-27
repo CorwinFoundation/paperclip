@@ -6375,11 +6375,8 @@ export function issueRoutes(
         return;
       }
       assertCompanyAccess(req, issue.companyId);
-      if (req.actor.type === "agent") {
-        if (!(await assertAgentIssueMutationAllowed(req, res, issue))) return;
-      } else {
-        assertBoard(req);
-      }
+      // The service checks interaction authorship independently of issue assignment.
+      if (req.actor.type !== "agent") assertBoard(req);
 
       const actor = getActorInfo(req);
       const interaction = await issueThreadInteractionService(db).cancelInteraction(issue, interactionId, req.body, {
@@ -6408,7 +6405,7 @@ export function issueRoutes(
         },
       });
 
-      queueResolvedInteractionContinuationWakeup({
+      if (req.actor.type !== "agent") queueResolvedInteractionContinuationWakeup({
         heartbeat,
         issue,
         interaction,

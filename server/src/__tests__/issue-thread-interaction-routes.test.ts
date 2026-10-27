@@ -540,11 +540,11 @@ describe.sequential("issue thread interaction routes", () => {
     });
 
     const res = await request(app)
-      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/withdraw")
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
       .send({ reason: "Later measurements refuted the remediation premise" });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("withdrawn");
+    expect(res.body.status).toBe("cancelled");
     expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
   });
 
@@ -570,7 +570,7 @@ describe.sequential("issue thread interaction routes", () => {
     );
   });
 
-  it("denies an unassigned agent cancelling an interaction", async () => {
+  it("allows the creating agent to cancel after the issue is reassigned", async () => {
     mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
     const app = await createApp({
       type: "agent",
@@ -583,9 +583,14 @@ describe.sequential("issue thread interaction routes", () => {
       .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
       .send({});
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("Agent cannot mutate another agent's issue");
-    expect(mockInteractionService.cancelInteraction).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mockInteractionService.cancelInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
+      "interaction-2",
+      {},
+      { agentId: CREATED_AGENT_ID, userId: null },
+    );
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
   });
 
   it("denies a non-board user cancelling an interaction", async () => {
