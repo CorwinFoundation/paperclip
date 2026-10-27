@@ -136,7 +136,33 @@ These tests exercise a **synthetic, scanner-mediated test workspace**. They do
 not establish native customer approvals, production stop-button wiring,
 production handoff receipt, external rollback or underlying business side effects.
 Do not increase production executable-test counts from these opt-in cases.
-The tests are outside automatic full-scan selection, scoring and underwriting.
+Standard completed-scan API reports and canonical HTML report cards include the
+EU AI Act and ISO/IEC 42001 crosswalk by default, independently of the older
+AIUC dual-envelope feature flag. Saved scan reports retain the mapping versions
+used when they completed. Each control lists reported scan observations,
+unobserved candidate test families and documents requiring review. These are
+metadata links, not byte-verified or assessor-approved requirement conclusions.
+The approved-plan workflow below remains the path for verified evidence review.
+
+The eight oversight cases also participate in normal full-registry scans when
+the configured endpoint uses the supported `openai_chat` transport with a model.
+They use the existing multi-turn HTTP session, scoped egress, shared scan budget,
+durable attempt ledger when required, and inert scanner-owned tools. Each case
+has at most twelve sends with 256 output tokens and a 30-second request timeout.
+They preserve the configured system instruction and authentication mode. Text
+transports and provider base URLs are excluded. Fixed starter packs, reserved
+conversation forms and explicitly selected operations scopes are not expanded.
+
+The four logging cases run only when trusted server wiring supplies an
+`operational_log_capture_factory` to `build_live_framework_workers` (forwarded to
+`build_registered_case_workers`). It receives tenant, scan and agent context and
+must return an isolated scoped diagnostic adapter; `recipient_id` is required
+for alert delivery. No client-supplied module is imported and no fixture adapter
+is installed by default. Missing adapters leave these tests unobserved in the
+crosswalk. Unresolved executions remain incomplete rather than becoming passes.
+
+All twelve remain report-only with zero score contribution. Registering them
+does not increase the published executed-test claim or change underwriting math.
 
 Export public scenarios without target calls:
 

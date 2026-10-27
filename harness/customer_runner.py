@@ -224,7 +224,9 @@ class _CustomerAgentHttpRunner(ModelRunner):
         return {"prompt": prompt}
 
     def complete_messages(
-        self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]]
+        self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]],
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> dict[str, Any]:
         """Complete one tool-visible chat turn through the customer endpoint.
 
@@ -235,6 +237,12 @@ class _CustomerAgentHttpRunner(ModelRunner):
         adapters.
         """
         self._messages_payload = {"messages": messages, "tools": tools}
+        if self._config.get("transport") == "openai_chat":
+            self._messages_payload["model"] = self._config["model"]
+        if max_output_tokens is not None:
+            self._messages_payload["max_tokens"] = max_output_tokens
+        if temperature is not None:
+            self._messages_payload["temperature"] = temperature
         try:
             raw = self.complete("")
         finally:

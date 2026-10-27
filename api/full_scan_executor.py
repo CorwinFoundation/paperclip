@@ -1561,7 +1561,15 @@ def validate_full_scan_release_gate(
     active_rows = [
         row
         for row in active_registry_rows
-        if _is_countable_active_executable(row)
+        if _is_countable_active_executable(row) or (
+            row.get("test_id") in {"operational_oversight", "operational_logging"}
+            and row.get("status") == "active"
+            and row.get("production_runner_executable") is True
+            and _case_id_from_row(row) in {
+                str(case.get("case_id") or "") for case in attempt_manifest.get("expected_cases", [])
+                if isinstance(case, Mapping)
+            }
+        )
     ]
     active_case_ids = {_case_id_from_row(row) for row in active_rows}
     active_case_ids.discard("")

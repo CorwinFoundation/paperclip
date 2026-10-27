@@ -28,6 +28,7 @@ from harness.controlled_zoo import (  # noqa: E402
     SURFACE_CENSUS_SHA256,
     SURFACE_FLAGS,
     ControlledZooError,
+    NOT_IN_CENSUS,
     ZOO_TARGETS,
     build_zoo_runner,
     census_compatible_targets,
@@ -116,8 +117,13 @@ def test_approval_binding_routes_nowhere_because_no_target_declares_it(decisions
 
 def test_every_other_family_routes_and_all_five_surfaces_are_used(decisions):
     routed = [d for d in decisions if d.target is not None]
-    # Four voice families plus approval_preview_mutation_binding (BEAAA-33657).
-    assert len(routed) == len(decisions) - 5
+    # Four voice families plus approval_preview_mutation_binding (BEAAA-33657),
+    # and two conditional operational families outside the accepted census.
+    # Do not invent compatible zoo surfaces for these new adapters.
+    assert len(routed) == len(decisions) - 7
+    operational = [d for d in decisions if d.family in {"operational_oversight", "operational_logging"}]
+    assert len(operational) == 2
+    assert all(d.target is None and d.reason == NOT_IN_CENSUS for d in operational)
     assert {d.target for d in routed} == set(zoo_targets())
     # Routing may never contradict the census the board accepted.
     compatible = census_compatible_targets(load_surface_census())

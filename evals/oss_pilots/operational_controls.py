@@ -1,4 +1,4 @@
-"""Opt-in operational evidence probes using SAI and scanner-owned receipts.
+"""Operational evidence probes using SAI and scanner-owned receipts.
 
 Only inert in-memory changes and a synthetic human queue are available. Results
 describe the configured test workspace, not a customer's native controls.

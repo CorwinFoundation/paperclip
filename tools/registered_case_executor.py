@@ -424,6 +424,19 @@ class _ScopedEgressRunner(ModelRunner):
             return self._base.complete(prompt)
 
 
+class _MeteredOperationalSession(_BudgetedTauSession):
+    def __init__(self, base: Any, owner: Any) -> None:
+        super().__init__(base, owner.ledger)
+        self._owner = owner
+
+    def send(self, message: str, *, tool_results: Any = ()) -> Any:
+        reservation = self._owner._reserve_operational_transport()
+        try:
+            return self._base.send(message, tool_results=tool_results)
+        finally:
+            self._owner._complete_operational_transport(reservation)
+
+
 def _observational_execution_eligible(registry_row) -> bool:
     """BEAAA-33437: execution eligibility is the registration status, not weight."""
 
@@ -555,6 +568,9 @@ class RegisteredCaseExecutor:
         tau_session_factory: Callable[[Any, int], Any] | None = None,
         durable_target_ledger: DurableTargetAttemptLedger | None = None,
         require_durable_transport: bool = False,
+        operational_session_factory: Callable[[Any], Any] | None = None,
+        operational_log_capture_factory: Callable[[Mapping[str, Any]], Any] | None = None,
+        operational_target: tuple[str, str, dict[str, Any]] | None = None,
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
         self.budget = budget
@@ -566,6 +582,18 @@ class RegisteredCaseExecutor:
         self.tau_session_factory = tau_session_factory
         self.durable_target_ledger = durable_target_ledger
         self.require_durable_transport = require_durable_transport
+        self.operational_session_factory = operational_session_factory
+        if operational_session_factory is not None:
+            self.operational_session_factory = lambda setup: _MeteredOperationalSession(
+                operational_session_factory(setup), self,
+            )
+        self.operational_log_capture_factory = operational_log_capture_factory
+        if operational_target is not None and operational_session_factory is None:
+            from tools.operational_scan import http_session_factory
+            self.operational_session_factory = http_session_factory(
+                *operational_target, reserve=self._reserve_operational_transport,
+                complete=self._complete_operational_transport,
+            )
         self._transport_context = threading.local()
         base_subject = self.subject._base
         binder = getattr(base_subject, "bind_transport_attempt_ledger", None)
@@ -595,7 +623,49 @@ class RegisteredCaseExecutor:
             "target_model": self.subject.model_id(),
             "judge_models": [self.judge.model_id()],
             "execution_budget": asdict(self.budget),
+            "operational_families": [
+                family for family, factory in (
+                    ("operational_oversight", self.operational_session_factory),
+                    ("operational_logging", self.operational_log_capture_factory),
+                ) if factory is not None
+            ],
         }
+
+    def _reserve_operational_transport(self) -> str | None:
+        if self.durable_target_ledger is not None:
+            return self._reserve_actual_transport()
+        self.ledger.reserve_target_call()
+        return None
+
+    def _complete_operational_transport(self, reservation: str | None) -> None:
+        if reservation is not None and self.durable_target_ledger is not None:
+            self.durable_target_ledger.complete(reservation)
+
+    def _execute_operational_case(self, test_id, case_id, registry_row):
+        from evals.oss_pilots.operational_controls import CASE_BY_ID, run_case, run_logging_case
+
+        if test_id == "operational_oversight":
+            if self.operational_session_factory is None:
+                capture = {"verdict": "inconclusive", "reason": "target_tool_session_not_configured"}
+            else:
+                capture = run_case(CASE_BY_ID[case_id], self.operational_session_factory,
+                                   assessment_id=registry_row["target_authorization_ref"])
+        else:
+            # The adapter is installed by trusted server wiring, never imported
+            # from a customer-supplied module path or instantiated as a fixture.
+            context = {"tenant_id": self.tenant_id,
+                       "scan_id": registry_row["scan_id"],
+                       "agent_id": registry_row["agent_id"]}
+            adapter = (self.operational_log_capture_factory(context)
+                       if self.operational_log_capture_factory else None)
+            capture = run_logging_case(case_id, adapter, scope=context,
+                                       recipient_id=getattr(adapter, "recipient_id", None))
+        verdict = {"passed": "pass", "failed": "fail"}.get(capture["verdict"], "unresolved")
+        return {"verdict": verdict, "reported_not_scored": True, "score": None,
+                "capture": capture, "payloads": [], "responses": [],
+                "unresolved_reason": capture.get("reason") if verdict == "unresolved" else None,
+                "observation_scope": capture.get("observation_scope"),
+                "judge": {"type": "scanner_owned_operational_receipt", "reported_not_scored": True}}
 
     def read_observational_evidence(
         self,
@@ -702,6 +772,8 @@ class RegisteredCaseExecutor:
                 f"full-scan-job:{job.job_id}:agent:{job.agent_id}"
             )
             execution_row["tenant_id"] = self.tenant_id
+            execution_row["scan_id"] = str(getattr(job, "scan_id", None) or job.job_id)
+            execution_row["agent_id"] = job.agent_id
             execution_row["audience"] = self.audience
             execution_row["scan_seed"] = job.seed
             execution_row["case_evidence_uri"] = (
@@ -838,6 +910,8 @@ class RegisteredCaseExecutor:
         # an MCP surface, and reported the answer as a pass. A conditional
         # family run against a surface it does not apply to is a fabricated
         # result whether or not anyone reads it (directive BEAAA-24008, D.3).
+        if test_id in {"operational_oversight", "operational_logging"}:
+            return self._execute_operational_case(test_id, case_id, registry_row)
         resolution = _resolve_applicability(test_id, registry_row)
         if not resolution.applicable:
             return _not_applicable_outcome(test_id, case_id, resolution)
@@ -2568,6 +2642,7 @@ def build_registered_case_workers(
     subject_factory: Callable[[str, str], ModelRunner] | None = None,
     judge_factory: Callable[[], ModelRunner] | None = None,
     tau_session_factory: Callable[[Any, int], Any] | None = None,
+    operational_log_capture_factory: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> dict[str, RegisteredCaseExecutor]:
     from harness.customer_runner import customer_agent_http_runner_factory
     from tools.framework_worker_registry import WORKERS
@@ -2643,6 +2718,8 @@ def build_registered_case_workers(
         tau_session_factory=tau_session_factory,
         durable_target_ledger=durable_ledger,
         require_durable_transport=operations_scope is not None,
+        operational_target=(scan_request.agent_endpoint, secret, getattr(scan_request, "endpoint_config", None) or {}),
+        operational_log_capture_factory=operational_log_capture_factory,
     )
     return {worker_id: executor for worker_id in WORKERS}
 

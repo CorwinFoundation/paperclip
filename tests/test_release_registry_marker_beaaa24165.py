@@ -180,7 +180,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # the executable census asserted below is unchanged.
     # E018 follow-up: append twelve disclosure-bypass cases and version the
     # expanded lane-A pack at 0.2.0. Existing C10 activations are unchanged.
-    "6d4d3ddc5962fd519bef8486f229ffccd048cb29bd5a66347e64aa39184f110d"
+    # EU/ISO adds twelve conditional, report-only case contracts. Re-generated
+    # from the reviewed registry; measured and published counts stay unchanged.
+    "9ddc849550d69d2e88c3d98306e902201e3cb62ef89dc89b21dc1be1bca9faf3"
 )
 
 
@@ -208,7 +210,9 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # reduces the exclusion proof by two more.
     # The nine BEAAA-35384 rows are report-only and therefore extend the
     # excluded-row proof without changing executable counts.
-    assert len(marker["excluded_rows"]) == 148
+    # Conditional operational cases extend the exclusion proof, not the
+    # published measured-test census.
+    assert len(marker["excluded_rows"]) == 148 + 12
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

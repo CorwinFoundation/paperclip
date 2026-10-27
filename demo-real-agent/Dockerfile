@@ -30,6 +30,8 @@ COPY tools/probe-registry/authoritative_registry.json /app/tools/probe-registry/
 COPY tools/framework_worker_registry.py /app/tools/framework_worker_registry.py
 COPY tools/framework_workers.py /app/tools/framework_workers.py
 COPY tools/registered_case_executor.py /app/tools/registered_case_executor.py
+COPY tools/operational_scan.py /app/tools/operational_scan.py
+COPY standard_requirement_report.py requirement_assessment.py framework_assessment.py /app/
 COPY tools/tranche1_observational.py /app/tools/tranche1_observational.py
 COPY tools/text_case_materializer.py /app/tools/text_case_materializer.py
 COPY config/tranche1_zero_weight_observational.json /app/config/tranche1_zero_weight_observational.json

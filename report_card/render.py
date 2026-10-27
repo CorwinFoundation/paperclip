@@ -787,6 +787,8 @@ def render(
         )
         for pid in pillars
     )
+    from report_card.requirements import render_requirements
+    requirements_html = render_requirements(score_response)
     sensitivity_html = (
         render_sensitivity_block(_display_sr)
         if include_sensitivity and not coverage_aware_partial
@@ -907,6 +909,7 @@ def render(
         f"\n"
         f'    <div class="section-title">Dimension Detail</div>\n'
         f"{pillar_sections_html}"
+        f"{requirements_html}"
         f'    <div class="audit-trail">\n'
         f'      <div class="audit-title">Audit Trail</div>\n'
         f'      <div class="audit-grid">\n'

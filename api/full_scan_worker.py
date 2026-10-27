@@ -351,7 +351,10 @@ class FullScanQueueWorker:
         """
         available = tuple(rows)
         if job.operations_scope is None:
-            return available
+            from tools.operational_scan import FAMILIES
+            expected = {case.case_id for case in job.registry_cases}
+            return tuple(row for row in available if row.get("test_id") not in FAMILIES
+                         or str(row.get("case_id") or "") in expected)
         raw_requested = job.operations_scope.get("requested_case_ids")
         if (
             not isinstance(raw_requested, list)
@@ -442,6 +445,7 @@ def load_default_full_scan_registry_rows(
             dict(row)
             for row in active_test_registry.build_registry()
             if active_test_registry._is_countable_active_executable(row)
+            or row.get("test_id") in {"operational_oversight", "operational_logging"}
         )
         if not live_rows:
             raise RuntimeError("live production registry has no executable rows")

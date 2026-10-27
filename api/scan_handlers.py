@@ -236,7 +236,7 @@ def _append_report_only_manifest_evidence(
         if (
             not isinstance(row, Mapping)
             or row.get("disposition") != "report-only"
-            or row.get("test_id") != "tau_support_crm"
+            or row.get("test_id") not in {"tau_support_crm", "operational_oversight", "operational_logging"}
         ):
             continue
         refs.append(
@@ -1067,8 +1067,12 @@ class ScanRuntime:
                             "live_probe_evidence_readback_failed"
                         )
                     for ref in score_envelope.get("evidence_refs", []):
-                        if isinstance(ref, dict):
+                        if isinstance(ref, dict) and ref.get("disposition") != "report-only":
                             ref["artifact_uri"] = forensic_bundle_uri
+                from standard_requirement_report import build_standard_requirement_report
+                score_envelope["requirements_evidence"] = build_standard_requirement_report(
+                    score_envelope, manifest=result.full_suite_manifest, scan_id=scan_request.scan_id,
+                )
                 # BEAAA-11726 item 4 — compute probe_set_hash from the
                 # dim_ids that ran and persist it write-once with the row.
                 _psh = (
@@ -1240,6 +1244,11 @@ class ScanRuntime:
             row
             for row in self._full_scan_registry_rows
             if selected_case_ids is None or row.get("case_id") in selected_case_ids
+        )
+        from tools.operational_scan import select_rows
+        selected_registry_rows = select_rows(
+            selected_registry_rows,
+            worker_metadata.get("operational_families", ()) if scan_request.pack_id is None else (),
         )
         registry_cases = (
             ()
@@ -2098,6 +2107,19 @@ def _external_result_envelope(
     )
     if framework_envelope_enabled():
         envelope.update(build_framework_envelope(score_json))
+    from standard_requirement_report import build_standard_requirement_report
+    cached_mapping = score_json.get("requirements_evidence")
+    manifest = result.full_suite_manifest
+    # A queue worker can finish after an accepted-score row was persisted.
+    # Reuse completed snapshots, but do not hide newly reconciled evidence
+    # behind the earlier crosswalk that had no final manifest.
+    if (isinstance(cached_mapping, Mapping) and manifest
+            and cached_mapping.get("report_mode") == "scan observation crosswalk"
+            and cached_mapping.get("source_manifest_hash") != manifest.get("manifest_hash")):
+        cached_mapping = None
+    envelope["requirements_evidence"] = cached_mapping or build_standard_requirement_report(
+        score_json, manifest=manifest, scan_id=result.scan_id,
+    )
     # BEAAA-38253 — opted-in starter rows ride the persisted-score envelope
     # too. Rows exist only when the request set include_result_rows, so a
     # default request stays summary-only.

@@ -32,6 +32,11 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
         if row["production_runner_executable"]
         and row["test_id"] not in UNBOUND_FAMILIES
     )
+    # Pin the new conditional families separately, then preserve the exact
+    # pre-existing family map and its digest below.
+    assert {family: counts.pop(family) for family in (
+        "operational_oversight", "operational_logging",
+    )} == {"operational_oversight": 8, "operational_logging": 4}
     serialized = json.dumps(
         dict(sorted(counts.items())), sort_keys=True, separators=(",", ":")
     ).encode()

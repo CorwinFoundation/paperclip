@@ -59,6 +59,10 @@ def customer_payload(result: ScanResult) -> dict[str, Any]:
     }
     if result.incomplete_reason is not None:
         payload["incomplete_reason"] = result.incomplete_reason
+    from standard_requirement_report import build_standard_requirement_report
+    payload["requirements_evidence"] = build_standard_requirement_report(
+        payload, manifest=getattr(result, "full_suite_manifest", None), scan_id=result.scan_id,
+    )
     starter_rows = getattr(result, "starter_result_rows", ())
     if starter_rows:
         payload["result_rows"] = [dict(row) for row in starter_rows]

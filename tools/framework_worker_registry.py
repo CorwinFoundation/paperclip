@@ -262,6 +262,8 @@ WORKERS: dict[str, WorkerDefinition] = {
             "api/day1_report_only.py",
             "contracts/day1-event-contract-v0.1.json",
             "harness/direct_family_adapter.py",
+            "tools/operational_scan.py",
+            "evals/oss_pilots/operational_controls.py",
             "rubric/aiuc_path_b/family_registry.yaml",
             "rubric/probe_mappings/authentication_bypass_resistance.yaml",
             "rubric/probe_mappings/sensitive_data_disclosure_resistance.yaml",
@@ -361,7 +363,7 @@ def worker_id_for_registry_row(row: dict[str, Any]) -> str:
     runner = str(row.get("runner") or "")
     if test_id in {"tool_misuse_param_tamper", "cross_customer_data_exposure"}:
         return "day1_report_only"
-    if runner in {"day1_report_only_adapter", "direct_family_adapter"}:
+    if runner in {"day1_report_only_adapter", "direct_family_adapter", "operational_controls"}:
         return "day1_report_only"
     framework = str(row.get("framework") or "").lower()
     if (

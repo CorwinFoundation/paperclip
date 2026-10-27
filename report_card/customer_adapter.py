@@ -57,6 +57,9 @@ def to_customer_payload(score_response: dict[str, Any]) -> dict[str, Any]:
     `verdict.bind_eligibility`.
     """
     payload = copy.deepcopy(score_response)
+    if not payload.get("requirements_evidence"):
+        from standard_requirement_report import build_standard_requirement_report
+        payload["requirements_evidence"] = build_standard_requirement_report(score_response)
     for key in _CUSTOMER_STRIP_TOPLEVEL:
         payload.pop(key, None)
 

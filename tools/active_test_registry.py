@@ -134,6 +134,8 @@ REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES = frozenset(
     {
         "backbond-output-attack-fixtures",
         "crescendo",
+        "operational_oversight",
+        "operational_logging",
     }
 )
 AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
@@ -895,6 +897,9 @@ def build_registry(
                 ledger_row = _b35380_by_probe.get(str(row.get("case_id") or ""))
                 if ledger_row is not None:
                     row.update(_beaaa35380_dev_evidence_metadata(ledger_row))
+    if mapping_dir.resolve() == MAPPING_DIR.resolve():
+        from tools.operational_scan import registry_rows
+        reconciled.extend(registry_rows())
     return reconciled
 
 

@@ -824,6 +824,22 @@ components:
         seed: { type: integer }
         partial_completion: { type: boolean }
         confidence_below_adjudication_threshold: { type: boolean }
+        requirements_evidence:
+          type: object
+          description: |
+            Default EU AI Act and ISO/IEC 42001 engineering-draft evidence
+            crosswalk, independent of the AIUC dual-envelope feature flag.
+            Contains versioned framework controls, reported scan observations,
+            unobserved candidate test families and documents requiring review.
+            Reported verdicts are metadata, not byte-verified evidence or
+            approved-plan assessments. Requirement conclusions, conformity
+            and certification remain unassessed.
+          properties:
+            schema: { type: string }
+            report_mode: { type: string }
+            scan_id: { type: string }
+            frameworks: { type: array, items: { type: object } }
+            limitations: { type: array, items: { type: string } }
     ScanResult:
       type: object
       description: |

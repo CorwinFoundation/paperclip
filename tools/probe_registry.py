@@ -15,6 +15,7 @@ from tools.active_test_registry import (
     build_registry as build_active_test_registry,
 )
 from harness.direct_family_adapter import DIRECT_FAMILIES
+from tools.operational_scan import FAMILIES as OPERATIONAL_FAMILIES
 
 
 REPO_DEFAULT = Path.cwd()
@@ -33,6 +34,9 @@ FRAMEWORK_PINS = {
 }
 SOURCE_INPUTS = [
     "tools/active_test_registry.py",
+    "tools/operational_scan.py",
+    "evals/oss_pilots/operational_controls.py",
+    "rubric/requirement_registry.v1.json",
     "rubric/probe_mappings/*.yaml",
     "corpus/**",
     "harness/bench/**",
@@ -300,7 +304,7 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
     for row in build_active_test_registry(repo / "rubric" / "probe_mappings"):
         family_id = str(row.get("test_id") or "")
         claim_countable = _is_countable_active_executable(row)
-        if not claim_countable and family_id not in DIRECT_FAMILIES:
+        if not claim_countable and family_id not in DIRECT_FAMILIES | OPERATIONAL_FAMILIES:
             continue
         version_pin = str(row.get("version_pin") or "")
         _, _, framework_version = version_pin.partition("@")
@@ -333,6 +337,14 @@ def _active_test_executable_rows(repo: Path) -> list[dict[str, Any]]:
             emitted.update(
                 default_runtime_executable=True,
                 scoring_active=False,
+            )
+        if family_id in OPERATIONAL_FAMILIES:
+            emitted.update(
+                bucket="report_only", default_runtime_executable=False,
+                executed_in_latest_evidenced_run=False, reported=False,
+                scoring_active=False, score_contribution=False, weight=0.0,
+                execution_mode="conditional_operational",
+                reason="Conditional report-only operational probe; requires a supported scoped adapter and per-scan evidence",
             )
         if str(row.get("test_id")) == "consequential_action_confirmation":
             mapping = _load_yaml(repo / source)

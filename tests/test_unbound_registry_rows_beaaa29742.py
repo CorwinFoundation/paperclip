@@ -146,8 +146,10 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # two counts never coincide and neither substitutes for the other.
     # E018 adds twelve executable bench-wrapper cases without adding canonical
     # runtime_case_identity values. Keep the two censuses independently pinned.
-    assert len(rows) == 2_478
-    assert len(identities) == 2_091
+    # Twelve conditional operational receipt/log cases add runnable identities;
+    # their report-only registration does not increase the measured-test claim.
+    assert len(rows) == 2_478 + 12
+    assert len(identities) == 2_091 + 12
 
 
 def test_bound_pii_attestation_still_scores_in_the_contract_envelope():
