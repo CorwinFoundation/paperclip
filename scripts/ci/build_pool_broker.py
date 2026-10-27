@@ -52,7 +52,8 @@ class GitHub:
         request = urllib.request.Request("https://api.github.com" + path, data=payload,
             method=method, headers={"Authorization": "Bearer " + token,
             "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "backbond-isolated-build-pool", "Content-Type": "application/json"})
+            "User-Agent": "backbond-isolated-build-pool", "Content-Type": "application/json",
+            **({"Cache-Control": "no-cache"} if method == "GET" else {})})
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
                 content = response.read()
@@ -239,7 +240,16 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         broker = Broker(GitHub(config))
         broker.recover()
+        from control_dispatch_guard import ControlDispatchGuard
+        control_guard = ControlDispatchGuard(broker.github, STATE)
+        control_guard.recover()
         while True:
+            try:
+                control_guard.tick()
+            except Exception as error:
+                if control_guard.journal.exists():
+                    raise  # Owned maintenance must recover before any build.
+                print(f"Control dispatch observation unavailable ({type(error).__name__}); no recovery attempted", flush=True)
             candidate = next(broker.github.candidates(), None)
             if candidate:
                 broker.run_one(candidate)

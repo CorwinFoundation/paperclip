@@ -12,6 +12,7 @@ on:
       - 'scripts/ci/build_pool_broker.py'
       - 'tests/test_ci_control_worker.py'
       - 'tests/test_build_pool_recovery.py'
+      - 'tests/test_control_dispatch_guard.py'
 
 permissions:
   contents: read
@@ -40,6 +41,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/control-checks"
           "$RUNNER_TEMP/control-checks/bin/python" -m pip install pytest==9.0.3 PyYAML==6.0.3
           "$RUNNER_TEMP/control-checks/bin/python" -m pytest --noconftest -q tests/test_ci_select_tests.py tests/test_ci_solution_changes.py tests/test_version_control_preflight.py tests/test_ci_control_worker.py
+          "$RUNNER_TEMP/control-checks/bin/python" -m pytest --noconftest -q tests/test_control_dispatch_guard.py tests/test_build_pool_recovery.py tests/test_founder_ci_cost_policy.py
           python -m unittest -v tests.test_release_identity_beaaa17967
           python scripts/release_identity_ci.py --build-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/control-release-identity.json"
       - name: Verify resource limits and retain memory evidence after checks
