@@ -87,6 +87,8 @@ function statusLabel(status: IssueThreadInteraction["status"]) {
       return "Rejected";
     case "answered":
       return "Answered";
+    case "withdrawn":
+      return "Retracted";
     case "cancelled":
       return "Cancelled";
     case "expired":
@@ -971,6 +973,8 @@ function AskUserQuestionsCard({
             </div>
           </div>
         </div>
+      ) : interaction.status === "withdrawn" ? (
+        <div className="p-4 text-sm">{interaction.withdrawalReason}</div>
       ) : interaction.status === "cancelled" ? (
         <div className="rounded-2xl border border-rose-300/60 bg-rose-50/85 p-4 text-sm leading-6 text-rose-950 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100">
           <div className="font-semibold">Question cancelled</div>
@@ -1882,6 +1886,15 @@ export function IssueThreadInteractionCard({
   onCancelInteraction,
   onUploadImage,
 }: IssueThreadInteractionCardProps) {
+  if (interaction.status === "withdrawn") {
+    return (
+      <div className="rounded-sm border p-5 text-sm text-muted-foreground">
+        <div className="font-semibold">Retracted by author</div>
+        {interaction.title ? <div className="mt-2">{interaction.title}</div> : null}
+        <p className="mt-2 whitespace-pre-wrap">{interaction.withdrawalReason}</p>
+      </div>
+    );
+  }
   const isPlan = isPlanConfirmation(interaction);
   const planStyles = isPlan ? planStatusClasses(interaction.status) : null;
   const StatusIcon = planStyles ? planStyles.Icon : statusIcon(interaction.status);

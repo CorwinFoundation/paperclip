@@ -538,6 +538,13 @@ describeEmbeddedPostgres("issueThreadInteractionService", () => {
       userId: "local-board",
     });
 
+    await expect(interactionsSvc.cancelInteraction({
+      id: issueId,
+      companyId,
+    }, created.id, { reason: "Not my interaction" }, {
+      agentId: randomUUID(),
+    })).rejects.toMatchObject({ status: 403 });
+
     const cancelled = await interactionsSvc.cancelInteraction({
       id: issueId,
       companyId,

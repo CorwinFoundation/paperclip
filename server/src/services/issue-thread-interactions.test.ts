@@ -213,6 +213,61 @@ describe("issueThreadInteractionService", () => {
     expect(state.issueTouches).toHaveLength(1);
   });
 
+  it.each(["ask_user_questions", "request_confirmation", "request_checkbox_confirmation", "suggest_tasks"])("withdraws author-owned %s without answering", async (kind) => {
+    const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+    const state = createFakeDb({ interactionRow: {
+      id: "card", issueId: "issue", companyId: "company", kind, status: "pending",
+      createdByAgentId: "author", payload: {}, result: null,
+    } });
+    const result = await issueThreadInteractionService(state.db as never).withdrawInteraction(
+      { id: "issue", companyId: "company" }, "card", { reason: " Premise refuted " }, { agentId: "author" },
+    );
+    expect(result).toMatchObject({ status: "withdrawn", continuationPolicy: "none", withdrawalReason: "Premise refuted", result: null });
+    expect(state.interactionUpdates).toHaveLength(1);
+  });
+
+  it.each([
+    ["other", "pending", "Reason", "Only the authoring agent"],
+    ["author", "answered", "Reason", "already been resolved"],
+    ["author", "pending", "  ", "withdrawal reason is required"],
+  ])("rejects invalid withdrawal %#", async (agentId, status, reason, error) => {
+    const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+    const state = createFakeDb({ interactionRow: {
+      id: "card", issueId: "issue", companyId: "company", kind: "ask_user_questions", status,
+      createdByAgentId: "author", payload: {}, result: null,
+    } });
+    await expect(issueThreadInteractionService(state.db as never).withdrawInteraction(
+      { id: "issue", companyId: "company" }, "card", { reason }, { agentId },
+    )).rejects.toThrow(error);
+    expect(state.interactionUpdates).toHaveLength(0);
+  });
+
+  it.each(["request_confirmation", "request_checkbox_confirmation"])(
+    "cannot accept a withdrawn %s or return its issue to the author",
+    async (kind) => {
+      const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
+      const state = createFakeDb({ interactionRow: {
+        id: "card", issueId: "issue", companyId: "company", kind, status: "pending",
+        createdByAgentId: "author", continuationPolicy: "wake_assignee_on_accept",
+        payload: { version: 1, prompt: "Build this remediation?" }, result: null,
+      } });
+      const svc = issueThreadInteractionService(state.db as never);
+      await svc.withdrawInteraction(
+        { id: "issue", companyId: "company" }, "card", { reason: "Premise refuted" }, { agentId: "author" },
+      );
+      state.db.select.mockImplementation(() => createSelectChain([state.getInteractionRow()]));
+
+      await expect(svc.acceptInteraction(
+        { id: "issue", companyId: "company", projectId: null, goalId: null }, "card", {}, { userId: "local-board" },
+      )).rejects.toThrow("Interaction has already been resolved");
+
+      expect(state.getInteractionRow()).toMatchObject({ status: "withdrawn", continuationPolicy: "none" });
+      expect(state.interactionUpdates).toHaveLength(1);
+      expect(state.issueTouches).toHaveLength(1);
+      expect(mockCreateChild).not.toHaveBeenCalled();
+    },
+  );
+
   it("cancels a pending request_confirmation", async () => {
     const { issueThreadInteractionService } = await import("./issue-thread-interactions.js");
     const state = createFakeDb({

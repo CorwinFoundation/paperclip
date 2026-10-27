@@ -122,6 +122,12 @@ function hydrateInteraction(
     continuationPolicy: row.continuationPolicy as IssueThreadInteraction["continuationPolicy"],
   };
 
+  if (row.status === "withdrawn") {
+    return { ...base, kind: row.kind, payload: row.payload, result: null,
+      withdrawalReason: (row.result as { withdrawalReason?: string } | null)?.withdrawalReason ?? null,
+    } as IssueThreadInteraction;
+  }
+
   switch (row.kind) {
     case "suggest_tasks":
       return {
@@ -1442,6 +1448,38 @@ export function issueThreadInteractionService(db: Db) {
         throw conflict("Interaction has already been resolved");
       }
 
+      await touchIssue(db, issue.id);
+      return hydrateInteraction(updated);
+    },
+
+    withdrawInteraction: async (
+      issue: { id: string; companyId: string },
+      interactionId: string,
+      input: CancelIssueThreadInteraction,
+      actor: InteractionActor,
+    ) => {
+      const data = cancelIssueThreadInteractionSchema.parse(input);
+      const current = await db.select().from(issueThreadInteractions)
+        .where(eq(issueThreadInteractions.id, interactionId)).then((rows) => rows[0] ?? null);
+      if (!current || current.companyId !== issue.companyId || current.issueId !== issue.id) {
+        throw notFound("Interaction not found");
+      }
+      if (!actor.agentId || current.createdByAgentId !== actor.agentId) {
+        throw forbidden("Only the authoring agent may withdraw an interaction");
+      }
+      if (current.status !== "pending") throw conflict("Interaction has already been resolved");
+      const reason = data.reason?.trim();
+      if (!reason) throw unprocessable("A withdrawal reason is required");
+      const [updated] = await db.update(issueThreadInteractions).set({
+        status: "withdrawn",
+        continuationPolicy: "none",
+        result: { version: 1, withdrawalReason: reason },
+        resolvedByAgentId: actor.agentId,
+        resolvedByUserId: null,
+        resolvedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(and(eq(issueThreadInteractions.id, interactionId), eq(issueThreadInteractions.status, "pending"))).returning();
+      if (!updated) throw conflict("Interaction has already been resolved");
       await touchIssue(db, issue.id);
       return hydrateInteraction(updated);
     },

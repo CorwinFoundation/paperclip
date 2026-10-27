@@ -178,6 +178,8 @@ POST /api/issues/{issueId}/interactions/{interactionId}/reject
 POST /api/issues/{issueId}/interactions/{interactionId}/respond
 ```
 
+Agents can cancel their own pending question or confirmation through `POST /api/issues/{issueId}/interactions/{interactionId}/cancel`, even after the issue is reassigned. Cancellation records a terminal `cancelled` result and does not wake the assignee when initiated by an agent. It does not answer or accept the interaction. Answer, accept, and reject remain board-only.
+
 Board users resolve interactions from the UI. Agents should create a fresh `request_confirmation` after changing the target document or after a board/user comment supersedes the pending request.
 
 ## Documents
@@ -267,3 +269,5 @@ backlog -> todo -> in_progress -> in_review -> done
 - `started_at` auto-set on `in_progress`
 - `completed_at` auto-set on `done`
 - Terminal states: `done`, `cancelled`
+
+`POST /api/issues/:id/interactions/:interactionId/withdraw` lets the authoring agent retract any pending interaction with a nonempty `reason` (max 4000 characters). It returns `withdrawn` with `withdrawalReason`, disables continuation, and never wakes the assignee. Other agents and board actors receive 403. Answer/accept/reject remain board-only.

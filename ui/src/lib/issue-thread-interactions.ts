@@ -102,6 +102,7 @@ export function getRequestConfirmationTargetHref({
 export function buildIssueThreadInteractionSummary(
   interaction: IssueThreadInteraction,
 ) {
+  if (interaction.status === "withdrawn") return "Retracted by author";
   if (interaction.kind === "suggest_tasks") {
     const count = interaction.payload.tasks.length;
     if (interaction.status === "accepted") {

@@ -823,6 +823,7 @@ export interface RequestCheckboxConfirmationResult extends RequestConfirmationRe
 }
 
 export interface IssueThreadInteractionBase extends IssueThreadInteractionActorFields {
+  withdrawalReason?: string | null;
   id: string;
   companyId: string;
   issueId: string;

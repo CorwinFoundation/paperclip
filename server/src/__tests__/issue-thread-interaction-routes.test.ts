@@ -20,6 +20,7 @@ const mockInteractionService = vi.hoisted(() => ({
   expireRequestConfirmationsSupersededByHistoricalComments: vi.fn(),
   answerQuestions: vi.fn(),
   cancelInteraction: vi.fn(),
+  withdrawInteraction: vi.fn(),
 }));
 
 const mockHeartbeatService = vi.hoisted(() => ({
@@ -530,6 +531,76 @@ describe.sequential("issue thread interaction routes", () => {
     );
   });
 
+  it("lets an author withdraw a refuted question without waking the assignee", async () => {
+    mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
+    mockInteractionService.withdrawInteraction.mockResolvedValueOnce({
+      id: "interaction-2", kind: "ask_user_questions", status: "withdrawn",
+      continuationPolicy: "none", withdrawalReason: "Later measurements refuted the remediation premise",
+    });
+    const app = await createApp({
+      type: "agent",
+      agentId: ASSIGNEE_AGENT_ID,
+      companyId: "company-1",
+      runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/withdraw")
+      .send({ reason: "Later measurements refuted the remediation premise" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("withdrawn");
+    expect(mockLogActivity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "issue.thread_interaction_withdrawn" }));
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
+  });
+
+  it("rejects withdrawal by a non-author even when assigned to the issue", async () => {
+    const { issueThreadInteractionService } = await import("../services/issue-thread-interactions.js");
+    mockDbSelectWhere.mockImplementationOnce(() => ({
+      then: (onFulfilled: (rows: unknown[]) => unknown, onRejected?: (reason: unknown) => unknown) =>
+        Promise.resolve([{
+          id: "interaction-2", companyId: "company-1",
+          issueId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", status: "pending",
+          createdByAgentId: CREATED_AGENT_ID,
+        }]).then(onFulfilled, onRejected),
+    }));
+    mockInteractionService.withdrawInteraction.mockImplementationOnce((issue, interactionId, input, actor) =>
+      issueThreadInteractionService(mockDb as any).withdrawInteraction(issue, interactionId, input, actor),
+    );
+    const app = await createApp({
+      type: "agent", agentId: ASSIGNEE_AGENT_ID, companyId: "company-1", runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/withdraw")
+      .send({ reason: "Premise refuted" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("Only the authoring agent");
+    expect(mockLogActivity).not.toHaveBeenCalled();
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["accept", {}],
+    ["respond", { answers: [{ questionId: "scope", optionIds: ["phase-1"] }] }],
+    ["reject", { reason: "Changed premise" }],
+  ])("keeps the %s route board-only for agents", async (action, body) => {
+    const app = await createApp({
+      type: "agent", agentId: CREATED_AGENT_ID, companyId: "company-1", runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post(`/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/${action}`)
+      .send(body);
+
+    expect(res.status).toBe(403);
+    expect(mockInteractionService.acceptInteraction).not.toHaveBeenCalled();
+    expect(mockInteractionService.answerQuestions).not.toHaveBeenCalled();
+    expect(mockInteractionService.rejectInteraction).not.toHaveBeenCalled();
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
+  });
+
   it("allows the assigned agent to cancel an interaction", async () => {
     mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
     const app = await createApp({
@@ -552,7 +623,7 @@ describe.sequential("issue thread interaction routes", () => {
     );
   });
 
-  it("denies an unassigned agent cancelling an interaction", async () => {
+  it("allows the creating agent to cancel after the issue is reassigned", async () => {
     mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
     const app = await createApp({
       type: "agent",
@@ -565,9 +636,14 @@ describe.sequential("issue thread interaction routes", () => {
       .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/cancel")
       .send({});
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("Agent cannot mutate another agent's issue");
-    expect(mockInteractionService.cancelInteraction).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mockInteractionService.cancelInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
+      "interaction-2",
+      {},
+      { agentId: CREATED_AGENT_ID, userId: null },
+    );
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
   });
 
   it("denies a non-board user cancelling an interaction", async () => {
