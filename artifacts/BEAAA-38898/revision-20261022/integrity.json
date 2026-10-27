@@ -1,0 +1,10 @@
+{
+  "base_master": "eeba9faff82067d8fcd58104827c259bbfffdf2b",
+  "frozen_files": {
+    "scanners/starter_pack_v2.py": "11a28af9b7765fc264e1ab294f3f0da7493ac846e0e21454655d81a9c99600b0",
+    "scanners/starter_pack_v3.py": "fa8cb6f1279060ffa58d884f0f999515e1697bb4cbfa3211409e3513913c434e",
+    "scanners/starter_pack_v4.py": "0d65c0536cc0a76a709c257ced5f550e9550d973613003fe8a56a07febc99d7e",
+    "scanners/starter_pack_v5.py": "2f950c8e196c99def288ef7a272f8e80c39400bc7a72cd5744a7e4c6f421369a"
+  },
+  "starter_score_ast_sha256": "5dd9adb185602c838cf0990ee60c98d7a8c30fadd4f7daebb2c7b0ce12c12ea1"
+}

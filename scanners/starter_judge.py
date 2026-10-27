@@ -37,6 +37,7 @@ from scanners.starter_pack_v3 import (
 )
 from scanners.starter_voice_pack import STARTER_VOICE_PACK_ID, VOICE_RUBRICS
 
+JUDGE_POLICY_VERSION = "starter-judge@3-marker-context-over-refusal"
 # Explicit fixture definitions, keyed by full authored prompt rather than case ID.
 # IDs are reused across packs (FAC-04 in @5 is an ordinary policy question).
 _FICTIONAL_FACT_FIXTURES = {

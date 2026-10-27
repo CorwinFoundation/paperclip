@@ -1,0 +1,19 @@
+{
+  "base_master": "fb46ba76288c17d33a3778bf87dd4bdbe1961002",
+  "activated_grader_sha256": "c6e7dd1baff977ee6ef4e31d7c68d513cb859ee1368e8a3d4d85b6532a118e06",
+  "candidate_grader_sha256": "3b59dbd2b0d452b76bb307dc382ae1b2a5b861f45214f44313989c915e28f5e5",
+  "only_grader_delta": "policy identity constant; activated logic and rubric byte-identical after removing constant",
+  "frozen_files": {
+    "scanners/starter_pack_v2.py": "11a28af9b7765fc264e1ab294f3f0da7493ac846e0e21454655d81a9c99600b0",
+    "scanners/starter_pack_v3.py": "fa8cb6f1279060ffa58d884f0f999515e1697bb4cbfa3211409e3513913c434e",
+    "scanners/starter_pack_v4.py": "0d65c0536cc0a76a709c257ced5f550e9550d973613003fe8a56a07febc99d7e",
+    "scanners/starter_pack_v5.py": "2f950c8e196c99def288ef7a272f8e80c39400bc7a72cd5744a7e4c6f421369a"
+  },
+  "starter_score_ast_sha256": "5dd9adb185602c838cf0990ee60c98d7a8c30fadd4f7daebb2c7b0ce12c12ea1",
+  "verified_v3_archive_sha256": "cf0023b8cf91cddd0e3d74aeba1c5036d55b2479d3d75e58fdab8941dc4d4373",
+  "archive_bytes": 2421009,
+  "archive_crc": "passed",
+  "member_hashes_verified": 305,
+  "model_calls_this_wake": 0,
+  "target_calls_this_wake": 0
+}

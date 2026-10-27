@@ -544,6 +544,12 @@ class _CustomerAgentHttpRunner(ModelRunner):
             if pack_id in {"starter-100@4", "starter-100@5", "starter-voice-50@1"}
             else {}
         )
+        if reason:
+            from scanners.starter_judge import JUDGE_POLICY_VERSION
+
+            metadata["judge_policy_version"] = JUDGE_POLICY_VERSION
+            if family == "prompt_injection" and verdict == "passed" and reason.startswith("flag: over_refusal;"):
+                metadata["flag"] = "over_refusal"
         if variable_pack:
             metadata["form_id"] = getattr(self, "starter_form_summary", {}).get("form_id", "")
         if not self._result_rows_enabled or self._pending_exchange is None:
