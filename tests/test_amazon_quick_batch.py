@@ -672,6 +672,57 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(c.close.await_count == 1 for c in contexts))
         self.assertTrue(all(b.close.await_count == 1 for b in browsers))
 
+    async def test_context_close_failure_releases_recycling_waiters_and_propagates(self):
+        pool = PersistentBrowser(recycle_after=1)
+        contexts, browsers = [], []
+        async def launch():
+            if pool.browser is None:
+                browser = Mock(close=AsyncMock())
+                async def new_context(**kwargs):
+                    context = Mock(route=AsyncMock(), route_web_socket=AsyncMock(),
+                        new_page=AsyncMock(return_value=Mock()), close=AsyncMock())
+                    if not contexts:
+                        context.close.side_effect = RuntimeError("synthetic close failure")
+                    contexts.append(context)
+                    return context
+                browser.new_context = new_context
+                browsers.append(browser)
+                pool.browser, pool.opened = browser, 0
+                pool.launches += 1
+        with patch.object(pool, "_launch", side_effect=launch):
+            with self.assertRaisesRegex(RuntimeError, "synthetic close failure"):
+                async with pool.context(self.target, time.monotonic() + 30):
+                    pass
+            self.assertEqual(pool.active, 0)
+            async def next_context():
+                async with pool.context(self.target, time.monotonic() + 30):
+                    self.assertEqual(pool.active, 1)
+            await asyncio.wait_for(next_context(), timeout=1)
+            self.assertEqual(pool.active, 0)
+            self.assertEqual(pool.launches, 2)
+            await pool.close()
+
+    async def test_startup_diagnostics_keep_only_fixed_codes_without_sensitive_urls(self):
+        error = type("Error", (Exception,), {})
+        page = Mock(goto=AsyncMock(side_effect=error(
+            "net::ERR_NAME_NOT_RESOLVED at https://private.example/?auth=SECRET-CREDENTIAL")))
+        chat = AsyncChat(page, self.target, time.monotonic() + 30, None)
+        chat.observe_request_failure(Mock(failure="net::ERR_NAME_NOT_RESOLVED"))
+        chat.observe_request_failure(Mock(failure="private https://private.example/?auth=SECRET-CREDENTIAL"))
+        for _ in range(1005):
+            chat.observe_request_failure(Mock(failure="net::ERR_NAME_NOT_RESOLVED"))
+        chat.observe_page_crash()
+        with self.assertRaisesRegex(RunnerError, "browser_harness_unavailable"):
+            await chat.open("https://private.example/?auth=SECOND-SECRET")
+        self.assertEqual(chat.startup_stage, "navigation")
+        self.assertEqual(chat.startup_error_kind, "Error")
+        self.assertEqual(chat.startup_error_code, "net::ERR_NAME_NOT_RESOLVED")
+        self.assertEqual(chat.request_failures, {"net::ERR_NAME_NOT_RESOLVED": 1000, "other": 1})
+        self.assertTrue(chat.page_crashed)
+        retained = json.dumps({"code": chat.startup_error_code, "failures": chat.request_failures})
+        self.assertNotIn("SECRET", retained)
+        self.assertNotIn("https://", retained)
+
 
 if __name__ == "__main__":
     unittest.main()

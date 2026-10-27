@@ -25,6 +25,22 @@ from harness.amazon_quick import (
 from harness.runner import RunnerError
 
 
+# Keep raw Playwright errors (which can contain credential-bearing URLs) out of
+# receipts. These labels are diagnostic observations, never retry authority.
+_BROWSER_NETWORK_ERRORS = frozenset({
+    "net::ERR_ABORTED", "net::ERR_FAILED", "net::ERR_CONNECTION_RESET",
+    "net::ERR_CONNECTION_CLOSED", "net::ERR_CONNECTION_REFUSED",
+    "net::ERR_TIMED_OUT", "net::ERR_NAME_NOT_RESOLVED",
+    "net::ERR_INTERNET_DISCONNECTED", "net::ERR_BLOCKED_BY_CLIENT",
+    "net::ERR_BLOCKED_BY_RESPONSE", "net::ERR_SSL_PROTOCOL_ERROR",
+    "net::ERR_CERT_AUTHORITY_INVALID", "net::ERR_INSUFFICIENT_RESOURCES",
+    "net::ERR_NO_SPACE", "net::ERR_NETWORK_CHANGED",
+    "net::ERR_CONNECTION_TIMED_OUT", "net::ERR_HTTP_RESPONSE_CODE_FAILURE",
+    "net::ERR_DNS_TIMED_OUT", "net::ERR_ADDRESS_UNREACHABLE",
+    "net::ERR_EMPTY_RESPONSE",
+})
+
+
 @dataclass(frozen=True)
 class BatchCase:
     case_id: str
@@ -328,13 +344,20 @@ class PersistentBrowser:
             await context.route("**/*", route)
             await context.route_web_socket("**/*", socket_route)
             page = await context.new_page()
-            yield AsyncChat(page, target, deadline, self.capture_spec)
+            chat = AsyncChat(page, target, deadline, self.capture_spec)
+            page.on("requestfailed", chat.observe_request_failure)
+            page.on("crash", lambda *_: chat.observe_page_crash())
+            yield chat
         finally:
-            if context is not None:
-                await context.close()
-            async with self.condition:
-                self.active -= 1
-                self.condition.notify_all()
+            try:
+                if context is not None:
+                    await context.close()
+            finally:
+                # A failed close must still release accounting/wake recyclers.
+                # Preserve the close exception so the batch fails closed.
+                async with self.condition:
+                    self.active -= 1
+                    self.condition.notify_all()
 
     async def close(self):
         try:
@@ -351,6 +374,20 @@ class AsyncChat:
         self.page, self.target, self.deadline = page, target, deadline
         self.capture_spec, self.before = capture_spec, 0
         self.startup_stage, self.startup_error_kind = "not_started", None
+        self.startup_error_code = None
+        self.request_failures = {}
+        self.page_crashed = False
+
+    def observe_request_failure(self, request):
+        try:
+            failure = request.failure
+            code = failure if isinstance(failure, str) and failure in _BROWSER_NETWORK_ERRORS else "other"
+        except Exception:
+            code = "unavailable"
+        self.request_failures[code] = min(1000, self.request_failures.get(code, 0) + 1)
+
+    def observe_page_crash(self):
+        self.page_crashed = True
 
     def remaining_ms(self, maximum_seconds=30):
         remaining = self.deadline - time.monotonic()
@@ -375,6 +412,9 @@ class AsyncChat:
         except Exception as exc:
             kind = type(exc).__name__
             self.startup_error_kind = kind if kind in {"Error", "TimeoutError", "ValueError", "RunnerError"} else "unknown"
+            message = str(exc)[:8192]
+            matches = [code for code in _BROWSER_NETWORK_ERRORS if code in message]
+            self.startup_error_code = matches[0] if len(matches) == 1 else "other"
             raise _fail("browser_harness_unavailable") from None
 
     def frame(self):
@@ -616,7 +656,11 @@ class QuickBatchRunner:
                     kind = getattr(chat, "startup_error_kind", "unknown")
                     events.append({"attempt": attempt, "outcome": "sdk_unavailable",
                         "phase": phase if phase in {"not_started", "navigation", "sdk_mount", "unexpected_ready"} else "unknown",
-                        "error_kind": kind if kind in {"Error", "TimeoutError", "ValueError", "RunnerError"} else "unknown"})
+                        "error_kind": kind if kind in {"Error", "TimeoutError", "ValueError", "RunnerError"} else "unknown",
+                        "error_code": getattr(chat, "startup_error_code", None) if getattr(chat, "startup_error_code", None) in _BROWSER_NETWORK_ERRORS else "other",
+                        "request_failures": {k: min(1000, v) for k, v in getattr(chat, "request_failures", {}).items()
+                            if k in _BROWSER_NETWORK_ERRORS | {"other", "unavailable"} and type(v) is int and v >= 0},
+                        "page_crashed": getattr(chat, "page_crashed", False) is True})
                     if attempt == 1 and time.monotonic() < deadline:
                         continue  # Close this context before generating a fresh URL.
                     raise
