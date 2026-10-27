@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -14,6 +15,33 @@ function nonEmpty(value: string | undefined): string | null {
 
 export async function pathExists(candidate: string): Promise<boolean> {
   return fs.access(candidate).then(() => true).catch(() => false);
+}
+
+const THREAD_STORE_RE = /^\s*experimental_thread_store\s*=/m;
+
+// Avoid SQLite writer-lock hangs when managed-home runs overlap. Preserve an
+// explicit setting; otherwise place the default before TOML table sections.
+async function ensureManagedThreadStoreInMemory(
+  targetHome: string,
+  onLog: AdapterExecutionContext["onLog"],
+): Promise<void> {
+  const configPath = path.join(targetHome, "config.toml");
+  let existing = "";
+  try {
+    existing = await fs.readFile(configPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  if (THREAD_STORE_RE.test(existing)) return;
+  const id =
+    "paperclip-managed-" +
+    createHash("sha256").update(path.resolve(targetHome)).digest("hex").slice(0, 16);
+  const line = `experimental_thread_store = { type = "in_memory", id = "${id}" }\n`;
+  await fs.writeFile(configPath, existing ? `${line}${existing}` : line, { mode: 0o600 });
+  await onLog(
+    "stdout",
+    `[paperclip] Pinned Codex thread store to in_memory in "${configPath}" (prevents 0.160.x+ shared-home writer-lock hangs).\n`,
+  );
 }
 
 export function resolveSharedCodexHomeDir(
@@ -160,6 +188,8 @@ export async function prepareManagedCodexHome(
       `[paperclip] Using ${isWorktreeMode(env) ? "worktree-isolated" : "Paperclip-managed"} Codex home "${targetHome}" (seeded from "${sourceHome}").\n`,
     );
   }
+
+  await ensureManagedThreadStoreInMemory(targetHome, onLog);
 
   if (apiKey) {
     await writeApiKeyAuthJson(targetHome, apiKey);
