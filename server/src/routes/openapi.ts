@@ -723,6 +723,11 @@ function applyDocumentFixups(document: any): any {
               ? { actor: "board_or_agent" }
               : { actor: "public" };
 
+      if (method === "post" && path === "/api/issues/{id}/interactions/{interactionId}/withdraw") {
+        operation.security = [{ [AGENT_BEARER_AUTH_SCHEME]: [] }];
+        operation["x-paperclip-authorization"] = { actor: "agent", interactionAuthor: true };
+      }
+
       const key = operationKey(method, path);
       if (authLevel !== "public") {
         const responses = (operation.responses ??= {}) as Record<string, unknown>;
@@ -4435,6 +4440,15 @@ registerCurrentRoute({
   path: "/api/issues/{id}/monitor/check-now",
   tags: ["issues"],
   summary: "Run an issue monitor check now",
+});
+
+registerCurrentRoute({
+  method: "post",
+  path: "/api/issues/{id}/interactions/{interactionId}/withdraw",
+  tags: ["issues"],
+  summary: "Withdraw a pending interaction as its authoring agent without waking its continuation",
+  body: z.object({ reason: z.string().trim().min(1) }),
+  responses: { 200: r.ok(), 400: r.badRequest, 401: r.unauthorized, 403: r.forbidden, 404: r.notFound, 409: r.conflict },
 });
 
 registerCurrentRoute({

@@ -171,6 +171,15 @@ describe("openapi routes", () => {
   it("documents auth and reviewed response-code invariants", () => {
     const { spec } = loadSpecRoutes();
 
+    const withdrawal = spec.paths["/api/issues/{id}/interactions/{interactionId}/withdraw"].post;
+    expect(withdrawal.requestBody.content["application/json"].schema).toMatchObject({
+      required: ["reason"],
+      properties: { reason: { type: "string", minLength: 1 } },
+    });
+    expect(withdrawal.security).toEqual([{ AgentBearerAuth: [] }]);
+    expect(withdrawal["x-paperclip-authorization"]).toEqual({ actor: "agent", interactionAuthor: true });
+    expect(withdrawal.responses["403"]).toBeDefined();
+    expect(withdrawal.responses["409"]).toBeDefined();
     expect(spec.paths["/api/openapi.json"].get.security).toEqual([]);
     expect(spec.paths["/api/plugins/install"].post.security).toEqual([
       { BoardSessionAuth: [] },
