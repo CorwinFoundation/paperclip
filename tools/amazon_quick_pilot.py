@@ -78,14 +78,19 @@ def main(argv=None) -> int:
                     prompt = probe.prompt(marker) if probe else f"For this connection test, reply with exactly: {marker}"
                     answer = runner.complete(prompt)
                     exact = answer.strip() == (probe.expected_reply if probe else marker)
+                    evidence = runner.evidence_receipts()[-1]
+                    native_success = evidence.get("native_status_code") == "success"
                     receipt["checks"].append({"index": index + 1, "exact_reply": exact,
+                                              "native_success": native_success,
                                               "reply_sha256": _sha(answer),
                                               "normalized_reply_sha256": _sha(answer.strip()),
-                                              "evidence": runner.evidence_receipts()[-1]})
+                                              "evidence": evidence})
                     receipt["completed"] += 1
                     save()
                     if not exact:
                         raise RunnerError("amazon quick: benign_reply_mismatch")
+                    if not native_success:
+                        raise RunnerError("amazon quick: benign_request_not_successful")
             receipt["status"] = "transport_verified" if args.live else "configuration_validated_only"
             receipt["finished_at"] = datetime.now(timezone.utc).isoformat()
             save()

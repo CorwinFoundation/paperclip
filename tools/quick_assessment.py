@@ -191,6 +191,8 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
         if (len(waves) != 5 or [w.get("concurrency") for w in waves] != [1, 2, 3, 5, 5]
                 or [w.get("submitted_case_cap") for w in waves] != [3, 6, 9, 15, 11]
                 or any(w.get("verified") is not True or set(w.get("case_counts_by_role", {})) != set(targets)
+                       or w.get("initialized_together") != w.get("submitted_case_cap")
+                       or w.get("native_successful_replies") != w.get("submitted_case_cap")
                        for w in waves)
                 or any(waves[3]["case_counts_by_role"].get(role) != 5 for role in targets)):
             raise PreflightError("all_three_identities_concurrency_evidence_required")

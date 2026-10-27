@@ -65,7 +65,7 @@ def configured(tmp_path, monkeypatch):
             prompt = probe.prompt(f"QUICK-PILOT-{receipt['probe_run_id']}-{index}")
             receipt["checks"].append({"index": index + 1, "exact_reply": True, "reply_sha256": reply_hash,
                                       "normalized_reply_sha256": reply_hash,
-                                      "evidence": {"source": "aws_chat_logs", "response_sha256": reply_hash,
+                                      "evidence": {"source": "aws_chat_logs", "native_status_code": "success", "response_sha256": reply_hash,
                                                    "prompt_sha256": quick._sha(prompt),
                                                    "message_sha256": quick._sha(role + "message" + str(index)),
                                                    "conversation_sha256": quick._sha(role + "conversation" + str(index))}})

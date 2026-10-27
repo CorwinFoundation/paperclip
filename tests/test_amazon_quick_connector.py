@@ -58,12 +58,24 @@ class CorrelationTests(unittest.TestCase):
             with self.subTest(rows=rows), self.assertRaises(RunnerError):
                 quick.correlated_answer(rows, self.target, "hello", 100, 200, conversation)
 
-    def test_blocks_missing_identifiers_empty_and_large_answers_are_never_passes(self):
-        for changes in ({"status_code": "request_blocked"}, {"status_code": "no_answer_found"},
+    def test_documented_native_outcomes_keep_real_correlated_text(self):
+        for status in ("success", "request_blocked", "no_answer_found"):
+            with self.subTest(status=status):
+                native = event(status_code=status, system_text_message="Actual provider response")
+                self.assertEqual(quick.correlated_answer([native], self.target, "hello", 100, 200), native)
+                self.assertEqual(quick.knowledge_evidence(native, self.target)["native_status_code"], status)
+
+    def test_unknown_status_missing_identifiers_empty_and_large_answers_fail_closed(self):
+        for changes in ({"status_code": "error"}, {"status_code": "pending"}, {"status_code": None},
+                        {"status_code": {"success": True}},
                         {"system_text_message": " "}, {"system_text_message": "x" * 65537},
                         {"system_message_id": ""}, {"conversation_id": None}):
             with self.subTest(changes=changes), self.assertRaises(RunnerError):
                 quick.correlated_answer([event(**changes)], self.target, "hello", 100, 200)
+        for status in ("request_blocked", "no_answer_found"):
+            for changes in ({"system_text_message": ""}, {"system_message_id": ""}):
+                with self.subTest(status=status, changes=changes), self.assertRaises(RunnerError):
+                    quick.correlated_answer([event(status_code=status, **changes)], self.target, "hello", 100, 200)
 
     def test_sdk_host_contract_runs_under_node(self):
         test = Path(__file__).resolve().parents[1] / "tools/amazon-quick-pilot/pilot.test.cjs"
@@ -134,6 +146,14 @@ class PilotTests(unittest.TestCase):
         runner.complete("second")
         self.assertEqual(len(runner.knowledge_evidence_receipts()), 1)
         self.assertEqual(runner.knowledge_evidence_receipts()[0]["prompt_sha256"], quick._sha("second"))
+
+    def test_serial_blocked_response_retains_text_status_and_charge_without_retry(self):
+        runner, state = self.runner(knowledge=True, metadata={"status_code": "request_blocked"})
+        self.assertEqual(runner.complete("blocked-question"), "reply:blocked-question")
+        self.assertEqual(state["sends"], ["blocked-question"])
+        self.assertEqual(runner.evidence_receipts()[0]["native_status_code"], "request_blocked")
+        self.assertEqual(runner.knowledge_evidence_receipts()[0]["native_status_code"], "request_blocked")
+        self.assertEqual(runner.ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1, 0, 0))
         runner.aws.logs = Mock(side_effect=RunnerError("synthetic failure"))
         with self.assertRaises(RunnerError):
             runner.complete("third")

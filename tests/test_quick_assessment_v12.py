@@ -312,7 +312,7 @@ class PreflightTests(unittest.TestCase):
             nonce = _sha(tag)[:16]
             checks = [{"index": i + 1, "exact_reply": True, "reply_sha256": _sha("20"),
                 "normalized_reply_sha256": _sha("20"), "evidence": {
-                "source": "aws_chat_logs", "response_sha256": _sha("20"),
+                "source": "aws_chat_logs", "native_status_code": "success", "response_sha256": _sha("20"),
                 "prompt_sha256": _sha(probe.prompt(f"QUICK-PILOT-{nonce}-{i}")),
                 "message_sha256": _sha("m" + tag + str(i)),
                 "conversation_sha256": _sha("c" + tag + str(i))}} for i in range(count)]
@@ -352,6 +352,7 @@ class PreflightTests(unittest.TestCase):
                 "qualified_identities": {role: {"target_binding_sha256": cli.binding(t), "pilot_id_sha256": _sha(t.pilot_id)}
                                          for role, t in zip(s["identities"], targets)},
                 "waves": [{"concurrency":level,"submitted_case_cap":sum(counts),"verified":True,
+                           "initialized_together":sum(counts),"native_successful_replies":sum(counts),
                            "case_counts_by_role":dict(zip(s["identities"],counts))}
                           for level,counts in [(1,(1,1,1)),(2,(2,2,2)),(3,(3,3,3)),(5,(5,5,5)),(5,(4,4,3))]]},
             "isolation_receipt": {"schema": "backbond-quick-log-isolation/v1.2", "approved": True,
@@ -427,6 +428,13 @@ class PreflightTests(unittest.TestCase):
         one_role = deepcopy(receipt)
         one_role["waves"][3]["case_counts_by_role"] = {"employee":15,"sales_manager":0,"hr":0}
         variants.append(one_role)
+        for field in ("initialized_together", "native_successful_replies"):
+            invalid = deepcopy(receipt)
+            invalid["waves"][3][field] = 14
+            variants.append(invalid)
+            missing = deepcopy(receipt)
+            del missing["waves"][3][field]
+            variants.append(missing)
         stale = deepcopy(receipt)
         stale["started_at"] = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
         variants.append(stale)

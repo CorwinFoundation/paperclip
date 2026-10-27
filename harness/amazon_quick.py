@@ -32,6 +32,9 @@ TRANSPORT = "amazon_quick"
 SCHEMA = "backbond-amazon-quick-targets/v1"
 _MAX_BYTES = 2 * 1024 * 1024
 _MAX_TEXT = 64 * 1024
+# Documented CHAT_LOGS response outcomes. Each still needs the complete
+# correlation checks and real, bounded provider text below; none is a verdict.
+_TEXT_RESPONSE_STATUSES = frozenset({"success", "request_blocked", "no_answer_found"})
 
 
 def _fail(code: str) -> RunnerError:
@@ -425,7 +428,8 @@ def correlated_answer(records: list[dict], target: Target, prompt: str,
     if not matches:
         return None
     row = next(iter(matches.values()))
-    if row.get("status_code") != "success":
+    status = row.get("status_code")
+    if not isinstance(status, str) or status not in _TEXT_RESPONSE_STATUSES:
         raise _fail("chat_request_not_successful")
     answer = row.get("system_text_message")
     if not isinstance(answer, str) or not answer.strip() or len(answer.encode()) > _MAX_TEXT:
@@ -439,7 +443,8 @@ def knowledge_evidence(row: dict, target: Target) -> dict:
     Missing/malformed fields stay explicit; truncation cannot make a complete
     permission or citation check. No arbitrary log fields or credentials pass.
     """
-    result = {"source": "aws_chat_logs", "user_arn_sha256": _sha(target.user_arn),
+    result = {"source": "aws_chat_logs", "native_status_code": row["status_code"],
+              "user_arn_sha256": _sha(target.user_arn),
               "account_id_sha256": _sha(target.account_id), "agent_id_sha256": _sha(target.agent_id),
               "prompt_sha256": _sha(row["user_message"]),
               "response_sha256": _sha(row["system_text_message"]),
@@ -642,6 +647,7 @@ class AmazonQuickRunner(ModelRunner):
                                      "prompt_sha256": _sha(row["user_message"]),
                                      "response_sha256": _sha(row["system_text_message"]),
                                      "event_timestamp": row["event_timestamp"], "source": "aws_chat_logs",
+                                     "native_status_code": row["status_code"],
                                      "log_read_retries": log_read_retries})
             except Exception:
                 if submitted:

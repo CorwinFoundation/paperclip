@@ -65,6 +65,7 @@ async def spike(scope, profile, output, receipt):
                     and {r["case_id"] for r in result["results"]} == set(expected)
                     and all(r["role"] == roles[r["case_id"]]
                        and r["status"] == "observed" and len(r["turns"]) == 1
+                       and r["turns"][0]["transport"].get("native_status_code") == "success"
                        and r["turns"][0]["transport"].get("prompt_sha256") == _sha(prompts[r["case_id"]])
                        and r["turns"][0]["reply"].strip() == expected[r["case_id"]] for r in result["results"])
                     )
@@ -73,9 +74,12 @@ async def spike(scope, profile, output, receipt):
                 "elapsed_seconds": result["elapsed_seconds"], "api_calls": result["api_calls"],
                 "browser_launches": result["browser_launches"], "sweeps": result["sweeps"],
                 "initialized_together": result["initialized_together"],
+                "native_successful_replies": sum(r["status"] == "observed" and len(r["turns"]) == 1
+                    and r["turns"][0]["transport"].get("native_status_code") == "success" for r in result["results"]),
                 "mean_completion_spacing_seconds": round(result["elapsed_seconds"] / len(cases), 3),
                 "evidence": [{"case_id": r["case_id"], "status": r["status"],
-                              "response_sha256": r["turns"][0]["transport"]["response_sha256"] if r["status"] == "observed" else None}
+                              "response_sha256": r["turns"][0]["transport"]["response_sha256"] if r["status"] == "observed" else None,
+                              "native_status_code": r["turns"][0]["transport"].get("native_status_code") if r["status"] == "observed" else None}
                              for r in result["results"]]}
         receipt["waves"].append(wave)
         save_run(output / "spike.json", receipt)

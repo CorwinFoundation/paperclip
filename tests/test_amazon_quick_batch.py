@@ -160,7 +160,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(env.stop)
         self.target = target()
 
-    def fake_runtime(self, *, captured=None, send_failure=False, read_failures=0):
+    def fake_runtime(self, *, captured=None, send_failure=False, read_failures=0, native_statuses=None):
         state = {"contexts": [], "active": 0, "max_active": 0, "rows": [], "sends": [],
                  "reads": 0, "embeds": 0, "closed": False}
         class Aws:
@@ -191,7 +191,8 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
                         state["sends"].append((index, prompt))
                         if send_failure:
                             raise RunnerError("amazon quick: prompt_submission_unknown_no_retry")
-                        state["rows"].append(row(t, prompt, conversation_id="c" + str(index),
+                        state["rows"].append(row(t, prompt, status_code=(native_statuses or {}).get(prompt, "success"),
+                                                 conversation_id="c" + str(index),
                                                  user_message_id="m" + str(len(state["sends"]))))
                     async def capture(self):
                         return captured, "browser_capture_selector_failure_log_fallback" if captured is None else "browser_capture_pacing_only"
@@ -215,6 +216,26 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(c["closed"] for c in state["contexts"]))
         self.assertTrue(state["closed"])
         self.assertTrue(all("fallback" in r["turns"][0]["pacing"] for r in report["results"]))
+
+    async def test_documented_denials_do_not_halt_other_cases_or_refund_charges(self):
+        statuses = {"blocked": "request_blocked", "missing": "no_answer_found"}
+        state, aws, browser = self.fake_runtime(native_statuses=statuses)
+        runner = QuickBatchRunner({"employee": self.target}, authorization="test", max_calls=30,
+                                 aws_factory=aws, browser=browser, sweep_seconds=0.005)
+        report = await runner.run([BatchCase(p, "employee", (p,)) for p in ("blocked", "missing", "normal")])
+        self.assertEqual(report["status"], "capture_complete")
+        self.assertEqual(len(state["sends"]), 3)
+        for result in report["results"]:
+            self.assertEqual(result["status"], "observed")
+            self.assertEqual(result["turns"][0]["reply"], "answer")
+            self.assertEqual(result["turns"][0]["transport"]["native_status_code"],
+                             statuses.get(result["case_id"], "success"))
+        ledger = ConversationLedger(self.target)
+        try:
+            self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (3, 0, 0))
+            self.assertEqual(ledger.db.execute("SELECT COUNT(*) FROM quick_batch_submissions WHERE status='verified'").fetchone()[0], 3)
+        finally:
+            ledger.close()
 
     async def test_startup_is_paced_per_user_but_nine_conversations_remain_parallel(self):
         state, base_aws, base_browser = self.fake_runtime()

@@ -213,11 +213,12 @@ def test_target_preflight_checks_all_registrations_before_any_network_submission
 def test_metadata_capture_is_bounded_and_does_not_export_arbitrary_log_fields():
     target = SimpleNamespace(user_arn="test-user", account_id="account", agent_id="agent")
     event = {"user_message": "hello", "system_text_message": "reply", "conversation_id": "c",
-             "user_message_id": "m", "event_timestamp": 1,
+             "user_message_id": "m", "event_timestamp": 1, "status_code": "success",
              "cited_resource": [{"citedResourceId": "source", "secret_token": "not-exported"}],
              "user_selected_resources": [], "action_connectors": []}
     result = quick.knowledge_evidence(event, target)
     assert result["metadata_complete"] is True
+    assert result["native_status_code"] == "success"
     assert "not-exported" not in json.dumps(result)
     event["cited_resource"] = [{"citedResourceId": "x" * 513}]
     assert quick.knowledge_evidence(event, target)["metadata_complete"] is False

@@ -80,6 +80,7 @@ def check_readiness(receipt, target, not_before, now, *, required_checks=10, pro
     for index, row in enumerate(receipt["checks"]):
         evidence = row["evidence"]
         if (row.get("exact_reply") is not True or evidence.get("source") != "aws_chat_logs"
+                or evidence.get("native_status_code") != "success"
                 or row.get("reply_sha256") != evidence.get("response_sha256")):
             raise PreflightError("verified_provider_answers_required")
         if probe is not None:

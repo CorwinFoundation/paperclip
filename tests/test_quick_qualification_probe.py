@@ -1,5 +1,6 @@
 """Regression: a source-only agent can qualify without accepting arbitrary echoes."""
 from copy import deepcopy
+import asyncio
 from datetime import datetime, timezone
 import json
 from unittest.mock import Mock
@@ -10,6 +11,7 @@ from evals.amazon_quick_assessment import digest, load_profile
 from harness.amazon_quick import Target, _sha
 from tools import amazon_quick_pilot as readiness
 from tools.quick_concurrency_spike import plan
+from tools import quick_concurrency_spike as spike_cli
 from tools.quick_pilot_operations import check_readiness
 from tools.quick_qualification_probe import fixture_probe, internal_knowledge_probe
 
@@ -84,7 +86,8 @@ def test_internal_cli_rejects_three_checks_before_any_call_or_receipt(tmp_path, 
 
 @pytest.mark.parametrize("mode,checks", [("v12", 3), ("internal", 10)])
 @pytest.mark.parametrize("reply", ["20", "Sorry, I am unable to help with your request.", "200"])
-def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, monkeypatch, reply, mode, checks):
+@pytest.mark.parametrize("native_status", ["success", "request_blocked", "no_answer_found"])
+def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, monkeypatch, reply, native_status, mode, checks):
     target = Target.parse(dict(approved=True, endpoint_url="https://synthetic.example.test/employee",
         account_id="111122223333", region="us-east-1", agent_id="synthetic-agent",
         user_arn="arn:aws:quicksight:us-east-1:111122223333:user/default/employee", log_group="/synthetic",
@@ -95,7 +98,8 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
     runner.model_id.return_value = "amazon_quick:" + _sha("synthetic-agent")
     def complete(prompt):
         prompts.append(prompt)
-        receipts.append({"source": "aws_chat_logs", "response_sha256": _sha(reply), "prompt_sha256": _sha(prompt),
+        receipts.append({"source": "aws_chat_logs", "native_status_code": native_status,
+            "response_sha256": _sha(reply), "prompt_sha256": _sha(prompt),
             "conversation_sha256": _sha("conversation" + str(len(prompts))),
             "message_sha256": _sha("message" + str(len(prompts)))})
         return reply
@@ -110,14 +114,14 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
     receipt = json.loads(path.read_text())
     assert all("leave.txt" in p for p in prompts)
     assert runner.close.call_count == 1
-    if reply != "20":
+    if reply != "20" or native_status != "success":
         assert result == 1 and receipt["completed"] == 1
         assert receipt["status"] == "incomplete" and len(prompts) == 1
         return
     assert result == 0 and len(prompts) == checks and len(set(prompts)) == checks
     probe = fixture_probe(load_profile("hr_finance")) if mode == "v12" else internal_knowledge_probe()
     check_readiness(receipt, target, before, datetime.now(timezone.utc).timestamp(), required_checks=checks, probe=probe)
-    for defect in ("profile", "prompt", "answer", "conversation"):
+    for defect in ("profile", "prompt", "answer", "conversation", "blocked_status", "missing_status"):
         bad = deepcopy(receipt)
         if defect == "profile":
             bad["probe"]["source_sha256"] = _sha("different source")
@@ -125,7 +129,43 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
             bad["checks"][0]["evidence"]["prompt_sha256"] = _sha("different request")
         elif defect == "answer":
             bad["checks"][0]["normalized_reply_sha256"] = _sha("refusal")
+        elif defect == "blocked_status":
+            bad["checks"][0]["evidence"]["native_status_code"] = "request_blocked"
+        elif defect == "missing_status":
+            del bad["checks"][0]["evidence"]["native_status_code"]
         else:
             bad["checks"][1]["evidence"]["conversation_sha256"] = bad["checks"][0]["evidence"]["conversation_sha256"]
         with pytest.raises(ValueError):
             check_readiness(bad, target, before, datetime.now(timezone.utc).timestamp(), required_checks=checks, probe=probe)
+
+
+@pytest.mark.parametrize("native_status", ["request_blocked", "no_answer_found", None])
+def test_spike_rejects_blocked_or_missing_status_even_when_probe_reply_matches(tmp_path, monkeypatch, native_status):
+    profile = load_profile("hr_finance")
+    roles = profile["fixture"]["roles"]
+    scope = {"authorization_id": "synthetic-test", "max_calls": 100, "identities": {}}
+    for role in roles:
+        name = "SYNTHETIC_SPIKE_" + role.upper()
+        scope["identities"][role] = {"token_env": name}
+        monkeypatch.setenv(name, "synthetic-unused-token")
+    monkeypatch.setattr(spike_cli, "preflight", lambda *a, **k: ({r: object() for r in roles}, {}))
+
+    class Runner:
+        def __init__(self, *a, **k):
+            pass
+
+        async def run(self, cases):
+            return {"status": "capture_complete", "initialized_together": len(cases), "elapsed_seconds": 1,
+                "api_calls": {}, "browser_launches": 1, "sweeps": {}, "results": [
+                    {"case_id": c.case_id, "role": c.role, "status": "observed", "turns": [
+                        {"reply": "20", "transport": {"prompt_sha256": _sha(c.turns[0]),
+                            "response_sha256": _sha("20"), "native_status_code": native_status if i == 0 else "success"}}]}
+                    for i, c in enumerate(cases)]}
+
+    monkeypatch.setattr(spike_cli, "QuickBatchRunner", Runner)
+    with pytest.raises(ValueError, match="spike_incomplete"):
+        asyncio.run(spike_cli.spike(scope, profile, tmp_path, {"waves": []}))
+    receipt = json.loads((tmp_path / "spike.json").read_text())
+    assert len(receipt["waves"]) == 1
+    assert receipt["waves"][0]["verified"] is False
+    assert receipt["waves"][0]["native_successful_replies"] == 2
