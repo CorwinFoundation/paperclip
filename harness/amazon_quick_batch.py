@@ -342,24 +342,31 @@ class AsyncChat:
     def __init__(self, page, target, deadline, capture_spec):
         self.page, self.target, self.deadline = page, target, deadline
         self.capture_spec, self.before = capture_spec, 0
+        self.startup_stage, self.startup_error_kind = "not_started", None
 
-    def remaining_ms(self):
+    def remaining_ms(self, maximum_seconds=30):
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise _fail("case_deadline_exceeded")
-        return max(1, int(min(30, remaining) * 1000))
+        return max(1, int(min(maximum_seconds, remaining) * 1000))
 
     async def open(self, embed_url):
         try:
+            self.startup_stage = "navigation"
             await self.page.goto(self.target.endpoint_url, wait_until="domcontentloaded", timeout=self.remaining_ms())
             if self.page.url != self.target.endpoint_url:
                 raise ValueError
+            self.startup_stage = "sdk_mount"
             ready = await self.page.evaluate("p => window.backbondQuickPilot.mount(p)",
                                             {"embedUrl": embed_url, "agentId": self.target.agent_id,
-                                             "timeoutMs": self.remaining_ms()})
+                                             "timeoutMs": self.remaining_ms(60)})
             if ready != {"ready": True, "version": 1}:
+                self.startup_stage = "unexpected_ready"
                 raise ValueError
-        except Exception:
+            self.startup_stage = "sdk_ready"
+        except Exception as exc:
+            kind = type(exc).__name__
+            self.startup_error_kind = kind if kind in {"Error", "TimeoutError", "ValueError", "RunnerError"} else "unknown"
             raise _fail("browser_harness_unavailable") from None
 
     def frame(self):
@@ -531,9 +538,8 @@ class QuickBatchRunner:
         self.submit_gate = asyncio.Lock()
         # Parallel iframe initialization can exhaust the bounded worker before
         # its mount deadline. Pace startup independently of live conversations:
-        # one initializer across users. Ready conversations retain their
-        # registered concurrency and release this slot before the start barrier.
-        self.startup_slots = asyncio.Semaphore(1)
+        # at most three initializers, with one initializer per registered user.
+        self.startup_slots = asyncio.Semaphore(3)
         self.startup_locks = {}
         if type(start_together) is not bool:
             raise _fail("invalid_batch_start_barrier")
@@ -551,10 +557,45 @@ class QuickBatchRunner:
             if load_target(target.endpoint_url, self.registered_tokens[role]) != target:
                 raise _fail("operator_target_changed")
 
+    @asynccontextmanager
+    async def _initialized_chat(self, case, ledger, owner, deadline, events):
+        """Retry at most one SDK mount before yielding a ready chat."""
+        reserved = False
+        for attempt in (1, 2):
+            self.check_registration(case.role)
+            if time.monotonic() >= deadline:
+                raise _fail("case_deadline_exceeded")
+            async with self.browser.context(self.targets[case.role], deadline) as chat:
+                async with self.submit_gate:
+                    self.check_registration(case.role)
+                    if not reserved:
+                        ledger.reserve_turn(owner, 0, case.turns[0], int(time.time() * 1000),
+                                            time.time() + max(0, deadline - time.monotonic()))
+                        reserved = True
+                    embed_url = await self.aws[case.role].embed_url()
+                try:
+                    await chat.open(embed_url)
+                except RunnerError as exc:
+                    if str(exc) != "amazon quick: browser_harness_unavailable":
+                        raise
+                    phase = getattr(chat, "startup_stage", "unknown")
+                    kind = getattr(chat, "startup_error_kind", "unknown")
+                    events.append({"attempt": attempt, "outcome": "sdk_unavailable",
+                        "phase": phase if phase in {"not_started", "navigation", "sdk_mount", "unexpected_ready"} else "unknown",
+                        "error_kind": kind if kind in {"Error", "TimeoutError", "ValueError", "RunnerError"} else "unknown"})
+                    if attempt == 1 and time.monotonic() < deadline:
+                        continue  # Close this context before generating a fresh URL.
+                    raise
+                events.append({"attempt": attempt, "outcome": "ready"})
+                # Exceptions thrown after yield include uncertain sends. They
+                # propagate directly; only chat.open above is eligible for retry.
+                yield chat
+                return
+
     async def _case(self, case, semaphore, deadline):
         async with semaphore:
             result = {"case_id": case.case_id, "role": case.role, "status": "could_not_run",
-                      "turns": [], "reason": "not_submitted"}
+                      "turns": [], "reason": "not_submitted", "initialization": []}
             ledger, target = self.ledgers[case.role], self.targets[case.role]
             owner, items, locks = secrets.token_hex(16), [], []
             acquired = False
@@ -582,14 +623,7 @@ class QuickBatchRunner:
                 case_deadline = min(deadline, time.monotonic() + target.timeout_seconds)
                 if time.monotonic() >= case_deadline:
                     raise _fail("case_deadline_exceeded")
-                async with self.browser.context(target, case_deadline) as chat:
-                    # Reserve the first call before generating a browser session.
-                    async with self.submit_gate:
-                        self.check_registration(case.role)
-                        ledger.reserve_turn(owner, 0, case.turns[0], int(time.time() * 1000),
-                                            time.time() + max(0, case_deadline - time.monotonic()))
-                        embed_url = await self.aws[case.role].embed_url()
-                    await chat.open(embed_url)
+                async with self._initialized_chat(case, ledger, owner, case_deadline, result["initialization"]) as chat:
                     self.startup_slots.release()
                     startup_slot = False
                     startup_lock.release()

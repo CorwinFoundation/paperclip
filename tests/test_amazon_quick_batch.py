@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from harness.amazon_quick import Ledger, Target, _sha
 from harness.amazon_quick_batch import (
-    BatchCase, ConversationLedger, EvidenceSweep, PersistentBrowser, QuickBatchRunner,
+    AsyncChat, BatchCase, ConversationLedger, EvidenceSweep, PersistentBrowser, QuickBatchRunner,
 )
 from harness.runner import RunnerError
 
@@ -237,7 +237,89 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         finally:
             ledger.close()
 
-    async def test_global_startup_is_serial_but_nine_conversations_remain_parallel(self):
+    def fail_first_mount_browser(self, base_browser):
+        attempts = {}
+        class Browser:
+            launches = 1
+            @asynccontextmanager
+            async def context(self, t, deadline):
+                async with base_browser.context(t, deadline) as chat:
+                    original = chat.open
+                    async def open(url):
+                        attempts[t.user_arn] = attempts.get(t.user_arn, 0) + 1
+                        if attempts[t.user_arn] == 1:
+                            raise RunnerError("amazon quick: browser_harness_unavailable")
+                        await original(url)
+                    chat.open = open
+                    yield chat
+            async def close(self): await base_browser.close()
+        return Browser()
+
+    async def test_failed_sdk_mount_gets_one_fresh_context_before_any_prompt(self):
+        state, aws, base_browser = self.fake_runtime()
+        targets = {r: replace(self.target, pilot_id="pilot-"+r,
+            user_arn=self.target.user_arn+"-"+r) for r in ("employee", "sales", "hr")}
+        runner = QuickBatchRunner(targets, authorization="test", max_calls=30,
+            aws_factory=aws, browser=self.fail_first_mount_browser(base_browser),
+            sweep_seconds=0.005, start_together=True)
+        result = await runner.run([BatchCase(r, r, (r+"-prompt",)) for r in targets])
+        self.assertEqual(result["status"], "capture_complete")
+        self.assertEqual(state["embeds"], 6)
+        self.assertEqual(len(state["sends"]), 3)
+        self.assertEqual(len(state["contexts"]), 6)
+        self.assertTrue(all(c["closed"] for c in state["contexts"]))
+        for row in result["results"]:
+            self.assertEqual([e["outcome"] for e in row["initialization"]], ["sdk_unavailable", "ready"])
+        ledger = ConversationLedger(targets["employee"])
+        try:
+            self.assertEqual(ledger.db.execute("SELECT calls,cap,halted FROM quick_batch_authorizations").fetchone(), (3,30,0))
+            self.assertEqual(ledger.db.execute("SELECT COUNT(*) FROM quick_batch_submissions WHERE status='verified'").fetchone()[0], 3)
+        finally: ledger.close()
+
+    async def test_sdk_recovery_never_retries_an_unknown_prompt_send(self):
+        state, aws, browser = self.fake_runtime(send_failure=True)
+        runner = QuickBatchRunner({"employee":self.target}, authorization="test", max_calls=30,
+            aws_factory=aws, browser=browser, sweep_seconds=0.005)
+        result = await runner.run([BatchCase("one", "employee", ("one prompt",))])
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual(state["embeds"], 1)
+        self.assertEqual(len(state["sends"]), 1)
+        self.assertEqual(len(state["contexts"]), 1)
+        ledger = ConversationLedger(self.target)
+        try:
+            self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1,1,1))
+            self.assertEqual(ledger.db.execute("SELECT status FROM quick_batch_submissions").fetchone()[0], "unknown")
+        finally: ledger.close()
+
+    async def test_embedding_api_failure_is_not_retried_as_sdk_setup(self):
+        state, base_aws, browser = self.fake_runtime()
+        class Aws(base_aws):
+            async def embed_url(self):
+                state["embeds"] += 1
+                raise RunnerError("amazon quick: aws_embedding_failed")
+        runner = QuickBatchRunner({"employee":self.target}, authorization="test", max_calls=30,
+            aws_factory=Aws, browser=browser, sweep_seconds=0.005)
+        result = await runner.run([BatchCase("one", "employee", ("one prompt",))])
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual(state["embeds"], 1)
+        self.assertEqual(state["sends"], [])
+
+    async def test_mount_grace_stays_inside_the_original_case_deadline(self):
+        page = Mock(url=self.target.endpoint_url)
+        page.goto = AsyncMock()
+        page.evaluate = AsyncMock(return_value={"ready": True, "version": 1})
+        deadline = time.monotonic() + 300
+        chat = AsyncChat(page, self.target, deadline, None)
+        await chat.open("synthetic-url")
+        self.assertTrue(29000 < page.goto.await_args.kwargs["timeout"] <= 30000)
+        self.assertTrue(59000 < page.evaluate.await_args.args[1]["timeoutMs"] <= 60000)
+        self.assertEqual(chat.deadline, deadline)
+        self.assertEqual(chat.startup_stage, "sdk_ready")
+        short = AsyncChat(page, self.target, time.monotonic()+0.5, None)
+        await short.open("synthetic-url")
+        self.assertTrue(0 < page.evaluate.await_args.args[1]["timeoutMs"] <= 500)
+
+    async def test_startup_is_paced_per_user_but_nine_conversations_remain_parallel(self):
         state, base_aws, base_browser = self.fake_runtime()
         all_sent = asyncio.Event()
         opening, peak = {}, {}
@@ -261,10 +343,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
                         total_opening += 1
                         max_opening = max(max_opening, total_opening)
                         try:
-                            # Different users still share the bounded browser.
-                            # Reproduce a worker that cannot mount two SDK frames
-                            # together, while keeping ready chats concurrent.
-                            if total_opening > 1:
+                            if opening[t.user_arn] > 1:
                                 all_sent.set()  # Let the fake log sweeps close.
                                 raise RunnerError("amazon quick: browser_harness_unavailable")
                             await asyncio.sleep(0.01)
@@ -291,7 +370,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(state["sends"]), 9)
         self.assertEqual(state["max_active"], 9)
         self.assertEqual(set(peak.values()), {1})
-        self.assertEqual(max_opening, 1)
+        self.assertEqual(max_opening, 3)
         self.assertEqual(result["initialized_together"], 9)
 
     async def test_start_barrier_rejects_over_capacity_and_repeated_prompts_before_calls(self):
@@ -329,7 +408,7 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
             BatchCase(r, r, (r+"-prompt",)) for r in targets]), timeout=2)
         self.assertEqual(result["status"], "incomplete")
         self.assertEqual(result["initialized_together"], 0)
-        self.assertEqual(state["embeds"], 2)
+        self.assertEqual(state["embeds"], 3)
         self.assertEqual(state["sends"], [])
         self.assertTrue(all(c["closed"] for c in state["contexts"]))
 
@@ -348,13 +427,13 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
             aws_factory=aws, browser=Browser(), sweep_seconds=0.005, start_together=True)
         result = await runner.run([BatchCase(str(i), "employee", ("prompt-"+str(i),)) for i in range(5)])
         self.assertEqual(result["status"], "incomplete")
-        self.assertEqual(state["embeds"], 1)
+        self.assertEqual(state["embeds"], 2)
         self.assertEqual(state["sends"], [])
         for lock in runner.startup_locks.values():
             await asyncio.wait_for(lock.acquire(), timeout=0.1)
             lock.release()
-        await asyncio.wait_for(runner.startup_slots.acquire(), timeout=0.1)
-        runner.startup_slots.release()
+        for _ in range(3): await asyncio.wait_for(runner.startup_slots.acquire(), timeout=0.1)
+        for _ in range(3): runner.startup_slots.release()
         ledger = ConversationLedger(self.target)
         try:
             self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1, 1, 1))
