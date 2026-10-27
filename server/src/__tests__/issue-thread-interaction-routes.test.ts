@@ -530,6 +530,24 @@ describe.sequential("issue thread interaction routes", () => {
     );
   });
 
+  it("lets an author withdraw a refuted question without waking the assignee", async () => {
+    mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
+    const app = await createApp({
+      type: "agent",
+      agentId: ASSIGNEE_AGENT_ID,
+      companyId: "company-1",
+      runId: "run-1",
+    });
+
+    const res = await request(app)
+      .post("/api/issues/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/interactions/interaction-2/withdraw")
+      .send({ reason: "Later measurements refuted the remediation premise" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("withdrawn");
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
+  });
+
   it("allows the assigned agent to cancel an interaction", async () => {
     mockIssueService.getById.mockResolvedValueOnce(createIssue({ status: "todo" }));
     const app = await createApp({
