@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "BackBond-owned per-client EC2 execution role and profile. Use a dedicated worker/volume per customer; never a shared parent role with access to all clients.",
+  "Description": "BackBond-owned per-client EC2 execution role and profile with expiring Run Command transport, no Parameter Store or customer SSM-document reads. Use a dedicated worker/volume per customer; never a shared parent role with access to all clients.",
   "Parameters": {
     "CustomerSlug": {"Type": "String", "AllowedPattern": "^[a-z][a-z0-9-]{1,39}$"},
     "EvidenceBucket": {"Type": "String", "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"},
@@ -16,7 +16,6 @@
         "RoleName": {"Fn::Sub": "backbond-quick-exec-${CustomerSlug}"},
         "MaxSessionDuration": 3600,
         "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]},
-        "ManagedPolicyArns": [{"Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"}],
         "Tags": [{"Key": "BackBondCustomer", "Value": {"Ref": "CustomerSlug"}}, {"Key": "BackBondScope", "Value": "synthetic-only"}],
         "Policies": [
           {"PolicyName": "OwnCustomerEvidenceOnly", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
@@ -25,7 +24,10 @@
           ]}},
           {"Fn::If": ["CustomerRoleKnown", {"PolicyName": "AssumeOnlyThisCustomerPilot", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
             {"Effect": "Allow", "Action": "sts:AssumeRole", "Resource": {"Ref": "CustomerPilotRoleArn"}, "Condition": {"StringEquals": {"sts:ExternalId": {"Ref": "CustomerExternalId"}}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
-          ]}}, {"Ref": "AWS::NoValue"}]}
+          ]}}, {"Ref": "AWS::NoValue"}]},
+          {"PolicyName": "PilotRunCommandTransportOnly", "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+            {"Effect": "Allow", "Action": ["ssm:UpdateInstanceInformation", "ssmmessages:CreateControlChannel", "ssmmessages:CreateDataChannel", "ssmmessages:OpenControlChannel", "ssmmessages:OpenDataChannel", "ec2messages:AcknowledgeMessage", "ec2messages:DeleteMessage", "ec2messages:FailMessage", "ec2messages:GetEndpoint", "ec2messages:GetMessages", "ec2messages:SendReply"], "Resource": "*", "Condition": {"StringEquals": {"aws:RequestedRegion": {"Ref": "AWS::Region"}}, "DateLessThan": {"aws:CurrentTime": {"Ref": "PilotExpiresAt"}}}}
+          ]}}
         ]
       }
     },
