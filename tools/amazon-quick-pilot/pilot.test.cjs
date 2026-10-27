@@ -19,6 +19,16 @@ function harness({ack = {success:true}, hang = false, readyEvent = 'CONTENT_LOAD
   return {api:window.backbondQuickPilot, calls};
 }
 (async () => {
+  // Python passes its actual AsyncChat.open parameters through this mode.
+  // Exercise the deployed JavaScript, rather than a mocked mount response.
+  if (process.argv[2] === '--mount-contract') {
+    const parameters = JSON.parse(fs.readFileSync(0, 'utf8'));
+    const batch = harness({readyEvent:'EXPERIENCE_INITIALIZED'});
+    const result = await batch.api.mount(parameters);
+    assert.equal(batch.calls.length, 1);
+    console.log(JSON.stringify(result));
+    return;
+  }
   const h = harness();
   assert.equal((await h.api.mount({embedUrl:'https://embed.example',agentId:'agent',timeoutMs:100})).ready, true);
   assert.equal(h.calls[0].content.agentOptions.fixedAgentId, 'agent');
@@ -40,5 +50,22 @@ function harness({ack = {success:true}, hang = false, readyEvent = 'CONTENT_LOAD
   assert.equal((await initialized.api.mount({embedUrl:'url',agentId:'agent',timeoutMs:100})).ready, true);
   assert.equal((await initialized.api.send({prompt:exact,timeoutMs:100})).submitted, true);
   assert.equal(initialized.calls[1], exact);
-  console.log('Quick SDK harness: 4 scenarios passed');
+  const longMount = harness({readyEvent:'EXPERIENCE_INITIALIZED'});
+  assert.equal((await longMount.api.mount({embedUrl:'url',agentId:'agent',timeoutMs:60000})).ready, true);
+  for (const timeoutMs of [0, -1, 60001, 1.5, NaN, Infinity, null, '60000']) {
+    const invalid = harness();
+    await assert.rejects(invalid.api.mount({embedUrl:'url',agentId:'agent',timeoutMs}), /mount failed/);
+    assert.equal(invalid.calls.length, 0, 'invalid mount deadline must not invoke the SDK');
+  }
+  for (const timeoutMs of [0, -1, 30001, 60000, 1.5, NaN, Infinity, null, '30000']) {
+    const invalidSend = harness();
+    await invalidSend.api.mount({embedUrl:'url',agentId:'agent',timeoutMs:60000});
+    await assert.rejects(invalidSend.api.send({prompt:'never submit',timeoutMs}), /status unknown/);
+    assert.equal(invalidSend.calls.length, 1, 'invalid send deadline must not submit a prompt');
+    await assert.rejects(invalidSend.api.send({prompt:'retry',timeoutMs:100}), /unavailable/);
+  }
+  const maxSend = harness();
+  await maxSend.api.mount({embedUrl:'url',agentId:'agent',timeoutMs:60000});
+  assert.equal((await maxSend.api.send({prompt:'send remains bounded',timeoutMs:30000})).submitted, true);
+  console.log('Quick SDK harness: ready events, deadline boundaries and pre-submit validation passed');
 })().catch(error => {console.error(error); process.exitCode = 1;});

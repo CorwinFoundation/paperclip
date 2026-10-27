@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from dataclasses import replace
 import json
 import os
+from pathlib import Path
+import subprocess
 import tempfile
 import time
 import unittest
@@ -318,6 +320,33 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
         short = AsyncChat(page, self.target, time.monotonic()+0.5, None)
         await short.open("synthetic-url")
         self.assertTrue(0 < page.evaluate.await_args.args[1]["timeoutMs"] <= 500)
+
+    async def test_actual_javascript_accepts_python_mount_deadlines(self):
+        script = Path(__file__).resolve().parents[1] / "tools/amazon-quick-pilot/pilot.test.cjs"
+        parameters = []
+        class JavascriptPage:
+            url = self.target.endpoint_url
+
+            async def goto(self, *args, **kwargs):
+                pass
+
+            async def evaluate(self, expression, payload):
+                self_expression = "p => window.backbondQuickPilot.mount(p)"
+                if expression != self_expression:
+                    raise AssertionError("unexpected JavaScript operation")
+                parameters.append(payload)
+                result = subprocess.run(["node", str(script), "--mount-contract"],
+                    input=json.dumps(payload).encode(), capture_output=True, timeout=10, check=False)
+                if result.returncode:
+                    raise AssertionError(result.stderr.decode(errors="replace"))
+                return json.loads(result.stdout)
+
+        for seconds in (300, 0.5):
+            chat = AsyncChat(JavascriptPage(), self.target, time.monotonic()+seconds, None)
+            await chat.open("https://embed.example/synthetic-only")
+            self.assertEqual(chat.startup_stage, "sdk_ready")
+        self.assertTrue(59000 < parameters[0]["timeoutMs"] <= 60000)
+        self.assertTrue(0 < parameters[1]["timeoutMs"] <= 500)
 
     async def test_startup_is_paced_per_user_but_nine_conversations_remain_parallel(self):
         state, base_aws, base_browser = self.fake_runtime()
