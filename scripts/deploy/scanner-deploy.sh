@@ -718,6 +718,8 @@ deploy_scan_intake() {
   trap 'rm -rf -- "$work"' RETURN
   "$DOCKER" cp "$CONTAINER:/app/backbond/scan-intake/." "$work/" \
     || die 'cannot extract scan-intake payload from live image'
+  "$DOCKER" cp "$CONTAINER:/app/api/edge_gateway.py" "$work/server/edge_gateway.py" \
+    || die 'cannot extract scan-intake identity resolver from live image'
   [ -f "$work/update-server.sh" ] || die 'scan-intake payload lacks update-server.sh'
   SCAN_INTAKE_SERVICE="$SCAN_INTAKE_SERVICE" bash "$work/update-server.sh"
   rm -rf -- "$work"
