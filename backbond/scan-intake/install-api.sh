@@ -10,6 +10,9 @@ HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 install -d -o backbond-qa -g backbond-qa -m 0750 /opt/backbond/scan-intake/server /var/lib/backbond-scan-intake
 install -o root -g root -m 0644 "$HERE"/server/*.py /opt/backbond/scan-intake/server/
 
+install -o root -g root -m 0644 "$HERE/../../api/edge_gateway.py" /opt/backbond/scan-intake/server/edge_gateway.py
+install -o root -g root -m 0755 "$HERE/report_mail_client.py" /usr/local/bin/backbond-report-mail
+
 if [ ! -f /etc/backbond/scan-intake.env ]; then
   if [ -f /etc/backbond/qa-review.env ]; then
     sed -e 's#/var/lib/backbond-qa-review/qa.sqlite#/var/lib/backbond-scan-intake/scan-intake.sqlite#' \

@@ -411,11 +411,16 @@ class IntakeStore:
         local, domain = row['email'].split('@', 1)
         return (local[:1] + '*' * max(2, len(local) - 1) + '@' + domain)
 
+    def _report_recipient(self, token: str):
+        """Lookup hook shared by legacy scans and supplied report artifacts."""
+        return self.db.execute("SELECT email FROM scans WHERE report_token=? AND status='finished'",
+                               (token,)).fetchone()
+
     @synchronized
     def issue_report_code(self, token: str, *, request_key: str | None = None,
                           now: float | None = None) -> tuple[str, str] | None:
         now = time.time() if now is None else now
-        row = self.db.execute("SELECT email FROM scans WHERE report_token=? AND status='finished'", (token,)).fetchone()
+        row = self._report_recipient(token)
         if not row or not row['email']:
             return None
         # A forwarded report URL must not let one browser exhaust the recipient's
@@ -465,7 +470,7 @@ class IntakeStore:
             # report-wide ceiling only on the failure path so distributed
             # abuse cannot lock out a recipient holding a valid fresh code.
             return None
-        recipient = self.db.execute("SELECT email FROM scans WHERE report_token=?", (token,)).fetchone()
+        recipient = self._report_recipient(token)
         if not recipient:
             return None
         self.db.execute("UPDATE report_verifications SET used_at=? WHERE id=?", (now, nonce))

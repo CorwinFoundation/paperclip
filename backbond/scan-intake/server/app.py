@@ -27,6 +27,8 @@ from operations_client import OperationsClient, OperationsOutbox
 from controlled_admission import AdmissionClosed
 from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
 from report_release import ReportRelease, RevisionTampered
+from report_mail_access import ReportMailAccess
+from report_mail_routes import router as report_mail_router
 
 from qa_service import (Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
                         report_failure, safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
@@ -162,6 +164,26 @@ bac = BACIntake(DB_PATH, base_url=os.environ.get('QA_BAC_URL', ''),
 operations = OperationsOutbox(DB_PATH)
 release = ReportRelease(os.environ.get('QA_RELEASE_DB_PATH', DB_PATH),
                         lead_actor_id=lambda: os.environ.get('QA_RELEASE_LEAD_ACTOR_ID', ''))
+# BEAAA-43820: disabled until the retained release and mail grant holds are lifted.
+def _report_mail_gateway():
+    # Packaged from the maintained Scanner resolver, never a second credential store.
+    from edge_gateway import EdgeGateway
+    if not os.environ.get('ARE_KEY_STORE_PATH'):
+        return None
+    return EdgeGateway.from_env()
+
+
+def _report_mail_settings():
+    return dict(enabled=os.environ.get('QA_REPORT_MAIL_ENABLED') == '1',
+        tenant_id=os.environ.get('QA_REPORT_MAIL_TENANT_ID', ''),
+        key_id=os.environ.get('QA_REPORT_MAIL_KEY_ID', ''),
+        founders=list(filter(None, os.environ.get('QA_REPORT_MAIL_FOUNDERS', '').split(','))),
+        public_origin=PUBLIC_API)
+
+
+report_mail = ReportMailAccess(DB_PATH)
+app.include_router(report_mail_router(outbox=report_mail, gateway=_report_mail_gateway,
+    settings=_report_mail_settings, credentials=lambda: _findings_mail_credentials()))
 proofs = ConnectionProofs(ttl=int(os.environ.get('QA_CONNECTION_PROOF_TTL', '900')))
 check_gate = RateGate(email=(int(os.environ.get('QA_CHECKS_PER_EMAIL_HOUR', '10')), 3600),
                       ip=(int(os.environ.get('QA_CHECKS_PER_IP_HOUR', '30')), 3600),
@@ -444,14 +466,9 @@ def _send_report_code(to: str, code: str) -> None:
     if not path or not path.is_file():
         raise RuntimeError("Report mail is not configured")
     value = json.loads(path.read_text())
-    with httpx.Client(timeout=30) as client:
-        response = client.post('https://api.resend.com/emails',
-            headers={'Authorization': 'Bearer ' + value['api_key']}, json={
-                'from': 'BackBond <info@backbond.ai>', 'to': [to],
-                'subject': 'Your BackBond report verification code',
-                'text': f'Your verification code is {code}. It expires in 10 minutes.'})
-        if response.status_code not in {200, 201}:
-            raise RuntimeError('Report mail delivery unavailable')
+    from report_mail_transport import send_mail
+    send_mail(value, recipients=[to], subject='Your BackBond report verification code',
+              text=f'Your verification code is {code}. It expires in 10 minutes.')
 
 
 # Optional protected startup configuration; loading never arms a reservation.

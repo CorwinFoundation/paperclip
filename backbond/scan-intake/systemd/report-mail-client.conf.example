@@ -1,0 +1,9 @@
+# Drop-in for the EXISTING Customer Operations service on srv2066639.
+# Installation, credential placement and service restart remain held.
+# Reuse the service's existing sealed BAC credential; grant no founder identity.
+# Replace the source with the existing operator-maintained credential path.
+[Service]
+LoadCredential=report-mail-bac:EXISTING_SEALED_BAC_CREDENTIAL_PATH
+Environment=BACKBOND_SCANNER_URL=https://api.backbond.ai
+# The agent calls --credential-file "$CREDENTIALS_DIRECTORY/report-mail-bac".
+# systemd does not expand that variable inside Environment= assignments.

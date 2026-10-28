@@ -18,7 +18,13 @@ fi
 changed=0
 for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/report_extensions.py "$HERE"/server/qa_runtime.py \
            "$HERE"/server/quota_policy.py "$HERE"/server/improvement_store.py "$HERE"/server/purge_retention.py \
-           "$HERE"/server/reconcile_terminal_failure.py "$HERE"/server/reconcile_internal_slot.py; do
+           "$HERE"/server/reconcile_terminal_failure.py "$HERE"/server/reconcile_internal_slot.py \
+           "$HERE"/server/bac_intake.py "$HERE"/server/findings_intake.py \
+           "$HERE"/server/findings_client.py "$HERE"/server/findings_workflow.py \
+           "$HERE"/server/findings_events.py \
+           "$HERE"/server/report_mail_access.py "$HERE"/server/report_mail_routes.py \
+           "$HERE"/server/report_mail_authorization.py "$HERE"/server/report_mail_outbox.py \
+           "$HERE"/server/report_mail_transport.py "$HERE"/../../api/edge_gateway.py; do
   name="$(basename "$src")"
   if [ -f "$DEST/$name" ] && cmp -s "$src" "$DEST/$name"; then
     echo "unchanged $name"; continue
@@ -28,6 +34,7 @@ for src in "$HERE"/server/app.py "$HERE"/server/qa_service.py "$HERE"/server/rep
   install -o root -g root -m 0644 "$src" "$DEST/$name"
   echo "updated $name"; changed=1
 done
+install -o root -g root -m 0755 "$HERE/report_mail_client.py" /usr/local/bin/backbond-report-mail
 install -o root -g root -m 0755 "$HERE"/admit_retained_voice.py /usr/local/sbin/backbond-admit-retained-voice
 if [ "$changed" = 1 ]; then
   systemctl restart "$SERVICE"

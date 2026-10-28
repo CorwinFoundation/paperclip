@@ -1,0 +1,26 @@
+BEAAA-43820 continuation checkpoint, 2026-10-23
+
+Added backbond/scan-intake/report_mail_client.py and tests/test_report_mail_client.py.
+Verification: python3 -m pytest -q backbond/scan-intake/tests/test_report_mail_client.py backbond/scan-intake/tests/test_report_mail_transport.py
+Result: 17 passed in 0.23s. git diff --check passed.
+
+Client protocol: POST /scan/v1/reports/mail, JSON schema_version report_mail@1;
+mode, target_name, run_date, note, recipients, approval_ref, pdf_sha256,
+html_sha256, pdf_base64, html_base64. Idempotency-Key binds artifacts and request metadata.
+HTTPS only, redirects disabled, environment proxies disabled. Private credential file required.
+This client is not yet installed or usable: server endpoint and BAC packaging remain.
+
+Example once deployed:
+python3 backbond/scan-intake/report_mail_client.py --mode founders --pdf REPORT.pdf --html REPORT.html --target Resend --run-date 2026-10-23 --note 'test of report mail' --credential-file SEALED_BAC_CREDENTIAL_PATH
+
+No live mail, deployment or merge performed. No scoring/corpus changes.
+
+Paperclip handoff attempted twice: POST /api/issues/dafc29eb-6cf4-4a06-aa16-eba98d1d5d00/comments
+returned HTTP 403: Issue is outside this actor's authorization boundary.
+Checkout returned HTTP 409: Issue checkout conflict; status blocked;
+assigneeAgentId 88e68019-1cb6-4c4f-83e1-9fd340fb6821 (CTO).
+Stopped issue mutations when the reassignment was detected.
+Next owner: CTO. Next action: recover this local commit onto draft PR #1239 and
+continue narrow BAC reports.mail endpoint authorization, durable storage/access,
+then package client alongside BAC service units. Verify artifacts against BAC-74
+before the single Founder-authorized live test. Do not send until endpoint exists.
