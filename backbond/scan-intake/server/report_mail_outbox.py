@@ -9,12 +9,14 @@ import base64
 from contextlib import contextmanager
 from datetime import date
 import hashlib
+from html import escape
 import json
 import re
 import sqlite3
 import time
 
 from report_mail_transport import send_mail
+from report_mail_style import INTAKE_STYLESHEET
 
 
 def canonical(value):
@@ -125,12 +127,22 @@ class ReportMailOutbox:
         value = json.loads(row['binding'])
         payload = value['payload']
         # All values affecting the provider body are frozen in the durable binding.
-        text = payload['note'] + '\n\n' + '\n'.join(
-            sorted(set(value['links'].values())))
+        link = value['links'][value['to'][0]]
+        text = 'Your BackBond 100 Scan report is ready.\n\n' + link
+        # Reuse the intake page's layout and stylesheet rather than a second design.
+        stylesheet = INTAKE_STYLESHEET
+        html = ('<!doctype html><html lang="en"><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                '<title>Your BackBond 100 Scan report</title><style>' + stylesheet + '</style>'
+                '<body><header class="site-head"><span class="brand-mark">BackBond</span></header>'
+                '<main><section class="hero"><p class="eyebrow">The 100 Scan</p>'
+                '<h1>Your report</h1><p class="intro">Your BackBond 100 Scan report is ready.</p>'
+                '<a class="jump" href="' + escape(link, quote=True) + '">Open report</a>'
+                '</section></main></body></html>')
         try:
             message = transport(config, recipients=value['to'], cc=value['cc'],
-                subject='BackBond report: ' + payload['target_name'] + ' — ' + payload['run_date'],
-                text=text, pdf=base64.b64decode(payload['pdf_base64'], validate=True),
+                subject='Your BackBond 100 Scan report — ' + payload['target_name'],
+                text=text, html=html, pdf=base64.b64decode(payload['pdf_base64'], validate=True),
                 idempotency_key=ident)
         except Exception:
             # No raw provider error or credential enters the audit record.

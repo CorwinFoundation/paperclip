@@ -42,3 +42,23 @@ def test_failure_is_redacted(status, body):
         with pytest.raises(RuntimeError) as error:
             send_mail(CONFIG, **ARGS)
         assert 'provider detail' not in str(error.value)
+
+
+def test_html_and_text_alternative_share_existing_transport():
+    with patch('report_mail_transport.httpx.Client') as client:
+        post = client.return_value.__enter__.return_value.post
+        post.return_value = httpx.Response(200, json={'id': 'message-html'})
+        assert send_mail(CONFIG, **ARGS, html='<p>Your report is ready.</p>',
+                         pdf=b'%PDF-1.7\nbytes') == 'message-html'
+        payload = post.call_args.kwargs['json']
+        assert payload['text'] == ARGS['text']
+        assert payload['html'] == '<p>Your report is ready.</p>'
+        assert payload['attachments'][0]['filename'] == 'findings-report.pdf'
+
+
+def test_text_only_verification_mail_remains_supported():
+    with patch('report_mail_transport.httpx.Client') as client:
+        post = client.return_value.__enter__.return_value.post
+        post.return_value = httpx.Response(200, json={'id': 'message-code'})
+        send_mail(CONFIG, **ARGS)
+        assert 'html' not in post.call_args.kwargs['json']

@@ -15,7 +15,7 @@ SENDER = 'BackBond <info@backbond.ai>'
 
 def send_mail(config: dict, *, recipients: list[str], subject: str, text: str,
               idempotency_key: str | None = None, cc: list[str] | None = None,
-              pdf: bytes | None = None) -> str:
+              pdf: bytes | None = None, html: str | None = None) -> str:
     if config.get('provider') != 'resend' or not config.get('api_key'):
         raise RuntimeError('Report mail is not configured')
     addresses = recipients + (cc or [])
@@ -29,6 +29,8 @@ def send_mail(config: dict, *, recipients: list[str], subject: str, text: str,
     if idempotency_key is not None and not re.fullmatch(r'[A-Za-z0-9_-]{16,128}', idempotency_key):
         raise ValueError('Invalid mail idempotency key')
     payload = {'from': SENDER, 'to': recipients, 'subject': subject, 'text': text}
+    if html is not None:
+        payload['html'] = html
     if cc:
         payload['cc'] = cc
     if pdf is not None:

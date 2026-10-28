@@ -99,3 +99,34 @@ def test_config_drift_does_not_create_second_send(tmp_path, payload):
     transport = Mock(return_value='message')
     box.deliver(ident, {}, transport=transport)
     assert transport.call_args.kwargs['recipients'] == ['founder@example.com']
+
+
+def test_internal_note_stays_in_outbox_only(tmp_path, payload):
+    payload['note'] = 'BEAAA-44276 BAC-244 internal workflow ' + 'a' * 64
+    box = ReportMailOutbox(str(tmp_path / 'mail.db'))
+    ident = submit(box, payload)
+    transport = Mock(return_value='message')
+    assert box.deliver(ident, {}, transport=transport)['state'] == 'accepted'
+    mail = transport.call_args.kwargs
+    assert mail['subject'] == 'Your BackBond 100 Scan report — Target'
+    assert mail['text'] == ('Your BackBond 100 Scan report is ready.\n\n'
+                            'https://backbond.ai/report/opaque')
+    assert payload['note'] not in mail['text']
+    with box.connect() as db:
+        binding = json.loads(db.execute('SELECT binding FROM bac_report_mail').fetchone()[0])
+    assert binding['payload']['note'] == payload['note']
+
+
+def test_html_reuses_intake_layout_and_escapes_link(tmp_path, payload):
+    box = ReportMailOutbox(str(tmp_path / 'mail.db'))
+    link = 'https://backbond.ai/report/opaque?email=a%40example.com&x="quoted"'
+    ident = box.submit(payload, actor='service', founders=['founder@example.com'],
+                       links={'founder@example.com': link})
+    transport = Mock(return_value='message')
+    assert box.deliver(ident, {}, transport=transport)['state'] == 'accepted'
+    html = transport.call_args.kwargs['html']
+    assert (Path(__file__).parents[1] / 'web' / 'scan.css').read_text() in html
+    assert 'class="site-head"' in html and 'class="hero"' in html
+    assert html.count('<a ') == 1
+    assert '&amp;x=&quot;quoted&quot;' in html
+    assert 'BEAAA-' not in html and 'BAC-' not in html

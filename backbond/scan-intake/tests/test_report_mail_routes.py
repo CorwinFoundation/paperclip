@@ -78,9 +78,13 @@ def test_recipient_challenge_session_and_opaque_html(service):
     assert client.post(route + '/session', json={'code': code}, headers=headers).status_code == 403
     response = client.get(route)
     assert response.content == b'<script>danger()</script>'
-    assert response.headers['content-disposition'].startswith('attachment;')
+    assert response.headers['content-disposition'].startswith('inline;')
+    assert "style-src 'unsafe-inline'" in response.headers['content-security-policy']
+    assert "default-src 'none'" in response.headers['content-security-policy']
+    assert 'allow-scripts' not in response.headers['content-security-policy']
     assert 'sandbox' in response.headers['content-security-policy']
     assert client.get(route + '?format=pdf').content == b'%PDF-1.7 exact bytes'
+    assert client.get(route + '?format=pdf').headers['content-disposition'].startswith('attachment;')
     with TestClient(client.app, base_url='https://testserver') as outsider:
         assert b'Verify your report access' in outsider.get(route).content
 
@@ -208,3 +212,47 @@ def test_recovery_preserves_route_attempt_and_issuance_budgets(service):
     assert client.post(route + '/verification', json={'email': 'founder@example.com'}, headers=headers).status_code == 200
     assert transport.call_count == before
     assert b'Verify your report access' in client.get(route + '?format=pdf').content
+
+
+def test_recipient_locator_prefills_without_granting_access(service):
+    client, box, config, record, transport = service
+    ident = submit(client).json()['request_id']
+    link = transport.call_args.kwargs['text'].splitlines()[-1]
+    assert link.endswith('?email=founder%40example.com')
+    page = client.get(link)
+    assert page.status_code == 200
+    assert 'new URLSearchParams(location.search)' in page.text
+    assert "input[name=email]" in page.text
+    assert 'A verification code goes to the inbox that received this report.' in page.text
+    outsider = client.get('/scan/v1/mailed-reports/' + ident + '?email=outsider%40example.com')
+    assert 'Verify your report access' in outsider.text
+    assert '<script>danger()</script>' not in outsider.text
+
+
+def test_verification_prefill_is_escaped_and_grants_no_access(service):
+    client, box, config, record, transport = service
+    ident = submit(client).json()['request_id']
+    route = '/scan/v1/mailed-reports/' + ident
+    page = client.get(route, params={'email': 'founder@example.com'})
+    assert 'value="founder@example.com"' in page.text
+    assert 'A verification code goes to the inbox that received this report.' in page.text
+    assert 'danger()' not in page.text
+    attack = client.get(route, params={'email': '\"><script>alert(1)</script>'})
+    assert 'value="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"' in attack.text
+    assert '<script>alert(1)</script>' not in attack.text
+    unknown = client.get('/scan/v1/mailed-reports/' + '0' * 64,
+                         params={'email': 'founder@example.com'})
+    assert 'value="founder@example.com"' in unknown.text
+    assert page.status_code == unknown.status_code == 200
+
+
+def test_verification_reuses_intake_styles_and_layout(service):
+    client, box, config, record, transport = service
+    ident = submit(client).json()['request_id']
+    response = client.get('/scan/v1/mailed-reports/' + ident)
+    assert '<link rel="stylesheet" href="/scan/scan.css">' in response.text
+    assert 'class="site-head"' in response.text
+    assert 'class="hero"' in response.text
+    assert "style-src 'self'" in response.headers['content-security-policy']
+    assert "font-src 'self'" in response.headers['content-security-policy']
+    assert "script-src 'nonce-" in response.headers['content-security-policy']

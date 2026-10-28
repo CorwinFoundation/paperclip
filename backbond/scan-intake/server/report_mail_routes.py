@@ -1,9 +1,10 @@
 """Bounded report submission and recipient-only downloads over the intake mailer."""
 import hashlib
+from html import escape
 import json
 import re
 import secrets
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -63,7 +64,7 @@ def router(*, outbox, gateway, settings, credentials, transport=send_mail):
             link = origin.rstrip('/') + '/scan/v1/mailed-reports/' + ident
             # Link is a locator only. Each recipient must verify their own inbox.
             ident = await run_in_threadpool(outbox.submit, payload, actor=actor,
-                founders=config['founders'], links={address: link for address in to + cc})
+                founders=config['founders'], links={address: link + '?' + urlencode({'email': address}) for address in to + cc})
         except (ValueError, TypeError, KeyError):
             raise HTTPException(422, 'invalid_report_payload') from None
         receipt = await run_in_threadpool(outbox.deliver, ident, credentials(), transport=transport)
@@ -121,7 +122,7 @@ def router(*, outbox, gateway, settings, credentials, transport=send_mail):
         return response
 
     @routes.get('/scan/v1/mailed-reports/{ident}')
-    def download(ident: str, request: Request, format: str = 'html'):
+    def download(ident: str, request: Request, format: str = 'html', email: str = ''):
         available()
         route = path(ident)
         session = request.cookies.get('bb_mailed_session', '')
@@ -130,14 +131,19 @@ def router(*, outbox, gateway, settings, credentials, transport=send_mail):
             nonce = secrets.token_urlsafe(24)
             page = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BackBond report access</title><main><h1>Verify your report access</h1>
-<p>Enter the email address that received this report, then the code sent to that inbox.</p>
-<form id="issue"><label>Email <input name="email" type="email" required autocomplete="email"></label>
+<title>BackBond report access</title>
+<link rel="stylesheet" href="/scan/scan.css">
+<body><header class="site-head"><a class="brand-mark" href="/" aria-label="BackBond home">BackBond</a></header>
+<main><section class="hero"><p class="eyebrow">The 100 Scan</p><h1>Verify your report access</h1></section>
+<p>A verification code goes to the inbox that received this report.</p>
+<form id="issue"><div class="field"><label>Email <input name="email" type="email" value="RECIPIENT" required autocomplete="email"></label></div>
 <button>Send code</button></form>
-<form id="verify"><label>Code <input name="code" required pattern="[0-9]{6}" autocomplete="one-time-code"></label>
+<form id="verify"><div class="field"><label>Code <input name="code" required pattern="[0-9]{6}" autocomplete="one-time-code"></label></div>
 <button>Verify</button></form><p id="status" role="status"></p>
 <p id="downloads" hidden><a href="?format=pdf">Download PDF</a> · <a href="?format=html">Download HTML</a></p></main>
 <script nonce="NONCE">const status=document.getElementById('status');
+const recipient=new URLSearchParams(location.search).get('email');
+if(recipient)document.querySelector('#issue input[name=email]').value=recipient;
 async function post(action,body){return fetch(location.pathname+action,{method:'POST',
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
 document.getElementById('issue').onsubmit=async e=>{e.preventDefault();try{
@@ -146,22 +152,23 @@ status.textContent=r.ok?'If this report is available, a code was sent.':'Unable 
 }catch(e){status.textContent='Unable to request a code.';}};
 document.getElementById('verify').onsubmit=async e=>{e.preventDefault();try{
 const r=await post('/session',{code:e.target.elements.code.value});
-status.textContent=r.ok?'Verified. Choose a download.':'Verification failed. Request a new code if needed.';
+if(r.ok){location.replace(location.pathname);return;}
+status.textContent='Verification failed. Request a new code if needed.';
 document.getElementById('downloads').hidden=!r.ok;
-}catch(e){status.textContent='Unable to verify the code.';}};</script></html>"""
-            response = HTMLResponse(page.replace('NONCE', nonce), headers={
+}catch(e){status.textContent='Unable to verify the code.';}};</script></body></html>"""
+            response = HTMLResponse(page.replace('NONCE', nonce).replace('RECIPIENT', escape(email[:254], quote=True)), headers={
                 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
                 'X-Content-Type-Options': 'nosniff',
                 'Content-Security-Policy': "default-src 'none'; script-src 'nonce-" + nonce +
-                    "'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
+                    "'; style-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
             # Recover generically without revealing report existence or extending authority.
             response.delete_cookie('bb_mailed_session', path=route, secure=True,
                                    httponly=True, samesite='strict')
             return response
-        # Supplied HTML is an opaque attachment; never execute it on the API origin.
+        # Render the existing report HTML in an opaque sandbox. Scripts and network access stay disabled.
         return Response(raw, media_type='application/pdf' if format == 'pdf' else 'text/html',
             headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-                'Content-Security-Policy': "sandbox; default-src 'none'; frame-ancestors 'none'",
-                'Content-Disposition': 'attachment; filename="report.' + format + '"'})
+                'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'none'",
+                'Content-Disposition': ('attachment' if format == 'pdf' else 'inline') + '; filename="report.' + format + '"'})
 
     return routes
