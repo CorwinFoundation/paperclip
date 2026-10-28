@@ -104,6 +104,11 @@ from scanners.starter_pack import STARTER_PACK_ID
 STARTER_V2_SCAN_DEADLINE_SECONDS: float = 1500.0
 #: Judged starter packs: one pass of 100 sends + 100 judge calls.
 _JUDGED_STARTER_PACK_IDS = ("starter-100@2", "starter-100@3", "starter-100@4", "starter-100@5", "starter-voice-50@1")
+#: BEAAA-43933 — mirrors ``scanners.starter_judge.COULD_NOT_RUN`` (kept as a
+#: literal so the orchestrator does not import the judge stack).
+STARTER_COULD_NOT_RUN = "could_not_run"
+#: Terminal ``incomplete_reason`` when any judged starter case could not run.
+STARTER_CASES_UNAVAILABLE_REASON = "starter_cases_unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -821,12 +826,25 @@ def run_scan(
         incomplete = False
         incomplete_reason: str | None = None
         band = float(LIVE_PROBE_VARIANCE_BAND)
+        starter_result_rows = tuple(
+            getattr(active_runner, "starter_result_rows", lambda: ())()
+        )
         if scan_request.pack_id in _JUDGED_STARTER_PACK_IDS:
             # A judged starter pack is one pass over 100 distinct cases that
             # share a few rubric points, so pass (3) and fail (0) in one family
             # is a result, not replicate noise. Live scan 3a3009da went
             # incomplete on spread 3.0 > 2 with 100/100 rows.
-            pass
+            #
+            # BEAAA-43933 — a case that could not run (transport, target or
+            # judge unavailable) is processed but carries no usable evidence.
+            # Live scan 3bf9027c finished 33 + failed 67 and still reported
+            # complete. An evaluated adverse verdict is evidence, not this.
+            if any(
+                row.get("verdict") == STARTER_COULD_NOT_RUN
+                for row in starter_result_rows
+            ):
+                incomplete = True
+                incomplete_reason = STARTER_CASES_UNAVAILABLE_REASON
         elif total_spread > band:
             incomplete = True
             incomplete_reason = "variance_band_exceeded_total"
@@ -866,9 +884,7 @@ def run_scan(
             evidence_records=tuple(
                 getattr(active_runner, "live_probe_evidence", lambda: ())()
             ),
-            starter_result_rows=tuple(
-                getattr(active_runner, "starter_result_rows", lambda: ())()
-            ),
+            starter_result_rows=starter_result_rows,
             anti_gaming=anti_gaming,
         )
     finally:
