@@ -7,3 +7,5 @@ venv/
 .env
 .DS_Store
 artifacts/_beaaa758_dry_execute/
+
+.p2-checkpoints/

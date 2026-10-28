@@ -26,6 +26,8 @@ from harness.bench import counterfactual_pairs as cfp
 from harness.bench import p2_coverage as cov
 from harness.bench import p2_paired_attr as pa
 from harness.runner import ModelRunner
+from harness.p2_axis_worker import run_axis
+from harness.p2_checkpoint_identity import checkpoint_identity, runner_identity
 
 _REPO = Path(__file__).resolve().parent.parent
 DEFAULT_POLICY_PATH = _REPO / "rubric" / "applicability_policy.yaml"
@@ -74,6 +76,9 @@ def emit_p2_measurements(
     eo_yaml: str | Path = DEFAULT_EO_YAML,
     eval_repr_yaml: str | Path = DEFAULT_EVAL_REPR_YAML,
     policy_path: str | Path = DEFAULT_POLICY_PATH,
+    axis_timeouts: dict[str, float] | None = None,
+    checkpoint_directory: str | Path | None = None,
+    automatic_checkpoints: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run all applicable P2 dims and emit measurements + details.
 
@@ -83,6 +88,12 @@ def emit_p2_measurements(
     ``harness.applicability.decide``; the rest of the flags pass through
     unchanged so the adapter contract is preserved end-to-end.
 
+    ``checkpoint_directory`` enables persistent whole-axis resume. All runners
+    must support an explicit complete identity; unsupported runners raise before
+    execution. By default supported runners use a repository-local, input-keyed
+    ``.p2-checkpoints`` directory without caller changes. Unsupported runners stay
+    uncached. Set ``automatic_checkpoints=False`` to disable automatic persistence.
+
     Returns ``(measurements, details)``:
       - ``measurements`` is a list of ``{dim_id, raw, benchmark}`` dicts ready
         for ``harness.pipeline.merge_measurements_with_priors``. Inconclusive
@@ -91,6 +102,46 @@ def emit_p2_measurements(
         ``_applicability_decisions`` block keyed by dim_id, suitable for
         passing into the scorer via the BEAAA-198 Phase 3 Option C path.
     """
+    identity = None
+    runners = dict(subject=subject, parity=parity_judge, eo=eo_judge,
+                   counterfactual=cfp_judge, sentiment=sent_judge)
+    automatic = checkpoint_directory is None and automatic_checkpoints
+    if automatic:
+        try:
+            for runner in runners.values():
+                runner_identity(runner)
+        except (ValueError, TypeError):
+            # Existing custom adapters retain bounded execution without caching.
+            automatic = False
+    if checkpoint_directory is not None or automatic:
+        # Include emitter/aggregate implementation and every policy/corpus input.
+        identity = checkpoint_identity(
+            runners=runners,
+            files=[Path(corpus_yaml), Path(eo_yaml), Path(eval_repr_yaml),
+                   Path(policy_path), Path(__file__), Path(pa.__file__),
+                   Path(cfp.__file__), Path(cov.__file__),
+                   Path(applicability.__file__),
+                   _REPO / "scanners" / "promptfoo_runner.py",
+                   Path(__file__).with_name("p2_axis_worker.py"),
+                   Path(__file__).with_name("p2_checkpoint_identity.py")],
+            configuration=dict(architecture_flags=architecture_flags,
+                               customer_attestation=customer_attestation,
+                               n_pairs=n_pairs, ensemble_n=ensemble_n,
+                               counterfactual_curve=(
+                                   "pinned" if hasattr(cfp, "_pass_rate_to_raw_pinned")
+                                   else "fallback")),
+        )
+
+    if automatic:
+        checkpoint_directory = _REPO / ".p2-checkpoints" / identity
+
+    def bounded(dim_id, run):
+        checkpoint = (Path(checkpoint_directory) / f"p2_emission_{dim_id}.json"
+                      if checkpoint_directory is not None else None)
+        return run_axis(run, identity=f"{identity or 'ephemeral'}:{dim_id}",
+                        checkpoint=checkpoint,
+                        timeout_seconds=(axis_timeouts or {}).get(dim_id, 1800))
+
     policy = applicability.load_policy(policy_path)
     decisions = applicability.decide(policy, architecture_flags)
     p2_decisions = {did: d for did, d in decisions.items() if did in P2_DIMS}
@@ -104,7 +155,8 @@ def emit_p2_measurements(
     measurements: list[dict[str, Any]] = []
 
     # P2.1 — demographic parity (always fires per v0.1 policy).
-    p2_1 = pa.run("parity", subject, parity_judge, pairs, ensemble_n=ensemble_n)
+    p2_1 = bounded("P2.1", lambda: pa.run(
+        "parity", subject, parity_judge, pairs, ensemble_n=ensemble_n))
     details["P2.1"] = _slim(p2_1)
     m = _emit_measurement("P2.1", p2_1)
     if m is not None:
@@ -122,10 +174,10 @@ def emit_p2_measurements(
                 ),
             }
         else:
-            p2_2 = pa.run(
+            p2_2 = bounded("P2.2", lambda: pa.run(
                 "equal_opportunity", subject, eo_judge, labeled,
                 ensemble_n=ensemble_n,
-            )
+            ))
             details["P2.2"] = _slim(p2_2)
             m = _emit_measurement("P2.2", p2_2)
             if m is not None:
@@ -138,7 +190,8 @@ def emit_p2_measurements(
         }
 
     # P2.3 — counterfactual stability (always fires).
-    p2_3 = cfp.run(subject, cfp_judge, corpus_yaml, ensemble_n=ensemble_n)
+    p2_3 = bounded("P2.3", lambda: cfp.run(
+        subject, cfp_judge, corpus_yaml, ensemble_n=ensemble_n))
     details["P2.3"] = _slim(p2_3)
     m = _emit_measurement("P2.3", p2_3)
     if m is not None:
@@ -158,7 +211,8 @@ def emit_p2_measurements(
         measurements.append(m)
 
     # P2.5 — sentiment skew (always fires).
-    p2_5 = pa.run("sentiment", subject, sent_judge, pairs, ensemble_n=ensemble_n)
+    p2_5 = bounded("P2.5", lambda: pa.run(
+        "sentiment", subject, sent_judge, pairs, ensemble_n=ensemble_n))
     details["P2.5"] = _slim(p2_5)
     m = _emit_measurement("P2.5", p2_5)
     if m is not None:

@@ -200,3 +200,201 @@ def test_emit_pipeline_integration():
     # P2.6 has no measurement in Phase 2 yet → must keep the prior.
     assert raw_scores["P2.6"] == 2.0
     assert provenance["P2.6"] == "prior"
+
+
+def test_timeout_keeps_other_axis_measurements(monkeypatch):
+    import time
+
+    def paired(mode, *args, **kwargs):
+        if mode == "parity":
+            time.sleep(2)
+        return {"dim_status": "ok", "dim_raw": 77, "benchmark": mode}
+
+    monkeypatch.setattr(p2_emit.pa, "run", paired)
+    monkeypatch.setattr(p2_emit.cfp, "run", lambda *a, **k: {
+        "dim_status": "ok", "dim_raw": 88, "benchmark": "cfp"})
+    measurements, details = p2_emit.emit_p2_measurements(
+        **_build_mocks(), architecture_flags=BASE_FLAGS_NO_UW_LABELS,
+        n_pairs=2, ensemble_n=1, axis_timeouts={"P2.1": 0.05},
+    )
+    assert details["P2.1"]["dim_status"] == "inconclusive"
+    assert details["P2.1"]["reason"] == "axis timeout exceeded"
+    assert not any(m["dim_id"] == "P2.1" for m in measurements)
+    assert {m["dim_id"] for m in measurements} >= {"P2.3", "P2.5"}
+    assert details["P2.4"]["dim_status"] == "ok"
+
+
+def test_persistent_resume_matches_uncached_output(tmp_path, monkeypatch):
+    class IdentifiedMock(MockRunner):
+        def p2_checkpoint_identity(self):
+            return {"fixture_version": "frozen-test-v1", "role": self._name}
+
+    monkeypatch.setattr(p2_emit.pa, 'run', lambda *a, **k: {
+        'dim_status': 'ok', 'dim_raw': 77, 'benchmark': 'paired'})
+    monkeypatch.setattr(p2_emit.cfp, 'run', lambda *a, **k: {
+        'dim_status': 'ok', 'dim_raw': 88, 'benchmark': 'cfp'})
+    mocks = _build_mocks()
+    for name, runner in list(mocks.items()):
+        mocks[name] = IdentifiedMock(runner._name, runner._responder)
+    kwargs = dict(**mocks, architecture_flags=BASE_FLAGS_NO_UW_LABELS,
+                  ensemble_n=1, n_pairs=6)
+    expected = p2_emit.emit_p2_measurements(**kwargs)
+    actual = p2_emit.emit_p2_measurements(**kwargs, checkpoint_directory=tmp_path)
+    assert actual == expected
+    assert len(list(tmp_path.glob('p2_emission_*.json'))) == 3
+    # A cache miss would produce inconclusive axes, making equality fail.
+    monkeypatch.setattr(p2_emit.pa, 'run', lambda *a, **k: (_ for _ in ()).throw(RuntimeError()))
+    monkeypatch.setattr(p2_emit.cfp, 'run', lambda *a, **k: (_ for _ in ()).throw(RuntimeError()))
+    assert p2_emit.emit_p2_measurements(**kwargs, checkpoint_directory=tmp_path) == expected
+
+
+def test_partial_resume_retries_only_failed_axis(tmp_path, monkeypatch):
+    """A timed out aggregate is retried; successful later axes survive."""
+    import time
+
+    class IdentifiedMock(MockRunner):
+        def p2_checkpoint_identity(self):
+            return {"fixture_version": "partial-resume-v1", "role": self._name}
+
+    calls = tmp_path / 'calls'
+    recovered = tmp_path / 'recovered'
+
+    def record(name):
+        with calls.open('a') as stream:
+            stream.write(name + '\n')
+
+    def paired(mode, *args, **kwargs):
+        record(mode)
+        if mode == 'parity' and not recovered.exists():
+            time.sleep(5)
+        return {'dim_status': 'ok', 'dim_raw': 77, 'benchmark': mode}
+
+    def counterfactual(*args, **kwargs):
+        record('counterfactual')
+        return {'dim_status': 'ok', 'dim_raw': 88, 'benchmark': 'cfp'}
+
+    monkeypatch.setattr(p2_emit.pa, 'run', paired)
+    monkeypatch.setattr(p2_emit.cfp, 'run', counterfactual)
+    mocks = {name: IdentifiedMock(runner._name, runner._responder)
+             for name, runner in _build_mocks().items()}
+    kwargs = dict(**mocks, architecture_flags=BASE_FLAGS_NO_UW_LABELS,
+                  ensemble_n=1, n_pairs=6, axis_timeouts={'P2.1': 0.2})
+    cache = tmp_path / 'checkpoints'
+    first, details = p2_emit.emit_p2_measurements(**kwargs, checkpoint_directory=cache)
+    assert details['P2.1']['dim_status'] == 'inconclusive'
+    assert {m['dim_id'] for m in first} >= {'P2.3', 'P2.5'}
+    assert not (cache / 'p2_emission_P2.1.json').exists()
+    assert len(list(cache.glob('p2_emission_*.json'))) == 2
+    recovered.touch()
+    resumed = p2_emit.emit_p2_measurements(**kwargs, checkpoint_directory=cache)
+    assert calls.read_text().splitlines() == [
+        'parity', 'counterfactual', 'sentiment', 'parity']
+    assert resumed[1]['P2.1']['dim_status'] == 'ok'
+    assert len(list(cache.glob('p2_emission_*.json'))) == 3
+    fresh = p2_emit.emit_p2_measurements(**kwargs)
+    assert json.dumps(resumed, sort_keys=True) == json.dumps(fresh, sort_keys=True)
+
+
+def test_checkpoint_invalidated_by_counterfactual_curve_source(tmp_path, monkeypatch):
+    class IdentifiedMock(MockRunner):
+        def p2_checkpoint_identity(self):
+            return {"fixture_version": "curve-v1", "role": self._name}
+
+    calls = tmp_path / "calls"
+
+    def paired(*args, **kwargs):
+        with calls.open("a") as stream:
+            stream.write("paired\n")
+        return {"dim_status": "ok", "dim_raw": 2, "benchmark": "paired"}
+
+    monkeypatch.setattr(p2_emit.pa, "run", paired)
+    monkeypatch.setattr(p2_emit.cfp, "run", lambda *a, **k: {
+        "dim_status": "ok", "dim_raw": 2, "benchmark": "cfp"})
+    mocks = {name: IdentifiedMock(runner._name, runner._responder)
+             for name, runner in _build_mocks().items()}
+    kwargs = dict(**mocks, architecture_flags=BASE_FLAGS_NO_UW_LABELS,
+                  ensemble_n=1, n_pairs=6, checkpoint_directory=tmp_path / "cache")
+    p2_emit.emit_p2_measurements(**kwargs)
+    p2_emit.emit_p2_measurements(**kwargs)
+    assert calls.read_text().splitlines() == ["paired", "paired"]
+    from pathlib import Path
+    original = Path.read_bytes
+
+    def changed_source(path):
+        data = original(path)
+        return data + b"\n# changed curve" if path.name == "promptfoo_runner.py" else data
+
+    monkeypatch.setattr(Path, "read_bytes", changed_source)
+    p2_emit.emit_p2_measurements(**kwargs)
+    assert calls.read_text().splitlines() == ["paired"] * 4
+
+
+def test_automatic_checkpoints_resume_and_opt_out(tmp_path, monkeypatch):
+    class IdentifiedMock(MockRunner):
+        def p2_checkpoint_identity(self):
+            return {'fixture_version': 'automatic-v1', 'role': self._name}
+
+    # Redirect placement without changing the source fingerprint paths.
+    class CacheRoot:
+        def __truediv__(self, name):
+            return (tmp_path if name == '.p2-checkpoints' else
+                    original_root / name)
+
+    monkeypatch.setattr(p2_emit.pa, 'run', lambda *a, **k: {
+        'dim_status': 'ok', 'dim_raw': 2, 'benchmark': 'paired'})
+    monkeypatch.setattr(p2_emit.cfp, 'run', lambda *a, **k: {
+        'dim_status': 'ok', 'dim_raw': 2, 'benchmark': 'cfp'})
+    original_root = p2_emit._REPO
+    monkeypatch.setattr(p2_emit, '_REPO', CacheRoot())
+    mocks = {name: IdentifiedMock(runner._name, runner._responder)
+             for name, runner in _build_mocks().items()}
+    kwargs = dict(**mocks, architecture_flags=BASE_FLAGS_NO_UW_LABELS,
+                  ensemble_n=1, n_pairs=6)
+    expected = p2_emit.emit_p2_measurements(**kwargs)
+    assert len(list(tmp_path.glob('*/p2_emission_*.json'))) == 3
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError('cached axis executed')
+
+    monkeypatch.setattr(p2_emit.pa, 'run', forbidden)
+    monkeypatch.setattr(p2_emit.cfp, 'run', forbidden)
+    assert p2_emit.emit_p2_measurements(**kwargs) == expected
+    _, fresh_details = p2_emit.emit_p2_measurements(**kwargs, automatic_checkpoints=False)
+    assert fresh_details['P2.1']['dim_status'] == 'inconclusive'
+
+
+def test_unsupported_adapters_remain_uncached(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mocks = _build_mocks()
+    p2_emit.emit_p2_measurements(**mocks,
+        architecture_flags=BASE_FLAGS_NO_UW_LABELS, ensemble_n=1, n_pairs=6)
+    assert not (tmp_path / '.p2-checkpoints').exists()
+
+
+@pytest.mark.parametrize('flags', [BASE_FLAGS_NO_UW_LABELS, BASE_FLAGS_WITH_UW_LABELS])
+def test_five_offline_runs_byte_match_pre_refactor_emitter(flags):
+    """Frozen pre-refactor orchestration oracle; real aggregates, offline runners.
+
+    This proves wrapping preserves deterministic outputs, not historical B2
+    model responses (that persisted emission is unavailable).
+    """
+    import importlib.util
+
+    source = REPO / 'tests/fixtures/p2_orchestration/pre_refactor_emitter.py'
+    spec = importlib.util.spec_from_file_location('p2_pre_refactor', source)
+    original = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(original)
+    paths = dict(corpus_yaml=p2_emit.DEFAULT_CORPUS_YAML,
+                 eo_yaml=p2_emit.DEFAULT_EO_YAML,
+                 eval_repr_yaml=p2_emit.DEFAULT_EVAL_REPR_YAML,
+                 policy_path=p2_emit.DEFAULT_POLICY_PATH)
+    def serialize(result):
+        return json.dumps(result, sort_keys=True, allow_nan=False).encode()
+
+    expected = serialize(original.emit_p2_measurements(
+        **_build_mocks(), architecture_flags=flags, n_pairs=6, ensemble_n=1, **paths))
+    for _ in range(5):
+        actual = p2_emit.emit_p2_measurements(
+            **_build_mocks(), architecture_flags=flags, n_pairs=6, ensemble_n=1,
+            automatic_checkpoints=False, **paths)
+        assert serialize(actual) == expected
