@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 
 from evals.oss_pilots.log_quality import _instant
 from tools.assessment_test_catalog import VALIDATION_METHODS, VALIDATION_METRICS, VALIDATION_VERSION
+from tools.assessment_test_catalog import LIFECYCLE_METHODS, LIFECYCLE_METRICS, LIFECYCLE_VERSION
+from tools.assessment_test_catalog import ASSURANCE_METHODS, ASSURANCE_METRICS, ASSURANCE_VERSION
 
 VERSION = "assessment-record-checks@1"
 SCHEMA = "assessment-record-input/v1"
@@ -28,13 +30,19 @@ CASE_METHODS = {
     "EVID-INCIDENT-CLOSURE": "Reconcile incident and corrective-action references, closure verification and chronology.",
 }
 CASE_METHODS.update(VALIDATION_METHODS)
+CASE_METHODS.update(LIFECYCLE_METHODS)
+CASE_METHODS.update(ASSURANCE_METHODS)
 LEGACY_METRICS = frozenset({"record_count", "compared_record_count", "covered_group_count", "open_record_count",
                      "error_count", "identity_errors", "reference_errors", "timestamp_errors", "metric_errors",
                      "policy_errors", "accuracy_ppm", "baseline_accuracy_ppm"})
-METRICS = LEGACY_METRICS | VALIDATION_METRICS
+METRICS = LEGACY_METRICS | VALIDATION_METRICS | LIFECYCLE_METRICS | ASSURANCE_METRICS
 
 
 def case_version(case_id):
+    if case_id in ASSURANCE_METHODS:
+        return ASSURANCE_VERSION
+    if case_id in LIFECYCLE_METHODS:
+        return LIFECYCLE_VERSION
     return VALIDATION_VERSION if case_id in VALIDATION_METHODS else VERSION
 
 
@@ -320,7 +328,10 @@ def evaluate(case_id, raw, *, scope, evaluated_at):
     if case_id not in CASE_METHODS:
         raise ValueError("unknown record check")
     doc = _header(raw, scope, evaluated_at)
-    if case_id in VALIDATION_METHODS:
+    if case_id in LIFECYCLE_METHODS.keys() | ASSURANCE_METHODS.keys():
+        from evals.oss_pilots.assessment_lifecycle import initial_metrics
+        metrics = initial_metrics()
+    elif case_id in VALIDATION_METHODS:
         from evals.oss_pilots.assessment_validation import evaluate_records, initial_metrics
         metrics = initial_metrics(case_id)
     else:
@@ -330,7 +341,13 @@ def evaluate(case_id, raw, *, scope, evaluated_at):
         data = doc["data"]
         artifacts = {key: _blob(blob) for key, blob in doc.get("artifacts", {}).items()}
         now = _instant(doc["recorded_at"])
-        if case_id in VALIDATION_METHODS:
+        if case_id in ASSURANCE_METHODS:
+            from evals.oss_pilots.assessment_assurance import evaluate_records
+            meaningful = evaluate_records(case_id, doc, artifacts, metrics, now, scope, evaluated_at=evaluated_at)
+        elif case_id in LIFECYCLE_METHODS:
+            from evals.oss_pilots.assessment_lifecycle import evaluate_records
+            meaningful = evaluate_records(case_id, doc, artifacts, metrics, now, scope, evaluated_at=evaluated_at)
+        elif case_id in VALIDATION_METHODS:
             meaningful = evaluate_records(case_id, doc, artifacts, metrics, now, scope)
         elif case_id == "EVID-RISK-TRACE":
             _risk(data, artifacts, metrics, now)
@@ -375,7 +392,7 @@ def run_case(case_id, adapter, *, scope):
                 "evaluated_at": evaluated_at, "input_document": {"sha256": hashlib.sha256(raw).hexdigest(),
                     "content_base64": base64.b64encode(raw).decode("ascii")},
                 "measurements": metrics, "verdict": verdict,
-                "reason": ("reviewed_records_insufficient_for_method" if verdict == "inconclusive" and case_id in VALIDATION_METHODS
+                "reason": ("reviewed_records_insufficient_for_method" if verdict == "inconclusive" and case_id in VALIDATION_METHODS.keys() | LIFECYCLE_METHODS.keys() | ASSURANCE_METHODS.keys()
                            else "reviewed_records_reconciled")}
     except Exception:
         # Adapter errors, unreviewed documents and foreign scope bytes stay private.

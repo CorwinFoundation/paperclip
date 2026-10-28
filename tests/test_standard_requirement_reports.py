@@ -183,10 +183,12 @@ def test_customer_json_report_includes_mapping_and_preserves_score():
     assert "requirements_evidence" not in source
 
 
-def test_registry_exposes_35_report_only_cases_without_inflating_published_count():
+def test_registry_exposes_44_report_only_cases_without_inflating_published_count():
     rows = build_registry()
     ops = [r for r in rows if r["test_id"] in FAMILIES]
-    assert len(ops) == 35
+    assert len(ops) == 44
+    from tools.assessment_test_catalog import LIFECYCLE_RECORD_CASES, ASSURANCE_RECORD_CASES
+    assert set(LIFECYCLE_RECORD_CASES) | set(ASSURANCE_RECORD_CASES) <= {r["test_id"] for r in ops}
     assert sum(r["test_id"] == "operational_logging_quality" for r in ops) == 5
     assert all(r["weight"] == 0 and r["score_contribution"] is False for r in ops)
     assert all(r["execution_evidenced"] is False for r in ops)

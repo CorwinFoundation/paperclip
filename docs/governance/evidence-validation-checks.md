@@ -3,8 +3,9 @@
 Nine conditional cases extend the reviewed-record adapter in five areas. They
 reuse normal scan dispatch, native artifacts, durable manifests, standard JSON
 and HTML reports, approved-plan import and assessor ZIP export. They make zero
-target/judge calls and contribute zero score. There are now 35 conditional
-evidence cases; the published measured-test count remains 2,373.
+target/judge calls and contribute zero score. This extension brought the conditional
+evidence count to 35; [lifecycle checks](evidence-lifecycle-checks.md) add six more.
+The published measured-test count remains 2,373.
 
 The new cases use `assessment-evidence-validation@1`. The six earlier record
 cases keep `assessment-record-checks@1`, their methods and exact metric shape.

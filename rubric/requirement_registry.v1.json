@@ -189,13 +189,94 @@
       "case_methods": {
         "EVID-RELEASE-ACCEPTANCE": "Reconcile exact-snapshot release approval, regression outcomes, explicit exceptions and deployment chronology."
       }
+    },
+    "assessment_monitoring_coverage": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-MONITORING-COVERAGE"
+      ],
+      "case_methods": {
+        "EVID-MONITORING-COVERAGE": "Reconcile approved completed monitoring windows, result identity, freshness and required sample coverage."
+      }
+    },
+    "assessment_monitoring_trend": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-MONITORING-TREND"
+      ],
+      "case_methods": {
+        "EVID-MONITORING-TREND": "Compare ordered, comparable monitoring accuracy with the first supplied period and approved regression criteria."
+      }
+    },
+    "assessment_multiclass_metrics": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-MULTICLASS-METRICS"
+      ],
+      "case_methods": {
+        "EVID-MULTICLASS-METRICS": "Recompute multiclass confusion counts, per-class precision, recall and F1 with explicit abstention and denominator handling."
+      }
+    },
+    "assessment_subgroup_uncertainty": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-SUBGROUP-UNCERTAINTY"
+      ],
+      "case_methods": {
+        "EVID-SUBGROUP-UNCERTAINTY": "Recompute reviewed subgroup exact-match error rates and Wilson 95% accuracy intervals under explicit independence assumptions."
+      }
+    },
+    "assessment_governance_actions": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-GOVERNANCE-ACTIONS"
+      ],
+      "case_methods": {
+        "EVID-GOVERNANCE-ACTIONS": "Reconcile required audit and management reviews, linked action ownership, deadlines and reviewed completion records."
+      }
+    },
+    "assessment_competence_coverage": {
+      "probe_set_version": "assessment-lifecycle-checks@1",
+      "case_ids": [
+        "EVID-COMPETENCE-COVERAGE"
+      ],
+      "case_methods": {
+        "EVID-COMPETENCE-COVERAGE": "Reconcile the reviewed active-role roster with required courses and scoped, current competence completion records."
+      }
+    },
+    "assessment_incident_notification": {
+      "probe_set_version": "assessment-assurance-checks@1",
+      "case_ids": [
+        "EVID-INCIDENT-NOTIFICATION"
+      ],
+      "case_methods": {
+        "EVID-INCIDENT-NOTIFICATION": "Reconcile reviewed incident reporting decisions, escalation deadlines and original submission/delivery receipts."
+      }
+    },
+    "assessment_supplier_assurance": {
+      "probe_set_version": "assessment-assurance-checks@1",
+      "case_ids": [
+        "EVID-SUPPLIER-ASSURANCE"
+      ],
+      "case_methods": {
+        "EVID-SUPPLIER-ASSURANCE": "Reconcile supplied component versions and digests with current supplier approvals, assigned responsibilities and agreement evidence."
+      }
+    },
+    "assessment_impact_assessment_coverage": {
+      "probe_set_version": "assessment-assurance-checks@1",
+      "case_ids": [
+        "EVID-IMPACT-ASSESSMENT-COVERAGE"
+      ],
+      "case_methods": {
+        "EVID-IMPACT-ASSESSMENT-COVERAGE": "Reconcile intended uses, affected groups, risks and supplied changes with current reviewed impact assessments and mitigation or acceptance decisions."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@4",
+      "mapping_version": "backbond-eu-ai-act-evidence@6",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
         "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
@@ -204,7 +285,9 @@
       "controls": [
         {
           "control_id": "ART4",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_competence_coverage"
+          ],
           "required_document_ids": [
             "ai-literacy-record"
           ],
@@ -258,7 +341,12 @@
             "resource_budget_enforcement",
             "assessment_risk_traceability",
             "assessment_risk_test_coverage",
-            "assessment_mitigation_result_binding"
+            "assessment_mitigation_result_binding",
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend",
+            "assessment_multiclass_metrics",
+            "assessment_subgroup_uncertainty",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "risk-register",
@@ -287,7 +375,8 @@
             "assessment_data_lineage",
             "assessment_subgroup_coverage",
             "assessment_split_overlap",
-            "assessment_subject_independence"
+            "assessment_subject_independence",
+            "assessment_subgroup_uncertainty"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -306,7 +395,9 @@
             "assessment_subject_independence",
             "assessment_class_error_rates",
             "assessment_statistical_support",
-            "assessment_performance_claim_consistency"
+            "assessment_performance_claim_consistency",
+            "assessment_supplier_assurance",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "technical-documentation"
@@ -400,7 +491,10 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_change_impact_coverage",
-            "assessment_release_acceptance"
+            "assessment_release_acceptance",
+            "assessment_multiclass_metrics",
+            "assessment_subgroup_uncertainty",
+            "assessment_monitoring_trend"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
@@ -454,7 +548,13 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_change_impact_coverage",
-            "assessment_release_acceptance"
+            "assessment_release_acceptance",
+            "assessment_governance_actions",
+            "assessment_competence_coverage",
+            "assessment_monitoring_coverage",
+            "assessment_incident_notification",
+            "assessment_supplier_assurance",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "qms-process-and-review-record"
@@ -479,7 +579,9 @@
         {
           "control_id": "ART20",
           "candidate_test_ids": [
-            "assessment_incident_closure"
+            "assessment_incident_closure",
+            "assessment_governance_actions",
+            "assessment_incident_notification"
           ],
           "required_document_ids": [
             "corrective-action-record"
@@ -498,7 +600,8 @@
             "authorization_revocation_race",
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
-            "stop_resume_memory_boundary"
+            "stop_resume_memory_boundary",
+            "assessment_incident_notification"
           ],
           "required_document_ids": [
             "deployer-duty-and-monitoring-record"
@@ -507,7 +610,9 @@
         },
         {
           "control_id": "ART27",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_impact_assessment_coverage"
+          ],
           "required_document_ids": [
             "fria-applicability-and-assessment"
           ],
@@ -596,7 +701,9 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_change_impact_coverage",
-            "assessment_release_acceptance"
+            "assessment_release_acceptance",
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend"
           ],
           "required_document_ids": [
             "post-market-monitoring-plan-and-review"
@@ -610,7 +717,8 @@
           "control_id": "ART73",
           "candidate_test_ids": [
             "operational_logging",
-            "assessment_incident_closure"
+            "assessment_incident_closure",
+            "assessment_incident_notification"
           ],
           "required_document_ids": [
             "incident-reporting-process-and-drill"
@@ -622,7 +730,7 @@
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@4",
+      "mapping_version": "backbond-iso42001-evidence@6",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -739,7 +847,9 @@
         },
         {
           "control_id": "6.1.4",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_impact_assessment_coverage"
+          ],
           "required_document_ids": [
             "ISO42001.6.1.4.customer-record"
           ],
@@ -795,7 +905,9 @@
         },
         {
           "control_id": "7.2",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_competence_coverage"
+          ],
           "required_document_ids": [
             "ISO42001.7.2.customer-record"
           ],
@@ -811,7 +923,9 @@
         },
         {
           "control_id": "7.4",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_incident_notification"
+          ],
           "required_document_ids": [
             "ISO42001.7.4.customer-record"
           ],
@@ -839,7 +953,8 @@
             "authorization_revocation_race",
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
-            "stop_resume_memory_boundary"
+            "stop_resume_memory_boundary",
+            "assessment_supplier_assurance"
           ],
           "required_document_ids": [
             "ISO42001.8.1.customer-record"
@@ -922,7 +1037,9 @@
         },
         {
           "control_id": "8.4",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_impact_assessment_coverage"
+          ],
           "required_document_ids": [
             "ISO42001.8.4.customer-record"
           ],
@@ -957,7 +1074,11 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_change_impact_coverage",
-            "assessment_release_acceptance"
+            "assessment_release_acceptance",
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend",
+            "assessment_multiclass_metrics",
+            "assessment_subgroup_uncertainty"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
@@ -969,7 +1090,9 @@
         },
         {
           "control_id": "9.2",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_governance_actions"
+          ],
           "required_document_ids": [
             "ISO42001.9.2.customer-record"
           ],
@@ -977,7 +1100,9 @@
         },
         {
           "control_id": "9.3",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_governance_actions"
+          ],
           "required_document_ids": [
             "ISO42001.9.3.customer-record"
           ],
@@ -1013,7 +1138,8 @@
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
             "resource_budget_enforcement",
-            "assessment_incident_closure"
+            "assessment_incident_closure",
+            "assessment_governance_actions"
           ],
           "required_document_ids": [
             "ISO42001.10.2.customer-record"
@@ -1111,7 +1237,8 @@
             "demographic_parity",
             "equal_opportunity",
             "sentiment_skew",
-            "eval_representation"
+            "eval_representation",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "impact-assessment"
@@ -1126,7 +1253,8 @@
             "demographic_parity",
             "equal_opportunity",
             "sentiment_skew",
-            "eval_representation"
+            "eval_representation",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "impact-assessment"
@@ -1142,7 +1270,8 @@
             "equal_opportunity",
             "sentiment_skew",
             "eval_representation",
-            "assessment_subgroup_coverage"
+            "assessment_subgroup_coverage",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "impact-assessment"
@@ -1157,7 +1286,8 @@
             "demographic_parity",
             "equal_opportunity",
             "sentiment_skew",
-            "eval_representation"
+            "eval_representation",
+            "assessment_impact_assessment_coverage"
           ],
           "required_document_ids": [
             "impact-assessment"
@@ -1299,7 +1429,8 @@
             "human_escalation_flagging",
             "operational_oversight",
             "operational_logging",
-            "assessment_incident_closure"
+            "assessment_incident_closure",
+            "assessment_incident_notification"
           ],
           "required_document_ids": [
             "stakeholder-information"
@@ -1387,7 +1518,8 @@
             "delegated_authority_confused_deputy",
             "tool_authorization_confused_deputy",
             "multi_agent_handoff_integrity",
-            "agent_identity_signed_handoff"
+            "agent_identity_signed_handoff",
+            "assessment_supplier_assurance"
           ],
           "required_document_ids": [
             "responsibility-and-supplier-record"
@@ -1401,7 +1533,8 @@
             "delegated_authority_confused_deputy",
             "tool_authorization_confused_deputy",
             "multi_agent_handoff_integrity",
-            "agent_identity_signed_handoff"
+            "agent_identity_signed_handoff",
+            "assessment_supplier_assurance"
           ],
           "required_document_ids": [
             "responsibility-and-supplier-record"
@@ -1482,7 +1615,9 @@
             "assessment_evaluation_reconciliation",
             "assessment_class_error_rates",
             "assessment_statistical_support",
-            "assessment_performance_claim_consistency"
+            "assessment_performance_claim_consistency",
+            "assessment_multiclass_metrics",
+            "assessment_subgroup_uncertainty"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
@@ -1535,7 +1670,9 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_change_impact_coverage",
-            "assessment_release_acceptance"
+            "assessment_release_acceptance",
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"

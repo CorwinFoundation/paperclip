@@ -9,7 +9,7 @@ import math
 import re
 
 from evals.oss_pilots import assessment_records as r
-from tools.assessment_test_catalog import VALIDATION_METHODS
+from tools.assessment_test_catalog import VALIDATION_METHODS, LIFECYCLE_METHODS, ASSURANCE_METHODS
 from tools.binomial_statistics import wilson
 
 
@@ -83,7 +83,7 @@ def _observations(data, artifacts, system, metrics, now, scope):
         if native.get("agent_id") != system["target_id"]:
             raise r.SourceScopeMismatch("foreign native observation")
         # Do not recursively use these meta-checks as their own verification.
-        if native.get("case_id") in VALIDATION_METHODS:
+        if native.get("case_id") in VALIDATION_METHODS.keys() | LIFECYCLE_METHODS.keys() | ASSURANCE_METHODS.keys():
             raise ValueError("validation meta-evidence is not an independent target observation")
         metrics["identity_errors"] += int(row.get("snapshot_sha256") != system["snapshot_sha256"])
         metrics["timestamp_errors"] += int(r._instant(row.get("observed_at")) > now)
