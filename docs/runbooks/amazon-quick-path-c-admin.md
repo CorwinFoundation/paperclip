@@ -1,6 +1,6 @@
 # Amazon Quick Path C: administrator checklist
 
-BackBond draft | 26 October 2026 | Configuration copy over synthetic sources
+BackBond draft | 28 October 2026 | Configuration copy over synthetic sources
 
 Path C is the selected route. The assessment runs against a recreated Quick
 agent in a separate sandbox AWS account with registered native/IAM-backed test
@@ -58,6 +58,57 @@ The supplied baseline instructions are for BackBond's own synthetic baseline,
 not a replacement for the customer's instructions. Any canary added to copied
 instructions is measurement instrumentation and must be disclosed in the receipt.
 
+Start the private review with
+`deploy/amazon-quick/configuration-copy-review.example.json`; its approvals are
+false and its accounts/ARNs are examples. Hash the parsed export using the tool's
+canonical JSON format, rather than the file's whitespace/newline-dependent hash:
+
+```sh
+python -c "import json,sys; from tools.quick_configuration_copy import digest; print(digest(json.load(open(sys.argv[1], encoding='utf-8'))))" source-agent.private.json
+```
+
+Default-prompt agents and agents configured only through Identity, Tone,
+OutputStyle or ResponseLength are supported by the offline planner. It copies
+the populated, approved prompt fields exactly; it does not require or invent
+CustomInstructions. With no populated prompt fields it omits CustomPromptInput.
+Model/subscription identifiers remain excluded. This follows the optional
+fields in [AWS CreateAgent](https://docs.aws.amazon.com/quicksight/latest/APIReference/API_CreateAgent.html)
+and [CustomPromptInputParameters](https://docs.aws.amazon.com/quicksight/latest/APIReference/API_CustomPromptInputParameters.html).
+
+If the original agent has no spaces, or the selected profile needs an extra
+fixture space, list its sandbox ARN explicitly in `additional_synthetic_spaces`
+in the approved private review. All original spaces still need mappings; every
+additional space must be distinct and in the same sandbox account/region. The
+combined request is limited to ten spaces. The receipt records the extra
+fixture spaces as measurement instrumentation, not production configuration.
+
+After the administrator creates and publishes the copy, obtain a fresh
+`DescribeAgent` export from the sandbox. Start the attestation review with
+`deploy/amazon-quick/configuration-copy-attestation.example.json`. Bind the
+canonical hashes of that export and the prepared copy receipt, the same customer
+authorization, and the scope's permission-matrix reference. The administrator
+must review source grants, model equivalence and the listed configuration
+differences. Service-populated extra prompt fields need explicit review as well.
+They are recorded as additional fields, not silently treated as copied text.
+
+```sh
+python -m tools.quick_configuration_copy attest --export created-agent.private.json --request copy-plan/create-agent.private.json --receipt copy-plan/configuration-copy-receipt.json --review copy-attestation.private.json --output verified-copy
+```
+
+This offline comparison requires the exact sandbox account/region/agent,
+ACTIVE/PUBLISHED status, exact synthetic spaces, no action connectors, matching
+name/greeting/starter prompts and every requested prompt field. Changed text,
+sources or enabled actions halt the check even if the export hash was approved.
+It creates no AWS resources and makes no target or grading calls.
+
+Use the absolute path to `verified-copy/configuration-copy-receipt.json` in the
+assessment scope. The attestation must fall inside that release's qualification
+window and name the same customer approval and permission matrix. A manually
+added `fidelity_attestation_approved` flag alone no longer passes preflight.
+Keep the prepared request, both exports, both reviews and both receipts private.
+The comparison binds recreated parameters and administrator review; it does not
+establish production permissions, SSO or full model equivalence by itself.
+
 ## 3. Install synthetic users, sources and access
 
 Create three dedicated chat-capable test users. Give them Viewer access to the
@@ -65,13 +116,12 @@ same sandbox agent; do not share them with humans. For HR/finance use employee,
 Sales manager and HR. For healthcare use ward clinician, operations and HR/payroll.
 Map the template's three user parameters to these roles in order.
 
-Use distinct controlled email addresses for the three users. Quick resolves
-document-level ACL identities case-insensitively within the creator's namespace;
-shared emails can deny document access to every user with that address. Record
-the actual bindings before the first conversation or ACL refresh. Separate
-Space/KB sharing does not establish document-level ACL coverage. ACL support is
-fixed at KB creation, so qualify an ACL-aware KB separately when that control
-is in the customer scope. See [AWS ACL identity guidance](https://docs.aws.amazon.com/quick/latest/userguide/acl-best-practices-kb.html).
+Use distinct controlled email addresses and record their native identity mapping.
+The tested setup uses reviewed knowledge-base/space grants and structured row
+rules. Document-level ACL behavior requires separate qualification; successful
+embedding or space sharing does not establish it. Qualify an ACL-aware KB when
+that control is in the customer scope. See
+[AWS ACL identity guidance](https://docs.aws.amazon.com/quick/latest/userguide/acl-best-practices-kb.html).
 
 Install only the exported `sources/` files, following `installation.json` hashes,
 source grants and structured row rules. Keep the profile, expected answers,
@@ -165,7 +215,10 @@ recurring schedule disabled for the bounded pilot.
   IDs, indexed versions, sync evidence and the administrator-verified grants/RLS.
   A display name alone does not establish exact source identity or attack exposure.
 
-Use the customer stack `customer-pilot-v12.template.json`. BackBond first supplies
+The selected route uses a BackBond-owned sandbox. Its administrator deploys
+`customer-pilot-v12.template.json` there; the customer administrator supplies and
+attests to the approved configuration export. This does not require a production
+IAM role in the customer's account. BackBond first supplies
 one dedicated execution-role ARN and unique ExternalId. The customer role grants
 embedding for exactly three users on one origin and FilterLogEvents for one group,
 with a UTC cutoff. BackBond's execution role then receives AssumeRole permission
@@ -224,6 +277,14 @@ access through the actual runtime role, including denial of the shared source
 log group and scanner source bucket; a successful `aws --version` alone is
 insufficient.
 
+The qualifying T3 runtime used two vCPUs, 8 GiB and Unlimited CPU-credit mode.
+Standard mode with nearly depleted credits failed held-session startup. Before
+prompts, the deployment operator must verify and bind actual credit mode, stop
+timer, worker and image to the release receipt and review the costs. The runtime
+role needs no additional EC2-read grant. Restore Standard after verifying the
+worker stopped. Different hardware/modes require qualification; this is not a
+scan-time SLA or a new runtime permission.
+
 For each exact identity/registration, run three benign marker checks. Keep the
 fresh bound receipt. The earlier ten-check platform receipt is separate evidence
 and cannot qualify a different user. Run the bounded concurrency spike on the
@@ -243,16 +304,16 @@ ten platform, nine identity and 44 spike calls gives **2,033 new v1.2 calls**.
 This bound depends on the pinned grader/profile/capture/qualification hashes;
 rederive it before changing those inputs or enabling external grading.
 
-The hard allocation is **2,426 v1.2 + 48 separate follow-on + 26 retained legacy
-= 2,500 calls**, within the approved BackBond baseline's USD 200 incremental
-ceiling. The 26 October recovery started with 32 charged reservations retained.
-Adding its 2,033 fresh-call bound gives 2,065 cumulative v1.2 calls, or 2,139
-combined, leaving 361 calls within the allocation. These are pre-run bounds,
-not observed usage or permission to start another fresh run. Each customer
-needs its own reviewed cost/call plan and preserved consumption. The follow-on
-uses separate immutable authorization and pilot IDs, sequentially,
-with the same persistent ledger and identity leases. Every manual, readiness,
-uncertain submission and confirmation consumes the preserved allocation.
+The BackBond cohort retains **2,426 main + 48 internal + 26 legacy-reserved =
+2,500 combined calls** as its approved ceiling. Its accepted 28 October snapshot
+contains **1,323 main + 48 internal + 26 legacy-reserved = 1,397**, including all
+earlier failed attempts. The original USD 200 overall AWS ceiling was withdrawn;
+old allocation fields in consumed manifests are historical and must not be
+rewritten. The actual invoice remains unavailable. Each customer needs its own
+reviewed cost/call plan and release. Add every preserved manual, readiness,
+uncertain and confirmation call before selecting a remaining cap. Neither an
+unused balance nor a new registration authorizes another run. Healthcare needs
+its own live setup/qualification; HR/finance capture is not that evidence.
 
 Unknown submissions halt; no automatic resend or ledger reset. Browser capture
 is only pacing/progress. Correlated AWS logs finalize answers, and a captured
@@ -273,6 +334,8 @@ evidence review; do not invent fix hours or claim production root causes.
 - [ ] Three-user/one-agent unfiltered audit and fresh readiness receipts.
 - [ ] Live forwarder qualification and concurrency receipt for the pinned release.
 
-This checklist has not yet been exercised end-to-end for v1.2. Attach actual
-BackBond sandbox evidence first; never fabricate screenshots or treat unit mocks
-as AWS deployment proof.
+The dated HR/finance baseline has accepted capture and operational closeout
+evidence, with all 600 outcomes still inconclusive. Attach that
+[receipt](../evidence/amazon-quick/2026-10-28-synthetic-capture-closeout.json)
+and each customer's fresh setup evidence. New copy configurations and healthcare
+still need their own live qualification. Never treat unit mocks as AWS proof.

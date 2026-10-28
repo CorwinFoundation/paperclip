@@ -111,10 +111,25 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
     if len({s["resource_id"] for s in scope["sources"].values()}) != len(scope["sources"]):
         raise PreflightError("distinct_source_resource_ids_required")
     if scope["assessment_subject"] == "configuration_copy":
-        copy = read_json(Path(scope["configuration_copy_receipt"]))
+        copy_path = Path(scope["configuration_copy_receipt"])
+        if not copy_path.is_absolute():
+            raise PreflightError("absolute_configuration_copy_receipt_required")
+        copy = read_json(copy_path)
         if (copy.get("schema") != "backbond-quick-configuration-copy/v1.2" or copy.get("identity_path") != "C"
                 or copy.get("fidelity_attestation_approved") is not True
-                or not reference(copy.get("fidelity_attestation_ref")) or not copy.get("differences")):
+                or not reference(copy.get("fidelity_attestation_ref")) or not copy.get("differences")
+                or not reference(copy.get("fidelity_reviewed_by"))
+                or copy.get("customer_authorization_ref") != scope["customer_authorization_ref"]
+                or copy.get("source_permissions_review_ref") != scope["permission_matrix_ref"]
+                or copy.get("model_profile_equivalence_reviewed") is not True
+                or copy.get("fidelity_agent_status") != "ACTIVE" or copy.get("fidelity_agent_lifecycle") != "PUBLISHED"
+                or any(not isinstance(copy.get(key), str) or not re.fullmatch(r"[0-9a-f]{64}", copy[key]) for key in
+                       ("source_export_sha256", "source_account_sha256", "source_agent_sha256",
+                        "sandbox_account_sha256", "sandbox_agent_sha256", "sandbox_request_sha256",
+                        "fidelity_verified_request_sha256", "fidelity_verified_export_sha256",
+                        "fidelity_prepared_receipt_sha256", "fidelity_attestation_review_sha256"))
+                or copy.get("fidelity_verified_request_sha256") != copy.get("sandbox_request_sha256")
+                or not start <= timestamp(copy.get("fidelity_verified_at", "")) <= now):
             raise PreflightError("reviewed_configuration_copy_fidelity_required")
     evaluator = scope.get("allowed_evaluators")
     if (not isinstance(evaluator, list) or not evaluator or not set(evaluator) <= {"none", "openrouter"}

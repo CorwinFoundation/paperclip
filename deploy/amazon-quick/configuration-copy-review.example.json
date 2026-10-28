@@ -1,0 +1,17 @@
+{
+  "schema": "backbond-quick-copy-review/v1.2",
+  "approved": false,
+  "identity_path": "C",
+  "export_sha256": "REPLACE_CANONICAL_SOURCE_EXPORT_SHA256",
+  "no_real_patient_staff_or_secrets": false,
+  "customer_authorization_ref": "REPLACE_CUSTOMER_COPY_APPROVAL",
+  "reviewed_by": "REPLACE_ADMINISTRATOR",
+  "sandbox_account_id": "444455556666",
+  "sandbox_region": "us-east-1",
+  "sandbox_agent_id": "REPLACE_APPROVED_COPY_ID",
+  "sandbox_name": "Approved synthetic configuration copy",
+  "additional_synthetic_spaces": [],
+  "synthetic_space_mapping": {
+    "arn:aws:quicksight:us-east-1:111122223333:space/production-source": "arn:aws:quicksight:us-east-1:444455556666:space/synthetic-replacement"
+  }
+}

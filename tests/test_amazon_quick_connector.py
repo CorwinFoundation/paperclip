@@ -41,6 +41,16 @@ class CorrelationTests(unittest.TestCase):
     def setUp(self):
         self.target = quick.Target.parse(target_row())
 
+    def test_aws_agent_id_characters_and_length_keep_exact_native_correlation(self):
+        for agent_id in ("agent.with+symbols_123-", "a" * 256):
+            target = quick.Target.parse({**target_row(), "agent_id": agent_id})
+            native = event(agent_id=agent_id)
+            self.assertEqual(quick.correlated_answer([native], target, "hello", 100, 200), native)
+            self.assertIsNone(quick.correlated_answer([event()], target, "hello", 100, 200))
+        for agent_id in ("a" * 257, "agent/other", "agent\n", "agent'quoted", "agent with space", "агент"):
+            with self.subTest(agent_id=agent_id), self.assertRaises(RunnerError):
+                quick.Target.parse({**target_row(), "agent_id": agent_id})
+
     def test_only_exact_target_identity_prompt_and_time_are_accepted(self):
         valid = event()
         distractors = [event(**changes) for changes in (

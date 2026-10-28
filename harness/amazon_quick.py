@@ -113,7 +113,7 @@ class Target:
                 raise ValueError
             if not re.fullmatch(r"\d{12}", account):
                 raise ValueError
-            if not re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", required["agent_id"]):
+            if not re.fullmatch(r"[0-9a-zA-Z_.+-]{1,256}", required["agent_id"]):
                 raise ValueError
             if not re.fullmatch(rf"arn:aws:quicksight:{re.escape(region)}:{account}:user/[^\s]+", required["user_arn"]):
                 raise ValueError

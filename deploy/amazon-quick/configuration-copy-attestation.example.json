@@ -1,0 +1,13 @@
+{
+  "schema": "backbond-quick-copy-attestation/v1.2",
+  "approved": false,
+  "created_export_sha256": "REPLACE_CANONICAL_CREATED_AGENT_EXPORT_SHA256",
+  "prepared_receipt_sha256": "REPLACE_CANONICAL_PREPARED_COPY_RECEIPT_SHA256",
+  "customer_authorization_ref": "REPLACE_SAME_CUSTOMER_COPY_APPROVAL",
+  "reviewed_by": "REPLACE_ADMINISTRATOR",
+  "fidelity_attestation_ref": "REPLACE_ADMINISTRATOR_APPROVAL_RECORD",
+  "source_permissions_review_ref": "REPLACE_SAME_PERMISSION_MATRIX_REF_AS_SCOPE",
+  "configuration_differences_reviewed": false,
+  "model_profile_equivalence_reviewed": false,
+  "additional_default_prompt_fields_reviewed": false
+}

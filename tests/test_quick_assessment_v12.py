@@ -19,6 +19,7 @@ from harness.amazon_quick import Ledger, Target, _sha, SCHEMA as TARGET_SCHEMA
 from tools import quick_assessment as cli
 from tools.build_quick_access_template import build as access_template
 from tools.quick_configuration_copy import prepare as copy_plan
+from tools.quick_configuration_copy import attest as attest_copy, digest as copy_digest, main as copy_main
 from tools.quick_concurrency_spike import plan as spike_plan
 from tools.quick_qualification_probe import fixture_probe
 
@@ -29,6 +30,7 @@ spec.loader.exec_module(forwarder)
 
 
 class ProfileTests(unittest.TestCase):
+    variant = "hr_finance"
     def test_spike_qualifies_all_three_roles_with_fifteen_simultaneous_cases_in_44_calls(self):
         roles = ("employee", "sales_manager", "hr")
         waves = spike_plan(roles, "synthetic-nonce")
@@ -62,7 +64,7 @@ class ProfileTests(unittest.TestCase):
                                  profile["fixture"]["agent_instructions"].encode("utf-8"))
 
     def setUp(self):
-        self.profile = pack.load_profile("hr_finance")
+        self.profile = pack.load_profile(self.variant)
 
     def binding_and_captures(self, case, replies):
         f = self.profile["fixture"]
@@ -226,6 +228,10 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(report.count("Fix category:"), 9)
 
 
+class HealthcareProfileTests(ProfileTests):
+    variant = "healthcare"
+
+
 class CopyAndForwarderTests(unittest.TestCase):
     def test_knowledge_bucket_grants_only_one_literal_object_without_changing_trust(self):
         import re
@@ -335,11 +341,12 @@ class CopyAndForwarderTests(unittest.TestCase):
 
 
 class PreflightTests(unittest.TestCase):
+    variant = "hr_finance"
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.profile = pack.load_profile("hr_finance")
+        self.profile = pack.load_profile(self.variant)
         self.scope = cli.example(self.profile)
         s = self.scope
         s.update(approved=True, authorization_id="synthetic-scope", region="us-east-1",
@@ -472,7 +479,7 @@ class PreflightTests(unittest.TestCase):
         variants.append(old)
         for key in ("target_binding_sha256", "pilot_id_sha256"):
             wrong = deepcopy(receipt)
-            wrong["qualified_identities"]["hr"][key] = _sha("different-identity-or-agent")
+            wrong["qualified_identities"][self.profile["fixture"]["roles"][-1]][key] = _sha("different-identity-or-agent")
             variants.append(wrong)
         one_role = deepcopy(receipt)
         one_role["waves"][3]["case_counts_by_role"] = {"employee":15,"sales_manager":0,"hr":0}
@@ -495,11 +502,20 @@ class PreflightTests(unittest.TestCase):
 
     def test_configuration_copy_receipt_is_bound_to_exact_separate_sandbox(self):
         self.scope["assessment_subject"] = "configuration_copy"
-        receipt = {"schema": "backbond-quick-configuration-copy/v1.2", "identity_path": "C",
-            "fidelity_attestation_approved": True, "fidelity_attestation_ref": "synthetic-admin://attested",
-            "differences": ["synthetic_sources"], "sandbox_account_sha256": _sha("111122223333"),
-            "sandbox_agent_sha256": _sha("synthetic-agent"), "sandbox_region": "us-east-1",
-            "source_account_sha256": _sha("444455556666")}
+        source = {"Agent": {"AgentId": "production", "Arn": "arn:aws:quicksight:us-east-1:444455556666:agent/production"}}
+        copy_review = {"schema": "backbond-quick-copy-review/v1.2", "approved": True, "identity_path": "C",
+            "export_sha256": copy_digest(source), "no_real_patient_staff_or_secrets": True,
+            "customer_authorization_ref": self.scope["customer_authorization_ref"], "reviewed_by": "synthetic-admin",
+            "sandbox_account_id": "111122223333", "sandbox_agent_id": "synthetic-agent", "synthetic_space_mapping": {}}
+        request, prepared = copy_plan(source, copy_review)
+        created = {"Agent": {**request, "Arn": "arn:aws:quicksight:us-east-1:111122223333:agent/synthetic-agent",
+                             "AgentStatus": "ACTIVE", "AgentLifecycle": "PUBLISHED"}}
+        review = {"schema": "backbond-quick-copy-attestation/v1.2", "approved": True,
+            "created_export_sha256": copy_digest(created), "prepared_receipt_sha256": copy_digest(prepared),
+            "customer_authorization_ref": self.scope["customer_authorization_ref"], "reviewed_by": "synthetic-admin",
+            "fidelity_attestation_ref": "synthetic-admin://attested", "configuration_differences_reviewed": True,
+            "model_profile_equivalence_reviewed": True, "source_permissions_review_ref": self.scope["permission_matrix_ref"]}
+        receipt = attest_copy(created, request, prepared, review)
         path = self.root / "copy.json"
         self.scope["configuration_copy_receipt"] = str(path)
         path.write_text(json.dumps(receipt))
@@ -509,6 +525,167 @@ class PreflightTests(unittest.TestCase):
             path.write_text(json.dumps({**receipt, key: value}))
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, "copy_receipt_target"):
                 cli.preflight(self.scope, self.profile)
+
+        for key, value in (("fidelity_verified_request_sha256", "a" * 64),
+                           ("customer_authorization_ref", "other-customer"),
+                           ("source_permissions_review_ref", "other-permissions"),
+                           ("fidelity_agent_lifecycle", "PREVIEW"), ("model_profile_equivalence_reviewed", False),
+                           ("fidelity_verified_at", "2000-01-01T00:00:00Z")):
+            path.write_text(json.dumps({**receipt, key: value}))
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "copy_fidelity"):
+                cli.preflight(self.scope, self.profile)
+
+        legacy = {k: v for k, v in receipt.items() if not k.startswith("fidelity_verified")}
+        path.write_text(json.dumps(legacy))
+        with self.assertRaisesRegex(ValueError, "copy_fidelity"):
+            cli.preflight(self.scope, self.profile)
+
+
+class HealthcarePreflightTests(PreflightTests):
+    variant = "healthcare"
+
+
+class ConfigurationReadbackTests(unittest.TestCase):
+    def fixture(self, custom=None):
+        source, review = CopyAndForwarderTests().export_and_review()
+        if custom is None:
+            source["Agent"].pop("CustomPromptInterface")
+        else:
+            source["Agent"]["CustomPromptInterface"] = custom
+        review["export_sha256"] = copy_digest(source)
+        request, receipt = copy_plan(source, review)
+        agent = {key: deepcopy(request[key]) for key in ("AgentId", "Name", "Description", "Spaces", "StarterPrompts", "WelcomeMessage", "ActionConnectors")}
+        agent.update(Arn="arn:aws:quicksight:us-east-1:444455556666:agent/" + request["AgentId"],
+                     AgentStatus="ACTIVE", AgentLifecycle="PUBLISHED")
+        if "CustomPromptInput" in request:
+            agent["CustomPromptInterface"] = deepcopy(request["CustomPromptInput"]["NewPrompt"])
+        created = {"Agent": agent}
+        attestation = {"schema": "backbond-quick-copy-attestation/v1.2", "approved": True,
+            "created_export_sha256": copy_digest(created), "prepared_receipt_sha256": copy_digest(receipt),
+            "customer_authorization_ref": receipt["customer_authorization_ref"], "reviewed_by": "synthetic-admin",
+            "fidelity_attestation_ref": "customer://copy-attestation", "source_permissions_review_ref": "customer://permissions",
+            "configuration_differences_reviewed": True, "model_profile_equivalence_reviewed": True}
+        return source, review, request, receipt, created, attestation
+
+    def test_default_and_each_optional_prompt_configuration_reach_a_verified_copy(self):
+        for custom in (None, {}, {"CustomInstructions": ""}, {"Identity": "Synthetic assistant persona"},
+                       {"Tone": "Professional and concise"}, {"OutputStyle": "Plain paragraphs only"},
+                       {"ResponseLength": "Keep responses brief"}, {"CustomInstructions": "Only use approved synthetic sources"}):
+            with self.subTest(fields=custom):
+                _, _, request, receipt, created, review = self.fixture(custom)
+                if not custom or not any(custom.values()):
+                    self.assertNotIn("CustomPromptInput", request)
+                    self.assertIsNone(receipt["copied_instructions_sha256"])
+                final = attest_copy(created, request, receipt, review)
+                self.assertTrue(final["fidelity_attestation_approved"])
+                self.assertEqual(final["fidelity_verified_request_sha256"], copy_digest(request))
+                self.assertEqual(final["target_calls"], 0)
+
+    def test_copy_uses_aws_agent_id_charset_and_rejects_mismatched_source_identity(self):
+        source, review, *_ = self.fixture()
+        review["sandbox_agent_id"] = "synthetic.copy+v2_" + "x" * 230
+        self.assertEqual(copy_plan(source, review)[0]["AgentId"], review["sandbox_agent_id"])
+        source["Agent"]["AgentId"] = "different"
+        review["export_sha256"] = copy_digest(source)
+        with self.assertRaisesRegex(ValueError, "consistent_agent"):
+            copy_plan(source, review)
+
+    def test_invalid_aws_presentation_and_prompt_fields_fail_before_any_creation(self):
+        for key, value in (("StarterPrompts", ["one", "two", "three", "four"]),
+                           ("StarterPrompts", ["x" * 101]), ("WelcomeMessage", "x" * 301),
+                           ("CustomPromptInterface", {"Tone": "tiny"}),
+                           ("CustomPromptInterface", {"CustomInstructions": {"untrusted": "object"}})):
+            source, review, *_ = self.fixture()
+            source["Agent"][key] = value
+            review["export_sha256"] = copy_digest(source)
+            with self.subTest(field=key), self.assertRaises(ValueError):
+                copy_plan(source, review)
+        source, review, *_ = self.fixture()
+        for key, value in (("sandbox_name", " "), ("sandbox_name", "x" * 51),
+                           ("sandbox_agent_id", "x" * 257), ("sandbox_account_id", "١" * 12)):
+            with self.subTest(field=key), self.assertRaises(ValueError):
+                copy_plan(source, {**review, key: value})
+
+    def test_source_free_agent_can_add_only_explicitly_approved_synthetic_fixture_spaces(self):
+        source, review, *_ = self.fixture()
+        source["Agent"].pop("Spaces")
+        review.update(export_sha256=copy_digest(source), synthetic_space_mapping={},
+            additional_synthetic_spaces=["arn:aws:quicksight:us-east-1:444455556666:space/fixture"])
+        request, receipt = copy_plan(source, review)
+        self.assertEqual(request["Spaces"], review["additional_synthetic_spaces"])
+        self.assertEqual(receipt["additional_synthetic_space_count"], 1)
+        self.assertIn("additional_synthetic_spaces_for_approved_test_fixture", receipt["differences"])
+        for spaces in (["arn:aws:quicksight:us-east-1:111122223333:space/production"],
+                       ["arn:aws:quicksight:us-west-2:444455556666:space/other-region"],
+                       review["additional_synthetic_spaces"] * 2,
+                       [f"arn:aws:quicksight:us-east-1:444455556666:space/fixture-{i}" for i in range(11)]):
+            with self.subTest(spaces=spaces), self.assertRaises(ValueError):
+                copy_plan(source, {**review, "additional_synthetic_spaces": spaces, "sandbox_region": "us-east-1"})
+
+    def test_readback_rejects_configuration_changes_even_if_human_approved_the_export(self):
+        for key, value in (("ActionConnectors", ["real-action"]), ("Spaces", []), ("Name", "Different name"),
+                           ("Description", "Different description"),
+                           ("StarterPrompts", ["Changed prompt"]), ("WelcomeMessage", "Changed greeting"),
+                           ("AgentStatus", "FAILED"), ("AgentLifecycle", "PREVIEW"),
+                           ("Arn", "arn:aws:quicksight:us-west-2:444455556666:agent/copy")):
+            _, _, request, receipt, created, review = self.fixture()
+            created["Agent"][key] = value
+            review["created_export_sha256"] = copy_digest(created)
+            with self.subTest(field=key), self.assertRaises(ValueError):
+                attest_copy(created, request, receipt, review)
+
+    def test_readback_prompt_and_service_defaults_require_exact_explicit_review(self):
+        _, _, request, receipt, created, review = self.fixture({"CustomInstructions": "Keep this exact approved instruction"})
+        created["Agent"]["CustomPromptInterface"]["CustomInstructions"] = "Different instruction after creation"
+        review["created_export_sha256"] = copy_digest(created)
+        with self.assertRaisesRegex(ValueError, "created_prompt_differs"):
+            attest_copy(created, request, receipt, review)
+        _, _, request, receipt, created, review = self.fixture()
+        created["Agent"]["CustomPromptInterface"] = {"Identity": "Service supplied default assistant persona"}
+        review["created_export_sha256"] = copy_digest(created)
+        with self.assertRaisesRegex(ValueError, "service_populated_prompt"):
+            attest_copy(created, request, receipt, review)
+        review["additional_default_prompt_fields_reviewed"] = True
+        self.assertEqual(attest_copy(created, request, receipt, review)["fidelity_additional_prompt_fields"], ["Identity"])
+
+    def test_readback_cannot_bless_a_production_space_even_with_rehashed_inputs(self):
+        _, _, request, receipt, created, review = self.fixture()
+        request["Spaces"] = ["arn:aws:quicksight:us-east-1:111122223333:space/production"]
+        created["Agent"]["Spaces"] = request["Spaces"]
+        receipt["sandbox_request_sha256"] = copy_digest(request)
+        review.update(created_export_sha256=copy_digest(created), prepared_receipt_sha256=copy_digest(receipt))
+        with self.assertRaisesRegex(ValueError, "configuration_differs"):
+            attest_copy(created, request, receipt, review)
+
+    def test_readback_refuses_changed_request_receipt_approval_or_export(self):
+        for field, value in (("approved", False), ("created_export_sha256", "a" * 64),
+                             ("prepared_receipt_sha256", "b" * 64), ("customer_authorization_ref", "other-customer"),
+                             ("configuration_differences_reviewed", False), ("model_profile_equivalence_reviewed", False),
+                             ("source_permissions_review_ref", "")):
+            _, _, request, receipt, created, review = self.fixture()
+            review[field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                attest_copy(created, request, receipt, review)
+        _, _, request, receipt, created, review = self.fixture()
+        request["WelcomeMessage"] = "Changed after plan review"
+        with self.assertRaises(ValueError):
+            attest_copy(created, request, receipt, review)
+
+    def test_prepare_and_attest_cli_are_offline_and_preserve_input_files(self):
+        source, review, _, _, created, attestation = self.fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, value in (("source", source), ("review", review), ("created", created), ("attestation", attestation)):
+                (root / (name + ".json")).write_text(json.dumps(value), encoding="utf-8")
+            original = (root / "source.json").read_bytes()
+            self.assertEqual(copy_main(["--export", str(root / "source.json"), "--review", str(root / "review.json"),
+                                       "--output", str(root / "plan")]), 0)
+            self.assertEqual(copy_main(["attest", "--export", str(root / "created.json"), "--review", str(root / "attestation.json"),
+                "--request", str(root / "plan/create-agent.private.json"), "--receipt", str(root / "plan/configuration-copy-receipt.json"),
+                "--output", str(root / "verified")]), 0)
+            self.assertEqual((root / "source.json").read_bytes(), original)
+            final = json.loads((root / "verified/configuration-copy-receipt.json").read_text())
+            self.assertTrue(final["fidelity_attestation_approved"])
 
 
 if __name__ == "__main__":

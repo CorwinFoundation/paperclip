@@ -11,6 +11,11 @@ For the separate 600-case configuration-copy workflow, use
 [the Path C administrator guide](amazon-quick-path-c-admin.md). The 18-case
 commands below do not execute that larger assessment.
 
+The dated [implementation matrix](amazon-quick-implementation-status.md) records
+the accepted synthetic capture and access closeout, distinguishes HR/finance
+from the healthcare variant, and lists the unqualified identity/execution paths.
+Historical measurements below are not authorization to restart a closed run.
+
 ## Browser startup pacing
 
 The batch runner initializes at most three browser sessions at once, with one
