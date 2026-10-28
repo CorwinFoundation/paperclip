@@ -33,6 +33,7 @@ from tools.framework_workers import build_default_framework_workers
 from tools.active_test_registry import _is_countable_active_executable
 from rubric.bands import assign_band
 from scanners import CONTRACT_VERSION
+from tools.assessment_test_catalog import FAMILIES as EVIDENCE_FAMILIES
 
 
 ASYNC_FULL_SCAN_API_VERSION = "scanner-full-scan-async/v0.1"
@@ -1570,7 +1571,7 @@ def validate_full_scan_release_gate(
         row
         for row in active_registry_rows
         if _is_countable_active_executable(row) or (
-            row.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
+            row.get("test_id") in EVIDENCE_FAMILIES
             and row.get("status") == "active"
             and row.get("production_runner_executable") is True
             and _case_id_from_row(row) in {

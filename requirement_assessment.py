@@ -14,6 +14,7 @@ import re
 from typing import Any, Callable, Mapping
 
 from framework_assessment import verify_evidence_bytes
+from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
 
 REGISTRY_PATH = Path(__file__).parent / "rubric" / "requirement_registry.v1.json"
 PLAN_SCHEMA = "requirement-evidence-plan/v1"
@@ -136,6 +137,8 @@ def validate_plan(plan: Mapping[str, Any], registry: Mapping[str, Any]) -> dict[
             trials = spec.get("trials")
             if type(trials) is not int or not 1 <= trials <= 100:
                 raise ValueError("trial count must be an integer from 1 to 100")
+            if spec["test_id"] in RECORD_FAMILIES and trials != 1:
+                raise ValueError("static record reconciliation supports one acquisition per case")
         if applicability != "applicable" and tests:
             raise ValueError("unresolved or excluded requirements cannot schedule tests")
         selected[key] = row
@@ -177,7 +180,7 @@ def _registered_source(body: Mapping[str, Any], plan: Mapping[str, Any], reader:
             or any(marker in str(original.get("execution_mode", "")).lower() for marker in ("fixture", "mock", "offline"))):
         raise ValueError("fixture source cannot become target evidence")
     calls = original.get("budget", {}).get("case_delta", {}).get("target_calls")
-    operational = original.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
+    operational = original.get("test_id") in FAMILIES
     if operational:
         _registered_operational_capture(original, binding, plan)
     elif type(calls) is not int or calls <= 0 or not original.get("responses"):
@@ -219,8 +222,15 @@ def _registered_operational_capture(original, binding, plan):
         calls = original.get("budget", {}).get("case_delta", {}).get("target_calls")
         if type(calls) is not int or calls <= 0 or not 1 <= capture.get("request_count", 0) <= 12:
             raise ValueError("missing bounded target acquisition")
-    elif family == "operational_logging_quality":
-        from evals.oss_pilots.log_quality import measure, passed
+    elif family in RECORD_FAMILIES:
+        from evals.oss_pilots.assessment_records import verify
+        if verify(case, capture, scope=context, observed_at=binding.get("observed_at")) != ("passed" if verdict in PASS else "failed"):
+            raise ValueError("record measurements contradict source verdict")
+    elif family in {"operational_logging_quality", LOG_CHALLENGE_FAMILY}:
+        if family == LOG_CHALLENGE_FAMILY:
+            from evals.oss_pilots.log_challenges import measure, passed
+        else:
+            from evals.oss_pilots.log_quality import measure, passed
         metrics = measure(case, capture, scope=context, recipient_id=plan.get("alert_recipient_id"))
         if metrics != capture.get("measurements") or passed(metrics) != (verdict in PASS):
             raise ValueError("diagnostic measurements contradict source verdict")
@@ -293,8 +303,12 @@ def _observation(ref: Mapping[str, Any], reader: ArtifactReader | None,
         raise ValueError("invalid observation trial index")
     if not _text(body.get("verdict")) or any(not _text(body.get(k)) for k in ("test_id", "case_id", "probe_set_version")):
         raise ValueError("invalid observation identity or result")
+    if body["test_id"] in RECORD_FAMILIES and "source_registered_case" not in body and body["verdict"] in PASS | FAIL:
+        from evals.oss_pilots.assessment_records import verify
+        if verify(body["case_id"], body.get("capture", {}), scope=plan["scope"], observed_at=body["observed_at"]) != ("passed" if body["verdict"] in PASS else "failed"):
+            raise ValueError("record capture contradicts observation verdict")
     if (body["verdict"] in PASS and "source_registered_case" not in body
-            and body["test_id"] in {"operational_oversight", "operational_logging", "operational_logging_quality"}):
+            and body["test_id"] in FAMILIES):
         _operational_pass_capture(body, plan)
     return body
 
@@ -308,8 +322,16 @@ def _operational_pass_capture(body: Mapping[str, Any], plan: Mapping[str, Any]) 
     capture = body.get("capture")
     if not isinstance(capture, Mapping) or capture.get("verdict") not in PASS or body["verdict"] not in PASS:
         raise ValueError("operational pass lacks a consistent capture")
-    if body["test_id"] == "operational_logging_quality":
-        from evals.oss_pilots.log_quality import measure, passed
+    if body["test_id"] in RECORD_FAMILIES:
+        from evals.oss_pilots.assessment_records import verify
+        if verify(body["case_id"], capture, scope=plan["scope"]) not in PASS:
+            raise ValueError("record capture contradicts pass")
+        return
+    if body["test_id"] in {"operational_logging_quality", LOG_CHALLENGE_FAMILY}:
+        if body["test_id"] == LOG_CHALLENGE_FAMILY:
+            from evals.oss_pilots.log_challenges import measure, passed
+        else:
+            from evals.oss_pilots.log_quality import measure, passed
         metrics = measure(body["case_id"], capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
         if not passed(metrics) or metrics != capture.get("measurements"):
             raise ValueError("logging quality capture contradicts the pass")
@@ -368,8 +390,10 @@ def _acquisition(body: Mapping[str, Any]) -> str | None:
         return capture.get("receipt", {}).get("body", {}).get("identity", {}).get("attempt_id")
     if body.get("test_id") == "operational_logging" and capture.get("expected_events"):
         return capture["expected_events"][0].get("batch_id")
-    if body.get("test_id") == "operational_logging_quality" and capture.get("expected_batches"):
+    if body.get("test_id") in {"operational_logging_quality", LOG_CHALLENGE_FAMILY} and capture.get("expected_batches"):
         return capture["expected_batches"][0][0].get("batch_id")
+    if body.get("test_id") in RECORD_FAMILIES:
+        return capture.get("input_document", {}).get("sha256")
     return None
 
 

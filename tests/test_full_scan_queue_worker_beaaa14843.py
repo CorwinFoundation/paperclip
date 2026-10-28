@@ -105,9 +105,10 @@ def test_default_registry_loader_matches_standard_production_count():
     # binds 60 counterfactual-stability rows back into the production census.
     assert count_active_executable(rows) == 2_373
     # Conditional operational receipts execute without increasing the published
-    # measured-test claim; request selection gates the seventeen added cases.
-    assert len(rows) == 2_373 + 17
-    assert sum(row.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"} for row in rows) == 17
+    # measured-test claim; request selection gates the 26 conditional cases.
+    from tools.assessment_test_catalog import FAMILIES
+    assert len(rows) == 2_373 + 26
+    assert sum(row.get("test_id") in FAMILIES for row in rows) == 26
     assert distinct_case_counts(rows)["total"] == 2_372
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)

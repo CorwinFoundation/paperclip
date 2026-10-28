@@ -23,6 +23,7 @@ from typing import Any, Mapping
 import yaml
 
 from harness.bench.corpus_pin import load_probe_set_version
+from tools.assessment_test_catalog import FAMILIES as EVIDENCE_FAMILIES
 
 from tools.construction_integrity_gate import (
     row_blocks_construction_activation,
@@ -134,11 +135,8 @@ REPORTED_NOT_SCORED_COMPATIBILITY_FAMILIES = frozenset(
     {
         "backbond-output-attack-fixtures",
         "crescendo",
-        "operational_oversight",
-        "operational_logging",
-        "operational_logging_quality",
     }
-)
+) | EVIDENCE_FAMILIES
 AIUC_PATH_B_SCORING_ACTIVE_FAMILIES = frozenset(
     {
         "cross_session_data_leak",

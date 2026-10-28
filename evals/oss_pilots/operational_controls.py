@@ -256,11 +256,11 @@ def run_logging_case(case_id: str, capture: Any, *, scope: dict[str, str], recip
 
 def write_observation(directory, plan, *, test_id, case_id, trial_index, execution_kind, result):
     """Create the same URI + SHA-256 evidence references used by Scanner."""
-    from evals.oss_pilots.log_quality import VERSION as QUALITY_VERSION
+    from requirement_assessment import load_registry
     body = {"schema": OBSERVATION_SCHEMA, "assessment_id": plan["assessment_id"],
             "plan_sha256": plan_digest(plan),
             "scope": deepcopy(plan["scope"]), "test_id": test_id, "case_id": case_id,
-            "trial_index": trial_index, "probe_set_version": QUALITY_VERSION if test_id == "operational_logging_quality" else VERSION,
+            "trial_index": trial_index, "probe_set_version": load_registry()["test_catalog"][test_id]["probe_set_version"],
             "verdict": result["verdict"], "observed_at": datetime.now(timezone.utc).isoformat(),
             "execution_kind": execution_kind, "capture": result}
     raw = (json.dumps(body, sort_keys=True, ensure_ascii=True, allow_nan=False) + "\n").encode()

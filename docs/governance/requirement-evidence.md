@@ -245,6 +245,10 @@ restores or all production event sources; those remain explicit future checks.
 
 ## Validation and routing
 
+The additional nine @3 record and diagnostic cases, input contracts and remaining
+customer/integration dependencies are documented in
+[Additional assessment evidence checks](evidence-record-checks.md).
+
 New unit/contract coverage exercises missing trials and documents, changed plans,
 bad hashes, substituted metadata, fixtures, duplicates, scope mismatch, useful
 allowed work, revoked/replayed approval, handoff/rollback state, logging loss,

@@ -570,6 +570,7 @@ class RegisteredCaseExecutor:
         require_durable_transport: bool = False,
         operational_session_factory: Callable[[Any], Any] | None = None,
         operational_log_capture_factory: Callable[[Mapping[str, Any]], Any] | None = None,
+        assessment_record_factory: Callable[[Mapping[str, Any]], Any] | None = None,
         operational_target: tuple[str, str, dict[str, Any]] | None = None,
     ) -> None:
         self.ledger = ScanBudgetLedger(budget)
@@ -588,6 +589,7 @@ class RegisteredCaseExecutor:
                 operational_session_factory(setup), self,
             )
         self.operational_log_capture_factory = operational_log_capture_factory
+        self.assessment_record_factory = assessment_record_factory
         if operational_target is not None and operational_session_factory is None:
             from tools.operational_scan import http_session_factory
             self.operational_session_factory = http_session_factory(
@@ -619,6 +621,7 @@ class RegisteredCaseExecutor:
         return reservation
 
     def manifest_metadata(self) -> dict[str, Any]:
+        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
         return {
             "target_model": self.subject.model_id(),
             "judge_models": [self.judge.model_id()],
@@ -628,6 +631,8 @@ class RegisteredCaseExecutor:
                     ("operational_oversight", self.operational_session_factory),
                     ("operational_logging", self.operational_log_capture_factory),
                     ("operational_logging_quality", self.operational_log_capture_factory),
+                    (LOG_CHALLENGE_FAMILY, self.operational_log_capture_factory),
+                    *((family, self.assessment_record_factory) for family in sorted(RECORD_FAMILIES)),
                 ) if factory is not None
             ],
         }
@@ -644,6 +649,7 @@ class RegisteredCaseExecutor:
 
     def _execute_operational_case(self, test_id, case_id, registry_row):
         from evals.oss_pilots.operational_controls import CASE_BY_ID, run_case, run_logging_case
+        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
 
         if test_id == "operational_oversight":
             if self.operational_session_factory is None:
@@ -657,9 +663,18 @@ class RegisteredCaseExecutor:
             context = {"tenant_id": self.tenant_id,
                        "scan_id": registry_row["scan_id"],
                        "agent_id": registry_row["agent_id"]}
-            adapter = (self.operational_log_capture_factory(context)
-                       if self.operational_log_capture_factory else None)
-            if test_id == "operational_logging_quality":
+            adapter_factory = self.assessment_record_factory if test_id in RECORD_FAMILIES else self.operational_log_capture_factory
+            try:
+                adapter = adapter_factory(context) if adapter_factory else None
+            except Exception:
+                adapter = None  # No adapter credentials or foreign data in errors.
+            if test_id in RECORD_FAMILIES:
+                from evals.oss_pilots.assessment_records import run_case as run_record_case
+                capture = run_record_case(case_id, adapter, scope=context)
+            elif test_id == LOG_CHALLENGE_FAMILY:
+                from evals.oss_pilots.log_challenges import run_case as run_challenge
+                capture = run_challenge(case_id, adapter, scope=context)
+            elif test_id == "operational_logging_quality":
                 from evals.oss_pilots.log_quality import run_case as run_quality_case
                 capture = run_quality_case(case_id, adapter, scope=context,
                                            recipient_id=getattr(adapter, "recipient_id", None))
@@ -858,7 +873,7 @@ class RegisteredCaseExecutor:
             evidence_ref=evidence_ref,
             evidence_sha256=hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
             diagnostic_measurements=(dict(evidence["capture"]["measurements"])
-                if test_id == "operational_logging_quality" and evidence.get("capture", {}).get("measurements") else None),
+                if evidence.get("reported_not_scored") is True and evidence.get("capture", {}).get("measurements") else None),
             incomplete_reason=reason,
             model_version=self.subject.model_id(),
             verdict=verdict,
@@ -919,7 +934,8 @@ class RegisteredCaseExecutor:
         # an MCP surface, and reported the answer as a pass. A conditional
         # family run against a surface it does not apply to is a fabricated
         # result whether or not anyone reads it (directive BEAAA-24008, D.3).
-        if test_id in {"operational_oversight", "operational_logging", "operational_logging_quality"}:
+        from tools.assessment_test_catalog import FAMILIES
+        if test_id in FAMILIES:
             return self._execute_operational_case(test_id, case_id, registry_row)
         resolution = _resolve_applicability(test_id, registry_row)
         if not resolution.applicable:
@@ -2652,6 +2668,7 @@ def build_registered_case_workers(
     judge_factory: Callable[[], ModelRunner] | None = None,
     tau_session_factory: Callable[[Any, int], Any] | None = None,
     operational_log_capture_factory: Callable[[Mapping[str, Any]], Any] | None = None,
+    assessment_record_factory: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> dict[str, RegisteredCaseExecutor]:
     from harness.customer_runner import customer_agent_http_runner_factory
     from tools.framework_worker_registry import WORKERS
@@ -2729,6 +2746,7 @@ def build_registered_case_workers(
         require_durable_transport=operations_scope is not None,
         operational_target=(scan_request.agent_endpoint, secret, getattr(scan_request, "endpoint_config", None) or {}),
         operational_log_capture_factory=operational_log_capture_factory,
+        assessment_record_factory=assessment_record_factory,
     )
     return {worker_id: executor for worker_id in WORKERS}
 

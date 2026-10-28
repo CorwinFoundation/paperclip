@@ -6,9 +6,11 @@ import re
 from typing import Any
 
 from requirement_assessment import build_requirement_assessment, load_registry
+from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+from evals.oss_pilots.assessment_records import METRICS as RECORD_METRICS
 
 DIAGNOSTIC_METRICS = frozenset({"expected_event_count", "captured_event_count", "identity_errors",
-    "payload_errors", "timestamp_errors", "repeat_difference_count", "false_alert_count", "missing_alert_count"})
+    "payload_errors", "timestamp_errors", "repeat_difference_count", "false_alert_count", "missing_alert_count"}) | RECORD_METRICS
 
 
 def build_standard_requirement_report(
@@ -62,8 +64,10 @@ def build_standard_requirement_report(
                     observation[key] = value
         if family == "operational_oversight":
             observation["observation_scope"] = "synthetic scanner-mediated tools; native production controls not evaluated"
-        elif family in {"operational_logging", "operational_logging_quality"}:
+        elif family in {"operational_logging", "operational_logging_quality", LOG_CHALLENGE_FAMILY}:
             observation["observation_scope"] = "scoped synthetic diagnostic log path; retention and production coverage not evaluated"
+        elif family in RECORD_FAMILIES:
+            observation["observation_scope"] = "consistency of supplied reviewed records; authenticity, completeness and adequacy require assessor review"
         for key in ("target_calls", "judge_calls", "duration_ms"):
             if type(source.get(key)) is int and source[key] >= 0:
                 observation[key] = source[key]

@@ -59,10 +59,12 @@ def main(argv=None):
     mode.add_argument("--fixture", choices=("compliant", "unsafe", "refuse_all"))
     mode.add_argument("--target-url", help="Explicitly authorized, self-owned tools-compatible test endpoint")
     mode.add_argument("--export", action="store_true")
+    mode.add_argument("--records-only", action="store_true", help="Reconcile reviewed local records with zero target requests")
     parser.add_argument("--model")
     parser.add_argument("--auth-env")
     parser.add_argument("--max-target-requests", type=int)
     parser.add_argument("--log-adapter", help="Trusted local module:factory for the scoped diagnostic log pipeline")
+    parser.add_argument("--records-directory", type=Path, help="Reviewed JSON input files named CASE-ID.json; operator-local only")
     parser.add_argument("--plan", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
@@ -76,8 +78,10 @@ def main(argv=None):
         parser.error("execution requires an approved --plan")
     if args.target_url and (not args.model or not args.max_target_requests or not 1 <= args.max_target_requests <= 120):
         parser.error("live execution requires --model and --max-target-requests between 1 and 120")
-    if args.fixture and args.log_adapter:
-        parser.error("fixtures cannot use a target log adapter")
+    if args.fixture and (args.log_adapter or args.records_directory):
+        parser.error("fixtures cannot use target log or record adapters")
+    if args.records_only and (not args.records_directory or args.log_adapter):
+        parser.error("--records-only requires --records-directory and cannot emit log events")
     plan = json.loads(args.plan.read_text(encoding="utf-8"))
     registry = load_registry()
     declarations = validate_plan(plan, registry)
@@ -94,6 +98,9 @@ def main(argv=None):
                 if previous and previous != spec:
                     parser.error("shared planned cases must use the same version and trial count")
                 selected[key] = spec
+    from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+    if args.records_only and any(family not in RECORD_FAMILIES for family, _ in selected):
+        parser.error("--records-only requires a plan containing only record checks")
     auth = os.environ.get(args.auth_env) if args.auth_env else None
     if args.auth_env and not auth:
         parser.error("credential environment variable is unset")
@@ -101,7 +108,7 @@ def main(argv=None):
     artifacts = args.output / "artifacts"
     artifacts.mkdir()
     ledger = {"reserved_requests": 0, "max_target_requests": args.max_target_requests,
-              "execution_kind": "scripted_fixture" if args.fixture else "scanner_mediated"}
+              "execution_kind": "scripted_fixture" if args.fixture else "target_capture" if args.records_only else "scanner_mediated"}
     def persist():
         (args.output / "request-ledger.json").write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
         (args.output / "bundle.json").write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
@@ -125,10 +132,25 @@ def main(argv=None):
     if args.log_adapter:
         module, name = args.log_adapter.split(":", 1)
         capture = getattr(importlib.import_module(module), name)()
+    class LocalRecords:
+        def read(self, case_id):
+            # The case ID comes from the validated catalog, never a request path.
+            root = args.records_directory.resolve(strict=True)
+            path = (root / (case_id + ".json")).resolve(strict=True)
+            if path.parent != root or path.stat().st_size > 512 * 1024:
+                raise ValueError("input must remain inside the reviewed directory and size limit")
+            return path.read_bytes()
+    records = LocalRecords() if args.records_directory else None
     for (family, case_id), spec in sorted(selected.items()):
         for trial in range(spec["trials"]):
             if family == "operational_oversight":
                 result = run_case(CASE_BY_ID[case_id], factory, assessment_id=plan["assessment_id"], trial_index=trial)
+            elif family in RECORD_FAMILIES:
+                from evals.oss_pilots.assessment_records import run_case as run_records
+                result = run_records(case_id, records, scope=plan["scope"])
+            elif family == LOG_CHALLENGE_FAMILY:
+                from evals.oss_pilots.log_challenges import run_case as run_challenge
+                result = run_challenge(case_id, capture, scope=plan["scope"])
             elif family == "operational_logging_quality":
                 from evals.oss_pilots.log_quality import run_case as run_quality_case
                 result = run_quality_case(case_id, capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))

@@ -184,7 +184,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # from the reviewed registry; measured and published counts stay unchanged.
     # Evidence expansion adds five scoped log-quality cases, changes their source
     # closure and retains every scoring activation and published count.
-    "72226589a62bd69720ea40efb8a80fb208db2fd9a93a229bfd71880ad00c9964"
+    # PR #1304 adds nine conditional, zero-score evidence cases. Isolated VM
+    # job 122514194748 observed this hash after the unchanged 2373/2373/2372
+    # measured/runtime count assertions passed.
+    "80348870d5480ca76befd904a66f42743045abd62386992c35ea147d67b312f5"
 )
 
 
@@ -214,7 +217,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # excluded-row proof without changing executable counts.
     # Conditional operational cases extend the exclusion proof, not the
     # published measured-test census.
-    assert len(marker["excluded_rows"]) == 148 + 17
+    assert len(marker["excluded_rows"]) == 148 + 26
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

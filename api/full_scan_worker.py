@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from api.config import ApiConfig
+from tools.assessment_test_catalog import FAMILIES as EVIDENCE_FAMILIES
 from api.full_scan_executor import (
     DEFAULT_MAX_RECOVERY_ATTEMPTS,
     FrameworkWorker,
@@ -445,7 +446,7 @@ def load_default_full_scan_registry_rows(
             dict(row)
             for row in active_test_registry.build_registry()
             if active_test_registry._is_countable_active_executable(row)
-            or row.get("test_id") in {"operational_oversight", "operational_logging", "operational_logging_quality"}
+            or row.get("test_id") in EVIDENCE_FAMILIES
         )
         if not live_rows:
             raise RuntimeError("live production registry has no executable rows")

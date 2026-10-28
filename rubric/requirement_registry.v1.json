@@ -1,6 +1,6 @@
 {
   "schema": "requirement-evidence-registry/v1",
-  "baseline_date": "2026-10-27",
+  "baseline_date": "2026-10-28",
   "mapping_status": "engineering draft; licensed normative validation required",
   "test_catalog": {
     "operational_oversight": {
@@ -41,13 +41,80 @@
         "OPS-LOG-REPEAT": "Return the same diagnostic records on two immediate reads; not a retention test.",
         "OPS-ALERT-SELECTIVITY": "Deliver a failure alert to the configured recipient, with no delivered alert for a success-only batch."
       }
+    },
+    "operational_logging_challenges": {
+      "probe_set_version": "operational-log-challenges@1",
+      "case_ids": [
+        "OPS-LOG-INTERLEAVED",
+        "OPS-LOG-EMPTY-LOOKUP",
+        "OPS-LOG-BOUNDARY"
+      ],
+      "case_methods": {
+        "OPS-LOG-INTERLEAVED": "Retrieve two interleaved diagnostic batches independently.",
+        "OPS-LOG-EMPTY-LOOKUP": "Return no records for a never-emitted batch, alongside a positive retrieval control.",
+        "OPS-LOG-BOUNDARY": "Preserve bounded larger typed and Unicode diagnostic payloads without clipping."
+      }
+    },
+    "assessment_risk_traceability": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-RISK-TRACE"
+      ],
+      "case_methods": {
+        "EVID-RISK-TRACE": "Reconcile risk, treatment and verification references, ownership and closure claims."
+      }
+    },
+    "assessment_data_lineage": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-DATA-LINEAGE"
+      ],
+      "case_methods": {
+        "EVID-DATA-LINEAGE": "Reconcile dataset hashes, parent lineage, declared permission references and approved row-quality rules."
+      }
+    },
+    "assessment_evaluation_reconciliation": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-EVAL-RESULTS"
+      ],
+      "case_methods": {
+        "EVID-EVAL-RESULTS": "Recompute exact-match accuracy from labelled rows and bound observations against an approved threshold."
+      }
+    },
+    "assessment_subgroup_coverage": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-SUBGROUP-COVERAGE"
+      ],
+      "case_methods": {
+        "EVID-SUBGROUP-COVERAGE": "Recompute approved subgroup sample coverage and accuracy disparity from bound labelled observations."
+      }
+    },
+    "assessment_change_comparison": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-CHANGE-REGRESSION"
+      ],
+      "case_methods": {
+        "EVID-CHANGE-REGRESSION": "Compare baseline and current exact-match results for the same labelled dataset and probe version."
+      }
+    },
+    "assessment_incident_closure": {
+      "probe_set_version": "assessment-record-checks@1",
+      "case_ids": [
+        "EVID-INCIDENT-CLOSURE"
+      ],
+      "case_methods": {
+        "EVID-INCIDENT-CLOSURE": "Reconcile incident and corrective-action references, closure verification and chronology."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@2",
+      "mapping_version": "backbond-eu-ai-act-evidence@3",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
         "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
@@ -107,7 +174,8 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_risk_traceability"
           ],
           "required_document_ids": [
             "risk-register",
@@ -132,7 +200,9 @@
             "demographic_parity",
             "equal_opportunity",
             "sentiment_skew",
-            "eval_representation"
+            "eval_representation",
+            "assessment_data_lineage",
+            "assessment_subgroup_coverage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -144,7 +214,9 @@
         {
           "control_id": "ART11",
           "candidate_test_ids": [
-            "provenance_chain_of_custody"
+            "provenance_chain_of_custody",
+            "assessment_data_lineage",
+            "assessment_evaluation_reconciliation"
           ],
           "required_document_ids": [
             "technical-documentation"
@@ -155,7 +227,8 @@
           "control_id": "ART12",
           "candidate_test_ids": [
             "operational_logging",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges"
           ],
           "required_document_ids": [
             "target-logging-and-retention-policy"
@@ -168,7 +241,8 @@
             "ai_disclosure",
             "grounded_policy",
             "peril_tool_grounded_factuality",
-            "rag_grounding_retrieval_integrity"
+            "rag_grounding_retrieval_integrity",
+            "assessment_evaluation_reconciliation"
           ],
           "required_document_ids": [
             "instructions-and-measured-limitations"
@@ -225,7 +299,10 @@
             "resource_budget_enforcement",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_evaluation_reconciliation",
+            "assessment_subgroup_coverage",
+            "assessment_change_comparison"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
@@ -265,7 +342,12 @@
             "structured_output_contract_semantics",
             "resource_budget_enforcement",
             "provenance_chain_of_custody",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges",
+            "assessment_risk_traceability",
+            "assessment_data_lineage",
+            "assessment_evaluation_reconciliation",
+            "assessment_change_comparison"
           ],
           "required_document_ids": [
             "qms-process-and-review-record"
@@ -279,7 +361,8 @@
           "control_id": "ART19",
           "candidate_test_ids": [
             "operational_logging",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges"
           ],
           "required_document_ids": [
             "target-log-retention-record"
@@ -288,7 +371,9 @@
         },
         {
           "control_id": "ART20",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_incident_closure"
+          ],
           "required_document_ids": [
             "corrective-action-record"
           ],
@@ -395,7 +480,11 @@
             "rag_grounding_retrieval_integrity",
             "hallucination_legal",
             "p1_1_factuality_golden",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges",
+            "assessment_evaluation_reconciliation",
+            "assessment_change_comparison",
+            "assessment_incident_closure"
           ],
           "required_document_ids": [
             "post-market-monitoring-plan-and-review"
@@ -408,7 +497,8 @@
         {
           "control_id": "ART73",
           "candidate_test_ids": [
-            "operational_logging"
+            "operational_logging",
+            "assessment_incident_closure"
           ],
           "required_document_ids": [
             "incident-reporting-process-and-drill"
@@ -420,7 +510,7 @@
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@2",
+      "mapping_version": "backbond-iso42001-evidence@3",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -510,7 +600,8 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_risk_traceability"
           ],
           "required_document_ids": [
             "ISO42001.6.1.2.customer-record"
@@ -522,7 +613,9 @@
         },
         {
           "control_id": "6.1.3",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_risk_traceability"
+          ],
           "required_document_ids": [
             "ISO42001.6.1.3.customer-record"
           ],
@@ -550,7 +643,8 @@
             "peril_tool_grounded_factuality",
             "rag_grounding_retrieval_integrity",
             "hallucination_legal",
-            "p1_1_factuality_golden"
+            "p1_1_factuality_golden",
+            "assessment_evaluation_reconciliation"
           ],
           "required_document_ids": [
             "ISO42001.6.2.customer-record"
@@ -562,7 +656,9 @@
         },
         {
           "control_id": "6.3",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_change_comparison"
+          ],
           "required_document_ids": [
             "ISO42001.6.3.customer-record"
           ],
@@ -650,7 +746,8 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_risk_traceability"
           ],
           "required_document_ids": [
             "ISO42001.8.2.customer-record"
@@ -687,7 +784,8 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_risk_traceability"
           ],
           "required_document_ids": [
             "ISO42001.8.3.customer-record"
@@ -726,7 +824,10 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_evaluation_reconciliation",
+            "assessment_subgroup_coverage",
+            "assessment_change_comparison"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
@@ -781,7 +882,8 @@
             "concurrent_shared_state_isolation",
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
-            "resource_budget_enforcement"
+            "resource_budget_enforcement",
+            "assessment_incident_closure"
           ],
           "required_document_ids": [
             "ISO42001.10.2.customer-record"
@@ -909,7 +1011,8 @@
             "demographic_parity",
             "equal_opportunity",
             "sentiment_skew",
-            "eval_representation"
+            "eval_representation",
+            "assessment_subgroup_coverage"
           ],
           "required_document_ids": [
             "impact-assessment"
@@ -940,7 +1043,8 @@
             "rag_grounding_retrieval_integrity",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_data_lineage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -958,7 +1062,8 @@
             "rag_grounding_retrieval_integrity",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_data_lineage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -976,7 +1081,9 @@
             "rag_grounding_retrieval_integrity",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_data_lineage",
+            "assessment_subgroup_coverage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -994,7 +1101,8 @@
             "rag_grounding_retrieval_integrity",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_data_lineage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -1012,7 +1120,8 @@
             "rag_grounding_retrieval_integrity",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_data_lineage"
           ],
           "required_document_ids": [
             "data-provenance-and-quality"
@@ -1049,7 +1158,8 @@
             "ai_disclosure",
             "human_escalation_flagging",
             "operational_oversight",
-            "operational_logging"
+            "operational_logging",
+            "assessment_incident_closure"
           ],
           "required_document_ids": [
             "stakeholder-information"
@@ -1228,7 +1338,8 @@
             "resource_budget_enforcement",
             "credential_secret_output_log_handling",
             "cross_session_data_leak",
-            "data_containment_transformed_exfiltration"
+            "data_containment_transformed_exfiltration",
+            "assessment_evaluation_reconciliation"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
@@ -1240,7 +1351,9 @@
         },
         {
           "control_id": "A.6.2.5",
-          "candidate_test_ids": [],
+          "candidate_test_ids": [
+            "assessment_change_comparison"
+          ],
           "required_document_ids": [
             "deployment-acceptance"
           ],
@@ -1269,7 +1382,10 @@
             "context_truncation_fail_safe",
             "structured_output_contract_semantics",
             "resource_budget_enforcement",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges",
+            "assessment_evaluation_reconciliation",
+            "assessment_change_comparison"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"
@@ -1293,7 +1409,8 @@
           "control_id": "A.6.2.8",
           "candidate_test_ids": [
             "operational_logging",
-            "operational_logging_quality"
+            "operational_logging_quality",
+            "operational_logging_challenges"
           ],
           "required_document_ids": [
             "target-logging-and-retention-policy"

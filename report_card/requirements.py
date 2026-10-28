@@ -42,7 +42,8 @@ def render_requirements(score):
         '<section class="requirements-evidence"><div class="section-title">Requirement Evidence Mapping</div>'
         '<p>Engineering draft. Reported scan verdicts are metadata; evidence bytes and requirement '
         'applicability have not been verified by this crosswalk. Certification and conformity are not assessed. '
-        'Operational tool observations concern the synthetic scanner workspace. Unobserved tests may be '
+        'Operational tool observations concern the synthetic scanner workspace. Record checks reconcile supplied '
+        'material; source authenticity, completeness and substantive adequacy require review. Unobserved tests may be '
         'outside the selected pack or unsupported by the configured interface. Licensed standard text, '
         'organizational documents and assessor review are still required.</p>' + _inventory(report) + "".join(sections) + '</section>'
     )
@@ -58,6 +59,7 @@ def _inventory(report):
         rows.append("<tr>" + "".join(f"<td>{escape(str(v))}</td>" for v in (
             f'{item["test_id"]}/{item["case_id"]}', item.get("case_version", "Version not reported"),
             item["reported_verdict"], item.get("method", "See the versioned source test and artifact"),
+            item.get("observation_scope", "See the versioned method and source evidence"),
             "; ".join(f"{k}: {v}" for k, v in sorted(metrics.items())),
             item.get("artifact_uri", "Artifact reference missing"), item.get("sha256", "Digest not reported"),
         )) + "</tr>")
@@ -67,5 +69,5 @@ def _inventory(report):
         '<p>Fingerprints and measurements below are reported metadata. This report has not verified original bytes. '
         'An approved scope and the operator evidence-pack export are required for assessor review.</p>'
         '<table style="width:100%; table-layout:fixed; overflow-wrap:anywhere"><thead><tr>'
-        '<th>Case</th><th>Version</th><th>Outcome</th><th>Method</th><th>Diagnostic measurements</th>'
+        '<th>Case</th><th>Version</th><th>Outcome</th><th>Method</th><th>Observation scope</th><th>Diagnostic measurements</th>'
         '<th>Artifact</th><th>Reported SHA-256</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table></details>')

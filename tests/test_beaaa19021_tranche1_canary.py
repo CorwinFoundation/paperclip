@@ -555,7 +555,9 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     # Isolated VM run 40523414768 observed this digest after the unchanged
     # 180 target / 0 judge, family, redaction and zero-weight assertions passed.
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
-        "93ca5ced670768b8f5bff63f95721d6be0358b02fe360aefc1b280e7eb7c056c"
+        # PR #1304's isolated VM job 122514194754 observed this after the
+        # unchanged 180 target / 0 judge, redaction and zero-weight assertions.
+        "fabd62a3c876c57dd3b4f84448db20faf851016cf0a33dceb158b763ec1087e5"
     )
 
 

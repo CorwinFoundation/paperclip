@@ -54,6 +54,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlsplit
+from tools.assessment_test_catalog import FAMILIES as EVIDENCE_FAMILIES
 
 # Verbatim T7 / BEAAA-546 alias — no fork, no copy.
 from api.ci_scan_ext import (
@@ -246,7 +247,7 @@ def _append_report_only_manifest_evidence(
         if (
             not isinstance(row, Mapping)
             or row.get("disposition") != "report-only"
-            or row.get("test_id") not in {"tau_support_crm", "operational_oversight", "operational_logging", "operational_logging_quality"}
+            or row.get("test_id") not in ({"tau_support_crm"} | EVIDENCE_FAMILIES)
         ):
             continue
         refs.append(

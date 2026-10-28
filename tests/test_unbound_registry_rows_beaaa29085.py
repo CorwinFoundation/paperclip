@@ -8,6 +8,7 @@ import json
 import pytest
 
 from tools.active_test_registry import build_registry
+from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
 
 
 UNBOUND_FAMILIES: set[str] = set()
@@ -37,6 +38,8 @@ def test_unbound_override_preserves_pinned_out_of_scope_family_counts():
     assert {family: counts.pop(family) for family in (
         "operational_oversight", "operational_logging", "operational_logging_quality",
     )} == {"operational_oversight": 8, "operational_logging": 4, "operational_logging_quality": 5}
+    assert counts.pop(LOG_CHALLENGE_FAMILY) == 3
+    assert {family: counts.pop(family) for family in RECORD_FAMILIES} == {family: 1 for family in RECORD_FAMILIES}
     serialized = json.dumps(
         dict(sorted(counts.items())), sort_keys=True, separators=(",", ":")
     ).encode()

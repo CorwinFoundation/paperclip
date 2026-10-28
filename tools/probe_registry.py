@@ -35,8 +35,11 @@ FRAMEWORK_PINS = {
 SOURCE_INPUTS = [
     "tools/active_test_registry.py",
     "tools/operational_scan.py",
+    "tools/assessment_test_catalog.py",
     "evals/oss_pilots/operational_controls.py",
     "evals/oss_pilots/log_quality.py",
+    "evals/oss_pilots/log_challenges.py",
+    "evals/oss_pilots/assessment_records.py",
     "rubric/requirement_registry.v1.json",
     "rubric/probe_mappings/*.yaml",
     "corpus/**",
