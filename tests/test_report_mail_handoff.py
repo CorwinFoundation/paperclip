@@ -13,6 +13,39 @@ spec.loader.exec_module(handoff)
 
 
 class HandoffTest(unittest.TestCase):
+    def test_extracted_worker_compiles_without_running_issuer(self):
+        import ast
+        tree = ast.parse(Path(handoff.__file__).read_text())
+        assignment = next(node for node in ast.walk(tree)
+                          if isinstance(node, ast.Assign)
+                          and any(isinstance(t, ast.Name) and t.id == 'worker' for t in node.targets))
+        worker = eval(compile(ast.Expression(assignment.value), '<extract>', 'eval'),
+                      {'Path': Path, '__file__': handoff.__file__})
+        compile(worker, '<container-worker>', 'exec')
+        self.assertIn('print(json.dumps(issue_packet()))', worker)
+
+    def test_failure_diagnostics_show_cause_and_hide_packet(self):
+        import contextlib
+        import io
+        secret = 'S' * 64
+        exc = subprocess.CalledProcessError(1, ['docker', secret],
+            output=b'private exported grant',
+            stderr=('old line\n' * 20 + 'ValueError: maintained runtime store mismatch\n'
+                    + 'bearer=short-secret ' + secret).encode())
+        output = io.StringIO()
+        with contextlib.redirect_stderr(output):
+            handoff.report_failure(exc)
+            handoff.report_failure(ValueError('maintained issuer store is missing'))
+            handoff.report_failure(KeyError('short-secret'))
+        diagnostic = output.getvalue()
+        self.assertIn('CalledProcessError: container command exited with status 1', diagnostic)
+        self.assertIn('ValueError: maintained runtime store mismatch', diagnostic)
+        self.assertIn('ValueError: maintained issuer store is missing', diagnostic)
+        self.assertNotIn(secret, diagnostic)
+        self.assertNotIn('short-secret', diagnostic)
+        self.assertNotIn('private exported grant', diagnostic)
+        self.assertLessEqual(diagnostic.count('old line'), 10)
+
     def test_retry_preserves_grant_and_unrelated_identity(self):
         from api.edge_gateway import KeyStore
         with tempfile.TemporaryDirectory() as directory:

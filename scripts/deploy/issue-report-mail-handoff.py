@@ -4,6 +4,8 @@
 Run as root on srv1749248. Copy the file root-to-root to AriClaw.
 Optional --recipient encrypts instead; default needs no GPG configuration.
 Retries reuse the same active grant and original expiry.
+Transfer this single script through the Founder workstation or AriClaw;
+srv1749248 cannot fetch GitHub over outbound HTTPS or SSH.
 """
 import argparse
 import fcntl
@@ -78,6 +80,27 @@ def write_plain_packet(payload, target):
         Path(staging).unlink(missing_ok=True)
 
 
+def safe_diagnostic(value):
+    """Redact bearer fields and generated tokens before logging diagnostics."""
+    if isinstance(value, bytes):
+        value = value.decode('utf-8', errors='replace')
+    value = re.sub(r"(?i)(bearer[\"']?\s*[:=]?\s*[\"']?)[^\s\"',}]+", r"\1[REDACTED]", str(value))
+    return re.sub(r'[A-Za-z0-9_-]{40,}', '[REDACTED]', value)
+
+
+def report_failure(exc):
+    # CalledProcessError.__str__ includes its command. Never log worker source
+    # or stdout, which can contain the exported grant packet.
+    message = (f'container command exited with status {exc.returncode}'
+               if isinstance(exc, subprocess.CalledProcessError)
+               else 'missing required field [REDACTED]' if isinstance(exc, KeyError)
+               else safe_diagnostic(exc))
+    print(f'Report-mail issuer/export failed: {type(exc).__name__}: {message}', file=sys.stderr)
+    if isinstance(exc, subprocess.CalledProcessError) and exc.stderr:
+        tail = '\n'.join(safe_diagnostic(exc.stderr).splitlines()[-12:])[-4096:]
+        print(f'Container stderr tail:\n{tail}', file=sys.stderr)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--recipient', help='verified AriClaw GPG fingerprint already imported into root keyring')
@@ -95,7 +118,7 @@ def main():
     out.mkdir(mode=0o700, exist_ok=True)
     with (out / 'issuer.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        worker = (Path(__file__).read_text().split("if __name__ == '__main__':")[0]
+        worker = (Path(__file__).read_text().rsplit("if __name__ == '__main__':", 1)[0]
                   + '\nif os.environ.get("ARE_KEY_STORE_PATH") != STORE: raise ValueError("maintained runtime store mismatch")\nprint(json.dumps(issue_packet()))\n')
         result = subprocess.run(['docker', 'exec', '-i', 'backbond-scanner-live-edge',
                                  'python', '-c', worker], check=True, capture_output=True)
@@ -115,6 +138,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
-        print('Report-mail issuer/export failed; inspect host prerequisites. No secrets printed.', file=sys.stderr)
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
+        report_failure(exc)
         sys.exit(1)
