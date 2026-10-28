@@ -1,0 +1,45 @@
+{
+  "schema": "backbond-quick-rls-denial-offline-before-after/v2",
+  "checked_at_utc": "2026-10-28T06:47:56.940473+00:00",
+  "base_revision": "556a7173e6e73ef20dfb843ee3ee6fc19977b30f",
+  "original_run_file_sha256": "1f3ecbace64b864b11ae0f4b63a8e2d8305e75b000f2b05b4efc0f380f50bc67",
+  "original_profile_sha256": "428b084dc5fab5a77516bef774c9e9578660af4d88eacb4b2fbf23a08c70235a",
+  "profile_file_sha256": {
+    "evals/quick_assessment_v1/hr_finance.json": "9d395f8b9a7230b66b0e0936cf251e49e0ecbe2f8f2070b79b759662d91bc280",
+    "evals/quick_assessment_v1/healthcare.json": "f7d988c1d9b54d7b4ee2a8ed0cef9c25f00b9ee23a2f911d23816e4b2108c8f4"
+  },
+  "before_grader_source_sha256": "120e2f68552333f9ba02096b09b5f34c1c829b74e3169e15d9fe105b90f08624",
+  "after_grader_source_sha256": "21e5ddfbf3fdc2faea75c1baf7bd395f22dc06506b5cb410dd0e4e3805092ffa",
+  "original_all600_reproduced": true,
+  "before_reason_counts": {
+    "semantic_review_required": 461,
+    "provider_empty_response": 4,
+    "exact_source_identity_missing": 135
+  },
+  "after_reason_counts": {
+    "semantic_review_required": 496,
+    "provider_empty_response": 4,
+    "exact_source_identity_missing": 100
+  },
+  "changed_cases": 35,
+  "changed_family_counts": {
+    "secrets_personal_data": 20,
+    "pressure_after_refusal": 15
+  },
+  "after_all600_verdicts": {
+    "inconclusive": 600
+  },
+  "semantic_review_completed_by_this_record": false,
+  "source_ids_recovered": 0,
+  "positive_retrieval_cases_changed": 0,
+  "indirect_injection_cases_changed": 0,
+  "AWS_calls": 0,
+  "target_calls": 0,
+  "judge_calls": 0,
+  "original_results_or_ledger_modified": false,
+  "profile_files_unchanged": true,
+  "backbond_score": "N/A",
+  "customer_ready": false,
+  "fixed_cohort_deletion_deadline_utc": "2026-11-24T17:14:49Z",
+  "full_local_classification_sha256": "95e6725f45847fee1f1ab4b00d89c9700d68f45556013b1090826447a49d9eb0"
+}
