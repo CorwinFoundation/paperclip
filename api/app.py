@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from api.webhook_outbox import WebhookOutbox
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI, Header, HTTPException, Request
 from release_identity import RELEASE_IDENTITY
 from fastapi.responses import JSONResponse
@@ -691,6 +692,28 @@ def create_app(
         if status != 200:
             raise _http_error(status, payload)
         return payload
+
+    @app.post("/scanner/v1/scans/{scan_id}/retry-report")
+    async def post_scan_report_retry(request: Request, scan_id: str) -> Any:
+        authenticated_tenant_id = _authenticated_tenant_id(
+            request, runtime_profile,
+            governed_scope="POST /scanner/v1/scans/{scan_id}/retry-report",
+        )
+        if app.state.scan_runtime is None:
+            raise _http_error(503, "scan_runtime_unconfigured")
+        try:
+            result = await run_in_threadpool(
+                app.state.scan_runtime.retry_report,
+                scan_id, tenant_id=authenticated_tenant_id,
+            )
+        except HandlerError as exc:
+            raise _http_error(exc.status, exc.message) from exc
+        failed = str(result.incomplete_reason or "").startswith("report_preparation_error:")
+        return {
+            "scan_id": scan_id,
+            "report_status": "failed" if failed else "prepared",
+            "report_retry_allowed": failed,
+        }
 
     @app.get("/scanner/v1/scans/{scan_id}/progress")
     async def get_scan_progress(request: Request, scan_id: str) -> Any:

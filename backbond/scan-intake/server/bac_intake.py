@@ -32,6 +32,13 @@ def safe_progress(value):
                    "incomplete", "error", "execution", "report_preparation", "unknown"}
         if isinstance(value.get(key), str) and value[key] in allowed:
             result[key] = value[key]
+    if value.get("failed_stage") == "report_preparation":
+        result["failed_stage"] = "report_preparation"
+        for key in ("execution_completed", "report_retry_allowed", "retry_allowed"):
+            if type(value.get(key)) is bool:
+                result[key] = value[key]
+        if value.get("report_status") == "failed":
+            result["report_status"] = "failed"
     for key in ("processed_count", "accepted_pack_total", "usable_count", "unavailable_count"):
         item = value.get(key)
         if type(item) is int and 0 <= item <= 100000:
@@ -328,7 +335,7 @@ class BACIntake:
 
         ``on_finished(request_id, scan_id)`` runs for a finished scan bound to an acknowledged
         case (every revisit; the hook must be idempotent). Its failures never block capture."""
-        from qa_service import translate_callback
+        from qa_service import translate_callback, report_failure
         now = time.time() if now is None else now
         with self.lock:
             self.db.execute('BEGIN IMMEDIATE')
@@ -342,7 +349,7 @@ class BACIntake:
             row = store.scan(scan_id)
             if not row:
                 continue
-            if row['status'] in {'running', 'dispatch_unknown'} and row['scanner_id'] and fetch_terminal:
+            if (row['status'] in {'running', 'dispatch_unknown'} or report_failure(row)) and row['scanner_id'] and fetch_terminal:
                 try:
                     value = fetch_terminal(dict(row))
                     if (isinstance(value, dict) and value.get('scan_id') == row['scanner_id']
@@ -356,7 +363,10 @@ class BACIntake:
                         value = dict(value)
                         if value.get('partial_completion'):
                             value['incomplete'] = True
-                        queue.callback(row['scanner_id'], translate_callback(value))
+                        if report_failure(row):
+                            store.refresh_report_failure(scan_id, row['scanner_id'], value)
+                        else:
+                            queue.callback(row['scanner_id'], translate_callback(value))
                         row = store.scan(scan_id)
                 except Exception:
                     pass  # Unknown/foreign/malformed state never completes or redispatches.

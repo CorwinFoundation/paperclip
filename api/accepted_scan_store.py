@@ -36,7 +36,7 @@ import json
 import sqlite3
 import threading
 import time
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping
@@ -98,6 +98,11 @@ CREATE TABLE IF NOT EXISTS scan_case_progress (
 );
 CREATE INDEX IF NOT EXISTS ix_scan_case_progress_scan_activity
     ON scan_case_progress (scan_id, last_activity_at);
+
+CREATE TABLE IF NOT EXISTS scan_execution_checkpoints (
+    scan_id TEXT PRIMARY KEY REFERENCES accepted_scans(scan_id) ON DELETE CASCADE,
+    result_json TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS webhook_outbox (
     idempotency_key    TEXT PRIMARY KEY,
@@ -466,8 +471,11 @@ class AcceptedScanStore:
         remaining = max(0, total - processed)
         eta = remaining / observed_rate if observed_rate else None
         result = json.loads(scan["result_json"]) if scan["result_json"] else None
+        report_failed = str((result or {}).get("incomplete_reason") or "").startswith("report_preparation_error:")
         terminal_status = str((result or {}).get("status") or "")
-        if scan["state"] == STATUS_ACCEPTED:
+        if report_failed:
+            state = "incomplete"
+        elif scan["state"] == STATUS_ACCEPTED:
             state = "queued"
         elif scan["state"] == STATUS_RUNNING:
             state = "running"
@@ -490,9 +498,13 @@ class AcceptedScanStore:
         return {
             "scan_id": scan_id,
             "state": state,
+            **({"failed_stage": "report_preparation", "execution_completed": True,
+                "report_status": "failed", "report_retry_allowed": True,
+                "retry_allowed": False} if report_failed else {}),
             "phase": "report_preparation" if terminal and state != "error" else "execution",
             "stage_label": (
-                "Preparing report" if state in {"finished", "incomplete"}
+                "Scan completed; report preparation failed" if report_failed
+                else "Preparing report" if state in {"finished", "incomplete"}
                 else "Scan stopped" if state == "error"
                 else stage_labels.get(current["state"] if current else "queued", "Evidence checks")
             ),
@@ -555,6 +567,33 @@ class AcceptedScanStore:
                     scan_id,
                 ),
             )
+
+    def checkpoint_execution(self, scan_id: str, result: ScanResult) -> None:
+        """Retain report inputs before any report preparation can fail.
+
+        First write wins: report retries must use the original execution.
+        This private journal includes case evidence, never endpoint credentials.
+        """
+        record = result_to_record(result)
+        record["evidence_records"] = [dict(row) for row in result.evidence_records]
+        with self._write() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO scan_execution_checkpoints VALUES (?, ?)",
+                (scan_id, json.dumps(record, sort_keys=True)),
+            )
+
+    def execution_checkpoint(self, scan_id: str, *, tenant_id: str) -> ScanResult | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT c.result_json FROM scan_execution_checkpoints c "
+                "JOIN accepted_scans a ON a.scan_id=c.scan_id "
+                "WHERE c.scan_id=? AND a.tenant_id=?", (scan_id, tenant_id),
+            ).fetchone()
+        if row is None:
+            return None
+        record = json.loads(row[0])
+        return replace(result_from_record(record),
+                       evidence_records=tuple(record.get("evidence_records") or ()))
 
     def get(self, scan_id: str) -> dict[str, Any] | None:
         with self._lock:

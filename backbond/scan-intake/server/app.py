@@ -29,7 +29,7 @@ from qa_runtime import DispatchNotSent, DispatchUnknown, QueueFull, ScanQueue
 from report_release import ReportRelease, RevisionTampered
 
 from qa_service import (Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
-                        safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
+                        report_failure, safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
 
 DB_PATH = os.environ.get("QA_DB_PATH", "/var/lib/backbond-qa/qa.sqlite")
 SCANNER_URL = os.environ.get("QA_SCANNER_URL", "https://scanner.backbond.ai/scanner/v1")
@@ -753,10 +753,39 @@ def _status(token: str) -> dict:
     return value
 
 
+@app.post("/scan/v1/retry-report")
+def retry_report(body: StatusRequest):
+    # Resolve both identity and tenant from the reservation, never from request fields.
+    scan_id = _status(body.status_token)['scan_id']
+    with store._lock:
+        row = store.scan(scan_id)
+        if not report_failure(row) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', row['scanner_id'] or ''):
+            raise HTTPException(409, "report retry unavailable")
+        headers = _headers({'tenant_id': 'partner-' + row['partner']})
+        if not headers:
+            raise HTTPException(503, "report retry unavailable")
+        try:
+            response = httpx.post(f"{SCANNER_URL}/scans/{row['scanner_id']}/retry-report",
+                                  headers=headers, timeout=60, follow_redirects=False)
+            if response.status_code != 200:
+                raise HTTPException(503, "report retry unavailable")
+            # Retry response is a receipt; read the existing customer result contract.
+            value = _terminal_scan(row)
+            if isinstance(value, dict):
+                store.refresh_report_failure(scan_id, row['scanner_id'], value)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(503, "report retry unavailable") from None
+    _worker_wakeup.set()
+    return {**_status(body.status_token), 'progress': _engine_progress(scan_id)}
+
+
 _PROGRESS_FIELDS = {
     "state", "phase", "stage_label", "processed_count", "accepted_pack_total",
     "usable_count", "unavailable_count", "timing", "heartbeat_at", "updated_at",
     "last_activity_at", "current_test_id", "current_family",
+    "failed_stage", "execution_completed", "report_status", "report_retry_allowed", "retry_allowed",
 }
 
 
@@ -786,12 +815,31 @@ def _engine_progress(scan_id: str) -> dict:
         tests = json.loads(row['tests_json'] or '[]')
         usable = sum(t.get('verdict') in {'pass', 'fail'} for t in tests)
         state = 'error' if row['outcome'] == 'failed' else 'incomplete' if row['outcome'] == 'incomplete' else 'finished'
-        value = {'state': state, 'phase': 'finished', 'stage_label': 'Results ready',
+        label = {'error': 'Scan failed', 'incomplete': 'Scan stopped before completion',
+                 'finished': 'Results ready'}[state]
+        value = {'state': state, 'phase': 'finished', 'stage_label': label,
                 'processed_count': len(tests),
                 'usable_count': usable, 'unavailable_count': len(tests) - usable,
                 'updated_at': row['finished_at'], 'last_activity_at': row['finished_at']}
+        # A report failure occurs after execution. Keep its evidence counters and
+        # distinguish report-only recovery from submitting another scan.
+        if str(dict(row).get('incomplete_reason') or '').startswith('report_preparation_error:'):
+            value.update(state='incomplete', phase='report_preparation',
+                         stage_label='Scan completed; report preparation failed',
+                         failed_stage='report_preparation', execution_completed=True, report_status='failed',
+                         report_retry_allowed=True, retry_allowed=False)
         # Terminal totals come only from recorded Scanner progress, never the pack name (f7dfa14ba).
-        accepted_total = (findings if findings.accepted_scope(scan_id) else bac).latest_progress(scan_id).get('accepted_pack_total')
+        observed = (findings if findings.accepted_scope(scan_id) else bac).latest_progress(scan_id)
+        # Failed runs may carry no report rows. Retain the last confirmed counters
+        # as one snapshot, so processed = usable + unavailable remains consistent.
+        if state in {'error', 'incomplete'}:
+            counters = {key: observed.get(key) for key in
+                        ('processed_count', 'usable_count', 'unavailable_count')}
+            if (all(type(n) is int and n >= 0 for n in counters.values())
+                    and counters['processed_count'] == counters['usable_count'] + counters['unavailable_count']
+                    and counters['processed_count'] >= value['processed_count']):
+                value.update(counters)
+        accepted_total = observed.get('accepted_pack_total')
         if accepted_total is not None:
             value['accepted_pack_total'] = accepted_total
         return value

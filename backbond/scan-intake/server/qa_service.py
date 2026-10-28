@@ -317,6 +317,26 @@ class IntakeStore:
         return token
 
     @synchronized
+    def refresh_report_failure(self, scan_id: str, scanner_id: str, payload: dict) -> bool:
+        """Refresh only the report outcome of an identical, completed execution."""
+        row = self.scan(scan_id)
+        if not row or row['scanner_id'] != scanner_id or payload.get('scan_id') != scanner_id:
+            raise IntakeError("scan/scanner binding mismatch")
+        if not report_failure(row):
+            return False
+        translated = translate_callback(payload)
+        meta = translated['meta']
+        if meta['outcome'] != 'complete' or meta['pack_version'] != row['pack_version']:
+            return False
+        # Report preparation must never rewrite execution evidence or accepted scope.
+        if translated['tests'] != json.loads(row['tests_json'] or '[]'):
+            raise IntakeError("recovered execution evidence mismatch")
+        self.db.execute("UPDATE scans SET outcome='complete',incomplete_reason=NULL WHERE id=? "
+                        "AND status='finished' AND incomplete_reason LIKE 'report_preparation_error:%'",
+                        (scan_id,))
+        return True
+
+    @synchronized
     def reconcile_failed(self, scan_id: str, scanner_id: str, reason: str,
                          *, now: str | None = None) -> str:
         """Idempotently apply an independently verified zero-row terminal failure."""
@@ -499,7 +519,7 @@ class IntakeStore:
     def status(self, token: str) -> dict | None:
         if not isinstance(token, str) or not re.fullmatch(r'[A-Za-z0-9_-]{20,64}', token):
             return None
-        row = self.db.execute("""SELECT s.id, s.status, s.outcome, s.created_at, s.finished_at, m.status AS mail
+        row = self.db.execute("""SELECT s.id, s.status, s.outcome, s.incomplete_reason, s.created_at, s.finished_at, m.status AS mail
           FROM scans s LEFT JOIN mail_outbox m ON m.scan_id=s.id WHERE s.status_token_hash=?""",
           (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
         if not row:
@@ -511,7 +531,7 @@ class IntakeStore:
             status = "error"
         return {"scan_id": row["id"], "status": status, "created_at": row["created_at"],
                 "finished_at": row["finished_at"], "report_emailed": row["mail"] == "sent",
-                "retry_allowed": row["outcome"] == "failed"}
+                "retry_allowed": row["outcome"] == "failed" and not str(row["incomplete_reason"] or "").startswith("report_preparation_error:")}
 
     @synchronized
     def delete_by_status_token(self, token: str) -> bool:
@@ -730,3 +750,8 @@ class RateGate:
             for hits in buckets:
                 hits.append(now)
             return True
+
+
+def report_failure(row):
+    return bool(row and row['status'] == 'finished' and
+                str(row['incomplete_reason'] or '').startswith('report_preparation_error:'))

@@ -376,6 +376,73 @@ if [ "${1:-}" = export-evidence ]; then
   exit 0
 fi
 
+# BEAAA-43929: fixed incident only; exports originals before any report retry.
+if [ "${1:-}" = report-incident ]; then
+  [ "$#" = 1 ] || die 'usage: scanner-deploy report-incident'
+  work="$(mktemp -d)"
+  trap 'rm -rf -- "$work"' EXIT
+  "$DOCKER" logs --timestamps --since 2026-10-27T16:26:38Z --until 2026-10-27T16:27:00Z "$CONTAINER" >"$work/worker.log" 2>&1
+  python3 - "$FULL_SCAN_JOB_STORE" "${SCANNER_INCIDENT_INTAKE_DB:-/var/lib/backbond-qa/qa.sqlite}" "$work" "$EVIDENCE_STATE_DIR" <<'PYINCIDENT'
+import hashlib, json, pathlib, sqlite3, sys, tarfile
+jobs, intake, output, state = sys.argv[1:]
+out = pathlib.Path(output)
+refs = {'BB-e4b6027ddf30702e50ad', 'BB-3a7834acc868c5dcebaf'}
+matched = []
+ids = set()
+def connect(path):
+    if pathlib.Path(path).is_symlink():
+        raise SystemExit('incident database is a symlink')
+    return sqlite3.connect(pathlib.Path(path).as_uri() + '?mode=ro', uri=True)
+# Missing intake storage must not discard the fixed-window log capture.
+if not pathlib.Path(intake).is_file():
+    (out / 'intake-unavailable.txt').write_text('intake database unavailable: ' + intake)
+    intake = ':memory:'
+with (sqlite3.connect(':memory:') if intake == ':memory:' else connect(intake)) as db:
+    db.row_factory = sqlite3.Row
+    for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+        quoted = '"' + table.replace('"', '""') + '"'
+        cols = [r[1] for r in db.execute('PRAGMA table_info(' + quoted + ')')]
+        keys = [k for k in ('id', 'scan_id', 'intake_id') if k in cols]
+        for key in keys:
+            for (ident,) in db.execute('SELECT DISTINCT "' + key + '" FROM ' + quoted):
+                ref = 'BB-' + hashlib.sha256(('starter-public:' + str(ident)).encode()).hexdigest()[:20]
+                if ref not in refs:
+                    continue
+                ids.add(str(ident))
+                rows = [dict(r) for r in db.execute('SELECT * FROM ' + quoted + ' WHERE "' + key + '"=?', (ident,))]
+                matched.append({'reference': ref, 'table': table, 'rows': rows})
+records = []
+with connect(jobs) as db:
+    for job_id, encoded in db.execute('SELECT job_id, job_json FROM full_scan_jobs'):
+        if any(ident in encoded for ident in ids):
+            records.append({'job_id': job_id, 'record': json.loads(encoded)})
+(out / 'records.json').write_text(json.dumps({'intake': matched, 'jobs': records}, default=str, indent=2))
+# Preserve complete job evidence as stored. Never dereference links.
+with tarfile.open(out / 'evidence.tar.gz', 'w:gz', dereference=False) as archive:
+    for record in records:
+        job_id = record['job_id']
+        import uuid
+        if str(uuid.UUID(job_id)) != job_id:
+            raise SystemExit('invalid retained job id')
+        path = pathlib.Path(state) / 'evidence' / job_id
+        if path.is_symlink() or path.parent.is_symlink():
+            raise SystemExit('job evidence is a symlink')
+        if path.is_dir():
+            archive.add(path, arcname='evidence/' + job_id)
+(out / 'summary.json').write_text(json.dumps({'references': sorted(refs), 'matched_references': sorted({r['reference'] for r in matched}), 'job_ids': [r['job_id'] for r in records]}, indent=2))
+PYINCIDENT
+  install -d -m 0755 "$EVIDENCE_EXPORT_DIR"
+  archive="$(mktemp "$EVIDENCE_EXPORT_DIR/report-incident-43929-XXXXXXXX.tar.gz")"
+  tar -czf "$archive" -C "$work" .
+  chmod 0600 "$archive"
+  if [ "$(id -u)" = 0 ]; then
+    chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$archive"
+  fi
+  cat "$work/summary.json"
+  printf '\n%s\n' "$archive"
+  exit 0
+fi
+
 # BEAAA-42272: emit a read-only, scan-id-scoped projection of the durable
 # full-scan record. The projection intentionally excludes tenant/agent identity,
 # prompts, responses, evidence refs, credentials, and webhook configuration.

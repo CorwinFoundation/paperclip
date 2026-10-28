@@ -77,7 +77,9 @@ def test_missing_rows_become_terminal_failure_and_callback_in_background(tmp_pat
     row = store.get(req.scan_id)
     assert row["state"] == "terminal"
     assert row["result"].status == "failed"
-    assert "starter_result_rows_count_mismatch" in row["result"].incomplete_reason
+    assert row["result"].incomplete_reason == (
+        "scan_worker_error:stage=result_finalization:cause=scan_error"
+    )
     outbox.enqueue.assert_called_once()
     assert outbox.enqueue.call_args.kwargs["payload"]["status"] == "failed"
 

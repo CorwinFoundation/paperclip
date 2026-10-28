@@ -155,6 +155,16 @@ def _redacted_worker_diagnostics(exc: BaseException, *, secret: str) -> tuple[st
     return message[:500], frames[-4000:]
 
 
+def _safe_scan_failure_reason(exc: BaseException, *, stage: str) -> str:
+    """Persist structural diagnostics only; target text may echo credentials."""
+    cause = "transport_error" if isinstance(exc, (TimeoutError, ConnectionError)) else "scan_error"
+    # HTTP clients expose numeric status separately from untrusted response text.
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    suffix = f":http_status={status}" if type(status) is int and 100 <= status <= 599 else ""
+    return f"scan_worker_error:stage={stage}:cause={cause}{suffix}"
+
+
 # New Starter intakes use variable @4 forms, including clients naming older
 # packs. Historical results retain their original identities. The existing
 # operator rollback flag can still select an explicitly requested legacy pack.
@@ -857,6 +867,7 @@ class ScanRuntime:
         Runs the same pipeline the synchronous ``kickoff`` path runs; only
         the thread differs. Failures become an explicit terminal result.
         """
+        stage = "admission"
         try:
             with self._accepted_scan_semaphore:
                 running = ScanResult(
@@ -878,6 +889,7 @@ class ScanRuntime:
                         scan_request.scan_id, **event
                     )
                     object.__setattr__(scan_request, "case_progress_callback", callback)
+                stage = "case_execution"
                 try:
                     result = self._run_scan_fn(scan_request, secret, **(
                         {'controlled_execution_payload': controlled_execution_payload}
@@ -885,6 +897,7 @@ class ScanRuntime:
                 finally:
                     if callback is not None:
                         object.__delattr__(scan_request, "case_progress_callback")
+                stage = "result_finalization"
                 result = self._apply_registry_dispatch_guard(
                     scan_request, result, agent_id=agent_id, secret=secret
                 )
@@ -903,18 +916,14 @@ class ScanRuntime:
                     result.status,
                 )
         except Exception as exc:  # bounded, credential-redacted diagnostics only
-            reason = (
-                _handler_error_from_orchestrator_error(exc).message
-                if isinstance(exc, OrchestratorError)
-                else type(exc).__name__
-            )
+            reason = _safe_scan_failure_reason(exc, stage=stage)
             LOGGER.error(
                 "accepted_scan_worker_error scan_id=%s error_type=%s",
                 scan_request.scan_id,
                 type(exc).__name__,
             )
             self._record_failed_result(
-                scan_request, reason=f"scan_worker_error:{reason}"
+                scan_request, reason=reason
             )
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
@@ -948,6 +957,7 @@ class ScanRuntime:
         agent_id: str | None,
         on_terminal: Callable[[], None] | None = None,
     ) -> None:
+        completed_execution = None
         try:
             with self._full_scan_semaphore:
                 base = ScanResult(
@@ -968,6 +978,9 @@ class ScanRuntime:
                     agent_id=agent_id,
                     secret=secret,
                 )
+                if self._accepted_scan_store is not None:
+                    self._accepted_scan_store.checkpoint_execution(scan_request.scan_id, result)
+                completed_execution = result
                 self._record_completed_result(
                     scan_request,
                     result,
@@ -986,14 +999,66 @@ class ScanRuntime:
                 error_message,
                 error_traceback,
             )
-            self._record_failed_result(
-                scan_request,
-                reason=f"full_scan_worker_error:{type(exc).__name__}",
-            )
+            if completed_execution is None:
+                self._record_failed_result(
+                    scan_request,
+                    reason=f"full_scan_worker_error:{type(exc).__name__}",
+                )
+            else:
+                # Report failure must never replace accepted case results.
+                retained = replace(
+                    completed_execution, incomplete=True,
+                    incomplete_reason=f"report_preparation_error:{type(exc).__name__}",
+                )
+                with self._state_lock:
+                    self._results[scan_request.scan_id] = retained
+                if self._accepted_scan_store is not None:
+                    self._accepted_scan_store.mark_terminal(scan_request.scan_id, retained)
+
         finally:
             self._background_threads.pop(scan_request.scan_id, None)
             if on_terminal is not None:
                 on_terminal()
+
+    def retry_report(self, scan_id: str, *, tenant_id: str) -> ScanResult:
+        """Prepare a report from durable execution inputs, without target traffic.
+
+        Serialize retries within this runtime and return an already finalized
+        result without appending another report or sending another webhook.
+        """
+        with self._state_lock:
+            store = self._accepted_scan_store
+            row = store.get(scan_id) if store is not None else None
+            if row is None or row["request"].tenant_id != tenant_id:
+                raise HandlerError(404, "scan_not_found")
+            checkpoint = store.execution_checkpoint(scan_id, tenant_id=tenant_id)
+            if checkpoint is None:
+                raise HandlerError(409, "execution_checkpoint_unavailable")
+            current = row.get("result")
+            if current is not None and not str(current.incomplete_reason or "").startswith(
+                "report_preparation_error:"
+            ):
+                return current
+            if scan_id in self._background_threads:
+                raise HandlerError(409, "scan_worker_active")
+            self._restore_scan_state(row)
+            if row.get("webhook_cfg") is not None:
+                self._webhook_cfgs[scan_id] = dict(row["webhook_cfg"])
+            try:
+                return self._record_completed_result(
+                    row["request"], checkpoint, agent_id=row.get("agent_id"),
+                    production_security_findings=self._production_security_findings(),
+                )
+            except Exception as exc:
+                retained = replace(
+                    checkpoint, incomplete=True,
+                    incomplete_reason=f"report_preparation_error:{type(exc).__name__}",
+                )
+                self._results[scan_id] = retained
+                store.mark_terminal(scan_id, retained)
+                LOGGER.error("report_retry_error scan_id=%s error_type=%s",
+                             scan_id, type(exc).__name__)
+                return retained
 
     def _record_completed_result(
         self,
@@ -1439,7 +1504,14 @@ class ScanRuntime:
 
     def progress(self, scan_id: str, *, tenant_id: str) -> dict[str, Any] | None:
         try:
-            return self._full_scan_job_store.progress_for_scan(scan_id, tenant_id=tenant_id)
+            progress = self._full_scan_job_store.progress_for_scan(scan_id, tenant_id=tenant_id)
+            if self._accepted_scan_store is not None:
+                durable = self._accepted_scan_store.case_progress(scan_id, tenant_id=tenant_id)
+                if durable.get("failed_stage") == "report_preparation":
+                    for key in ("state", "phase", "stage_label", "failed_stage", "execution_completed",
+                                "report_status", "report_retry_allowed", "retry_allowed"):
+                        progress[key] = durable[key]
+            return progress
         except KeyError:
             if self._accepted_scan_store is None:
                 return None
@@ -1589,6 +1661,12 @@ class ScanRuntime:
             self._restore_scan_state(row)
             if row.get("webhook_cfg") is not None:
                 self._webhook_cfgs[scan_id] = dict(row["webhook_cfg"])
+            # A completed execution must never enter the target replay lane,
+            # including when the original credential was deliberately forgotten.
+            if store.execution_checkpoint(scan_id, tenant_id=request.tenant_id) is not None:
+                self.retry_report(scan_id, tenant_id=request.tenant_id)
+                summary["resumed"].append(scan_id)
+                continue
             if not row["resumable"]:
                 LOGGER.warning(
                     "accepted_scan_restart_failed scan_id=%s reason=%s",

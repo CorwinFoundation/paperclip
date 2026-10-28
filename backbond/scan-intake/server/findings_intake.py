@@ -9,7 +9,7 @@ import sqlite3
 import threading
 import time
 from bac_intake import safe_progress
-from qa_service import translate_callback
+from qa_service import translate_callback, report_failure
 
 
 class FindingsIntake:
@@ -50,7 +50,8 @@ class FindingsIntake:
         # Only active correlated scans. Rotation prevents a stalled scan starving others.
         with store._lock:
             candidates = list(store.db.execute("SELECT * FROM scans WHERE status IN "
-                "('running','dispatch_unknown') AND scanner_id IS NOT NULL"))
+                "('running','dispatch_unknown') AND scanner_id IS NOT NULL OR "
+                "(status='finished' AND scanner_id IS NOT NULL AND incomplete_reason LIKE 'report_preparation_error:%')"))
         # Store fixtures and migrations can use a separate database connection.
         # Only explicitly accepted Findings requests belong to this worker.
         with self.lock:
@@ -88,6 +89,9 @@ class FindingsIntake:
                     value = dict(value)
                     if value.get('partial_completion'):
                         value['incomplete'] = True
-                    queue.callback(row['scanner_id'], translate_callback(value))
+                    if report_failure(row):
+                        store.refresh_report_failure(scan_id, row['scanner_id'], value)
+                    else:
+                        queue.callback(row['scanner_id'], translate_callback(value))
             except Exception:
                 pass  # No redispatch on unknown, foreign, or malformed terminal data.
