@@ -97,6 +97,7 @@ def main(argv=None):
     parser.add_argument("--scope", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--variant", choices=("hr_finance", "healthcare"), default="hr_finance")
+    parser.add_argument("--profile-version", choices=("1.2", "1.3"), default="1.2")
     parser.add_argument("--live", action="store_true")
     args = parser.parse_args(argv)
     receipt = None
@@ -104,7 +105,7 @@ def main(argv=None):
         if not args.live:
             raise ValueError("explicit_live_required")
         scope = read_json(args.scope)
-        profile = load_profile(args.variant)
+        profile = load_profile(args.variant, args.profile_version)
         targets, _ = preflight(scope, profile, purpose="concurrency_spike")
         args.output.mkdir(parents=True, exist_ok=False)
         receipt = {"schema": "backbond-quick-concurrency-qualification/v1.2", "status": "incomplete",

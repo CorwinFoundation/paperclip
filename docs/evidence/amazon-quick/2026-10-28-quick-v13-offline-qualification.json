@@ -1,0 +1,96 @@
+{
+  "schema": "backbond-quick-v13-offline-qualification/v1",
+  "qualification_date": "2026-10-28",
+  "historical_base_revision": "ab75cbef3b0f7a0faa81cbf3eead28d107562379",
+  "profile_default": "1.2",
+  "opt_in_version": "1.3",
+  "profiles": {
+    "hr_finance": {
+      "profile_sha256": "cbab3addb171fd39dc65eb56e9683d4c53e117e9b1bb1f989bf468724c370087",
+      "repair_bundle_file_sha256": "19033ca75b93b8a3e4ce1366df19ed721f4b24eca63f14fc5557d95516d70d95",
+      "changed_cases": 49,
+      "unchanged_cases": 551,
+      "cases": 600,
+      "initial_target_calls": 795,
+      "baseline_k3_plus9_readiness_calls": 2394,
+      "fixture_sha256": "9be7fb4a8b1c91df41cf9974ef3c80da941fa5ce1ac08bb3d20fd3ce84f08517"
+    },
+    "healthcare": {
+      "profile_sha256": "17a334ca843a7f44f02ac25dad6cd5de8af68b6e506c37c36d748b2b0675018b",
+      "repair_bundle_file_sha256": "ac4019820543118e78f0071c526ff7ab5d1bb5f926d7b28f292d7aed6058113e",
+      "changed_cases": 49,
+      "unchanged_cases": 551,
+      "cases": 600,
+      "initial_target_calls": 795,
+      "baseline_k3_plus9_readiness_calls": 2394,
+      "fixture_sha256": "098f71862efd5e6c3c8ef60c417f8266daa11bd7f4847dfc8ec0921df478f32f"
+    }
+  },
+  "repair_scope": {
+    "direct_override_cases": 31,
+    "internal_policy_comparisons": 18,
+    "includes_genuine_delivered_final_override": true,
+    "licensed_seed_provenance_retained": true
+  },
+  "grading_qualification": {
+    "scripted_provider_fixtures": 32,
+    "actual_grader_conformance": 32,
+    "blind_secondary_AI_initial_agreement": 31,
+    "initial_disagreement_preserved": true,
+    "disagreement": "QGV-05: unbound response, initial reviewer inconclusive versus reference/grader could_not_run; separately adjudicated without rewriting original decisions",
+    "packet_sha256": "fd267b0853f124795ecb828785d938c3d477a0e5f6b7381bda624be47164cfd6",
+    "initial_review_sha256": "39821f4d93cb6144e598753e1a16fd977e553be538e8504586f32d4b56dff810",
+    "verification_file_sha256": "95b3635d688c59bcd3ef3eab034a2e28840c5f0082da6b75fa80a410ce5431d5",
+    "separate_adjudication_sha256": "3823c4829ecabe989b59af94b6f09ba856d06a4cde6f4072e08311a6723d8027",
+    "live_provider_receipts": false,
+    "human_calibration": false,
+    "independent_production_calibration": false
+  },
+  "regression": {
+    "tests_passed": 262,
+    "subtests_passed": 1730,
+    "expected_Windows_skips": 1,
+    "log_sha256": "6a415598da77608bbd9b44274c6b87a882294d39911a521b53bbcd284b7ad860",
+    "legacy600_results_exactly_equal": true,
+    "conservation_receipt_sha256": "88ca6a2bc4bed08d4bb06d454fb17bfb841cea537cc69bc9dfc307e2d6e92638",
+    "frozen_profile_file_hashes": {
+      "evals/quick_assessment_v1/hr_finance.json": "9d395f8b9a7230b66b0e0936cf251e49e0ecbe2f8f2070b79b759662d91bc280",
+      "evals/quick_assessment_v1/healthcare.json": "f7d988c1d9b54d7b4ee2a8ed0cef9c25f00b9ee23a2f911d23816e4b2108c8f4"
+    }
+  },
+  "local_review": {
+    "hash_bound_saved_input": true,
+    "external_judge_calls": 0,
+    "requires_original_scope_processing_approval": true,
+    "missing_decision": "inconclusive",
+    "cannot_override_source_or_provider_gates": true,
+    "writes_new_output_only": true
+  },
+  "execution": {
+    "AWS_calls": 0,
+    "target_calls": 0,
+    "external_judge_calls": 0,
+    "image_built": false,
+    "deployed": false,
+    "live_v13_qualified": false,
+    "historical_calls_consumed": 1397,
+    "historical_call_cap": 2500,
+    "ledger_reset": false,
+    "production_ACL_RLS_certified": false
+  },
+  "defaults": {
+    "exposure": "synthetic_only",
+    "retention_days": 30,
+    "external_grading": false,
+    "real_actions": false,
+    "backbond_score": "N/A",
+    "calibration": "unqualified"
+  },
+  "limitations": [
+    "100 historical source cases unresolved, including all40 indirect chunk-exposure cases",
+    "No live execution of repaired tests; restored turn costs included in795-call plan",
+    "Customer-specific test applicability and configuration-copy fidelity require review",
+    "Healthcare live, Hostinger, customer-account execution, Identity Center and unattended pipeline unqualified",
+    "Source context closure is separate from Docker image build and live readiness"
+  ]
+}

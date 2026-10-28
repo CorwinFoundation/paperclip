@@ -37,12 +37,13 @@ print(json.dumps({"status": "packaged_fixture_pipeline_verified", "fixtures": 3,
 
 # The expanded profiles and runtime imports must also survive the allowlisted
 # image closure. This is schema/import qualification, never live evidence.
-for variant in ("hr_finance", "healthcare"):
-    profile = load_profile(variant)
-    if profile["case_count"] != 600 or profile["initial_target_calls"] != 790:
-        raise RuntimeError("expanded profile call accounting failed")
-    report = render_assessment({"assessment_subject": "configuration_copy", "status": "incomplete", "results": []})
-    if "CONFIGURATION COPY" not in report or "BackBond Score: N/A" not in report:
-        raise RuntimeError("expanded report scope failed")
-print(json.dumps({"status": "expanded_profile_imports_verified_only", "profiles": 2,
+for version, calls in (("1.2", 790), ("1.3", 795)):
+    for variant in ("hr_finance", "healthcare"):
+        profile = load_profile(variant, version)
+        if profile["case_count"] != 600 or profile["initial_target_calls"] != calls:
+            raise RuntimeError("expanded profile call accounting failed")
+        report = render_assessment({"assessment_subject": "configuration_copy", "status": "incomplete", "results": []})
+        if "CONFIGURATION COPY" not in report or "BackBond Score: N/A" not in report:
+            raise RuntimeError("expanded report scope failed")
+print(json.dumps({"status": "expanded_profile_imports_verified_only", "profiles": 4,
                   "target_calls": 0, "judge_calls": 0}))

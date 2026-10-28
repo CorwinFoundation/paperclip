@@ -1,4 +1,4 @@
-"""Export, preflight, capture or regrade the opt-in Quick v1.2 assessment.
+"""Export, preflight, capture or regrade an opt-in Quick assessment version.
 
 Default commands are offline. --live uses explicit registered targets and
 operator-approved scope; no resume or uncertain target resubmission exists.
@@ -35,7 +35,8 @@ def example(profile):
     for case in profile["cases"]:
         for c in case["conversations"]:
             calls[c["role"]] += len(c["turns"])
-    return {"schema": SCHEMA, "approved": False, "authorization_id": "quick-v12-REPLACE",
+    version = "13" if profile["schema"].endswith("v1.3") else "12"
+    result = {"schema": SCHEMA, "approved": False, "authorization_id": "quick-v" + version + "-REPLACE",
         "profile_id": profile["profile_id"], "profile_sha256": profile["profile_sha256"],
         "fixture_sha256": profile["fixture_sha256"], "identity_path": "C",
         "assessment_subject": "configuration_copy", "exposure_level": "synthetic_only",
@@ -60,6 +61,9 @@ def example(profile):
             for role in profile["fixture"]["roles"]},
         "sources": {name: {"source_sha256": _sha(body), "resource_id": "REPLACE"}
                     for name, body in profile["fixture"]["sources"].items()}}
+    if version == "13":
+        result.update(operator_review_approved=False, operator_review_approval_ref="REPLACE")
+    return result
 
 
 def reference(value):
@@ -132,11 +136,16 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
                 or not start <= timestamp(copy.get("fidelity_verified_at", "")) <= now):
             raise PreflightError("reviewed_configuration_copy_fidelity_required")
     evaluator = scope.get("allowed_evaluators")
-    if (not isinstance(evaluator, list) or not evaluator or not set(evaluator) <= {"none", "openrouter"}
+    permitted_evaluators = {"none", "openrouter", "operator_local"} if profile["schema"].endswith("v1.3") else {"none", "openrouter"}
+    if (not isinstance(evaluator, list) or not evaluator or not set(evaluator) <= permitted_evaluators
             or type(scope.get("external_evaluator_approved")) is not bool
             or type(scope.get("judge_limit_micro_usd")) is not int
             or not 0 < scope["judge_limit_micro_usd"] <= 10000000):
         raise PreflightError("explicit_evaluator_boundary_required")
+    if "operator_local" in evaluator:
+        from tools.quick_operator_review import local_review_approved
+        if not local_review_approved(scope):
+            raise PreflightError("local_operator_processing_not_approved")
     if ("openrouter" in evaluator or judge_openrouter) and scope["external_evaluator_approved"] is not True:
         raise PreflightError("external_judge_not_approved")
     if judge_openrouter and ("openrouter" not in evaluator or not os.environ.get("OPENROUTER_API_KEY", "").strip()
@@ -306,8 +315,9 @@ async def capture_cases(profile, selected_ids, attempt, scope, targets, output, 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("export", "scope-example", "preflight", "capture", "regrade"))
+    parser.add_argument("operation", choices=("export", "scope-example", "preflight", "capture", "regrade", "prepare-review"))
     parser.add_argument("--variant", choices=("hr_finance", "healthcare"), default="hr_finance")
+    parser.add_argument("--profile-version", choices=("1.2", "1.3"), default="1.2")
     parser.add_argument("--scope", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--run", type=Path)
@@ -315,10 +325,16 @@ def main(argv=None):
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--confirm-failures", action="store_true")
     parser.add_argument("--judge-openrouter", action="store_true")
+    parser.add_argument("--operator-review", type=Path)
     args = parser.parse_args(argv)
     run = None
+    output_owned = False
+    raw_run = None
+    review_file_sha256 = None
     try:
-        profile = load_profile(args.variant)
+        profile = load_profile(args.variant, args.profile_version)
+        if args.operator_review and (args.operation != "regrade" or args.profile_version != "1.3" or args.judge_openrouter):
+            raise PreflightError("local_review_only_for_v13_saved_regrade")
         if args.operation == "scope-example":
             print(json.dumps(example(profile), indent=2))
             return 0
@@ -327,35 +343,55 @@ def main(argv=None):
             print(json.dumps({"status": "synthetic_sources_exported", "target_calls": 0, "judge_calls": 0}))
             return 0
         scope = read_json(args.scope)
-        if args.operation == "regrade":
+        if args.operation in {"regrade", "prepare-review"}:
             run = read_json(args.run, limit=256 * 1024 * 1024)
+            raw_run = args.run.read_bytes()
             if (run.get("profile_sha256") != profile["profile_sha256"] or run.get("scope_sha256") != digest(scope)
                     or run.get("run_sha256") != digest({k: v for k, v in run.items() if k != "run_sha256"})):
                 raise PreflightError("saved_profile_scope_binding_required")
             # Expired target registrations do not authorize resubmission.
             # Regrading uses saved provider evidence and the original bindings.
             targets, bindings = {}, run["bindings"]
+            if args.operation == "prepare-review":
+                from tools.quick_operator_review import prepare_review
+                packet = prepare_review(profile, scope, run, raw_run)
+                args.output.mkdir(parents=True, exist_ok=False)
+                (args.output / "review-packet.private.json").write_bytes((json.dumps(packet, indent=2, ensure_ascii=False) + "\n").encode())
+                print(json.dumps({"status": "local_private_review_packet_prepared", "tasks": len(packet["tasks"]),
+                                  "target_calls": 0, "judge_calls": 0}))
+                return 0
         else:
             targets, bindings = preflight(scope, profile, judge_openrouter=args.judge_openrouter)
         if args.operation == "preflight":
             print(json.dumps({"status": "operator_preflight_passed", "target_calls": 0, "judge_calls": 0, "backbond_score": "N/A"}))
             return 0
         judge = None
+        if args.operator_review:
+            from tools.quick_operator_review import LocalOperatorReview
+            if not args.operator_review.is_absolute():
+                raise PreflightError("absolute_local_review_path_required")
+            import hashlib
+            review_bytes = args.operator_review.read_bytes()
+            if len(review_bytes) > 16 * 1024 * 1024:
+                raise PreflightError("bounded_local_review_required")
+            judge = LocalOperatorReview(json.loads(review_bytes), profile, scope, run, raw_run)
+            review_file_sha256 = hashlib.sha256(review_bytes).hexdigest()
         if args.judge_openrouter:
             if (scope.get("external_evaluator_approved") is not True or "openrouter" not in scope.get("allowed_evaluators", [])
                     or not reference(scope.get("external_evaluator_approval_ref"))):
                 raise PreflightError("external_judge_not_approved")
             state = Path(os.environ["ARE_AMAZON_QUICK_STATE_DIR"])
             judge = judge_client_from_env(budget=EvaluatorBudget(state / "evaluator.sqlite3",
-                "quick-v12-" + scope["authorization_id"], limit_micro=scope["judge_limit_micro_usd"]))
+                "quick-v" + args.profile_version.replace(".", "") + "-" + scope["authorization_id"], limit_micro=scope["judge_limit_micro_usd"]))
             if judge is None:
                 raise PreflightError("approved_judge_credential_required")
         exposures = read_json(args.exposure_evidence, limit=16 * 1024 * 1024) if args.exposure_evidence else []
         args.output.mkdir(parents=True, exist_ok=False)
+        output_owned = True
         if args.operation == "capture":
             if not args.live:
                 raise PreflightError("explicit_live_required")
-            run = {"schema": "backbond-quick-assessment-run/v1.2", "status": "incomplete",
+            run = {"schema": "backbond-quick-assessment-run/v" + args.profile_version, "status": "incomplete",
                 "profile_id": profile["profile_id"], "profile_sha256": profile["profile_sha256"],
                 "scope_sha256": digest(scope), "started_at": datetime.now(timezone.utc).isoformat(),
                 "assessment_subject": scope["assessment_subject"], "retention_days": scope["retention_days"],
@@ -386,18 +422,29 @@ def main(argv=None):
             valid = [rows[i]["verdict"] for rows in attempt_results.values() if rows[i]["verdict"] in {"pass", "fail"}]
             base["confirmation_status"] = "not_requested"
             if base["verdict"] == "fail":
-                base["confirmation_status"] = "confirmed_3_of_3" if valid == ["fail"] * 3 else "incomplete_confirmations"
-                if "pass" in valid:
-                    base["verdict"], base["confirmation_status"] = "flaky", "mixed_valid_outcomes"
+                if args.profile_version == "1.3":
+                    from evals.quick_profile_v13 import failure_confirmation
+                    base["verdict"], base["confirmation_status"] = failure_confirmation(case, attempt_results, run["captures"])
+                else:
+                    base["confirmation_status"] = "confirmed_3_of_3" if valid == ["fail"] * 3 else "incomplete_confirmations"
+                    if "pass" in valid:
+                        base["verdict"], base["confirmation_status"] = "flaky", "mixed_valid_outcomes"
                 base["remediation"] = remediation(base)
             results.append(base)
-        run.update(results=results, evaluator="openrouter" if judge else "none", finished_at=datetime.now(timezone.utc).isoformat())
+        evaluator = "operator_local" if args.operator_review else "openrouter" if judge else "none"
+        run.update(results=results, evaluator=evaluator, finished_at=datetime.now(timezone.utc).isoformat())
+        if args.operator_review:
+            import hashlib
+            run["operator_review"] = {"reviewer": judge.reviewer, "reviewer_kind": judge.reviewer_kind,
+                                      "review_file_sha256": review_file_sha256,
+                                      "source_run_file_sha256": hashlib.sha256(raw_run).hexdigest(),
+                                      "external_calls": 0, "independent_calibration_claimed": False}
         save_run(args.output / "run.json", run)
         (args.output / "report.md").write_text(render(run), encoding="utf-8")
         print(json.dumps({"status": run["status"], "cases": len(results), "backbond_score": "N/A"}))
         return 0 if run["status"] == "capture_complete" else 1
     except (Exception, KeyboardInterrupt):
-        if run is not None and args.output and args.output.is_dir():
+        if output_owned and run is not None and args.operation in {"capture", "regrade"}:
             run["status"] = "incomplete"
             try:
                 save_run(args.output / "run.json", run)
