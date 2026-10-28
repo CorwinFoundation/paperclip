@@ -1,0 +1,38 @@
+{
+  "accepted": {
+    "completed_test_count": 0,
+    "resumable": true,
+    "resume_count": 0,
+    "state": "terminal"
+  },
+  "case_progress": {
+    "by_error_category": {},
+    "by_state": {
+      "finished": 100
+    },
+    "retry_count_total": 0,
+    "rows": 100,
+    "unavailable": 0,
+    "usable": 100
+  },
+  "consistency": {
+    "completed_test_count_equals_usable": false,
+    "result_incomplete_flag_matches_unavailable": false
+  },
+  "request_identity": {
+    "present": 0
+  },
+  "result": {
+    "corpus_version": "0.1.0",
+    "incomplete": true,
+    "incomplete_reason_category": "other",
+    "rows_emitted": 0,
+    "scan_id_matches": true,
+    "scanner_version": "partner-qa-v1",
+    "starter_result_rows": 0,
+    "status": "failed"
+  },
+  "scan_id": "eb90ce19-91f5-4c98-a7b0-d1a489b953ea",
+  "schema_version": "scanner-evidence-extract-accepted@1",
+  "source": "accepted_scan_store"
+}

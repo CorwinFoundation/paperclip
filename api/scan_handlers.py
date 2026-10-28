@@ -158,6 +158,15 @@ def _redacted_worker_diagnostics(exc: BaseException, *, secret: str) -> tuple[st
 
 def _safe_scan_failure_reason(exc: BaseException, *, stage: str) -> str:
     """Persist structural diagnostics only; target text may echo credentials."""
+    if (
+        stage == "result_finalization"
+        and isinstance(exc, OrchestratorError)
+        and re.fullmatch(
+            r"starter_result_rows_count_mismatch:expected=[0-9]+:actual=[0-9]+",
+            str(exc),
+        )
+    ):
+        return "scan_worker_error:stage=result_finalization:cause=starter_result_rows_count_mismatch"
     cause = "transport_error" if isinstance(exc, (TimeoutError, ConnectionError)) else "scan_error"
     # HTTP clients expose numeric status separately from untrusted response text.
     response = getattr(exc, "response", None)
@@ -918,10 +927,12 @@ class ScanRuntime:
                 )
         except Exception as exc:  # bounded, credential-redacted diagnostics only
             reason = _safe_scan_failure_reason(exc, stage=stage)
+            error_message, error_traceback = _redacted_worker_diagnostics(exc, secret=secret)
             LOGGER.error(
-                "accepted_scan_worker_error scan_id=%s error_type=%s",
-                scan_request.scan_id,
-                type(exc).__name__,
+                "accepted_scan_worker_error scan_id=%s stage=%s error_type=%s "
+                "error_message=%r error_traceback=%r",
+                scan_request.scan_id, stage, type(exc).__name__,
+                error_message, error_traceback,
             )
             self._record_failed_result(
                 scan_request, reason=reason
@@ -993,9 +1004,10 @@ class ScanRuntime:
                 exc, secret=secret
             )
             LOGGER.error(
-                "full_scan_background_worker_error scan_id=%s error_type=%s "
+                "full_scan_background_worker_error scan_id=%s stage=%s error_type=%s "
                 "error_message=%r error_traceback=%r",
                 scan_request.scan_id,
+                "report_preparation" if completed_execution is not None else "case_execution",
                 type(exc).__name__,
                 error_message,
                 error_traceback,
@@ -1057,8 +1069,12 @@ class ScanRuntime:
                 )
                 self._results[scan_id] = retained
                 store.mark_terminal(scan_id, retained)
-                LOGGER.error("report_retry_error scan_id=%s error_type=%s",
-                             scan_id, type(exc).__name__)
+                error_message, error_traceback = _redacted_worker_diagnostics(exc, secret="")
+                LOGGER.error(
+                    "report_retry_error scan_id=%s stage=report_preparation error_type=%s "
+                    "error_message=%r error_traceback=%r",
+                    scan_id, type(exc).__name__, error_message, error_traceback,
+                )
                 return retained
 
     def _record_completed_result(

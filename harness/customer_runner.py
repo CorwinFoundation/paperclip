@@ -777,6 +777,8 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
         origin: str = "https://webchat.syllable.cloud",
         label: str = "syllable:apichat",
         timeout_s: float = _REQUEST_TIMEOUT_SECONDS,
+        endpoint_config: dict[str, Any] | None = None,
+        secret: str = "",
     ) -> None:
         super().__init__(
             client_id_key=client_id_key,
@@ -787,6 +789,30 @@ class _SyllableCustomerAgentRunner(SyllableRunner):
             timeout_s=timeout_s,
         )
         self._base_url = base_url.rstrip("/")
+        config = endpoint_config or {}
+        self._result_rows_enabled = bool(config.get("_include_result_rows"))
+        self._redaction_values = tuple(
+            value for value in (secret, client_id_key, host_key, config.get("system_prompt"))
+            if isinstance(value, str) and value
+        )
+        self._pending_exchange: tuple[str, str] | None = None
+        self._starter_rows: list[dict[str, str]] = []
+
+    # Share the customer starter serialization and redaction contract while
+    # preserving Syllable's session transport and evidence collection.
+    record_starter_verdict = _CustomerAgentHttpRunner.record_starter_verdict
+    starter_result_rows = _CustomerAgentHttpRunner.starter_result_rows
+    _redact_result_text = _CustomerAgentHttpRunner._redact_result_text
+    _cap_result_text = staticmethod(_CustomerAgentHttpRunner._cap_result_text)
+
+    def complete(self, prompt: str) -> str:
+        self._pending_exchange = None
+        reply = super().complete(prompt)
+        if self._result_rows_enabled:
+            self._pending_exchange = (
+                self._redact_result_text(prompt), self._redact_result_text(reply),
+            )
+        return reply
 
     def _headers(self) -> dict[str, str]:
         return {**super()._headers(), "Accept-Encoding": "identity"}
@@ -970,6 +996,8 @@ def customer_agent_http_runner_factory(
                 else agent_endpoint
             ),
             label="syllable:apichat",
+            endpoint_config=endpoint_config,
+            secret=secret,
         )
     return _CustomerAgentHttpRunner(agent_endpoint, secret, endpoint_config)
 

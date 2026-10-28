@@ -43,7 +43,7 @@ def test_complete_starter_fails_loudly_when_result_rows_are_missing():
         runtime._record_completed_result(request(), result, agent_id=None)
 
 
-def test_missing_rows_become_terminal_failure_and_callback_in_background(tmp_path):
+def test_missing_rows_become_terminal_failure_and_callback_in_background(tmp_path, caplog):
     store = AcceptedScanStore(tmp_path / "accepted.sqlite3")
     outbox = MagicMock()
     runtime = ScanRuntime(
@@ -74,11 +74,15 @@ def test_missing_rows_become_terminal_failure_and_callback_in_background(tmp_pat
         scan_request=req, secret="secret", agent_id=None
     )
 
+    diagnostic = caplog.text
+    assert "scan_id=starter stage=result_finalization error_type=OrchestratorError" in diagnostic
+    assert "starter_result_rows_count_mismatch:expected=100:actual=0" in diagnostic
+    assert "_record_completed_result" in diagnostic
     row = store.get(req.scan_id)
     assert row["state"] == "terminal"
     assert row["result"].status == "failed"
     assert row["result"].incomplete_reason == (
-        "scan_worker_error:stage=result_finalization:cause=scan_error"
+        "scan_worker_error:stage=result_finalization:cause=starter_result_rows_count_mismatch"
     )
     outbox.enqueue.assert_called_once()
     assert outbox.enqueue.call_args.kwargs["payload"]["status"] == "failed"
