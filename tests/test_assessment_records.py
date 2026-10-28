@@ -13,7 +13,7 @@ import pytest
 from evals.oss_pilots import assessment_records as records, log_challenges
 from harness.runner import MockRunner
 from scripts.run_operational_controls import FixtureLogCapture
-from tools.assessment_test_catalog import RECORD_CASES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+from tools.assessment_test_catalog import RECORD_CASES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, VALIDATION_METHODS, LEGACY_RECORD_CASES
 from tools.operational_scan import registry_rows
 from tools.registered_case_executor import EvidenceStore, RegisteredCaseExecutor, ScanBudget
 from requirement_assessment import import_registered_case, load_registry
@@ -34,6 +34,9 @@ def blob(value):
 
 
 def sample(case, scope=SCOPE):
+    if case in VALIDATION_METHODS:
+        from tests.assessment_validation_fixtures import sample as validation_sample
+        return validation_sample(case, scope)
     artifacts = {"proof": blob({"reviewed_record": "private-customer-detail"})}
     if case == "EVID-RISK-TRACE":
         data = {"risks": [{"id": "r", "owner": "risk-owner", "status": "closed", "assessment_refs": ["proof"], "treatment_ids": ["t"]}],
@@ -87,7 +90,7 @@ def test_original_bytes_reconcile_and_tampered_metrics_are_rejected(case):
     with pytest.raises(ValueError): records.verify(case, capture, scope=SCOPE)
 
 
-@pytest.mark.parametrize("case", records.CASE_METHODS)
+@pytest.mark.parametrize("case", LEGACY_RECORD_CASES.values())
 def test_contradictory_records_fail_even_when_source_hashes_are_correct(case):
     doc = sample(case)
     if case == "EVID-RISK-TRACE": doc["data"]["treatments"][0]["risk_id"] = "missing"
@@ -224,7 +227,7 @@ def test_records_only_operator_flow_uses_approved_plan_without_endpoint_or_model
         declaration = controls.setdefault(control["control_id"], {"framework_id": "eu-ai-act", "control_id": control["control_id"],
             "mapping_version": eu["mapping_version"], "applicability": "applicable", "justification": "reviewed supplied records",
             "required_tests": []})
-        declaration["required_tests"].append({"test_id": family, "case_id": case, "probe_set_version": records.VERSION, "trials": 1})
+        declaration["required_tests"].append({"test_id": family, "case_id": case, "probe_set_version": records.case_version(case), "trials": 1})
         (directory / (case + ".json")).write_bytes(encode(sample(case, plan["scope"])))
     plan["controls"] = list(controls.values())
     path = tmp_path / "plan.json"
@@ -346,14 +349,14 @@ def test_new_cases_complete_normal_scan_flow_reports_and_persistent_restart(tmp_
     result = runtime.fetch("scan-A")
     assert result.status == "complete"
     manifest = result.full_suite_manifest
-    assert manifest["counts"] == {"expected": 9, "evidence_rows": 9, "missing_required": 0}
+    assert manifest["counts"] == {"expected": 18, "evidence_rows": 18, "missing_required": 0}
     assert all(r["verdict"] == "pass" and r["target_calls"] == r["judge_calls"] == 0 and r["diagnostic_measurements"] for r in manifest["evidence_rows"])
     restored = FullScanJobStore(persistence=FullScanJobPersistence(db)).status(manifest["job_id"])
     assert [r.to_manifest_row() for r in restored.evidence_rows] == manifest["evidence_rows"]
     persisted = runtime.current_kickoff_row("scan-A")["score_json"]
     report = _external_result_envelope(result, persisted)
     inventory = report["requirements_evidence"]["evidence_inventory"]
-    assert inventory["with_reported_digest"] == 9 and report["are_total"] == 72
+    assert inventory["with_reported_digest"] == 18 and report["are_total"] == 72
     assert "private-customer-detail" not in json.dumps(report) and "content_base64" not in json.dumps(report)
     html = render_requirements(persisted)
     assert all(case in html for case in records.CASE_METHODS) and "OPS-LOG-BOUNDARY" in html

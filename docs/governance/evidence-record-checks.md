@@ -7,9 +7,12 @@ judge requests, contribute zero score, and do not expand fixed packs or targeted
 operations scopes. Unsupported capabilities remain unobserved in standard reports.
 The previous 17 operational cases keep their identities and versions.
 
-The crosswalk is now version **@3** for both frameworks. It remains an engineering
-draft requiring licensed normative review. An older approved @2 plan must be
-reviewed against @3; preserve its completed assessment and original artifacts.
+The original expansion used crosswalk version **@3** for both frameworks. The
+[evaluation and release extension](evidence-validation-checks.md) adds nine cases
+and advances new crosswalks to **@4**, while preserving these case versions.
+The mapping remains an engineering
+draft requiring licensed normative review. New plans must use the current @4
+crosswalk; preserve previous completed assessments and original artifacts.
 Mappings identify candidate evidence, and every requirement conclusion remains
 `not assessed`. No case establishes certification or full conformity.
 

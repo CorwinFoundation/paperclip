@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 
 from evals.oss_pilots.log_quality import _instant
+from tools.assessment_test_catalog import VALIDATION_METHODS, VALIDATION_METRICS, VALIDATION_VERSION
 
 VERSION = "assessment-record-checks@1"
 SCHEMA = "assessment-record-input/v1"
@@ -26,9 +27,15 @@ CASE_METHODS = {
     "EVID-CHANGE-REGRESSION": "Compare baseline and current exact-match results for the same labelled dataset and probe version.",
     "EVID-INCIDENT-CLOSURE": "Reconcile incident and corrective-action references, closure verification and chronology.",
 }
-METRICS = frozenset({"record_count", "compared_record_count", "covered_group_count", "open_record_count",
+CASE_METHODS.update(VALIDATION_METHODS)
+LEGACY_METRICS = frozenset({"record_count", "compared_record_count", "covered_group_count", "open_record_count",
                      "error_count", "identity_errors", "reference_errors", "timestamp_errors", "metric_errors",
                      "policy_errors", "accuracy_ppm", "baseline_accuracy_ppm"})
+METRICS = LEGACY_METRICS | VALIDATION_METRICS
+
+
+def case_version(case_id):
+    return VALIDATION_VERSION if case_id in VALIDATION_METHODS else VERSION
 
 
 class SourceScopeMismatch(PermissionError):
@@ -220,6 +227,8 @@ def _evaluation(data, artifacts, metrics, scope, now, key="current"):
     dataset_ref = data["dataset_ref"]
     dataset_raw = artifacts[dataset_ref]
     labels = _index(_data_json(dataset_raw).get("rows"), metrics)
+    if not labels:
+        raise ValueError("at least one valid labelled identity required")
     for row in labels.values():
         if "expected" not in row:
             raise ValueError("ground truth required")
@@ -311,13 +320,19 @@ def evaluate(case_id, raw, *, scope, evaluated_at):
     if case_id not in CASE_METHODS:
         raise ValueError("unknown record check")
     doc = _header(raw, scope, evaluated_at)
-    metrics = {key: 0 for key in METRICS}
+    if case_id in VALIDATION_METHODS:
+        from evals.oss_pilots.assessment_validation import evaluate_records, initial_metrics
+        metrics = initial_metrics(case_id)
+    else:
+        metrics = {key: 0 for key in LEGACY_METRICS}
     meaningful = True
     try:
         data = doc["data"]
         artifacts = {key: _blob(blob) for key, blob in doc.get("artifacts", {}).items()}
         now = _instant(doc["recorded_at"])
-        if case_id == "EVID-RISK-TRACE":
+        if case_id in VALIDATION_METHODS:
+            meaningful = evaluate_records(case_id, doc, artifacts, metrics, now, scope)
+        elif case_id == "EVID-RISK-TRACE":
             _risk(data, artifacts, metrics, now)
         elif case_id == "EVID-DATA-LINEAGE":
             _lineage(data, artifacts, metrics, now)
@@ -333,7 +348,7 @@ def evaluate(case_id, raw, *, scope, evaluated_at):
 
 
 def verify(case_id, capture, *, scope, observed_at=None):
-    if capture.get("capture_version") != VERSION:
+    if capture.get("capture_version") != case_version(case_id):
         raise ValueError("unsupported record capture")
     if _instant(capture.get("evaluated_at")) > datetime.now(timezone.utc):
         raise ValueError("future record capture")
@@ -356,10 +371,12 @@ def run_case(case_id, adapter, *, scope):
         raw = adapter.read(case_id)
         evaluated_at = datetime.now(timezone.utc).isoformat()
         metrics, verdict = evaluate(case_id, raw, scope=scope, evaluated_at=evaluated_at)
-        return {"capture_version": VERSION, "method": CASE_METHODS[case_id], "observation_scope": LIMITATION,
+        return {"capture_version": case_version(case_id), "method": CASE_METHODS[case_id], "observation_scope": LIMITATION,
                 "evaluated_at": evaluated_at, "input_document": {"sha256": hashlib.sha256(raw).hexdigest(),
                     "content_base64": base64.b64encode(raw).decode("ascii")},
-                "measurements": metrics, "verdict": verdict, "reason": "reviewed_records_reconciled"}
+                "measurements": metrics, "verdict": verdict,
+                "reason": ("reviewed_records_insufficient_for_method" if verdict == "inconclusive" and case_id in VALIDATION_METHODS
+                           else "reviewed_records_reconciled")}
     except Exception:
         # Adapter errors, unreviewed documents and foreign scope bytes stay private.
         return {"verdict": "inconclusive", "reason": "reviewed_records_invalid_or_unavailable"}

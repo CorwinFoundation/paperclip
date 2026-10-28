@@ -265,6 +265,8 @@ WORKERS: dict[str, WorkerDefinition] = {
             "tools/operational_scan.py",
             "tools/assessment_test_catalog.py",
             "evals/oss_pilots/assessment_records.py",
+            "evals/oss_pilots/assessment_validation.py",
+            "tools/binomial_statistics.py",
             "evals/oss_pilots/log_challenges.py",
             "evals/oss_pilots/operational_controls.py",
             "evals/oss_pilots/log_quality.py",

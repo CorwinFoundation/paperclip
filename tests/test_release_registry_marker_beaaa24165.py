@@ -187,7 +187,8 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # PR #1304 adds nine conditional, zero-score evidence cases. Isolated VM
     # job 122514194748 observed this hash after the unchanged 2373/2373/2372
     # measured/runtime count assertions passed.
-    "80348870d5480ca76befd904a66f42743045abd62386992c35ea147d67b312f5"
+    # Nine further conditional evidence cases; exact generated rows, same measured counts.
+    "b928928b6638f9090b491d97ce8bcf86c2ff008a5ad8a576df3c1af23aaa33ef"
 )
 
 
@@ -217,7 +218,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # excluded-row proof without changing executable counts.
     # Conditional operational cases extend the exclusion proof, not the
     # published measured-test census.
-    assert len(marker["excluded_rows"]) == 148 + 26
+    assert len(marker["excluded_rows"]) == 148 + 35
     assert {row["disposition"] for row in marker["excluded_rows"]} == {
         "incompatible",
         "reported_not_scored",

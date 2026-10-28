@@ -30,6 +30,7 @@ from tools.dual_judge_grader import (
     openrouter_judge,
 )
 from tools.judge_agreement import load_rows
+from tools.binomial_statistics import wilson
 
 EXACT_FIELDS = frozenset({
     "exact_verdict", "truth_source", "sandbox_verdict", "ledger_verdict",
@@ -339,16 +340,6 @@ def stratified_cap(rows: Iterable[Mapping[str, Any]], cap: int = 400) -> list[di
         fail_n = min(len(fails), cap - pass_n)
         chosen.extend(fails[:fail_n] + passes[:pass_n])
     return chosen
-
-
-def wilson(successes: int, n: int, z: float = 1.959963984540054) -> tuple[float, float] | None:
-    if n == 0:
-        return None
-    p = successes / n
-    denom = 1 + z * z / n
-    centre = (p + z * z / (2 * n)) / denom
-    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-    return centre - margin, centre + margin
 
 
 def _rate(count: int, n: int) -> dict[str, Any]:
