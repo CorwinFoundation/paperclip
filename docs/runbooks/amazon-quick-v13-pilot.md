@@ -92,6 +92,12 @@ reviewed and authorized setup may proceed to `capture --live`; no live run is
 authorized or proved by these offline changes. Worker build contexts include
 both profile versions and exercise their import/call-count contracts.
 
+For profile-bound readiness, `tools.amazon_quick_pilot` also needs
+`--fixture-variant hr_finance --profile-version 1.3` (or the approved healthcare
+variant). Use that exact version for both ten-check platform and three-check
+role receipts. The default remains v1.2; its receipts cannot qualify a v1.3 scope.
+Only run readiness with `--live` inside the separately approved setup/window.
+
 ## Local review after capture
 
 Review processing must be approved in the exact scope **before capture**. For

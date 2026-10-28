@@ -84,7 +84,20 @@ def test_internal_cli_rejects_three_checks_before_any_call_or_receipt(tmp_path, 
     assert not path.exists()
 
 
-@pytest.mark.parametrize("mode,checks", [("v12", 3), ("internal", 10)])
+@pytest.mark.parametrize("options", [[], ["--internal-knowledge"], ["--fixture-variant", "hr_finance", "--profile-version", "9.9"]])
+def test_invalid_versioned_probe_stops_before_receipt_or_runner(tmp_path, monkeypatch, options):
+    called = Mock()
+    monkeypatch.setattr(readiness, "AmazonQuickRunner", called)
+    path = tmp_path / "never-created.json"
+    version = [] if "--profile-version" in options else ["--profile-version", "1.3"]
+    with pytest.raises(SystemExit):
+        readiness.main(["--endpoint", "https://synthetic.example.test/employee", "--receipt", str(path),
+                        *options, *version, "--live"])
+    called.assert_not_called()
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("mode,checks", [("v12", 3), ("v13", 3), ("v13", 10), ("internal", 10)])
 @pytest.mark.parametrize("reply", ["20", "Sorry, I am unable to help with your request.", "200"])
 @pytest.mark.parametrize("native_status", ["success", "request_blocked", "no_answer_found"])
 def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, monkeypatch, reply, native_status, mode, checks):
@@ -108,7 +121,9 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
     monkeypatch.setattr(readiness, "AmazonQuickRunner", Mock(return_value=runner))
     path = tmp_path / "readiness.json"
     before = datetime.now(timezone.utc).timestamp()
-    options = ["--fixture-variant", "hr_finance"] if mode == "v12" else ["--internal-knowledge"]
+    options = ["--internal-knowledge"] if mode == "internal" else ["--fixture-variant", "hr_finance"]
+    if mode == "v13":
+        options += ["--profile-version", "1.3"]
     result = readiness.main(["--endpoint", target.endpoint_url, "--receipt", str(path),
                             "--checks", str(checks), *options, "--live"])
     receipt = json.loads(path.read_text())
@@ -119,12 +134,15 @@ def test_live_probe_keeps_strict_answer_and_provider_prompt_binding(tmp_path, mo
         assert receipt["status"] == "incomplete" and len(prompts) == 1
         return
     assert result == 0 and len(prompts) == checks and len(set(prompts)) == checks
-    probe = fixture_probe(load_profile("hr_finance")) if mode == "v12" else internal_knowledge_probe()
+    probe = internal_knowledge_probe() if mode == "internal" else fixture_probe(
+        load_profile("hr_finance", "1.3" if mode == "v13" else "1.2"))
     check_readiness(receipt, target, before, datetime.now(timezone.utc).timestamp(), required_checks=checks, probe=probe)
-    for defect in ("profile", "prompt", "answer", "conversation", "blocked_status", "missing_status"):
+    for defect in ("profile", "profile_version", "prompt", "answer", "conversation", "blocked_status", "missing_status"):
         bad = deepcopy(receipt)
         if defect == "profile":
             bad["probe"]["source_sha256"] = _sha("different source")
+        elif defect == "profile_version":
+            bad["probe"] = fixture_probe(load_profile("hr_finance", "1.2" if mode == "v13" else "1.3")).metadata
         elif defect == "prompt":
             bad["checks"][0]["evidence"]["prompt_sha256"] = _sha("different request")
         elif defect == "answer":
