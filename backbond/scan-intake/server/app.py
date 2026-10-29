@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import threading
@@ -337,6 +338,37 @@ def _headers(data: dict | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
+def _link_error(exc: Exception) -> str:
+    # Never include exception text: HTTP errors can contain secrets and targets.
+    if isinstance(exc, httpx.TimeoutException):
+        return 'timeout'
+    if isinstance(exc, httpx.ConnectError):
+        return 'connect_error'
+    if isinstance(exc, httpx.HTTPError):
+        return 'transport_error'
+    if isinstance(exc, (ValueError, TypeError, AttributeError)):
+        return 'invalid_response_or_config'
+    if isinstance(exc, OSError):
+        return 'local_config_error'
+    return 'internal_error'
+
+
+@app.get('/scan/v1/scanner-link-health')
+def scanner_link_health():
+    # An empty payload cannot run a target call; 422 proves authenticated routing
+    # and request validation, unlike the public release-identity endpoint.
+    try:
+        with httpx.Client(timeout=5) as client:
+            response = client.post(f'{SCANNER_URL}/connectivity-check', json={}, headers=_headers())
+        status = response.status_code
+        ok = status == 422
+        return JSONResponse(status_code=200 if ok else 503, content={
+            'ok': ok, 'stage': 'intake_to_scanner', 'upstream_status': status})
+    except Exception as exc:
+        return JSONResponse(status_code=503, content={
+            'ok': False, 'stage': 'intake_to_scanner', 'error_class': _link_error(exc)})
+
+
 def _scanner_check(data: dict) -> tuple[bool, str | None]:
     timeout = 320 if data.get('agent_endpoint', {}).get('transport') == 'amazon_quick' else 35
     with httpx.Client(timeout=timeout) as client:
@@ -626,9 +658,13 @@ def connection_check(body: Annotated[ConnectionFields, Depends(_connection_reque
             raise HTTPException(403, 'Controlled admission unavailable') from None
     try:
         ok, error = _scanner_check(payload)
-    except Exception:
+    except Exception as exc:
+        category = _link_error(exc)
+        logging.getLogger(__name__).error('scanner_link_failure category=%s', category)
         fields.clear()
-        raise HTTPException(502, "scanner unavailable")
+        return JSONResponse(status_code=502, content={
+            'error': 'scanner unavailable', 'failed_stage': 'intake_to_scanner',
+            'error_class': category})
     finally:
         payload.clear()
         clean.clear()
