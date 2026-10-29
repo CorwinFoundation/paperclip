@@ -129,15 +129,13 @@ def integrated(tmp_path, monkeypatch, request):
     sys.path.remove(str(server))
 
 
-def _assert_upstream_auth_denial(response):
-    # The intake-to-Scanner contract sanitizes upstream 401/403 responses.
-    # Controlled permit denials use the same boundary; they do not become a
-    # successful connectivity response or authorize another paid attempt.
-    assert response.status_code == 502
+def _assert_controlled_permit_denial(response):
+    # Consumed/expired controlled permits are expected connectivity denials.
+    # The response must remain sanitized and must never issue a proof.
+    assert response.status_code == 200
     assert response.json() == {
-        'error': 'scanner unavailable',
-        'failed_stage': 'intake_to_scanner',
-        'error_class': 'authentication_error',
+        'ok': False,
+        'error': 'Connection check failed. Check the endpoint, authentication and response settings.',
     }
 
 
@@ -153,7 +151,7 @@ def test_natural_check_then_one_real_metered_scan(integrated):
         assert db.execute('SELECT tests,reserved_microusd,consumed FROM controlled_admission').fetchone() == (0,10,0)
         assert db.execute('SELECT COUNT(*) FROM controlled_scan_binding').fetchone() == (0,)
     again = client.post('/scan/v1/connection-checks', json=fields, headers=headers)
-    _assert_upstream_auth_denial(again)
+    _assert_controlled_permit_denial(again)
     assert calls == ['target']
     body = dict(fields, consent_owner=True, consent_terms=True, terms_version=intake._terms_version(), connection_proof=proof)
     scan = client.post('/scan/v1/scans', json=body, headers=headers)
@@ -195,7 +193,7 @@ def test_expired_and_changed_execution_make_zero_paid_calls(integrated):
     with sqlite3.connect(path) as db:
         db.execute('UPDATE controlled_permit_context SET expires_at=1')
     response = client.post('/scan/v1/connection-checks', json=fields, headers=headers)
-    _assert_upstream_auth_denial(response)
+    _assert_controlled_permit_denial(response)
     assert not calls
 
 
@@ -210,7 +208,7 @@ def test_lost_check_response_cannot_check_or_scan_again(integrated, monkeypatch)
     assert calls == ['target']
     monkeypatch.setattr(scanner, 'post', post)
     retry = client.post('/scan/v1/connection-checks', json=fields, headers=headers)
-    _assert_upstream_auth_denial(retry)
+    _assert_controlled_permit_denial(retry)
     body = dict(fields, consent_owner=True, consent_terms=True,
         terms_version=intake._terms_version(), connection_proof='invented')
     assert client.post('/scan/v1/scans', json=body, headers=headers).status_code == 409
@@ -242,7 +240,7 @@ def test_lost_scan_response_and_restart_do_not_redispatch(integrated, monkeypatc
     intake.controlled_operator = load_operator()
     intake.queue = ScanQueue(intake.store, intake._scanner_start, before_dispatch=intake._controlled_dispatch)
     assert client.post('/scan/v1/scans', json=body, headers=headers).status_code == 409
-    _assert_upstream_auth_denial(client.post('/scan/v1/connection-checks', json=fields, headers=headers))
+    _assert_controlled_permit_denial(client.post('/scan/v1/connection-checks', json=fields, headers=headers))
     assert len(calls) == before
     with sqlite3.connect(path) as db:
         assert db.execute('SELECT consumed,tests FROM controlled_admission').fetchone() == (1,100)

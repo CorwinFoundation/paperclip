@@ -421,62 +421,129 @@ if [ "${1:-}" = report-incident ]; then
   [ "$#" = 1 ] || die 'usage: scanner-deploy report-incident'
   work="$(mktemp -d)"
   trap 'rm -rf -- "$work"' EXIT
-  "$DOCKER" logs --timestamps --since 2026-10-27T16:26:38Z --until 2026-10-27T16:27:00Z "$CONTAINER" >"$work/worker.log" 2>&1
-  python3 - "$FULL_SCAN_JOB_STORE" "${SCANNER_INCIDENT_INTAKE_DB:-/var/lib/backbond-qa/qa.sqlite}" "$work" "$EVIDENCE_STATE_DIR" <<'PYINCIDENT'
-import hashlib, json, pathlib, sqlite3, sys, tarfile
-jobs, intake, output, state = sys.argv[1:]
+  umask 077
+  python3 - "$FULL_SCAN_JOB_STORE" "${SCANNER_INCIDENT_INTAKE_DB:-/var/lib/backbond-qa/qa.sqlite}" "$work" "$EVIDENCE_STATE_DIR" "$ACCEPTED_SCAN_STORE" "$DOCKER" "$CONTAINER" <<'PYINCIDENT'
+import datetime, gzip, hashlib, json, os, pathlib, sqlite3, subprocess, sys, tarfile, uuid
+jobs, intake, output, state, accepted, docker, container = sys.argv[1:]
 out = pathlib.Path(output)
+ids = {'eb90ce19-91f5-4c98-a7b0-d1a489b953ea', 'c63308ab-b7bd-4d66-b6fd-a1205db028f8'}
 refs = {'BB-e4b6027ddf30702e50ad', 'BB-3a7834acc868c5dcebaf'}
-matched = []
-ids = set()
-def connect(path):
-    if pathlib.Path(path).is_symlink():
-        raise SystemExit('incident database is a symlink')
-    return sqlite3.connect(pathlib.Path(path).as_uri() + '?mode=ro', uri=True)
-# Missing intake storage must not discard the fixed-window log capture.
-if not pathlib.Path(intake).is_file():
-    (out / 'intake-unavailable.txt').write_text('intake database unavailable: ' + intake)
-    intake = ':memory:'
-with (sqlite3.connect(':memory:') if intake == ':memory:' else connect(intake)) as db:
-    db.row_factory = sqlite3.Row
-    for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
-        quoted = '"' + table.replace('"', '""') + '"'
-        cols = [r[1] for r in db.execute('PRAGMA table_info(' + quoted + ')')]
-        keys = [k for k in ('id', 'scan_id', 'intake_id') if k in cols]
-        for key in keys:
-            for (ident,) in db.execute('SELECT DISTINCT "' + key + '" FROM ' + quoted):
-                ref = 'BB-' + hashlib.sha256(('starter-public:' + str(ident)).encode()).hexdigest()[:20]
-                if ref not in refs:
-                    continue
-                ids.add(str(ident))
-                rows = [dict(r) for r in db.execute('SELECT * FROM ' + quoted + ' WHERE "' + key + '"=?', (ident,))]
-                matched.append({'reference': ref, 'table': table, 'rows': rows})
-records = []
-with connect(jobs) as db:
-    for job_id, encoded in db.execute('SELECT job_id, job_json FROM full_scan_jobs'):
-        if any(ident in encoded for ident in ids):
-            records.append({'job_id': job_id, 'record': json.loads(encoded)})
-(out / 'records.json').write_text(json.dumps({'intake': matched, 'jobs': records}, default=str, indent=2))
-# Preserve complete job evidence as stored. Never dereference links.
-with tarfile.open(out / 'evidence.tar.gz', 'w:gz', dereference=False) as archive:
-    for record in records:
-        job_id = record['job_id']
-        import uuid
-        if str(uuid.UUID(job_id)) != job_id:
-            raise SystemExit('invalid retained job id')
-        path = pathlib.Path(state) / 'evidence' / job_id
-        if path.is_symlink() or path.parent.is_symlink():
-            raise SystemExit('job evidence is a symlink')
-        if path.is_dir():
-            archive.add(path, arcname='evidence/' + job_id)
-(out / 'summary.json').write_text(json.dumps({'references': sorted(refs), 'matched_references': sorted({r['reference'] for r in matched}), 'job_ids': [r['job_id'] for r in records]}, indent=2))
+sources, matched, records = [], [], []
+def safe(p):
+    return not any(x.is_symlink() for x in [p, *p.parents])
+def dump(name, value):
+    (out / name).write_text(json.dumps(value, default=lambda v: {'hex':v.hex()} if isinstance(v, bytes) else str(v), indent=2))
+def read_db(path, label):
+    p = pathlib.Path(path)
+    entry = {'source':label, 'path':str(p), 'matches':0}
+    sources.append(entry)
+    if not safe(p):
+        entry['status'] = 'symlink-refused'; return
+    if not p.is_file():
+        entry['status'] = 'absent'; return
+    try:
+        with sqlite3.connect(p.absolute().as_uri()+'?mode=ro', uri=True) as db:
+            db.row_factory = sqlite3.Row
+            db.execute('BEGIN')
+            for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+                q = '"'+table.replace('"','""')+'"'
+                cols = [r[1] for r in db.execute('PRAGMA table_info('+q+')')]
+                if 'scan_id' not in cols: continue
+                rows = [dict(r) for r in db.execute('SELECT * FROM '+q+' WHERE scan_id IN (?,?)', tuple(sorted(ids)))]
+                if rows:
+                    matched.append({'source':label, 'table':table, 'rows':rows})
+                    entry['matches'] += len(rows)
+                    if table == 'accepted_scans':
+                        for r in rows:
+                            raw = r.get('result_json')
+                            if raw is not None:
+                                name = 'raw-%d-%s.result_json' % (len(sources), r['scan_id'])
+                                (out / name).write_bytes(raw if isinstance(raw,bytes) else raw.encode('utf-8'))
+            if 'full_scan_jobs' in {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}:
+                for job_id, encoded in db.execute('SELECT job_id, job_json FROM full_scan_jobs'):
+                    record = json.loads(encoded)
+                    # Exact structured identity, never a substring match in arbitrary payloads.
+                    if job_id in ids or record.get('scan_id') in ids:
+                        if str(uuid.UUID(job_id)) != job_id: raise ValueError('invalid job id')
+                        records.append({'source':label, 'job_id':job_id, 'record':record})
+                        entry['matches'] += 1
+            entry['status'] = 'read-complete'
+    except (OSError, sqlite3.Error, ValueError) as e:
+        entry['status'] = 'read-error'; entry['error'] = str(e)
+for path,label in [(accepted,'accepted'),(intake,'intake'),(jobs,'jobs')]: read_db(path,label)
+# Inventory fixed plausible backup roots; only SQLite sources are opened.
+# Archive members are inspected as streams, never extracted to source storage.
+roots = [pathlib.Path(state)/'backups', pathlib.Path('/var/backups/backbond'), pathlib.Path('/root')]
+for root in roots:
+    entry = {'source':'backup-root','path':str(root)}; sources.append(entry)
+    try:
+        if not safe(root): raise OSError('symlink refused')
+        candidates = sorted(root.iterdir()) if root.is_dir() else []
+        entry['status'] = 'inventoried' if root.is_dir() else 'absent'
+        for p in candidates:
+            if not safe(p) or not p.is_file(): continue
+            if not any(s in p.name.lower() for s in ('scan','backbond','backup','sqlite')): continue
+            if p.suffix in ('.sqlite','.sqlite3','.db'): read_db(p,'backup:'+str(p))
+            elif tarfile.is_tarfile(p):
+                inv = {'source':'backup-archive','path':str(p),'members':[]}; sources.append(inv)
+                with tarfile.open(p) as tar:
+                    for member in tar:
+                        if not member.isfile() or pathlib.Path(member.name).name not in ('accepted_scans.sqlite3','full_scan_jobs.sqlite3','qa.sqlite'): continue
+                        inv['members'].append({'name':member.name,'bytes':member.size})
+                        if member.size > 512*1024*1024:
+                            inv['limit'] = 'database member exceeds 512 MiB'; continue
+                        temp = out / 'backup-read.sqlite'
+                        try:
+                            temp.write_bytes(tar.extractfile(member).read())
+                            read_db(temp, str(p)+':'+member.name)
+                        finally: temp.unlink(missing_ok=True)
+                inv['status'] = 'inspected; archived WAL sidecars not replayed'
+    except (OSError, tarfile.TarError) as e:
+        entry['status']='inventory-error'; entry['error']=str(e)
+with tarfile.open(out/'evidence.tar.gz','w:gz',dereference=False) as archive:
+    for job_id in sorted({r['job_id'] for r in records} | ids):
+        p = pathlib.Path(state)/'evidence'/job_id
+        entry={'source':'evidence','path':str(p)}; sources.append(entry)
+        if safe(p) and p.is_dir():
+            # Refuse links inside the tree as well; no unrelated dereferences.
+            for f in sorted(p.rglob('*')):
+                if f.is_file() and safe(f): archive.add(f,arcname='evidence/'+job_id+'/'+str(f.relative_to(p)),recursive=False)
+            entry['status']='preserved'
+        else: entry['status']='absent-or-link-refused'
+# Keep exact incident lines only, even within the two time windows.
+needles = ids | refs | {r['job_id'] for r in records}
+windows=[('2026-10-27T16:00:00Z','2026-10-27T16:12:16Z'),('2026-10-27T16:26:38Z','2026-10-27T16:27:00Z')]
+def capture(command,label):
+    e={'source':label}; sources.append(e)
+    try:
+        result=subprocess.run(command,capture_output=True,timeout=45)
+        lines=[line for line in result.stdout.decode('utf-8',errors='replace').splitlines() if any(n in line for n in needles)]
+        e.update(status='queried',returncode=result.returncode,matching_lines=len(lines))
+        return lines
+    except (OSError,subprocess.TimeoutExpired) as exc:
+        e.update(status='unavailable',error=type(exc).__name__); return []
+logs=[]
+# Inventory output is identifiers, not incident payload; obtain it separately.
+try:
+    listed=subprocess.run([docker,'ps','-a','--filter','name='+container,'--format','{{.ID}}'],capture_output=True,text=True,timeout=15)
+    names=[n for n in listed.stdout.splitlines() if len(n)==12 and all(c in '0123456789abcdef' for c in n)]
+except (OSError,subprocess.TimeoutExpired): names=[]
+for start,end in windows:
+    for name in [container,*names]: logs += capture([docker,'logs','--timestamps','--since',start,'--until',end,name],'docker:'+name+':'+start)
+    logs += capture(['journalctl','--no-pager','-o','short-iso-precise','--since',start,'--until',end,'-u','backbond-scanner-live.service','-u','backbond-scan-intake.service'],'journal:'+start)
+(out/'worker.log').write_text('\n'.join(logs)+'\n')
+dump('records.json',{'intake':matched,'jobs':records})
+dump('summary.json',{'scan_ids':sorted(ids),'job_ids':sorted({r['job_id'] for r in records}),'sources':sources,'limits':['Only exact scan_id rows and structured job scan_id matches exported.','Logs retain exact incident identifier lines only; untagged exception context is not attributable.','Docker includes retained stopped containers and Docker-managed rotations; deleted containers/logs cannot be recovered.','Backup inventory is limited to named roots and immediate candidate files; no claim of exhaustive recovery.','Archived databases are read without WAL replay; absent or newer backups do not prove original grades.']})
+dump('manifest.json',{'created_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'files':{str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(out.rglob('*')) if p.is_file()}})
 PYINCIDENT
   install -d -m 0755 "$EVIDENCE_EXPORT_DIR"
   archive="$(mktemp "$EVIDENCE_EXPORT_DIR/report-incident-43929-XXXXXXXX.tar.gz")"
   tar -czf "$archive" -C "$work" .
-  chmod 0600 "$archive"
+  chmod 0400 "$archive"
+  sha256sum "$archive" >"$archive.sha256"
+  chmod 0400 "$archive.sha256"
   if [ "$(id -u)" = 0 ]; then
-    chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$archive"
+    chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$archive" "$archive.sha256"
   fi
   cat "$work/summary.json"
   printf '\n%s\n' "$archive"
