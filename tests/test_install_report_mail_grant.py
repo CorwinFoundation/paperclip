@@ -31,7 +31,10 @@ class InstallerTest(unittest.TestCase):
                 self.assertEqual(dest.stat().st_mode & 0o777, 0o600)
                 self.assertEqual(json.loads(dest.read_text()), packet['key_store'])
                 unit = (root / 'etc/systemd/system/backbond-scan-intake.service.d/report-mail-grant.conf').read_text()
-                self.assertIn('ARE_KEY_STORE_PATH=%d/report-mail-grant.json', unit)
+                self.assertIn('QA_REPORT_MAIL_KEY_STORE_PATH=%d/report-mail-grant.json', unit)
+                self.assertNotIn('Environment="ARE_KEY_STORE_PATH=', unit)
+                env = (root / 'etc/backbond/report-mail.env').read_text()
+                self.assertNotIn('\nARE_KEY_STORE_PATH=', '\n' + env)
                 self.assertNotIn('synthetic', unit)
                 record['scopes'] = ['GET /wrong']
                 source.write_text(json.dumps(packet))

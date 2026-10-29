@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import threading
+import time
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -169,9 +170,11 @@ release = ReportRelease(os.environ.get('QA_RELEASE_DB_PATH', DB_PATH),
 def _report_mail_gateway():
     # Packaged from the maintained Scanner resolver, never a second credential store.
     from edge_gateway import EdgeGateway
-    if not os.environ.get('ARE_KEY_STORE_PATH'):
+    path = os.environ.get('QA_REPORT_MAIL_KEY_STORE_PATH')
+    if not path:
         return None
-    return EdgeGateway.from_env()
+    env = dict(os.environ, ARE_KEY_STORE_PATH=path, ARE_EDGE_GATEWAY='on')
+    return EdgeGateway.from_env(env)
 
 
 def _report_mail_settings():
@@ -332,6 +335,14 @@ def _tenant_tokens() -> dict:
 
 def _headers(data: dict | None = None) -> dict[str, str]:
     token = os.environ.get("QA_SCANNER_TOKEN", "")
+    # Dedicated outbound credential, independent of the report-mail gateway.
+    # Explicit configuration fails closed if missing or malformed.
+    credential_path = os.environ.get('QA_SCANNER_CREDENTIAL_PATH')
+    if credential_path:
+        credential = json.loads(Path(credential_path).read_text())
+        token = credential['token']
+        if not isinstance(token, str) or not token.strip():
+            raise ValueError('invalid scanner credential')
     mapping = _tenant_tokens()
     if data and data.get('tenant_id') in mapping:
         token = mapping[data['tenant_id']]
@@ -362,21 +373,55 @@ def scanner_link_health():
     # An empty payload cannot run a target call; 422 proves authenticated routing
     # and request validation, unlike the public release-identity endpoint.
     try:
+        # Real intake payloads always carry partner-<partner>. Probe those
+        # configured lanes rather than an unused, possibly absent default key.
+        tenants = [tenant for tenant in _tenant_tokens() if tenant.startswith('partner-')]
+        contexts = [{'tenant_id': tenant} for tenant in tenants] or [None]
+        deadline = time.monotonic() + 5
+        status = None
         with httpx.Client(timeout=5) as client:
-            response = client.post(f'{SCANNER_URL}/connectivity-check', json={}, headers=_headers())
-        status = response.status_code
+            for context in contexts:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise httpx.ReadTimeout('link health budget exhausted')
+                response = client.post(f'{SCANNER_URL}/connectivity-check', json={},
+                                       headers=_headers(context), timeout=remaining)
+                status = response.status_code
+                if status != 422:
+                    break
         ok = status == 422
         return JSONResponse(status_code=200 if ok else 503, content={
-            'ok': ok, 'stage': 'intake_to_scanner', 'upstream_status': status})
+            'ok': ok, 'stage': 'intake_to_scanner', 'upstream_status': status},
+            headers={'Cache-Control': 'no-store'})
     except Exception as exc:
         return JSONResponse(status_code=503, content={
             'ok': False, 'stage': 'intake_to_scanner', 'error_class': _link_error(exc)})
 
 
+def _post_connection_check(client, data: dict):
+    headers = _headers(data)
+    response = client.post(f"{SCANNER_URL}/connectivity-check", json=data, headers=headers)
+    if response.status_code == 401:
+        # A rotated file/mapping may now select a replacement. Never mint a key
+        # or retry the same rejected bearer, and never retry target failures.
+        replacement = _headers(data)
+        changed = bool(replacement.get('Authorization')) and replacement != headers
+        logging.getLogger(__name__).warning(
+            'scanner_link_auth_rejected operation=connectivity-check upstream_status=401 replacement_available=%s',
+            changed)
+        if changed:
+            response = client.post(f"{SCANNER_URL}/connectivity-check", json=data, headers=replacement)
+    return response
+
+
 def _scanner_check(data: dict) -> tuple[bool, str | None]:
     timeout = 320 if data.get('agent_endpoint', {}).get('transport') == 'amazon_quick' else 35
     with httpx.Client(timeout=timeout) as client:
-        response = client.post(f"{SCANNER_URL}/connectivity-check", json=data, headers=_headers(data))
+        response = _post_connection_check(client, data)
+    if response.status_code == 403 and data.get('controlled_permit_id'):
+        # A consumed/expired controlled permit is an expected denial. It must
+        # never issue a proof or retry a target call, and reveals no upstream text.
+        return False, 'Connection check failed. Check the endpoint, authentication and response settings.'
     if response.status_code >= 400:
         response.raise_for_status()
     body = response.json()
@@ -664,7 +709,9 @@ def connection_check(body: Annotated[ConnectionFields, Depends(_connection_reque
         ok, error = _scanner_check(payload)
     except Exception as exc:
         category = _link_error(exc)
-        logging.getLogger(__name__).error('scanner_link_failure category=%s', category)
+        logging.getLogger(__name__).error(
+            'scanner_link_failure category=%s upstream_status=%s operation=connectivity-check',
+            category, exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None)
         fields.clear()
         return JSONResponse(status_code=502, content={
             'error': 'scanner unavailable', 'failed_stage': 'intake_to_scanner',

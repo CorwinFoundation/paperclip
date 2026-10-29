@@ -144,6 +144,46 @@ if [ "$#" = 2 ] && [ "$1" = diagnostics ] && [ "$2" = wp-s ]; then
   exit 0
 fi
 
+# BEAAA-44392: read-only authentication diagnosis; never print bearer material.
+if [ "$#" = 2 ] && [ "$1" = diagnostics ] && [ "$2" = scanner-auth ]; then
+  stat -c 'scanner_env_mtime=%y' "$ENV_FILE"
+  "$DOCKER" exec -i "$CONTAINER" python3 - <<'PY_AUTH'
+import hashlib, json, os, re, time
+from pathlib import Path
+
+def identifier(value):
+    value = str(value)
+    return value if re.fullmatch(r"[A-Za-z0-9_.:-]{1,100}", value) else "redacted"
+
+path = os.environ.get("ARE_KEY_STORE_PATH")
+result = {"gateway_enabled": os.environ.get("ARE_EDGE_GATEWAY") == "on",
+          "store_configured": bool(path)}
+if path:
+    store = Path(path)
+    result["store_exists"] = store.exists()
+    if store.exists():
+        result["store_mtime_epoch"] = store.stat().st_mtime
+        records = json.loads(store.read_text()).get("keys", {})
+        result["keys"] = [{"credential_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                           "key_id": identifier(r.get("key_id", "")),
+                           "tenant_id": identifier(r.get("tenant_id", "")),
+                           "active": r.get("status", "active") == "active",
+                           "expired": float(r["expires_at"]) <= time.time()}
+                          for token, r in records.items()]
+else:
+    # Do not construct EdgeGateway: that would create a new bootstrap snapshot
+    # with a fresh expiry and misrepresent the running process's actual state.
+    result["bootstrap_tenants"] = [identifier(v) for v in
+        json.loads(os.environ.get("ARE_API_AUTH_TOKENS_JSON") or "{}").values()]
+    result["bootstrap_ttl_seconds"] = os.environ.get("ARE_KEY_STORE_BOOTSTRAP_TTL_SECONDS", "86400")
+print(json.dumps(result, sort_keys=True))
+PY_AUTH
+  # Counts only: journal messages can contain customer URLs or bearer material.
+  journalctl --utc -u "$SERVICE" --since '30 minutes ago' --no-pager -o cat |
+    python3 -c 'import json,sys; rows=sys.stdin.read().splitlines(); print(json.dumps({"journal_lines":len(rows), "http_401_lines":sum("401" in row for row in rows), "authorization_invalid_lines":sum("authorization_invalid" in row for row in rows)}))'
+  exit 0
+fi
+
 remove_stale_image_ref() {
   image_ref=$1
   if removal_output="$("$DOCKER" image rm "$image_ref" 2>&1)"; then

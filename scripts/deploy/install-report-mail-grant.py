@@ -31,14 +31,14 @@ def install(source):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'report-mail-grant.conf').write_text(
         '[Service]\nLoadCredential=report-mail-grant.json:/etc/backbond/report-mail-grant.json\n'
-        'Environment="ARE_KEY_STORE_PATH=%d/report-mail-grant.json"\n'
+        'Environment="QA_REPORT_MAIL_KEY_STORE_PATH=%d/report-mail-grant.json"\n'
         'Environment="QA_REPORT_MAIL_ENABLED=1"\n'
         'Environment="QA_REPORT_MAIL_TENANT_ID=81b0c474-2b92-4397-99e6-995e6e5e85ea"\n'
         'Environment="QA_REPORT_MAIL_KEY_ID=bac-report-mail-beaaa44023"\n'
         'Environment="QA_REPORT_MAIL_FOUNDERS=info@backbond.ai"\n')
     # Environment files override Environment=; append this file after existing files.
     Path('/etc/backbond/report-mail.env').write_text(
-        'ARE_KEY_STORE_PATH=/run/credentials/backbond-scan-intake.service/report-mail-grant.json\n'
+        'QA_REPORT_MAIL_KEY_STORE_PATH=/run/credentials/backbond-scan-intake.service/report-mail-grant.json\n'
         'QA_REPORT_MAIL_ENABLED=1\n'
         'QA_REPORT_MAIL_TENANT_ID=81b0c474-2b92-4397-99e6-995e6e5e85ea\n'
         'QA_REPORT_MAIL_KEY_ID=bac-report-mail-beaaa44023\n'
