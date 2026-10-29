@@ -17,9 +17,9 @@ class InstallerTest(unittest.TestCase):
             root = Path(directory)
             (root / 'etc/backbond').mkdir(parents=True)
             packet = dict(tenant_id='81b0c474-2b92-4397-99e6-995e6e5e85ea',
-                          key_id='bac-report-mail-beaaa44023', expires_at=200, bearer='synthetic')
+                          key_id='bac-report-mail-beaaa44023', expires_at=7776100, bearer='synthetic')
             record = dict(tenant_id=packet['tenant_id'], key_id=packet['key_id'],
-                          expires_at=200, status='active', scopes=['POST /scan/v1/reports/mail'])
+                          expires_at=7776100, status='active', scopes=['POST /scan/v1/reports/mail'])
             packet['key_store'] = dict(version=1, keys={'synthetic': record})
             source = root / 'packet.json'
             source.write_text(json.dumps(packet))

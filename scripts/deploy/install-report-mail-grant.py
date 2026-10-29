@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install the root-to-root BAC report-mail packet on AriClaw."""
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -13,7 +14,8 @@ def install(source):
     packet = json.loads(Path(source).read_text())
     if (packet['tenant_id'] != '81b0c474-2b92-4397-99e6-995e6e5e85ea'
             or packet['key_id'] != 'bac-report-mail-beaaa44023'
-            or not time.time() < packet['expires_at'] <= time.time() + 86400):
+            or not math.isfinite(packet['expires_at'])
+            or not time.time() < packet['expires_at']):
         raise ValueError('wrong or expired report-mail grant')
     record = packet['key_store']['keys'][packet['bearer']]
     if (record['scopes'] != ['POST /scan/v1/reports/mail']

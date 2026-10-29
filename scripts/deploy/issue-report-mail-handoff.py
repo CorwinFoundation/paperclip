@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Issue a 24-hour BAC report-mail grant to a root-owned 0600 plain file.
+"""Issue a finite-lived BAC report-mail grant to a root-owned 0600 plain file.
 
 Run as root on srv1749248. Copy the file root-to-root to AriClaw.
 Optional --recipient encrypts instead; default needs no GPG configuration.
-Retries reuse the same active grant and original expiry.
+Defaults to 90 days. Retries reuse the active grant; --reissue renews it explicitly.
 Transfer this single script through the Founder workstation or AriClaw;
 srv1749248 cannot fetch GitHub over outbound HTTPS or SSH.
 """
@@ -24,9 +24,13 @@ TENANT = '81b0c474-2b92-4397-99e6-995e6e5e85ea'
 KEY_ID = 'bac-report-mail-beaaa44023'
 SCOPE = 'POST /scan/v1/reports/mail'
 STORE = '/var/lib/are-scanner/edge/keys.json'
+DEFAULT_TTL_SECONDS = 90 * 86400
 
 
-def issue_packet(store_path=STORE, now=None):
+def issue_packet(store_path=STORE, now=None, ttl_seconds=DEFAULT_TTL_SECONDS, reissue=False):
+    import math
+    if not math.isfinite(ttl_seconds) or ttl_seconds <= 0:
+        raise ValueError("TTL must be finite and positive")
     from api.edge_gateway import KeyStore
     now = time.time() if now is None else now
     path = Path(store_path)
@@ -40,11 +44,14 @@ def issue_packet(store_path=STORE, now=None):
     if matches:
         token, rec = matches[0]
         if (rec['tenant_id'] != TENANT or rec['status'] != 'active'
-                or rec['scopes'] != [SCOPE] or not now < rec['expires_at'] <= now + 86400):
-            raise ValueError('existing report-mail grant mismatched, revoked or expired; explicit rotation required')
+                or rec['scopes'] != [SCOPE]):
+            raise ValueError('existing report-mail grant mismatched or revoked; explicit rotation required')
+        if not reissue and rec['expires_at'] <= now:
+            raise ValueError('existing report-mail grant expired; use --reissue')
     else:
         token = secrets.token_urlsafe(48)
-        store.issue(token=token, key_id=KEY_ID, tenant_id=TENANT, ttl_seconds=86400,
+    if not matches or reissue:
+        store.issue(token=token, key_id=KEY_ID, tenant_id=TENANT, ttl_seconds=ttl_seconds,
                     scopes=[SCOPE], issuer='Scanner-1749 root custodian',
                     custodian='AriClaw intake service', rotation_owner='Scanner-1749 root custodian',
                     revocation_owner='Scanner-1749 root custodian',
@@ -101,9 +108,19 @@ def report_failure(exc):
         print(f'Container stderr tail:\n{tail}', file=sys.stderr)
 
 
+def positive_ttl(value):
+    value = int(value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("TTL must be positive seconds")
+    return value
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--recipient', help='verified AriClaw GPG fingerprint already imported into root keyring')
+    p.add_argument('--ttl-seconds', type=positive_ttl, default=DEFAULT_TTL_SECONDS,
+                   help='grant lifetime in seconds (default: 7776000, 90 days)')
+    p.add_argument('--reissue', action='store_true', help='explicitly renew existing grant using requested TTL')
     args = p.parse_args()
     if os.geteuid() != 0 or os.uname().nodename.split('.')[0] != 'srv1749248':
         p.error('run as root on srv1749248')
@@ -119,7 +136,7 @@ def main():
     with (out / 'issuer.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         worker = (Path(__file__).read_text().rsplit("if __name__ == '__main__':", 1)[0]
-                  + '\nif os.environ.get("ARE_KEY_STORE_PATH") != STORE: raise ValueError("maintained runtime store mismatch")\nprint(json.dumps(issue_packet()))\n')
+                  + f'\nif os.environ.get("ARE_KEY_STORE_PATH") != STORE: raise ValueError("maintained runtime store mismatch")\nprint(json.dumps(issue_packet(ttl_seconds={args.ttl_seconds!r}, reissue={args.reissue!r})))\n')
         result = subprocess.run(['docker', 'exec', '-i', 'backbond-scanner-live-edge',
                                  'python', '-c', worker], check=True, capture_output=True)
         packet = json.loads(result.stdout)

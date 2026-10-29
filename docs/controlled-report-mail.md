@@ -126,3 +126,27 @@ QA43363's scoped review covers the changed fixed path, rejection of alternate
 paths, private parent/config ownership plan and existing-unit-only context above.
 The new report's exact Reviewer SHIP, QA PASS, attachment hashes and subsequent
 transport/inbox evidence remain separate gates; source QA is not delivery PASS.
+
+### Report-mail grant lifetime and renewal
+
+The standalone `scripts/deploy/issue-report-mail-handoff.py` defaults to a
+90-day (7,776,000-second) grant. `--ttl-seconds 86400` selects one day instead.
+A retry exports the same active grant without extending its expiry; `--reissue`
+explicitly renews the existing scoped bearer, including after expiry. Revoked or
+mismatched grants remain errors. No report is sent by either operation.
+
+Transfer the script from the merged commit through the workstation to
+`/root/issue-report-mail-handoff.py` on srv1749248, without cloning the repo.
+As root on srv1749248, the renewal command is:
+
+```sh
+python3 /root/issue-report-mail-handoff.py --reissue
+```
+
+It writes `/root/bac-report-mail-handoff/ariclaw-report-mail.json` with mode
+0600 and prints a receipt without the bearer. Transfer that packet root-to-root
+and refresh AriClaw using the updated `install-report-mail-grant.py`, then
+restart `backbond-scan-intake.service`; AriClaw's credential copy retains its
+old expiry until refreshed. The installer accepts finite unexpired grants,
+including the 90-day default. Authorization and approval-reference rules are
+unchanged. Roll back by reverting the helper changes; do not reset outboxes.
