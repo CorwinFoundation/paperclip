@@ -18,7 +18,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QuickV13Tests(unittest.TestCase):
-    binding_and_captures = historical_tests.ProfileTests.binding_and_captures
+    def binding_and_captures(self,case,replies):
+        bindings,captures=historical_tests.ProfileTests.binding_and_captures(self,case,replies)
+        from tools.qualify_quick_grading import scripted_index_review
+        for name,spec in bindings['sources'].items():
+            spec['native_resource_type']='dataset' if name.endswith('.csv') else 'document'
+            spec['indexed_version']=scripted_index_review(spec)
+        for capture in captures:
+            for turn in capture['turns']:
+                for cited in turn['transport']['cited_resource']:
+                    cited['citedResourceType']='dataset' if cited['citedResourceId'].endswith('.csv') else 'document'
+        return bindings,captures
 
     def setUp(self):
         self.profile = pack.load_profile("hr_finance", "1.3")

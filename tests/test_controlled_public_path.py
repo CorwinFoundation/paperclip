@@ -130,8 +130,9 @@ def integrated(tmp_path, monkeypatch, request):
 
 
 def _assert_controlled_permit_denial(response):
-    # Consumed/expired controlled permits are expected connectivity denials.
-    # The response must remain sanitized and must never issue a proof.
+    # The authenticated controlled lane treats a consumed/expired permit as an
+    # expected denial. The HTTP exchange succeeds, but no connection proof or
+    # paid retry is authorized. Ordinary Scanner authentication errors remain 502.
     assert response.status_code == 200
     assert response.json() == {
         'ok': False,

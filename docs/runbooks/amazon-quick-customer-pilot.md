@@ -23,8 +23,9 @@ initializer per registered user. A startup slot is released after the SDK mount
 completes; its independent context and conversation continue under the existing
 per-user conversation cap. Queueing still consumes the overall run deadline.
 The conversation lease and answer deadline start after a startup slot is acquired.
-No prompt or embed request is retried on initialization failure, and uncertainty
-still halts the shared authorization.
+Each embedding API request has one attempt. Before any prompt is sent, failed
+SDK initialization permits at most one fresh browser context. A possible prompt
+send is never retried, and uncertainty still halts the shared authorization.
 
 Each qualification wave waits for every intended session to mount before its
 first prompt. The receipt records `initialized_together` and requires the full

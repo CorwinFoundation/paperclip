@@ -459,6 +459,7 @@ def knowledge_evidence(row: dict, target: Target) -> dict:
               "response_sha256": _sha(row["system_text_message"]),
               "conversation_sha256": _sha(row["conversation_id"]),
               "message_sha256": _sha(row["user_message_id"]),
+              "system_message_sha256": _sha(row["system_message_id"]) if isinstance(row.get("system_message_id"),str) and row["system_message_id"] else None,
               "event_timestamp": row["event_timestamp"], "metadata_complete": True}
     if not row["system_text_message"].strip():
         # Literal empty text is an observation, never a fabricated refusal or

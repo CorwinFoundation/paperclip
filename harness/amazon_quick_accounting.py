@@ -43,11 +43,19 @@ def checked_budget(db, *, required=False, expected=None, additional=0):
         return None  # historical deployments retain their existing batch limits
     rows = db.execute("SELECT id,cap,reserved,baseline_sha256 FROM quick_global_budget").fetchall()
     if (len(rows) != 1 or rows[0][0] != 1 or type(additional) is not int or additional < 0
-            or type(rows[0][1]) is not int or not 1 <= rows[0][1] <= 2500
+            or type(rows[0][1]) is not int or not 1 <= rows[0][1] <= 5000
             or type(rows[0][2]) is not int or not 0 <= rows[0][2] <= rows[0][1]
             or not re.fullmatch(r"[0-9a-f]{64}", rows[0][3] or "")):
         raise ValueError("invalid_global_budget")
     _, cap, reserved, baseline = rows[0]
+    if cap>2500:
+        extension=db.execute("SELECT 1 FROM sqlite_master WHERE name='quick_global_budget_extension'").fetchone()
+        if not extension:raise ValueError('reviewed_global_cap_extension_required')
+        proof=db.execute('SELECT cap_before,cap_after,reserved,baseline_sha256,approval_ref,budget_usd FROM quick_global_budget_extension').fetchall()
+        if (len(proof)!=1 or not 1<=proof[0][0]<=2500 or proof[0][1:4]!=(cap,reserved,baseline)
+            or not isinstance(proof[0][4],str) or not proof[0][4].strip() or proof[0][4].startswith('REPLACE')
+            or type(proof[0][5]) not in (int,float) or not 0<proof[0][5]<=200):
+            raise ValueError('invalid_reviewed_global_cap_extension')
     spec = {"baseline_ledger_sha256": baseline, "global_call_ceiling": cap, "retained_reserved_calls": reserved}
     if expected is not None and expected != {"schema": "backbond-quick-global-budget/v1", **spec}:
         raise ValueError("global_budget_binding_changed")
@@ -116,4 +124,44 @@ def claim_selected_phase(path: Path, *, authorization: str, selection_sha256: st
                     (authorization,selection_sha256,phase,binding,datetime.now(timezone.utc).isoformat()))
             except sqlite3.IntegrityError:
                 raise ValueError('selected_phase_already_claimed_no_replay') from None
+    finally:db.close()
+
+
+def extend_global_budget(path:Path,review):
+    """Explicit one-time increase, with retained counters/reserve and audit.
+
+    This is an admission step, not automatic fallback when a run is exhausted.
+    The human approval must name the exact call cap and monetary ceiling.
+    """
+    if (not path.is_absolute() or review.get('approved') is not True
+        or not isinstance(review.get('approval_ref'),str) or not review['approval_ref'].strip()
+        or review['approval_ref'].startswith('REPLACE')
+        or type(review.get('new_global_call_ceiling')) is not int or not 2500<review['new_global_call_ceiling']<=5000
+        or type(review.get('budget_usd')) not in (int,float) or not 0<review['budget_usd']<=200):
+        raise ValueError('exact_human_reviewed_cap_extension_required')
+    db=sqlite3.connect(path.resolve().as_uri()+'?mode=rw',uri=True)
+    try:
+        with db:
+            db.execute('BEGIN IMMEDIATE')
+            before=checked_budget(db,required=True,expected=review.get('original_accounting'))
+            if (ledger_digest(db)!=review.get('before_ledger_sha256') or review.get('original_accounting') is None
+                or review['new_global_call_ceiling']<=before['global_call_ceiling']):
+                raise ValueError('exact_unchanged_original_accounting_required')
+            if (db.execute("SELECT 1 FROM sqlite_master WHERE name='quick_global_budget_extension'").fetchone()
+                or db.execute('SELECT 1 FROM leases').fetchone() or db.execute('SELECT 1 FROM quick_conversation_leases').fetchone()
+                or db.execute('SELECT 1 FROM pilots WHERE inflight!=0').fetchone()
+                or db.execute("SELECT 1 FROM quick_batch_submissions WHERE status IN ('submitting','unknown','timed_out','mismatch')").fetchone()):
+                raise ValueError('stopped_settled_ledger_and_single_extension_required')
+            db.execute('''CREATE TABLE quick_global_budget_extension
+                (id INTEGER PRIMARY KEY CHECK(id=1),cap_before INTEGER NOT NULL,cap_after INTEGER NOT NULL,
+                 reserved INTEGER NOT NULL,baseline_sha256 TEXT NOT NULL,approval_ref TEXT NOT NULL,
+                 budget_usd REAL NOT NULL,before_ledger_sha256 TEXT NOT NULL,created_at TEXT NOT NULL)''')
+            db.execute('INSERT INTO quick_global_budget_extension VALUES (1,?,?,?,?,?,?,?,?)',
+                (before['global_call_ceiling'],review['new_global_call_ceiling'],before['retained_reserved_calls'],
+                 before['baseline_ledger_sha256'],review['approval_ref'],review['budget_usd'],review['before_ledger_sha256'],
+                 datetime.now(timezone.utc).isoformat()))
+            db.execute('UPDATE quick_global_budget SET cap=? WHERE id=1',(review['new_global_call_ceiling'],))
+            after=checked_budget(db,required=True)
+            if after['charged_or_reserved']!=before['charged_or_reserved']:raise ValueError('cap_extension_must_retain_all_charges')
+            return after
     finally:db.close()

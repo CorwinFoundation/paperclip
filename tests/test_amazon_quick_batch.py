@@ -207,6 +207,39 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
             async def close(self): state["closed"] = True
         return state, Aws, Browser()
 
+    async def test_scoped_runner_commits_exact_run_binding_with_its_owner(self):
+        state,aws,browser=self.fake_runtime()
+        runner=QuickBatchRunner({'employee':self.target},authorization='test',max_calls=30,
+            aws_factory=aws,browser=browser,sweep_seconds=0.005,capture_binding='d'*64)
+        result=await runner.run([BatchCase('canonical:1:0','employee',('hello',))])
+        self.assertEqual(result['status'],'capture_complete')
+        self.assertEqual(len(state['sends']),1)
+        ledger=ConversationLedger(self.target)
+        try:
+            self.assertEqual(ledger.db.execute('''SELECT k.capture_id,r.capture_binding,s.status FROM quick_batch_capture_keys k
+                JOIN quick_batch_capture_scopes r ON r.owner=k.owner
+                JOIN quick_batch_submissions s ON s.owner=k.owner''').fetchall(),
+                [('canonical:1:0','d'*64,'verified')])
+        finally:ledger.close()
+
+    async def test_failed_scope_binding_commit_cannot_open_or_send_or_charge(self):
+        ledger=ConversationLedger(self.target)
+        with ledger.db:
+            ledger.db.execute("CREATE TRIGGER reject_capture_scope BEFORE INSERT ON quick_batch_capture_scopes BEGIN SELECT RAISE(ABORT,'SCRIPTED binding failure');END")
+        ledger.close()
+        state,aws,browser=self.fake_runtime()
+        runner=QuickBatchRunner({'employee':self.target},authorization='test',max_calls=30,
+            aws_factory=aws,browser=browser,sweep_seconds=0.005,capture_binding='d'*64)
+        result=await runner.run([BatchCase('canonical:1:0','employee',('hello',))])
+        self.assertEqual(result['status'],'incomplete')
+        self.assertEqual(state['sends'],[]);self.assertEqual(state['embeds'],0)
+        ledger=ConversationLedger(self.target)
+        try:
+            self.assertEqual(ledger.db.execute('SELECT calls FROM pilots').fetchall(),[(0,)])
+            self.assertEqual(ledger.db.execute('SELECT COUNT(*) FROM quick_batch_capture_keys').fetchone(),(0,))
+            self.assertEqual(ledger.db.execute('SELECT COUNT(*) FROM quick_batch_capture_scopes').fetchone(),(0,))
+        finally:ledger.close()
+
     async def test_assessment_collects_native_empty_outcomes_and_continues_without_resend(self):
         answers = {"empty-success": "", "empty-blocked": " ", "empty-no-answer": ""}
         state, aws, browser = self.fake_runtime(native_answers=answers,
@@ -325,6 +358,22 @@ class AsyncStateTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ledger.db.execute("SELECT calls,halted,inflight FROM pilots").fetchone(), (1,1,1))
             self.assertEqual(ledger.db.execute("SELECT status FROM quick_batch_submissions").fetchone()[0], "unknown")
         finally: ledger.close()
+
+    async def test_send_intent_commit_failure_retains_charge_and_reports_zero_attempts(self):
+        state,aws,browser=self.fake_runtime()
+        c=ConversationLedger(self.target)
+        with c.db:c.db.execute("CREATE TRIGGER fail_intent BEFORE INSERT ON quick_batch_send_intents BEGIN SELECT RAISE(ABORT,'SCRIPTED fault');END")
+        c.close()
+        runner=QuickBatchRunner({'employee':self.target},authorization='test',max_calls=30,
+            aws_factory=aws,browser=browser,sweep_seconds=0.005)
+        result=await runner.run([BatchCase('one','employee',('one prompt',))])
+        self.assertEqual(state['sends'],[]);self.assertEqual(result['status'],'incomplete')
+        self.assertEqual(result['results'][0]['attempted_turns'],0)
+        c=ConversationLedger(self.target)
+        try:
+            self.assertEqual(c.db.execute('SELECT COUNT(*) FROM quick_batch_send_intents').fetchone(),(0,))
+            self.assertEqual(c.db.execute('SELECT calls,halted,inflight FROM pilots').fetchone(),(1,1,1))
+        finally:c.close()
 
     async def test_embedding_api_failure_is_not_retried_as_sdk_setup(self):
         state, base_aws, browser = self.fake_runtime()

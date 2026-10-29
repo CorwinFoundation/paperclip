@@ -14,6 +14,9 @@ from tools.quick_assessment import render as render_assessment
 from tools.quick_concurrency_spike import spike
 from tools.quick_source_checks import prepare as prepare_source_checks
 from harness.amazon_quick_accounting import checked_budget
+from harness.amazon_quick_recovery import recovery_plan
+from harness.amazon_quick_sources import collect
+from evals.quick_source_evidence import attack_exposure
 from harness.amazon_quick_batch import QuickBatchRunner
 
 

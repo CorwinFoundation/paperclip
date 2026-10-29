@@ -65,6 +65,17 @@ class ConversationLedger(Ledger):
           CREATE TABLE IF NOT EXISTS quick_late_evidence
             (owner TEXT, turn INTEGER, evidence_hash TEXT, observed_ms INTEGER,
              PRIMARY KEY(owner,turn,evidence_hash));
+          CREATE TABLE IF NOT EXISTS quick_batch_capture_keys
+            (owner TEXT PRIMARY KEY, capture_id TEXT NOT NULL, role TEXT NOT NULL,
+             prompts_sha256 TEXT NOT NULL,verified_bindings_json TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS quick_batch_capture_scopes
+            (owner TEXT PRIMARY KEY,capture_binding TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS quick_batch_send_intents
+            (owner TEXT, turn INTEGER, intent_at REAL NOT NULL,
+             PRIMARY KEY(owner,turn));
+          CREATE TABLE IF NOT EXISTS quick_batch_observations
+            (owner TEXT, turn INTEGER, observation_json TEXT NOT NULL,
+             PRIMARY KEY(owner,turn));
         """)
 
     def authorize(self, authorization: str, targets: dict[str, Target], cap: int):
@@ -104,7 +115,10 @@ class ConversationLedger(Ledger):
                            (self.authorization,)).fetchone()[0]:
             raise _fail("batch_halted_operator_review_required")
 
-    def acquire(self, owner: str):
+    def acquire(self, owner: str, case: BatchCase | None = None, *, capture_binding=None):
+        if capture_binding is not None and (not isinstance(capture_binding,str)
+                or not __import__('re').fullmatch('[0-9a-f]{64}',capture_binding)):
+            raise _fail('exact_capture_run_binding_required')
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
             self.check()
@@ -133,6 +147,28 @@ class ConversationLedger(Ledger):
                             (owner, self.identity, self.target.pilot_id, now + self.target.timeout_seconds + 30))
             self.db.execute("INSERT INTO quick_batch_cases VALUES (?,?,?,?,NULL)",
                             (owner, self.authorization, self.target.pilot_id, self.identity))
+            if case is not None:
+                if not isinstance(case, BatchCase) or not case.case_id or not case.role:
+                    raise _fail('bound_capture_key_required')
+                self.db.execute('INSERT INTO quick_batch_capture_keys VALUES (?,?,?,?,?)',
+                    (owner,case.case_id,case.role,_sha(json.dumps(list(case.turns))),'{}'))
+                if capture_binding is not None:
+                    self.db.execute('INSERT INTO quick_batch_capture_scopes VALUES (?,?)',(owner,capture_binding))
+
+    def mark_send_intent(self, owner: str, index: int):
+        """Commit before touching the browser; a possible send is never retried."""
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            self.check()
+            row=self.db.execute('SELECT status FROM quick_batch_submissions WHERE owner=? AND turn=?',
+                                (owner,index)).fetchone()
+            if row!=('submitting',) or not self.db.execute(
+                    'SELECT 1 FROM quick_batch_capture_keys WHERE owner=?',(owner,)).fetchone():
+                raise _fail('bound_reserved_capture_required')
+            try:
+                self.db.execute('INSERT INTO quick_batch_send_intents VALUES (?,?,?)',(owner,index,time.time()))
+            except sqlite3.IntegrityError:
+                raise _fail('send_intent_already_recorded_no_retry') from None
 
     def reserve_turn(self, owner: str, index: int, prompt: str, start_ms: int, deadline: float):
         with self.db:
@@ -159,6 +195,9 @@ class ConversationLedger(Ledger):
         msg = _sha(self.identity + row["user_message_id"])
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
+            if self.db.execute('SELECT 1 FROM quick_batch_capture_keys WHERE owner=?',(owner,)).fetchone() and not self.db.execute(
+                    'SELECT 1 FROM quick_batch_send_intents WHERE owner=? AND turn=?',(owner,index)).fetchone():
+                raise _fail('provider_evidence_without_send_intent')
             state = self.db.execute("SELECT status,captured_hash FROM quick_batch_submissions WHERE owner=? AND turn=?",
                                     (owner, index)).fetchone()
             if state is None:
@@ -185,6 +224,21 @@ class ConversationLedger(Ledger):
             self.db.execute("UPDATE quick_batch_cases SET conversation=? WHERE owner=?", (conv, owner))
             self.db.execute("UPDATE quick_batch_submissions SET status='verified',answer_hash=? WHERE owner=? AND turn=?",
                             (_sha(row["system_text_message"]), owner, index))
+            capture_key=self.db.execute('SELECT verified_bindings_json FROM quick_batch_capture_keys WHERE owner=?',(owner,)).fetchone()
+            if capture_key:
+                verified=json.loads(capture_key[0]);verified[str(index)]={
+                    'conversation_sha256':_sha(row['conversation_id']),'message_sha256':_sha(row['user_message_id']),
+                    'system_message_sha256':_sha(row['system_message_id']) if isinstance(row.get('system_message_id'),str) and row['system_message_id'] else None,
+                    'response_sha256':_sha(row['system_text_message'])}
+                self.db.execute('UPDATE quick_batch_capture_keys SET verified_bindings_json=? WHERE owner=?',
+                    (json.dumps(verified,sort_keys=True),owner))
+                # Commit the native observation with acceptance. A crash before
+                # the filesystem checkpoint can then be reconciled without a
+                # second prompt or losing a completed provider response.
+                observation={'prompt':row['user_message'],'reply':row['system_text_message'],
+                    'transport':knowledge_evidence(row,self.target),'browser_response_sha256':None}
+                self.db.execute('INSERT INTO quick_batch_observations VALUES (?,?,?)',
+                    (owner,index,json.dumps(observation,sort_keys=True)))
             self.db.execute("UPDATE pilots SET inflight=inflight-1 WHERE id=?", (self.target.pilot_id,))
             return True
 
@@ -200,6 +254,16 @@ class ConversationLedger(Ledger):
             if reason == "evidence_mismatch":
                 self.db.execute("UPDATE quick_batch_submissions SET status='mismatch',reason=? WHERE owner=? AND turn=? AND status='verified'",
                                 (reason, owner, index))
+
+    def record_sources(self,owner,index,observation):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            row=self.db.execute('SELECT observation_json FROM quick_batch_observations WHERE owner=? AND turn=?',(owner,index)).fetchone()
+            if row is None:raise _fail('accepted_native_observation_required')
+            turn=json.loads(row[0]);turn['provider_source_observation']=observation
+            data=json.dumps(turn,sort_keys=True)
+            if len(data.encode())>600000:raise _fail('bounded_source_observation_required')
+            self.db.execute('UPDATE quick_batch_observations SET observation_json=? WHERE owner=? AND turn=?',(data,owner,index))
 
     def release(self, owner: str):
         with self.db:
@@ -298,9 +362,10 @@ class BotoEvidence:
 class PersistentBrowser:
     """One Chromium, fresh storage per conversation, bounded recycling."""
 
-    def __init__(self, *, recycle_after=50, capture_spec=None):
+    def __init__(self, *, recycle_after=50, capture_spec=None,source_capture_spec=None):
         self.recycle_after = recycle_after
         self.capture_spec = capture_spec
+        self.source_capture_spec=source_capture_spec
         self.pw = self.browser = None
         self.active = self.opened = self.launches = 0
         self.condition = asyncio.Condition()
@@ -345,6 +410,7 @@ class PersistentBrowser:
             await context.route_web_socket("**/*", socket_route)
             page = await context.new_page()
             chat = AsyncChat(page, target, deadline, self.capture_spec)
+            chat.source_capture_spec=self.source_capture_spec
             page.on("requestfailed", chat.observe_request_failure)
             page.on("crash", lambda *_: chat.observe_page_crash())
             yield chat
@@ -462,6 +528,10 @@ class AsyncChat:
         except Exception:
             pass
         return None, "browser_capture_selector_failure_log_fallback"
+
+    async def sources(self,native):
+        from harness.amazon_quick_sources import collect
+        return await collect(self.page,self.target,native,getattr(self,'source_capture_spec',None),self.remaining_ms)
 
 
 @dataclass
@@ -586,10 +656,15 @@ class EvidenceSweep:
 class QuickBatchRunner:
     def __init__(self, targets, *, authorization, max_calls, aws_factory=BotoEvidence,
                  browser=None, sweep_seconds=15, max_wall_seconds=7200, registered_tokens=None,
-                 concurrency=None, on_result=None, start_together=False, allow_empty_responses=False):
+                 concurrency=None, on_result=None, start_together=False, allow_empty_responses=False,
+                 capture_binding=None):
         if not targets or not 0 < sweep_seconds <= 15 or not 1 <= max_wall_seconds <= 14400:
             raise _fail("invalid_batch_limits")
         self.targets, self.authorization = targets, authorization
+        if capture_binding is not None and (not isinstance(capture_binding,str)
+                or not __import__('re').fullmatch('[0-9a-f]{64}',capture_binding)):
+            raise _fail('exact_capture_run_binding_required')
+        self.capture_binding=capture_binding
         if type(allow_empty_responses) is not bool:
             raise _fail("invalid_empty_response_mode")
         self.allow_empty_responses = allow_empty_responses
@@ -662,6 +737,13 @@ class QuickBatchRunner:
                             if k in _BROWSER_NETWORK_ERRORS | {"other", "unavailable"} and type(v) is int and v >= 0},
                         "page_crashed": getattr(chat, "page_crashed", False) is True})
                     if attempt == 1 and time.monotonic() < deadline:
+                        # Only initialization may retry, before any send intent.
+                        # Give transient connection resets time to settle without
+                        # adding attempts or extending the conversation deadline.
+                        if getattr(chat,'startup_error_code',None) in {
+                                'net::ERR_CONNECTION_RESET','net::ERR_CONNECTION_CLOSED',
+                                'net::ERR_NETWORK_CHANGED','net::ERR_EMPTY_RESPONSE'}:
+                            await asyncio.sleep(min(2,max(0,deadline-time.monotonic())))
                         continue  # Close this context before generating a fresh URL.
                     raise
                 events.append({"attempt": attempt, "outcome": "ready"})
@@ -676,6 +758,7 @@ class QuickBatchRunner:
                       "turns": [], "reason": "not_submitted", "initialization": []}
             ledger, target = self.ledgers[case.role], self.targets[case.role]
             owner, items, locks = secrets.token_hex(16), [], []
+            committed_send_intents=0
             acquired = False
             startup_lock = self.startup_locks.setdefault(ledger.identity, asyncio.Lock())
             startup_locked = startup_slot = False
@@ -696,7 +779,7 @@ class QuickBatchRunner:
                 self.check_registration(case.role)
                 # Queueing consumes the overall batch deadline, but does not
                 # consume a conversation lease or its answer deadline.
-                ledger.acquire(owner)
+                ledger.acquire(owner,case,capture_binding=self.capture_binding)
                 acquired = True
                 case_deadline = min(deadline, time.monotonic() + target.timeout_seconds)
                 if time.monotonic() >= case_deadline:
@@ -728,6 +811,8 @@ class QuickBatchRunner:
                                                       (start_ms, owner))
                             item = self.sweeps[case.role].add(owner, index, prompt, start_ms, case_deadline)
                             items.append(item)
+                            ledger.mark_send_intent(owner,index)
+                            committed_send_intents+=1
                             try:
                                 await chat.send(prompt)
                             except BaseException:
@@ -755,11 +840,19 @@ class QuickBatchRunner:
                             if not capture.done():
                                 capture.cancel()
                             await asyncio.gather(capture, return_exceptions=True)
+                        # Capture citations before another prompt can replace
+                        # the visible response. Missing evidence never causes
+                        # another prompt or turns a container citation into a file.
+                        if getattr(chat,'source_capture_spec',None) is not None:
+                            native=await item.future
+                            item.source_observation=await chat.sources(native)
+                            ledger.record_sources(owner,index,item.source_observation)
                     rows = await asyncio.gather(*(item.future for item in items))
                     result.update(status="observed", reason="correlated_provider_answers", turns=[
                         {"prompt": item.prompt, "reply": row["system_text_message"],
                          "transport": knowledge_evidence(row, target), "pacing": item.pacing,
-                         "browser_response_sha256": _sha(item.captured) if item.captured is not None else None}
+                         "browser_response_sha256": _sha(item.captured) if item.captured is not None else None,
+                         **({'provider_source_observation':item.source_observation} if hasattr(item,'source_observation') else {})}
                         for item, row in zip(items, rows)])
                     if any(not turn["reply"].strip() for turn in result["turns"]):
                         result["reason"] = "correlated_provider_empty_text"
@@ -776,7 +869,8 @@ class QuickBatchRunner:
                         result["reason"] = "persistent_state_failure_operator_review_required"
                 for item in items:
                     self.sweeps[case.role].fail(item, result["reason"])
-                result["attempted_turns"] = len(items)
+                result['prepared_turns']=len(items)
+                result["attempted_turns"] = committed_send_intents
                 result["turns"] = [
                     {"prompt": item.prompt, "reply": item.future.result()["system_text_message"],
                      "transport": knowledge_evidence(item.future.result(), target), "pacing": item.pacing,

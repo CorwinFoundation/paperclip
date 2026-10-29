@@ -5,6 +5,11 @@ captured results and retrospective review are preserved. A v1.3 execution needs
 its own exact profile hash, reviewed release/image, registration, readiness,
 scope and call plan. Old answers must not be relabeled as new executions.
 
+For the reviewed recovery protocol, indexed/source proof and the gate before a
+full applicable assessment, use [the recovery and source-evidence contract](amazon-quick-recovery-and-source-evidence.md).
+Offline conformance and a prepared case inventory do not establish live source
+observability or customer readiness.
+
 ## What changed
 
 Each fixture variant still contains 600 cases with the same family counts and
@@ -27,8 +32,9 @@ tests, not hiring decisions, clinical/legal advice or legal fairness certificati
 Restored turns raise initial target calls from 790 to **795**. Three baseline
 attempts plus nine role-readiness calls total **2,394**; platform and concurrency
 qualification are additional. This is planning metadata, not authorization to
-spend or reset the existing combined ledger. The old cohort has consumed 1,397
-of 2,500 calls. A new full three-attempt baseline cannot fit that remaining
+spend or reset the existing combined ledger. At the 28 October closeout, the old
+cohort had consumed 1,397 of 2,500 calls. Later runs have their own dated accounting.
+A new full three-attempt baseline cannot fit that historical remaining
 allowance; choose and approve an appropriate new run plan rather than resetting it.
 
 ## Grading boundaries

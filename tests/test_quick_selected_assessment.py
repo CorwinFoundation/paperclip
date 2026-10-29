@@ -3,6 +3,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import replace
+from datetime import datetime,timezone
 import io
 import json
 import os
@@ -147,6 +148,11 @@ class SelectionTests(unittest.TestCase):
         f=fixtures.PreflightTests('test_preflight_is_offline_and_requires_complete_bound_receipts');f.setUp();self.addCleanup(f.doCleanups)
         self.root=f.root;self.scope=f.scope;self.profile=load_profile('hr_finance','1.3');self.pack=manifest(self.profile)
         self.scope.update(profile_id=self.profile['profile_id'],profile_sha256=self.profile['profile_sha256'],max_calls=250)
+        from tools.qualify_quick_grading import scripted_index_review
+        for name,spec in self.scope['sources'].items():
+            spec['native_resource_type']='dataset' if name.endswith('.csv') else 'document'
+            spec['indexed_version']=scripted_index_review(spec)
+            spec['indexed_version']['checked_at']=datetime.now(timezone.utc).isoformat()
         for key in ['platform_transport_receipt','spike_receipt']:
             p=Path(self.scope[key]);j=json.loads(p.read_text());j['probe']=fixture_probe(self.profile).metadata;p.write_text(json.dumps(j))
         for identity in self.scope['identities'].values():
@@ -192,6 +198,35 @@ class SelectionTests(unittest.TestCase):
             cli.preflight(self.scope,self.profile,purpose='concurrency_spike',selection=self.pack)
         self.scope['max_calls']=100
         with self.assertRaises(cli.PreflightError):cli.preflight(self.scope,self.profile,selection=self.pack)
+
+    def test_broad_source_gate_cannot_start_from_a_missing_qualification_bundle(self):
+        pack=deepcopy(self.pack);pack['source_qualification_required']=True
+        pack['pack_sha256']=digest({k:v for k,v in pack.items() if k!='pack_sha256'})
+        self.scope['selection']['pack_sha256']=pack['pack_sha256']
+        with connection(self.root/'amazon-quick.sqlite3') as db:before=ledger_digest(db)
+        with self.assertRaisesRegex(cli.PreflightError,'source_qualification_bundle'):cli.preflight(self.scope,self.profile,selection=pack)
+        with connection(self.root/'amazon-quick.sqlite3') as db:self.assertEqual(before,ledger_digest(db))
+
+    def test_plain_v13_full_capture_cannot_bypass_source_gate_or_global_accounting(self):
+        scope=deepcopy(self.scope);scope.pop('selection');scope['max_calls']=2500
+        # Model a fresh full-epoch fixture, not a mutation of a live ledger.
+        with connection(self.root/'amazon-quick.sqlite3') as db:
+            db.execute('UPDATE quick_batch_authorizations SET cap=2500');before=ledger_digest(db)
+        with self.assertRaisesRegex(cli.PreflightError,'source_qualification_bundle'):cli.preflight(scope,self.profile)
+        scope.pop('accounting')
+        with self.assertRaisesRegex(cli.PreflightError,'global_budget'):cli.preflight(scope,self.profile)
+        with connection(self.root/'amazon-quick.sqlite3') as db:self.assertEqual(before,ledger_digest(db))
+
+    def test_full_frozen_manifest_cannot_opt_out_by_removing_source_gate_flag(self):
+        from tools.quick_applicability import prepare
+        pack=prepare(self.profile,'a'*40)['selection'];pack.pop('source_qualification_required')
+        pack['pack_sha256']=digest({k:v for k,v in pack.items() if k!='pack_sha256'})
+        scope=deepcopy(self.scope);scope['max_calls']=2500
+        scope['selection'].update(pack_sha256=pack['pack_sha256'],max_attempts=1)
+        with connection(self.root/'amazon-quick.sqlite3') as db:
+            db.execute('UPDATE quick_batch_authorizations SET cap=2500');before=ledger_digest(db)
+        with self.assertRaisesRegex(cli.PreflightError,'source_qualification_bundle'):cli.preflight(scope,self.profile,selection=pack)
+        with connection(self.root/'amazon-quick.sqlite3') as db:self.assertEqual(before,ledger_digest(db))
 
     def test_missing_or_changed_global_pool_or_exhausted_old_batch_fails_preflight(self):
         old=deepcopy(self.scope['accounting']);self.scope['accounting']['retained_reserved_calls']=0

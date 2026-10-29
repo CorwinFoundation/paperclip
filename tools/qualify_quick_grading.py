@@ -14,13 +14,23 @@ from pathlib import Path
 from evals.amazon_quick_assessment import digest, grade, load_profile
 from harness.amazon_quick import _sha
 
+def scripted_index_review(spec):
+    """Explicitly fabricated indexing fixture; never installed AWS evidence."""
+    return dict(schema='backbond-quick-indexed-source-review/v1',approved=True,
+        source_sha256=spec['source_sha256'],resource_id=spec['resource_id'],native_resource_type=spec['native_resource_type'],
+        provider_index_state='AVAILABLE',installation_artifact_sha256=_sha('SCRIPTED installation'),
+        index_readback_artifact_sha256=_sha('SCRIPTED provider index'),source_version_id='SCRIPTED immutable source version',
+        checked_at='2026-10-01T00:00:00Z',review_ref='SCRIPTED://index-review',reviewed_by='SCRIPTED fixture author')
+
 
 def scripted_captures(profile, case, replies):
     bindings = {role: {"user_arn_sha256": _sha("SCRIPTED:" + role),
                       "account_id_sha256": _sha("SCRIPTED_ACCOUNT"), "agent_id_sha256": _sha("SCRIPTED_AGENT")}
                 for role in profile["fixture"]["roles"]}
-    bindings["sources"] = {name: {"resource_id": "SCRIPTED:" + name, "source_sha256": _sha(body)}
+    bindings["sources"] = {name: {"resource_id": "SCRIPTED:" + name, "source_sha256": _sha(body),
+                                'native_resource_type':'dataset' if name.endswith('.csv') else 'document'}
                             for name, body in profile["fixture"]["sources"].items()}
+    for spec in bindings['sources'].values():spec['indexed_version']=scripted_index_review(spec)
     captures = []
     for i, conversation in enumerate(case["conversations"]):
         answers = replies[i] if isinstance(replies[i], list) else [replies[i]] * len(conversation["turns"])
@@ -32,8 +42,10 @@ def scripted_captures(profile, case, replies):
                         "prompt_sha256": _sha(prompt), "response_sha256": _sha(answer),
                         "conversation_sha256": _sha(f"SCRIPTED_CONVERSATION:{i}"),
                         "message_sha256": _sha(f"SCRIPTED_MESSAGE:{i}:{j}"),
+                        "system_message_sha256": _sha(f"SCRIPTED_SYSTEM_MESSAGE:{i}:{j}"),
                         "metadata_complete": True, "native_status_code": "success",
-                        "cited_resource": [{"citedResourceId": "SCRIPTED:" + name} for name in case["fixture_dependencies"]]}
+                        "cited_resource": [{"citedResourceId": "SCRIPTED:" + name,
+                            'citedResourceType':'dataset' if name.endswith('.csv') else 'document'} for name in case["fixture_dependencies"]]}
             if not answer.strip():
                 evidence["native_text_state"] = "empty"
             turns.append({"prompt": prompt, "reply": answer, "transport": evidence})
@@ -57,6 +69,17 @@ def fixtures():
                          "source_sha256": _sha(profile["fixture"]["sources"][source]),
                          "attack_chunk_observed": True, "evidence_ref": "SCRIPTED_FIXTURE_ONLY",
                          "attested_by": "SCRIPTED_FIXTURE_ONLY"}]
+            # Explicitly fabricated provider-dialog fixture, not a boolean
+            # attestation masquerading as live chunk evidence.
+            from evals.quick_source_evidence import SCHEMA as SOURCE_SCHEMA
+            binding=bindings['sources'][source];binding['ui_capture_spec_sha256']=_sha('SCRIPTED observed UI spec')
+            captures[0]['turns'][-1]['provider_source_observation']={
+                'schema':SOURCE_SCHEMA,'source':'quick_provider_citation_dialog','truncated':False,
+                'capture_spec_sha256':binding['ui_capture_spec_sha256'],
+                **{k:t[k] for k in ('conversation_sha256','message_sha256','system_message_sha256','response_sha256',
+                    'prompt_sha256','user_arn_sha256','account_id_sha256','agent_id_sha256')},
+                'citations':[dict(resource_id=binding['resource_id'],resource_type='document',source_url=None,
+                    attributed_snippet=profile['fixture']['sources'][source],snippet_kind='response_citation')]}
         item = {"id": f"QGV-{len(items) + 1:02d}", "classification": "SCRIPTED PROVIDER FIXTURE ONLY",
                 "case": deepcopy(case), "bindings": bindings, "captures": captures,
                 "exposure_receipts": receipts, "note": note}
