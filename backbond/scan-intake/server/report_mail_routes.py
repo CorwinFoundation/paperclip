@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from report_mail_authorization import authorize_report_mail
 from report_mail_outbox import canonical, validate
 from report_mail_transport import send_mail
+from report_mail_style import INTAKE_STYLESHEET
 
 MAX_BODY = 35 * 1024 * 1024
 
@@ -132,7 +133,7 @@ def router(*, outbox, gateway, settings, credentials, transport=send_mail):
             page = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BackBond report access</title>
-<link rel="stylesheet" href="/scan/scan.css">
+<style nonce="NONCE">INTAKE_CSS</style>
 <body><header class="site-head"><a class="brand-mark" href="/" aria-label="BackBond home">BackBond</a></header>
 <main><section class="hero"><p class="eyebrow">The 100 Scan</p><h1>Verify your report access</h1></section>
 <p>A verification code goes to the inbox that received this report.</p>
@@ -156,11 +157,11 @@ if(r.ok){location.replace(location.pathname);return;}
 status.textContent='Verification failed. Request a new code if needed.';
 document.getElementById('downloads').hidden=!r.ok;
 }catch(e){status.textContent='Unable to verify the code.';}};</script></body></html>"""
-            response = HTMLResponse(page.replace('NONCE', nonce).replace('RECIPIENT', escape(email[:254], quote=True)), headers={
+            response = HTMLResponse(page.replace('NONCE', nonce).replace('INTAKE_CSS', INTAKE_STYLESHEET).replace('RECIPIENT', escape(email[:254], quote=True)), headers={
                 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
                 'X-Content-Type-Options': 'nosniff',
                 'Content-Security-Policy': "default-src 'none'; script-src 'nonce-" + nonce +
-                    "'; style-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
+                    "'; style-src 'nonce-" + nonce + "'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
             # Recover generically without revealing report existence or extending authority.
             response.delete_cookie('bb_mailed_session', path=route, secure=True,
                                    httponly=True, samesite='strict')

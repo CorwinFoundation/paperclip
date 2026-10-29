@@ -250,9 +250,13 @@ def test_verification_reuses_intake_styles_and_layout(service):
     client, box, config, record, transport = service
     ident = submit(client).json()['request_id']
     response = client.get('/scan/v1/mailed-reports/' + ident)
-    assert '<link rel="stylesheet" href="/scan/scan.css">' in response.text
+    from report_mail_style import INTAKE_STYLESHEET
+    import re
+    nonce = re.search(r'<style nonce="([^"]+)">', response.text).group(1)
+    assert INTAKE_STYLESHEET in response.text
+    assert '/scan/scan.css' not in response.text
+    assert f"style-src 'nonce-{nonce}'" in response.headers['content-security-policy']
     assert 'class="site-head"' in response.text
     assert 'class="hero"' in response.text
-    assert "style-src 'self'" in response.headers['content-security-policy']
     assert "font-src 'self'" in response.headers['content-security-policy']
     assert "script-src 'nonce-" in response.headers['content-security-policy']
