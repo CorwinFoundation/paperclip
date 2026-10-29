@@ -428,7 +428,7 @@ def _scanner_check(data: dict) -> tuple[bool, str | None]:
     error = body.get("error")
     if not isinstance(error, str) or not (error in {'timeout', 'redirect refused', 'connection failed'} or re.fullmatch(r'HTTP [1-5][0-9]{2}', error)):
         error = 'Connection check failed. Check the endpoint, authentication and response settings.'
-    from harness.connection_diagnostics import safe_excerpt
+    from connection_diagnostics import safe_excerpt
     detail = {}
     if body.get('failed_stage') in {'reachability', 'transport', 'response_parse', 'auth'}:
         detail['failed_stage'] = body['failed_stage']
