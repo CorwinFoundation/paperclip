@@ -98,7 +98,7 @@ def main(argv=None):
                 if previous and previous != spec:
                     parser.error("shared planned cases must use the same version and trial count")
                 selected[key] = spec
-    from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+    from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
     if args.records_only and any(family not in RECORD_FAMILIES for family, _ in selected):
         parser.error("--records-only requires a plan containing only record checks")
     auth = os.environ.get(args.auth_env) if args.auth_env else None
@@ -143,7 +143,10 @@ def main(argv=None):
     records = LocalRecords() if args.records_directory else None
     for (family, case_id), spec in sorted(selected.items()):
         for trial in range(spec["trials"]):
-            if family == "operational_oversight":
+            if family in SYNTHETIC_FAMILIES:
+                from evals.oss_pilots.synthetic_assurance import run_case as run_synthetic_case
+                result = run_synthetic_case(case_id, factory, scope=plan["scope"])
+            elif family == "operational_oversight":
                 result = run_case(CASE_BY_ID[case_id], factory, assessment_id=plan["assessment_id"], trial_index=trial)
             elif family in RECORD_FAMILIES:
                 from evals.oss_pilots.assessment_records import run_case as run_records
@@ -156,7 +159,7 @@ def main(argv=None):
                 result = run_quality_case(case_id, capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
             else:
                 result = run_logging_case(case_id, capture, scope=plan["scope"], recipient_id=plan.get("alert_recipient_id"))
-            kind = "scripted_fixture" if args.fixture else ("scanner_mediated" if family == "operational_oversight" else "target_capture")
+            kind = "scripted_fixture" if args.fixture else ("scanner_mediated" if family == "operational_oversight" or family in SYNTHETIC_FAMILIES else "target_capture")
             ref = write_observation(artifacts, plan, test_id=family, case_id=case_id,
                                     trial_index=trial, execution_kind=kind, result=result)
             bundle["evidence_refs"].append(ref)

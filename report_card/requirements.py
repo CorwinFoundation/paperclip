@@ -7,7 +7,8 @@ from standard_requirement_report import build_standard_requirement_report
 def render_requirements(score):
     report = score.get("requirements_evidence") or build_standard_requirement_report(score)
     sections = []
-    names = {"eu-ai-act": "EU AI Act", "iso-iec-42001": "ISO/IEC 42001"}
+    names = {"eu-ai-act": "EU AI Act", "iso-iec-42001": "ISO/IEC 42001",
+             "nist-ai-rmf": "NIST AI RMF 1.0", "owasp-llm-top10": "OWASP Top 10 for LLM Applications (2025)"}
     for framework in report["frameworks"]:
         rows = []
         for control in framework["controls"]:
@@ -26,7 +27,8 @@ def render_requirements(score):
             documents = "; ".join(control["required_document_ids"]) or "Assessor review required"
             rows.append(
                 "<tr>" + "".join(f"<td>{escape(str(v))}</td>" for v in (
-                    control["control_id"], tests, gaps, documents, control["requirement_conclusion"],
+                    control["control_id"] + (" — " + control["title"] if control.get("title") and control["title"] != control["control_id"] else ""), tests, gaps, documents, control["requirement_conclusion"],
+                    control.get("observation_limitations", "Applicability and full outcome adequacy require review."),
                 )) + "</tr>"
             )
         name = names.get(framework["framework_id"], framework["framework_id"])
@@ -36,7 +38,7 @@ def render_requirements(score):
             f'{observed_count} of {len(framework["controls"])} controls with scan observations</summary>'
             '<table style="width:100%; table-layout:fixed; overflow-wrap:anywhere"><thead><tr><th>Requirement</th><th>Reported scan observations</th>'
             '<th>Unobserved test families</th><th>Documents requiring review</th>'
-            '<th>Conclusion</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table></details>'
+            '<th>Conclusion</th><th>Observation limits</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table></details>'
         )
     return (
         '<section class="requirements-evidence"><div class="section-title">Requirement Evidence Mapping</div>'

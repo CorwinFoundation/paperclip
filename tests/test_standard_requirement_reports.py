@@ -70,7 +70,7 @@ def test_default_crosswalk_is_complete_but_does_not_invent_plan_or_conformity():
     before = deepcopy(score)
     report = build_standard_requirement_report(score, scan_id="scan-eu-iso")
     assert score == before
-    assert [len(f["controls"]) for f in report["frameworks"]] == [24, 65]
+    assert [len(f["controls"]) for f in report["frameworks"]] == [24, 65, 72, 10]
     assert report["scope_status"] == "not verified"
     assert report["certification_status"] == "not certification"
     for framework in report["frameworks"]:
@@ -111,7 +111,7 @@ def test_standard_api_mapping_is_independent_of_old_framework_flag(monkeypatch, 
     envelope = _external_result_envelope(result(), {
         "are_total": 72, "band": "B", "run_timestamp": "2026-10-27T00:00:00Z",
     })
-    assert len(envelope["requirements_evidence"]["frameworks"]) == 2
+    assert len(envelope["requirements_evidence"]["frameworks"]) == 4
     assert envelope["are_total"] == 72
     runtime = SimpleNamespace(current_kickoff_row=lambda _: None)
     assert "requirements_evidence" in _customer_result_response("scan-eu-iso", result(), runtime)
@@ -183,10 +183,10 @@ def test_customer_json_report_includes_mapping_and_preserves_score():
     assert "requirements_evidence" not in source
 
 
-def test_registry_exposes_44_report_only_cases_without_inflating_published_count():
+def test_registry_exposes_48_report_only_cases_without_inflating_published_count():
     rows = build_registry()
     ops = [r for r in rows if r["test_id"] in FAMILIES]
-    assert len(ops) == 44
+    assert len(ops) == 48
     from tools.assessment_test_catalog import LIFECYCLE_RECORD_CASES, ASSURANCE_RECORD_CASES
     assert set(LIFECYCLE_RECORD_CASES) | set(ASSURANCE_RECORD_CASES) <= {r["test_id"] for r in ops}
     assert sum(r["test_id"] == "operational_logging_quality" for r in ops) == 5
@@ -199,14 +199,17 @@ def test_registry_exposes_44_report_only_cases_without_inflating_published_count
 
 def test_normal_full_registry_dispatches_oversight_and_reports_evidence(tmp_path, monkeypatch):
     monkeypatch.setenv("ARE_BUNDLE_SIGNING_KEY", "test-key")
-    worker = executor(tmp_path, operational_session_factory=fixture_factory("compliant"))
+    from tests.synthetic_assurance_fixtures import factory as synthetic_factory
+    def qualified_factory(setup):
+        return (synthetic_factory() if setup.system_prompt.startswith("This is an authorized inert synthetic evaluation.") else fixture_factory("compliant"))(setup)
+    worker = executor(tmp_path, operational_session_factory=qualified_factory)
     runtime = ScanRuntime(run_scan_fn=lambda *_: result(), full_scan_registry_rows=registry_rows(),
                           full_scan_workers_factory=lambda *_: {"day1_report_only": worker},
                           full_scan_job_store=FullScanJobStore())
     completed = runtime._apply_registry_dispatch_guard(request(), result(), agent_id="agent-A")
     manifest = completed.full_suite_manifest
     assert completed.status == "complete"
-    assert manifest["counts"]["expected"] == 8
+    assert manifest["counts"]["expected"] == 12
     assert all(r["verdict"] == "pass" and r["numeric_result"] is None for r in manifest["evidence_rows"])
     assert worker.ledger.target_calls > 8
     assert worker.ledger.judge_calls == 0

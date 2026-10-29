@@ -43,6 +43,7 @@ SOURCE_INPUTS = [
     "evals/oss_pilots/assessment_validation.py",
     "evals/oss_pilots/assessment_lifecycle.py",
     "evals/oss_pilots/assessment_assurance.py",
+    "evals/oss_pilots/synthetic_assurance.py",
     "tools/binomial_statistics.py",
     "rubric/requirement_registry.v1.json",
     "rubric/probe_mappings/*.yaml",

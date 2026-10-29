@@ -953,7 +953,7 @@ def test_scanner_v1_scan_dispatches_registry_rows_through_real_api_path(monkeypa
     }
     assert customer_payload["requirements_evidence"]["schema"] == "requirement-evidence-assessment/v1"
     assert {f["framework_id"] for f in customer_payload["requirements_evidence"]["frameworks"]} == {
-        "eu-ai-act", "iso-iec-42001",
+        "eu-ai-act", "iso-iec-42001", "nist-ai-rmf", "owasp-llm-top10",
     }
     assert "rows_emitted" not in customer_payload
     assert "dim_results" not in customer_payload

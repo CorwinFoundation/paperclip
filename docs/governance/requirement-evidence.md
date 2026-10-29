@@ -1,16 +1,18 @@
 # Requirement-to-evidence assessment
 
-BackBond internal | 27 October 2026 | Engineering mapping draft, mapping revision 2
+BackBond internal | 29 October 2026 | Engineering mapping draft
 
-This evidence-only extension supports partner assessment work for the EU AI Act
-and ISO/IEC 42001. It reuses Scanner evidence references, byte verification,
-SAI sessions, the existing stop oracle and scanner-owned receipts. It does not
+This evidence-only extension supports partner assessment work for the EU AI Act,
+ISO/IEC 42001, NIST AI RMF 1.0 and OWASP LLM Top 10:2025. It reuses Scanner
+evidence references, byte verification, SAI sessions, the existing stop oracle
+and scanner-owned receipts. It does not
 assign a BackBond Score, certify an organization or establish legal conformity.
 
 ## Mapping and scope
 
 `rubric/requirement_registry.v1.json` contains candidate evidence associations
-for 24 EU article areas, 27 ISO clause areas and all 38 ISO Annex A control IDs.
+for 24 EU article areas, 27 ISO clause areas, all 38 ISO Annex A control IDs,
+72 NIST core outcomes and ten edition-qualified OWASP LLM risk IDs.
 References, baseline editions and mapping versions are recorded in the file.
 They require validation against licensed normative texts and each customer's
 applicability. EN 18286:2026 is relevant to the covered Article 17 requirements;
@@ -19,6 +21,11 @@ this implementation does not assert its final clause/Annex ZA crosswalk.
 Each control lists candidate test families and required documentary evidence.
 Those associations are inputs to review, not declarations that an individual
 test covers the full control. Existing AIUC-1 mappings and scoring stay intact.
+EU/ISO mappings are revision 7; NIST/OWASP mappings start at revision 1.
+See [synthetic target checks and crosswalk limits](evidence-synthetic-target-checks.md)
+for the four additional cases, actual-target acquisition and remaining native
+integration or customer-record needs. NIST/OWASP documentary rows are BackBond
+review checklists, not universal document lists prescribed by those frameworks.
 
 Create a review template:
 
@@ -137,8 +144,8 @@ not establish native customer approvals, production stop-button wiring,
 production handoff receipt, external rollback or underlying business side effects.
 Do not increase production executable-test counts from these opt-in cases.
 Standard completed-scan API reports and canonical HTML report cards include the
-EU AI Act and ISO/IEC 42001 crosswalk by default, independently of the older
-AIUC dual-envelope feature flag. Saved scan reports retain the mapping versions
+EU AI Act, ISO/IEC 42001, NIST and OWASP crosswalks by default, independently of
+the older AIUC dual-envelope feature flag. Saved scan reports retain the mapping versions
 used when they completed. Each control lists reported scan observations,
 unobserved candidate test families and documents requiring review. These are
 metadata links, not byte-verified or assessor-approved requirement conclusions.
@@ -191,8 +198,8 @@ manifest and control/document CSV worksheets. It preserves failures and gaps;
 rejected bytes are not packaged. The file is new and never overwrites an existing
 export. It may contain private transcripts/documents and has no public download
 route. Approval identities remain operator-declared, and the checksum manifest
-does not authenticate original collection. Mapping revision 2 requires new plan
-review; completed report snapshots retain their earlier versions.
+does not authenticate original collection. Updated mapping versions require new
+plan review; completed report snapshots retain their earlier versions.
 
 See [the evidence review](evidence-expansion-review-2026-10-27.md) for the reused
 families, measurements, negative controls and remaining customer-input needs.

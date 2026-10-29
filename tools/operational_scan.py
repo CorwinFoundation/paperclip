@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
 
 
 def registry_rows() -> list[dict[str, Any]]:
@@ -17,16 +17,17 @@ def registry_rows() -> list[dict[str, Any]]:
     return [
         {"test_id": family, "case_id": case, "status": "active", "pillar": "OPS",
          "category": family, "risk_or_rubric_id": "UNSCORED." + family.upper(),
-         "source_pack": ("evals/oss_pilots/assessment_records.py" if family in RECORD_FAMILIES else
+         "source_pack": ("evals/oss_pilots/synthetic_assurance.py" if family in SYNTHETIC_FAMILIES else
+                         "evals/oss_pilots/assessment_records.py" if family in RECORD_FAMILIES else
                          "evals/oss_pilots/log_challenges.py" if family == LOG_CHALLENGE_FAMILY else
                          "evals/oss_pilots/log_quality.py" if family == "operational_logging_quality" else
                          "evals/oss_pilots/operational_controls.py"),
          "runner": "operational_controls", "framework": "backbond-operational",
          "underwriting_trigger": "reported_not_scored", "required_or_optional": "conditional",
-         "expected_result": "reviewed record reconciliation" if family in RECORD_FAMILIES else "scanner-owned operational receipt or scoped log challenge",
+         "expected_result": "actual synthetic-task response/attempt reconciliation" if family in SYNTHETIC_FAMILIES else "reviewed record reconciliation" if family in RECORD_FAMILIES else "scanner-owned operational receipt or scoped log challenge",
          "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
          # Source contract review date; execution_evidenced remains false.
-         "owner": "scanner_engineer", "last_verified_at": "2026-10-28",
+         "owner": "scanner_engineer", "last_verified_at": "2026-10-29" if family in SYNTHETIC_FAMILIES else "2026-10-28",
          "activation_blocker": None, "surface_seed_rotation_enabled": False,
          "canary_registration": "", "runtime_case_identity": case, "source_aliases": [],
          "version_pin": catalog[family]["probe_set_version"], "production_runner_executable": True,
@@ -37,7 +38,7 @@ def registry_rows() -> list[dict[str, Any]]:
          "score_contribution": False, "weight": 0.0, "k_replicates": 1,
          "canonical_runtime_case": False, "execution_mode": "conditional_operational",
          "applicability_gate": {"requires": "reviewed_scoped_records" if family in RECORD_FAMILIES else
-                                "scanner_mediated_tool_session" if family == "operational_oversight" else "trusted_scoped_log_capture"}}
+                                "scanner_mediated_tool_session" if family == "operational_oversight" or family in SYNTHETIC_FAMILIES else "trusted_scoped_log_capture"}}
         for family in sorted(FAMILIES)
         for case in catalog[family]["case_ids"]
     ]

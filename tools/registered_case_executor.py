@@ -621,7 +621,7 @@ class RegisteredCaseExecutor:
         return reservation
 
     def manifest_metadata(self) -> dict[str, Any]:
-        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
         return {
             "target_model": self.subject.model_id(),
             "judge_models": [self.judge.model_id()],
@@ -629,6 +629,7 @@ class RegisteredCaseExecutor:
             "operational_families": [
                 family for family, factory in (
                     ("operational_oversight", self.operational_session_factory),
+                    *((family, self.operational_session_factory) for family in sorted(SYNTHETIC_FAMILIES)),
                     ("operational_logging", self.operational_log_capture_factory),
                     ("operational_logging_quality", self.operational_log_capture_factory),
                     (LOG_CHALLENGE_FAMILY, self.operational_log_capture_factory),
@@ -649,9 +650,13 @@ class RegisteredCaseExecutor:
 
     def _execute_operational_case(self, test_id, case_id, registry_row):
         from evals.oss_pilots.operational_controls import CASE_BY_ID, run_case, run_logging_case
-        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+        from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
 
-        if test_id == "operational_oversight":
+        if test_id in SYNTHETIC_FAMILIES:
+            from evals.oss_pilots.synthetic_assurance import run_case as run_synthetic_case
+            capture = run_synthetic_case(case_id, self.operational_session_factory,
+                scope={"tenant_id": self.tenant_id, "scan_id": registry_row["scan_id"], "agent_id": registry_row["agent_id"]})
+        elif test_id == "operational_oversight":
             if self.operational_session_factory is None:
                 capture = {"verdict": "inconclusive", "reason": "target_tool_session_not_configured"}
             else:

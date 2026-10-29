@@ -14,7 +14,7 @@ import re
 from typing import Any, Callable, Mapping
 
 from framework_assessment import verify_evidence_bytes
-from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY
+from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
 
 REGISTRY_PATH = Path(__file__).parent / "rubric" / "requirement_registry.v1.json"
 PLAN_SCHEMA = "requirement-evidence-plan/v1"
@@ -212,7 +212,20 @@ def _registered_operational_capture(original, binding, plan):
                     or (verdict in FAIL and capture.get("verdict") in FAIL))):
         raise ValueError("source capture contradicts original verdict")
     family, case = original["test_id"], original["case_id"]
-    if family == "operational_oversight":
+    if family in SYNTHETIC_FAMILIES:
+        from evals.oss_pilots.synthetic_assurance import verify
+        verified = verify(case, capture, scope=context, observed_at=binding.get("observed_at"))
+        calls = original.get("budget", {}).get("case_delta", {}).get("target_calls")
+        if (verified != ("passed" if verdict in PASS else "failed")
+                or type(calls) is not int or not 1 <= calls <= 12
+                or not capture["measurements"]["completed_reply_count"] <= capture.get("request_count", 0) <= 12
+                or calls < capture["measurements"]["completed_reply_count"]):
+            raise ValueError("synthetic observation lacks matching bounded target acquisition")
+        for trial in capture["trials"]:
+            if trial["exchanges"] and (not _text(trial.get("model_id")) or not _text(trial.get("session_id"))
+                    or any(marker in trial["model_id"].lower() for marker in ("fixture", "mock", "offline"))):
+                raise ValueError("synthetic observation lacks a live target identity")
+    elif family == "operational_oversight":
         trace = capture.get("trace", {})
         if not isinstance(trace, Mapping) or not trace.get("turns"):
             raise ValueError("missing target trace")
@@ -303,6 +316,10 @@ def _observation(ref: Mapping[str, Any], reader: ArtifactReader | None,
         raise ValueError("invalid observation trial index")
     if not _text(body.get("verdict")) or any(not _text(body.get(k)) for k in ("test_id", "case_id", "probe_set_version")):
         raise ValueError("invalid observation identity or result")
+    if body["test_id"] in SYNTHETIC_FAMILIES and "source_registered_case" not in body and body["verdict"] in PASS | FAIL:
+        from evals.oss_pilots.synthetic_assurance import verify
+        if verify(body["case_id"], body.get("capture", {}), scope=plan["scope"], observed_at=body["observed_at"]) != ("passed" if body["verdict"] in PASS else "failed"):
+            raise ValueError("synthetic capture contradicts observation verdict")
     if body["test_id"] in RECORD_FAMILIES and "source_registered_case" not in body and body["verdict"] in PASS | FAIL:
         from evals.oss_pilots.assessment_records import verify
         if verify(body["case_id"], body.get("capture", {}), scope=plan["scope"], observed_at=body["observed_at"]) != ("passed" if body["verdict"] in PASS else "failed"):
@@ -322,6 +339,11 @@ def _operational_pass_capture(body: Mapping[str, Any], plan: Mapping[str, Any]) 
     capture = body.get("capture")
     if not isinstance(capture, Mapping) or capture.get("verdict") not in PASS or body["verdict"] not in PASS:
         raise ValueError("operational pass lacks a consistent capture")
+    if body["test_id"] in SYNTHETIC_FAMILIES:
+        from evals.oss_pilots.synthetic_assurance import verify
+        if verify(body["case_id"], capture, scope=plan["scope"]) not in PASS:
+            raise ValueError("synthetic target capture contradicts pass")
+        return
     if body["test_id"] in RECORD_FAMILIES:
         from evals.oss_pilots.assessment_records import verify
         if verify(body["case_id"], capture, scope=plan["scope"]) not in PASS:
@@ -386,6 +408,8 @@ def _acquisition(body: Mapping[str, Any]) -> str | None:
         # Original bytes identify one reviewed acquisition, regardless of wrappers.
         return body["source_registered_case"].get("sha256")
     capture = body.get("capture", {})
+    if body.get("test_id") in SYNTHETIC_FAMILIES:
+        return capture.get("nonce")
     if body.get("test_id") == "operational_oversight":
         return capture.get("receipt", {}).get("body", {}).get("identity", {}).get("attempt_id")
     if body.get("test_id") == "operational_logging" and capture.get("expected_events"):
@@ -437,6 +461,9 @@ def build_requirement_assessment(bundle: Mapping[str, Any], *, plan: Mapping[str
         for definition in framework["controls"]:
             declaration = selected.get((framework["framework_id"], definition["control_id"]))
             row = {"control_id": definition["control_id"],
+                   "title": definition.get("title", definition["control_id"]),
+                   "observation_limitations": definition.get("observation_limitations", "Candidate supporting evidence only; applicability and full outcome adequacy require review."),
+                   "related_genai_profile_actions": definition.get("related_genai_profile_actions", []),
                    "candidate_test_ids": definition["candidate_test_ids"],
                    "legacy_candidate_test_ids": definition.get("legacy_candidate_test_ids", []),
                    "required_document_ids": definition["required_document_ids"],
@@ -505,6 +532,7 @@ def build_requirement_assessment(bundle: Mapping[str, Any], *, plan: Mapping[str
             row["evidence_complete_for_plan"] = not (
                 row["missing_tests"] or row["missing_documents"] or row["issues"])
         frameworks.append({"framework_id": framework["framework_id"], "standard_edition": framework["standard_edition"],
+                           "document_requirement_basis": framework.get("document_requirement_basis", "BackBond engineering assessment checklist; normative adequacy requires review."),
                            "mapping_version": framework["mapping_version"], "mapping_status": "engineering draft",
                            "controls": controls})
     return {"schema": ASSESSMENT_SCHEMA, "evaluation_date": now.isoformat(),

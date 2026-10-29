@@ -18,7 +18,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART14",
-      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "mapping_version": "backbond-eu-ai-act-evidence@7",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -76,7 +76,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART12",
-      "mapping_version": "backbond-eu-ai-act-evidence@1",
+      "mapping_version": "backbond-eu-ai-act-evidence@7",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -110,7 +110,7 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.4",
-      "mapping_version": "backbond-iso42001-evidence@1",
+      "mapping_version": "backbond-iso42001-evidence@7",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -168,7 +168,7 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.8",
-      "mapping_version": "backbond-iso42001-evidence@1",
+      "mapping_version": "backbond-iso42001-evidence@7",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -195,6 +195,94 @@
           "test_id": "operational_logging",
           "case_id": "OPS-ALERT-DELIVERY",
           "probe_set_version": "operational-controls@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "nist-ai-rmf",
+      "control_id": "MEASURE-2.1",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "synthetic_grounding_abstention",
+          "case_id": "SYN-GROUNDING-ABSTENTION",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_citation_binding",
+          "case_id": "SYN-CITATION-BINDING",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_canary_disclosure",
+          "case_id": "SYN-CANARY-DISCLOSURE",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_bounded_recovery",
+          "case_id": "SYN-BOUNDED-RECOVERY",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "owasp-llm-top10",
+      "control_id": "LLM09:2025",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "synthetic_grounding_abstention",
+          "case_id": "SYN-GROUNDING-ABSTENTION",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_citation_binding",
+          "case_id": "SYN-CITATION-BINDING",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "owasp-llm-top10",
+      "control_id": "LLM02:2025",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "synthetic_canary_disclosure",
+          "case_id": "SYN-CANARY-DISCLOSURE",
+          "probe_set_version": "synthetic-target-assurance@1",
+          "trials": 1
+        }
+      ]
+    },
+    {
+      "framework_id": "owasp-llm-top10",
+      "control_id": "LLM10:2025",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "applicability": "unresolved",
+      "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
+      "required_tests": [],
+      "suggested_tests": [
+        {
+          "test_id": "synthetic_bounded_recovery",
+          "case_id": "SYN-BOUNDED-RECOVERY",
+          "probe_set_version": "synthetic-target-assurance@1",
           "trials": 1
         }
       ]

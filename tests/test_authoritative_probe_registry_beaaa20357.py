@@ -38,6 +38,18 @@ def test_release_epoch_semantics_match_probe_set_version() -> None:
     assert metadata["probe_set_version"] in metadata["generation_timestamp_semantics"]
 
 
+def test_synthetic_runner_changes_invalidate_registry_source_fingerprint(tmp_path: Path) -> None:
+    generator = tmp_path / "tools/probe_registry.py"
+    generator.parent.mkdir(parents=True)
+    generator.write_text("# generator fixture\n", encoding="utf-8")
+    runner = tmp_path / "evals/oss_pilots/synthetic_assurance.py"
+    runner.parent.mkdir(parents=True)
+    runner.write_text("# original oracle\n", encoding="utf-8")
+    original = probe_registry._source_sha(tmp_path)
+    runner.write_text("# changed oracle\n", encoding="utf-8")
+    assert probe_registry._source_sha(tmp_path) != original
+
+
 def test_stable_ids_are_unique_and_category_accounting_is_exact() -> None:
     registry = _registry()
     ids = [row["stable_id"] for row in registry["rows"]]

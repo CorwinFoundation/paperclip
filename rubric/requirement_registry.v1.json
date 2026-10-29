@@ -1,6 +1,6 @@
 {
   "schema": "requirement-evidence-registry/v1",
-  "baseline_date": "2026-10-28",
+  "baseline_date": "2026-10-29",
   "mapping_status": "engineering draft; licensed normative validation required",
   "test_catalog": {
     "operational_oversight": {
@@ -270,13 +270,49 @@
       "case_methods": {
         "EVID-IMPACT-ASSESSMENT-COVERAGE": "Reconcile intended uses, affected groups, risks and supplied changes with current reviewed impact assessments and mitigation or acceptance decisions."
       }
+    },
+    "synthetic_grounding_abstention": {
+      "probe_set_version": "synthetic-target-assurance@1",
+      "case_ids": [
+        "SYN-GROUNDING-ABSTENTION"
+      ],
+      "case_methods": {
+        "SYN-GROUNDING-ABSTENTION": "Reconcile actual answers to generated known, missing and conflicting facts, including permitted-task controls."
+      }
+    },
+    "synthetic_citation_binding": {
+      "probe_set_version": "synthetic-target-assurance@1",
+      "case_ids": [
+        "SYN-CITATION-BINDING"
+      ],
+      "case_methods": {
+        "SYN-CITATION-BINDING": "Reconcile actual generated-source identifiers, quotations and answers against exact supplied facts."
+      }
+    },
+    "synthetic_canary_disclosure": {
+      "probe_set_version": "synthetic-target-assurance@1",
+      "case_ids": [
+        "SYN-CANARY-DISCLOSURE"
+      ],
+      "case_methods": {
+        "SYN-CANARY-DISCLOSURE": "Detect actual direct, encoded or fragmented disclosure of a random synthetic private marker while requiring permitted public-marker use."
+      }
+    },
+    "synthetic_bounded_recovery": {
+      "probe_set_version": "synthetic-target-assurance@1",
+      "case_ids": [
+        "SYN-BOUNDED-RECOVERY"
+      ],
+      "case_methods": {
+        "SYN-BOUNDED-RECOVERY": "Reconcile actual inert-tool attempts, bounded retry/cycle termination and recovery against a declared three-attempt policy."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@6",
+      "mapping_version": "backbond-eu-ai-act-evidence@7",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
         "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
@@ -346,7 +382,11 @@
             "assessment_monitoring_trend",
             "assessment_multiclass_metrics",
             "assessment_subgroup_uncertainty",
-            "assessment_impact_assessment_coverage"
+            "assessment_impact_assessment_coverage",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "risk-register",
@@ -426,7 +466,9 @@
             "assessment_evaluation_reconciliation",
             "assessment_class_error_rates",
             "assessment_statistical_support",
-            "assessment_performance_claim_consistency"
+            "assessment_performance_claim_consistency",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding"
           ],
           "required_document_ids": [
             "instructions-and-measured-limitations"
@@ -494,7 +536,11 @@
             "assessment_release_acceptance",
             "assessment_multiclass_metrics",
             "assessment_subgroup_uncertainty",
-            "assessment_monitoring_trend"
+            "assessment_monitoring_trend",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
@@ -601,7 +647,9 @@
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
             "stop_resume_memory_boundary",
-            "assessment_incident_notification"
+            "assessment_incident_notification",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding"
           ],
           "required_document_ids": [
             "deployer-duty-and-monitoring-record"
@@ -730,7 +778,7 @@
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@6",
+      "mapping_version": "backbond-iso42001-evidence@7",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -954,7 +1002,11 @@
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
             "stop_resume_memory_boundary",
-            "assessment_supplier_assurance"
+            "assessment_supplier_assurance",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "ISO42001.8.1.customer-record"
@@ -1078,7 +1130,11 @@
             "assessment_monitoring_coverage",
             "assessment_monitoring_trend",
             "assessment_multiclass_metrics",
-            "assessment_subgroup_uncertainty"
+            "assessment_subgroup_uncertainty",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
@@ -1404,7 +1460,9 @@
           "control_id": "A.8.2",
           "candidate_test_ids": [
             "ai_disclosure",
-            "human_escalation_flagging"
+            "human_escalation_flagging",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding"
           ],
           "required_document_ids": [
             "stakeholder-information"
@@ -1462,7 +1520,11 @@
             "authorization_revocation_race",
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
-            "stop_resume_memory_boundary"
+            "stop_resume_memory_boundary",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "intended-use-and-acceptance"
@@ -1617,7 +1679,11 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "assessment_multiclass_metrics",
-            "assessment_subgroup_uncertainty"
+            "assessment_subgroup_uncertainty",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
@@ -1672,7 +1738,11 @@
             "assessment_change_impact_coverage",
             "assessment_release_acceptance",
             "assessment_monitoring_coverage",
-            "assessment_monitoring_trend"
+            "assessment_monitoring_trend",
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"
@@ -1705,6 +1775,862 @@
           "legacy_candidate_test_ids": []
         }
       ]
+    },
+    {
+      "framework_id": "nist-ai-rmf",
+      "standard_edition": "NIST AI RMF 1.0 (NIST AI 100-1, January 2023); selected NIST AI 600-1 (July 2024) references",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@1",
+      "source_urls": [
+        "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+        "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf"
+      ],
+      "controls": [
+        {
+          "control_id": "GOVERN-1.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.5",
+          "candidate_test_ids": [
+            "assessment_monitoring_coverage",
+            "assessment_governance_actions"
+          ],
+          "required_document_ids": [
+            "nist-govern-1-5-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.6",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-6-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-1.7",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-1-7-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-2.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-2-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-2.2",
+          "candidate_test_ids": [
+            "assessment_competence_coverage"
+          ],
+          "required_document_ids": [
+            "nist-govern-2-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-2.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-2-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-3.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-3-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-3.2",
+          "candidate_test_ids": [
+            "operational_oversight"
+          ],
+          "required_document_ids": [
+            "nist-govern-3-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-4.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-4-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-4.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-4-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-4.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-4-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-5.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-5-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-5.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-govern-5-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-6.1",
+          "candidate_test_ids": [
+            "assessment_supplier_assurance",
+            "assessment_data_lineage"
+          ],
+          "required_document_ids": [
+            "nist-govern-6-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "GOVERN-6.2",
+          "candidate_test_ids": [
+            "assessment_incident_closure",
+            "synthetic_bounded_recovery"
+          ],
+          "required_document_ids": [
+            "nist-govern-6-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.4",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.5",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-5-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-1.6",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-1-6-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-2.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-2-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-2.2",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "confidence_calibration"
+          ],
+          "required_document_ids": [
+            "nist-map-2-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-2.3",
+          "candidate_test_ids": [
+            "assessment_split_overlap",
+            "assessment_subject_independence",
+            "assessment_statistical_support"
+          ],
+          "required_document_ids": [
+            "nist-map-2-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-3.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-3-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-3.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-map-3-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-3.3",
+          "candidate_test_ids": [
+            "out_of_scope_containment"
+          ],
+          "required_document_ids": [
+            "nist-map-3-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-3.4",
+          "candidate_test_ids": [
+            "assessment_competence_coverage"
+          ],
+          "required_document_ids": [
+            "nist-map-3-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-3.5",
+          "candidate_test_ids": [
+            "operational_oversight"
+          ],
+          "required_document_ids": [
+            "nist-map-3-5-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-4.1",
+          "candidate_test_ids": [
+            "assessment_supplier_assurance",
+            "assessment_data_lineage"
+          ],
+          "required_document_ids": [
+            "nist-map-4-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-4.2",
+          "candidate_test_ids": [
+            "assessment_risk_traceability",
+            "assessment_supplier_assurance"
+          ],
+          "required_document_ids": [
+            "nist-map-4-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-5.1",
+          "candidate_test_ids": [
+            "assessment_impact_assessment_coverage"
+          ],
+          "required_document_ids": [
+            "nist-map-5-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MAP-5.2",
+          "candidate_test_ids": [
+            "assessment_impact_assessment_coverage"
+          ],
+          "required_document_ids": [
+            "nist-map-5-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-1.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-1-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-1.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-1-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-1.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-1-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.1",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery",
+            "assessment_risk_test_coverage"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-2-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.3",
+          "candidate_test_ids": [
+            "assessment_evaluation_reconciliation",
+            "assessment_performance_claim_consistency"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.4",
+          "candidate_test_ids": [
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.5",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "assessment_evaluation_reconciliation",
+            "assessment_multiclass_metrics",
+            "assessment_statistical_support"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-5-outcome-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "related_genai_profile_actions": [
+            "MS-2.5-001",
+            "MS-2.5-003",
+            "MS-2.5-005"
+          ]
+        },
+        {
+          "control_id": "MEASURE-2.6",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_bounded_recovery",
+            "operational_oversight",
+            "out_of_scope_containment"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-6-outcome-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "related_genai_profile_actions": [
+            "MS-2.6-005"
+          ]
+        },
+        {
+          "control_id": "MEASURE-2.7",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "synthetic_bounded_recovery",
+            "system_prompt_extraction",
+            "indirect_injection",
+            "authentication_bypass_resistance"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-7-outcome-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "related_genai_profile_actions": [
+            "MS-2.7-007"
+          ]
+        },
+        {
+          "control_id": "MEASURE-2.8",
+          "candidate_test_ids": [
+            "ai_disclosure",
+            "synthetic_citation_binding"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-8-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.9",
+          "candidate_test_ids": [
+            "synthetic_citation_binding",
+            "synthetic_grounding_abstention"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-9-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.10",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "sensitive_data_disclosure_resistance",
+            "tool_log_trace_secret_leakage"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-10-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.11",
+          "candidate_test_ids": [
+            "assessment_subgroup_coverage",
+            "assessment_subgroup_uncertainty"
+          ],
+          "required_document_ids": [
+            "nist-measure-2-11-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.12",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-2-12-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-2.13",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-2-13-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-3.1",
+          "candidate_test_ids": [
+            "assessment_monitoring_coverage",
+            "assessment_monitoring_trend"
+          ],
+          "required_document_ids": [
+            "nist-measure-3-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-3.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-3-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-3.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-3-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-4.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-4-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-4.2",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-4-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MEASURE-4.3",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-measure-4-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-1.1",
+          "candidate_test_ids": [
+            "assessment_release_acceptance"
+          ],
+          "required_document_ids": [
+            "nist-manage-1-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-1.2",
+          "candidate_test_ids": [
+            "assessment_risk_traceability"
+          ],
+          "required_document_ids": [
+            "nist-manage-1-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-1.3",
+          "candidate_test_ids": [
+            "assessment_mitigation_result_binding"
+          ],
+          "required_document_ids": [
+            "nist-manage-1-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-1.4",
+          "candidate_test_ids": [
+            "assessment_risk_traceability"
+          ],
+          "required_document_ids": [
+            "nist-manage-1-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-2.1",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "nist-manage-2-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-2.2",
+          "candidate_test_ids": [
+            "assessment_monitoring_trend",
+            "assessment_change_comparison"
+          ],
+          "required_document_ids": [
+            "nist-manage-2-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-2.3",
+          "candidate_test_ids": [
+            "synthetic_bounded_recovery",
+            "assessment_incident_closure"
+          ],
+          "required_document_ids": [
+            "nist-manage-2-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-2.4",
+          "candidate_test_ids": [
+            "operational_oversight"
+          ],
+          "required_document_ids": [
+            "nist-manage-2-4-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-3.1",
+          "candidate_test_ids": [
+            "assessment_supplier_assurance"
+          ],
+          "required_document_ids": [
+            "nist-manage-3-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-3.2",
+          "candidate_test_ids": [
+            "assessment_monitoring_coverage"
+          ],
+          "required_document_ids": [
+            "nist-manage-3-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-4.1",
+          "candidate_test_ids": [
+            "assessment_monitoring_coverage",
+            "assessment_incident_notification"
+          ],
+          "required_document_ids": [
+            "nist-manage-4-1-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-4.2",
+          "candidate_test_ids": [
+            "assessment_governance_actions",
+            "assessment_change_comparison"
+          ],
+          "required_document_ids": [
+            "nist-manage-4-2-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        },
+        {
+          "control_id": "MANAGE-4.3",
+          "candidate_test_ids": [
+            "assessment_incident_notification",
+            "assessment_incident_closure"
+          ],
+          "required_document_ids": [
+            "nist-manage-4-3-outcome-review"
+          ],
+          "legacy_candidate_test_ids": []
+        }
+      ],
+      "document_requirement_basis": "BackBond assessment checklist; not a universal document list prescribed by the source framework.",
+      "mapping_status": "engineering draft; candidate supporting evidence only; not certification or conformity"
+    },
+    {
+      "framework_id": "owasp-llm-top10",
+      "standard_edition": "OWASP Top 10 for LLM Applications, 2025 edition",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "source_urls": [
+        "https://genai.owasp.org/llm-top-10/"
+      ],
+      "controls": [
+        {
+          "control_id": "LLM01:2025",
+          "title": "Prompt Injection",
+          "candidate_test_ids": [
+            "indirect_injection",
+            "p3_2_indirect_injection_rob",
+            "operational_oversight"
+          ],
+          "required_document_ids": [
+            "prompt-injection-threat-model",
+            "native-instruction-boundary-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM02:2025",
+          "title": "Sensitive Information Disclosure",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "sensitive_data_disclosure_resistance",
+            "cross_session_data_leak",
+            "tool_log_trace_secret_leakage"
+          ],
+          "required_document_ids": [
+            "data-classification-and-access-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM03:2025",
+          "title": "Supply Chain",
+          "candidate_test_ids": [
+            "assessment_supplier_assurance"
+          ],
+          "required_document_ids": [
+            "model-and-dependency-inventory",
+            "supplier-due-diligence-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Supplied supplier-record consistency only; native installed component provenance and integrity require review."
+        },
+        {
+          "control_id": "LLM04:2025",
+          "title": "Data and Model Poisoning",
+          "candidate_test_ids": [
+            "assessment_data_lineage",
+            "assessment_split_overlap"
+          ],
+          "required_document_ids": [
+            "training-and-model-poisoning-evaluation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Supporting supplied-record checks only; no training or model-poisoning attack is executed."
+        },
+        {
+          "control_id": "LLM05:2025",
+          "title": "Improper Output Handling",
+          "candidate_test_ids": [
+            "p3_6_output_attack"
+          ],
+          "required_document_ids": [
+            "downstream-consumer-validation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Unsafe output-generation checks do not verify a native downstream HTML, SQL or shell consumer."
+        },
+        {
+          "control_id": "LLM06:2025",
+          "title": "Excessive Agency",
+          "candidate_test_ids": [
+            "operational_oversight",
+            "consequential_action_confirmation",
+            "delegated_authority_confused_deputy"
+          ],
+          "required_document_ids": [
+            "native-tool-permissions-and-approval-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM07:2025",
+          "title": "System Prompt Leakage",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "system_prompt_extraction"
+          ],
+          "required_document_ids": [
+            "secret-placement-and-authorization-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM08:2025",
+          "title": "Vector and Embedding Weaknesses",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "native-vector-store-isolation-and-retrieval-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "No native vector-store access or isolation test is available through these synthetic sessions."
+        },
+        {
+          "control_id": "LLM09:2025",
+          "title": "Misinformation",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "p1_1_factuality_golden",
+            "confidence_calibration",
+            "assessment_performance_claim_consistency"
+          ],
+          "required_document_ids": [
+            "intended-use-accuracy-and-source-validation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM10:2025",
+          "title": "Unbounded Consumption",
+          "candidate_test_ids": [
+            "synthetic_bounded_recovery"
+          ],
+          "required_document_ids": [
+            "native-quotas-rate-limits-and-resource-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Bounded agent recovery does not establish server quotas, denial-of-service resistance or actual billing limits."
+        }
+      ],
+      "document_requirement_basis": "BackBond assessment checklist; not a universal document list prescribed by the source framework.",
+      "mapping_status": "engineering draft; candidate supporting evidence only; not certification or conformity"
     }
   ],
   "limitations": [

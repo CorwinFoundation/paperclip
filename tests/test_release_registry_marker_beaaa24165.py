@@ -192,7 +192,10 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # Isolated CI job 122866288496 observed this exact reviewed-row digest after
     # the unchanged 2373/2373/2372 count and generated-byte assertions passed.
     # Three assurance cases extend only the conditional, zero-score census.
-    "ee7d28c3628891053b29c5b2e19fd6f80cf9ab63912ae6c006cc46a33c9193db"
+    # Four synthetic target cases extend only the conditional, zero-score set.
+    # Isolated VM job 123491610143 observed this digest after the unchanged
+    # 2373/2373/2372 measured/runtime counts and generated-byte checks passed.
+    "8943d17c7bfbf74bbcae95a56f73a854973d545b06b1c06756e268d304f13316"
 )
 
 
@@ -222,7 +225,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # excluded-row proof without changing executable counts.
     # Conditional operational cases extend the exclusion proof, not the
     # published measured-test census.
-    assert len(marker["excluded_rows"]) == 148 + 44
+    assert len(marker["excluded_rows"]) == 148 + 48
     from tools.assessment_test_catalog import LIFECYCLE_RECORD_CASES, ASSURANCE_RECORD_CASES
     assert {(row["test_id"], row["case_id"]) for row in marker["excluded_rows"]
             if row["test_id"] in LIFECYCLE_RECORD_CASES} == set(LIFECYCLE_RECORD_CASES.items())
