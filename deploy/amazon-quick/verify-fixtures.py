@@ -12,6 +12,8 @@ from tools.quick_pilot_report import render
 from evals.amazon_quick_assessment import load_profile
 from tools.quick_assessment import render as render_assessment
 from tools.quick_concurrency_spike import spike
+from tools.quick_source_checks import prepare as prepare_source_checks
+from harness.amazon_quick_accounting import checked_budget
 from harness.amazon_quick_batch import QuickBatchRunner
 
 
@@ -47,3 +49,6 @@ for version, calls in (("1.2", 790), ("1.3", 795)):
             raise RuntimeError("expanded report scope failed")
 print(json.dumps({"status": "expanded_profile_imports_verified_only", "profiles": 4,
                   "target_calls": 0, "judge_calls": 0}))
+source_plan=prepare_source_checks(load_profile('hr_finance','1.3'),'a'*40)
+if source_plan['case_count']!=100 or source_plan['initial_target_calls']!=140:
+    raise RuntimeError('positive_source_selection_closure_failed')

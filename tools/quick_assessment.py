@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import datetime, timezone
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -70,7 +71,83 @@ def reference(value):
     return isinstance(value, str) and bool(value.strip()) and not value.startswith("REPLACE") and len(value) <= 1024
 
 
-def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
+def selected_cases(profile, selection=None):
+    if selection is None:
+        return profile["cases"]
+    ids = set(selection["case_ids"])
+    return [case for case in profile["cases"] if case["case_id"] in ids]
+
+
+def validate_selection(selection, profile, scope=None):
+    """A selection never changes the full canonical profile or its grader."""
+    if (profile != load_profile(profile["variant"], "1.3")
+            or selection.get("schema") != "backbond-quick-selected-case-pack/v1"
+            or selection.get("profile_version") != "1.3"
+            or selection.get("variant") != profile["variant"]
+            or selection.get("full_profile_id") != profile["profile_id"]
+            or selection.get("full_profile_sha256") != profile["profile_sha256"]
+            or selection.get("fixture_sha256") != profile["fixture_sha256"]
+            or not re.fullmatch(r"[0-9a-f]{40}", selection.get("source_revision", ""))
+            or selection.get("pack_sha256") != digest({k: v for k, v in selection.items() if k != "pack_sha256"})
+            or not reference(selection.get("pack_id"))):
+        raise PreflightError("canonical_profile_and_frozen_selection_required")
+    entries, ids = selection.get("cases"), selection.get("case_ids")
+    if (not isinstance(entries, list) or not 1 <= len(entries) <= len(profile["cases"])
+            or any(not isinstance(v, dict) for v in entries)
+            or not isinstance(ids, list) or any(not isinstance(v, str) for v in ids)
+            or len(set(ids)) != len(ids) or ids != [v.get("case_id") for v in entries]
+            or type(selection.get("case_count")) is not int or selection["case_count"] != len(entries)):
+        raise PreflightError("distinct_selected_cases_required")
+    calls, families, conversations = Counter(), Counter(), 0
+    for entry in entries:
+        ordinal = entry.get("ordinal_in_full_profile")
+        if type(ordinal) is not int or not 1 <= ordinal <= len(profile["cases"]):
+            raise PreflightError("selected_case_ordinal_invalid")
+        case = profile["cases"][ordinal - 1]
+        planned = Counter()
+        for conversation in case["conversations"]:
+            planned[conversation["role"]] += len(conversation["turns"])
+        if (entry.get("case") != case or entry.get("case_id") != case["case_id"]
+                or entry.get("case_sha256") != digest(case) or entry.get("family") != case["family"]
+                or type(entry.get("conversations")) is not int or entry["conversations"] != len(case["conversations"])
+                or type(entry.get("initial_target_calls")) is not int or entry["initial_target_calls"] != sum(planned.values())
+                or entry.get("initial_calls_by_role") != dict(planned)):
+            raise PreflightError("unchanged_canonical_selected_case_required")
+        calls.update(planned); families[case["family"]] += 1; conversations += len(case["conversations"])
+    if (type(selection.get("conversation_count")) is not int or selection["conversation_count"] != conversations
+            or type(selection.get("initial_target_calls")) is not int or selection["initial_target_calls"] != sum(calls.values())
+            or selection.get("initial_calls_by_role") != dict(calls) or selection.get("family_counts") != dict(families)):
+        raise PreflightError("exact_selected_call_plan_required")
+    if scope is not None:
+        grant = scope.get("selection", {})
+        if (grant.get("approved") is not True or grant.get("pack_sha256") != selection["pack_sha256"]
+                or type(grant.get("max_attempts")) is not int or grant["max_attempts"] not in {1, 3}
+                or not reference(grant.get("applicability_approval_ref"))):
+            raise PreflightError("reviewed_selected_scope_required")
+    return selected_cases(profile, selection)
+
+
+def selection_binding(selection, scope):
+    return {k: selection[k] for k in ("pack_id", "pack_sha256", "case_ids", "case_count",
+        "initial_target_calls", "initial_calls_by_role")} | {"max_attempts": scope["selection"]["max_attempts"]}
+
+
+def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment", selection=None, confirmation_case_ids=None):
+    if selection is not None:
+        if purpose != "assessment":
+            raise PreflightError("selection_requires_assessment_preflight")
+        cases = validate_selection(selection, profile, scope)
+    else:
+        if scope.get("selection") is not None:
+            raise PreflightError("selected_manifest_required")
+        cases = profile["cases"]
+    attempts = scope["selection"]["max_attempts"] if selection is not None else 1
+    if confirmation_case_ids is not None:
+        if (selection is None or purpose != "assessment" or attempts != 3
+                or not confirmation_case_ids or not set(confirmation_case_ids) <= {c['case_id'] for c in cases}):
+            raise PreflightError('approved_selected_confirmation_plan_required')
+        cases = [c for c in cases if c['case_id'] in confirmation_case_ids]
+        attempts = 2
     if purpose not in {"assessment", "concurrency_spike"} or purpose not in scope.get("approved_operations", []):
         raise PreflightError("operation_not_approved_in_scope")
     if (scope.get("schema") != SCHEMA or scope.get("approved") is not True
@@ -172,13 +249,32 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
             if not receipt_path.is_absolute():
                 raise PreflightError("absolute_readiness_receipt_required")
             check_readiness(read_json(receipt_path), t, start, now, required_checks=3, probe=fixture_probe(profile))
-            planned = sum(len(v["turns"]) for c in profile["cases"] for v in c["conversations"] if v["role"] == role)
+            planned = sum(len(v["turns"]) for c in cases for v in c["conversations"] if v["role"] == role)
+            if purpose == 'concurrency_spike':
+                planned = 14 if role == profile['fixture']['roles'][-1] else 15
+            if selection is not None:
+                planned *= attempts
             if record[1] < 3 or t.max_calls - record[1] < planned:
                 raise PreflightError("preserved_target_budget_insufficient")
             consumed += record[1]
             targets[role] = t
             bindings[role] = {"user_arn_sha256": _sha(t.user_arn), "account_id_sha256": _sha(t.account_id),
                               "agent_id_sha256": _sha(t.agent_id)}
+        if selection is not None:
+            from harness.amazon_quick_accounting import checked_budget
+            needed = sum(len(v['turns']) for c in cases for v in c['conversations']) * attempts
+            try:
+                checked_budget(db, required=True, expected=scope.get("accounting"), additional=needed)
+            except ValueError as exc:
+                raise PreflightError(str(exc)) from None
+            if scope.get("accounting") is None:
+                raise PreflightError("reviewed_global_budget_required")
+            for target in targets.values():
+                auth = db.execute("""SELECT a.id,a.cap,a.halted,a.calls FROM quick_batch_authorizations a
+                    JOIN quick_batch_authorization_pilots p ON p.authorization=a.id WHERE p.pilot=?""",
+                    (target.pilot_id,)).fetchone()
+                if auth != (scope["authorization_id"], scope["max_calls"], 0, consumed):
+                    raise PreflightError("same_immutable_epoch_authorization_required")
     if (len({t.user_arn for t in targets.values()}) != 3 or len({t.pilot_id for t in targets.values()}) != 3
             or len({(t.account_id, t.region, t.agent_id, t.log_group) for t in targets.values()}) != 1):
         raise PreflightError("same_target_three_distinct_users_registrations_required")
@@ -189,7 +285,8 @@ def preflight(scope, profile, *, judge_openrouter=False, purpose="assessment"):
                 or copy.get("sandbox_region") != target.region
                 or copy.get("source_account_sha256") == _sha(target.account_id)):
             raise PreflightError("configuration_copy_receipt_target_binding_required")
-    needed = 44 if purpose == "concurrency_spike" else profile["initial_target_calls"]
+    needed = (44 if purpose == "concurrency_spike" else profile["initial_target_calls"] if selection is None
+              else sum(len(v['turns']) for c in cases for v in c['conversations']) * attempts)
     if scope["max_calls"] - consumed < needed:
         raise PreflightError("preserved_aggregate_budget_insufficient")
     platform = read_json(Path(scope["platform_transport_receipt"]))
@@ -274,10 +371,14 @@ def render(run):
     lines += ["## Processing and limitations", "", f"External evaluator: {run.get('evaluator', 'none')}. Default evidence retention: {run.get('retention_days', 30)} days.", "",
               "The summary excludes raw transcripts. Detailed execution diagnostics remain private. Capture gaps and their effect on coverage remain visible above.", "",
               "No two-hour SLA, production support, action coverage, recurring assessment or customer security certification is established by this report.", ""]
+    if run.get("selection"):
+        selection = run["selection"]
+        lines[4:4] = [f"Selected subset: {selection['case_count']} cases from the unchanged full profile. "
+            "Unselected cases were not executed or graded. Selection is not statistically representative.", ""]
     return "\n".join(lines)
 
 
-def grade_attempt(profile, observations, bindings, judge, exposures, attempt):
+def grade_attempt(profile, observations, bindings, judge, exposures, attempt, *, selection=None):
     by_id = {r["case_id"]: r for r in observations}
     def one(case):
         captures = [by_id.get(case["case_id"] + f":{attempt}:{i}", {}) for i, _ in enumerate(case["conversations"])]
@@ -290,7 +391,7 @@ def grade_attempt(profile, observations, bindings, judge, exposures, attempt):
             result["permitted_control"] = {key: utility[key] for key in ("verdict", "reason")}
         return result
     with ThreadPoolExecutor(max_workers=4 if judge else 1) as pool:
-        return list(pool.map(one, profile["cases"]))
+        return list(pool.map(one, selected_cases(profile, selection)))
 
 
 async def capture_cases(profile, selected_ids, attempt, scope, targets, output, run, deadline):
@@ -315,10 +416,11 @@ async def capture_cases(profile, selected_ids, attempt, scope, targets, output, 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("export", "scope-example", "preflight", "capture", "regrade", "prepare-review"))
+    parser.add_argument("operation", choices=("export", "scope-example", "preflight", "capture", "confirm", "regrade", "prepare-review"))
     parser.add_argument("--variant", choices=("hr_finance", "healthcare"), default="hr_finance")
     parser.add_argument("--profile-version", choices=("1.2", "1.3"), default="1.2")
     parser.add_argument("--scope", type=Path)
+    parser.add_argument("--selection", type=Path, help="Frozen canonical selected-case manifest; never a smaller profile")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--run", type=Path)
     parser.add_argument("--exposure-evidence", type=Path)
@@ -333,22 +435,56 @@ def main(argv=None):
     review_file_sha256 = None
     try:
         profile = load_profile(args.variant, args.profile_version)
-        if args.operator_review and (args.operation != "regrade" or args.profile_version != "1.3" or args.judge_openrouter):
+        selection = read_json(args.selection, limit=16 * 1024 * 1024) if args.selection else None
+        if selection is not None:
+            validate_selection(selection, profile)
+            if args.operation == "export":
+                raise PreflightError("export_uses_complete_fixture_only")
+        if args.operator_review and (args.operation not in {"regrade","confirm"} or args.profile_version != "1.3" or args.judge_openrouter):
             raise PreflightError("local_review_only_for_v13_saved_regrade")
         if args.operation == "scope-example":
-            print(json.dumps(example(profile), indent=2))
+            document = example(profile)
+            if selection is not None:
+                document["selection"] = {"approved": False, "pack_sha256": selection["pack_sha256"],
+                    "max_attempts": 3, "applicability_approval_ref": "REPLACE"}
+                document["accounting"] = {"schema": "backbond-quick-global-budget/v1",
+                    "baseline_ledger_sha256": "REPLACE", "global_call_ceiling": 2500, "retained_reserved_calls": 26}
+                document['max_calls'] = 63 + 3 * selection['initial_target_calls']
+                for role, identity in document['identities'].items():
+                    identity['initial_calls'] = selection['initial_calls_by_role'].get(role,0)
+                    identity['k3_calls_plus_readiness'] = 3 * identity['initial_calls'] + 3
+            print(json.dumps(document, indent=2))
             return 0
         if args.operation == "export":
             export_fixture(profile, args.output)
             print(json.dumps({"status": "synthetic_sources_exported", "target_calls": 0, "judge_calls": 0}))
             return 0
         scope = read_json(args.scope)
-        if args.operation in {"regrade", "prepare-review"}:
+        if args.operation in {"capture","confirm"} and not args.live:
+            raise PreflightError("explicit_live_required")
+        if selection is not None:
+            validate_selection(selection, profile, scope)
+            if args.confirm_failures and scope["selection"]["max_attempts"] != 3:
+                raise PreflightError("confirmation_calls_not_approved")
+        if args.operation=='confirm' and (selection is None or scope['selection']['max_attempts']!=3 or args.judge_openrouter):
+            raise PreflightError('selected_local_confirmation_scope_required')
+        if args.operation in {"regrade", "prepare-review", "confirm"}:
             run = read_json(args.run, limit=256 * 1024 * 1024)
             raw_run = args.run.read_bytes()
             if (run.get("profile_sha256") != profile["profile_sha256"] or run.get("scope_sha256") != digest(scope)
                     or run.get("run_sha256") != digest({k: v for k, v in run.items() if k != "run_sha256"})):
                 raise PreflightError("saved_profile_scope_binding_required")
+            if run.get("selection") != (selection_binding(selection, scope) if selection is not None else None):
+                raise PreflightError("saved_selection_binding_required")
+            if selection is not None:
+                allowed = {c["case_id"] + f":{attempt}:{i}" for c in selected_cases(profile, selection)
+                    for attempt in range(1, scope["selection"]["max_attempts"] + 1) for i in range(len(c["conversations"]))}
+                captures = run.get("captures", [])
+                if (len({c.get("case_id") for c in captures}) != len(captures)
+                        or any(c.get("case_id") not in allowed
+                            or type(c.get("attempt")) is not int
+                            or c["case_id"].rsplit(":", 2)[1] != str(c["attempt"]) for c in captures)):
+                    raise PreflightError("saved_captures_outside_selection")
             # Expired target registrations do not authorize resubmission.
             # Regrading uses saved provider evidence and the original bindings.
             targets, bindings = {}, run["bindings"]
@@ -361,7 +497,7 @@ def main(argv=None):
                                   "target_calls": 0, "judge_calls": 0}))
                 return 0
         else:
-            targets, bindings = preflight(scope, profile, judge_openrouter=args.judge_openrouter)
+            targets, bindings = preflight(scope, profile, judge_openrouter=args.judge_openrouter, selection=selection)
         if args.operation == "preflight":
             print(json.dumps({"status": "operator_preflight_passed", "target_calls": 0, "judge_calls": 0, "backbond_score": "N/A"}))
             return 0
@@ -370,7 +506,6 @@ def main(argv=None):
             from tools.quick_operator_review import LocalOperatorReview
             if not args.operator_review.is_absolute():
                 raise PreflightError("absolute_local_review_path_required")
-            import hashlib
             review_bytes = args.operator_review.read_bytes()
             if len(review_bytes) > 16 * 1024 * 1024:
                 raise PreflightError("bounded_local_review_required")
@@ -386,6 +521,14 @@ def main(argv=None):
             if judge is None:
                 raise PreflightError("approved_judge_credential_required")
         exposures = read_json(args.exposure_evidence, limit=16 * 1024 * 1024) if args.exposure_evidence else []
+        if args.operation=='confirm':
+            if run.get('status')!='capture_complete' or {c.get('attempt') for c in run['captures']}!={1}:
+                raise PreflightError('complete_initial_capture_without_prior_confirmations_required')
+            initial = grade_attempt(profile,run['captures'],bindings,judge,exposures,1,selection=selection)
+            failed = {r['case_id'] for r in initial if r['verdict']=='fail'}
+            if not failed:raise PreflightError('observed_failures_required_for_confirmation')
+            targets, actual_bindings = preflight(scope,profile,selection=selection,confirmation_case_ids=failed)
+            if actual_bindings!=bindings:raise PreflightError('original_confirmation_target_bindings_required')
         args.output.mkdir(parents=True, exist_ok=False)
         output_owned = True
         if args.operation == "capture":
@@ -396,28 +539,55 @@ def main(argv=None):
                 "scope_sha256": digest(scope), "started_at": datetime.now(timezone.utc).isoformat(),
                 "assessment_subject": scope["assessment_subject"], "retention_days": scope["retention_days"],
                 "bindings": bindings, "captures": [], "capture_metrics": [], "results": [], "backbond_score": "N/A"}
+            if selection is not None:
+                run["selection"] = selection_binding(selection, scope)
             save_run(args.output / "run.json", run)
+            if selection is not None:
+                from harness.amazon_quick_accounting import claim_selected_phase
+                claim_selected_phase(Path(os.environ['ARE_AMAZON_QUICK_STATE_DIR'])/'amazon-quick.sqlite3',
+                    authorization=scope['authorization_id'],selection_sha256=selection['pack_sha256'],
+                    phase='capture',binding=digest(scope))
             deadline = time.monotonic() + scope["max_wall_seconds"]
-            complete = asyncio.run(capture_cases(profile, {c["case_id"] for c in profile["cases"]},
+            complete = asyncio.run(capture_cases(profile, {c["case_id"] for c in selected_cases(profile, selection)},
                 1, scope, targets, args.output, run, deadline))
-            run["results"] = grade_attempt(profile, run["captures"], bindings, judge, exposures, 1)
+            run["results"] = grade_attempt(profile, run["captures"], bindings, judge, exposures, 1, selection=selection)
             run["attempt_grades"] = {"1": run["results"]}
             save_run(args.output / "run.json", run)
             failed = {r["case_id"] for r in run["results"] if r["verdict"] == "fail"}
             if complete and failed and args.confirm_failures:
+                if selection is not None:
+                    claim_selected_phase(Path(os.environ['ARE_AMAZON_QUICK_STATE_DIR'])/'amazon-quick.sqlite3',
+                        authorization=scope['authorization_id'],selection_sha256=selection['pack_sha256'],phase='confirm',
+                        capture_binding=digest(scope),binding=digest({'scope':digest(scope),'automatic_failure_ids':sorted(failed)}))
                 for attempt in (2, 3):
                     complete = asyncio.run(capture_cases(profile, failed, attempt, scope, targets, args.output, run, deadline))
                     run["attempt_grades"][str(attempt)] = grade_attempt(profile,
-                        [c for c in run["captures"] if c["attempt"] == attempt], bindings, judge, exposures, attempt)
+                        [c for c in run["captures"] if c["attempt"] == attempt], bindings, judge, exposures, attempt, selection=selection)
                     save_run(args.output / "run.json", run)
                     if not complete:
                         break
             run["status"] = "capture_complete" if complete else "incomplete"
-        attempt_results = ({int(a): rows for a, rows in run["attempt_grades"].items()} if args.operation == "capture" else
+        if args.operation=='confirm':
+            from harness.amazon_quick_accounting import claim_selected_phase
+            source_file_hash=hashlib.sha256(raw_run).hexdigest()
+            claim_selected_phase(Path(os.environ['ARE_AMAZON_QUICK_STATE_DIR'])/'amazon-quick.sqlite3',
+                authorization=scope['authorization_id'],selection_sha256=selection['pack_sha256'],phase='confirm',
+                capture_binding=digest(scope),binding=digest({'scope':digest(scope),'source_run_file':source_file_hash,'review':review_file_sha256}))
+            run['confirmation_source']={'source_run_file_sha256':source_file_hash,'initial_review_file_sha256':review_file_sha256}
+            run['attempt_grades']={'1':initial};run['status']='incomplete';save_run(args.output/'run.json',run)
+            deadline=time.monotonic()+scope['max_wall_seconds'];complete=True
+            for attempt in (2,3):
+                complete=asyncio.run(capture_cases(profile,failed,attempt,scope,targets,args.output,run,deadline))
+                run['attempt_grades'][str(attempt)]=grade_attempt(profile,
+                    [c for c in run['captures'] if c['attempt']==attempt],bindings,None,exposures,attempt,selection=selection)
+                save_run(args.output/'run.json',run)
+                if not complete:break
+            run['status']='capture_complete' if complete else 'incomplete'
+        attempt_results = ({int(a): rows for a, rows in run["attempt_grades"].items()} if args.operation in {"capture","confirm"} else
             {a: grade_attempt(profile, [c for c in run["captures"] if c["attempt"] == a],
-             bindings, judge, exposures, a) for a in (1, 2, 3) if any(c["attempt"] == a for c in run["captures"])})
+             bindings, judge, exposures, a, selection=selection) for a in (1, 2, 3) if a == 1 or any(c["attempt"] == a for c in run["captures"])})
         results = []
-        for i, case in enumerate(profile["cases"]):
+        for i, case in enumerate(selected_cases(profile, selection)):
             base = dict(attempt_results.get(1, [])[i])
             valid = [rows[i]["verdict"] for rows in attempt_results.values() if rows[i]["verdict"] in {"pass", "fail"}]
             base["confirmation_status"] = "not_requested"
@@ -434,7 +604,6 @@ def main(argv=None):
         evaluator = "operator_local" if args.operator_review else "openrouter" if judge else "none"
         run.update(results=results, evaluator=evaluator, finished_at=datetime.now(timezone.utc).isoformat())
         if args.operator_review:
-            import hashlib
             run["operator_review"] = {"reviewer": judge.reviewer, "reviewer_kind": judge.reviewer_kind,
                                       "review_file_sha256": review_file_sha256,
                                       "source_run_file_sha256": hashlib.sha256(raw_run).hexdigest(),
@@ -444,7 +613,7 @@ def main(argv=None):
         print(json.dumps({"status": run["status"], "cases": len(results), "backbond_score": "N/A"}))
         return 0 if run["status"] == "capture_complete" else 1
     except (Exception, KeyboardInterrupt):
-        if output_owned and run is not None and args.operation in {"capture", "regrade"}:
+        if output_owned and run is not None and args.operation in {"capture", "confirm", "regrade"}:
             run["status"] = "incomplete"
             try:
                 save_run(args.output / "run.json", run)

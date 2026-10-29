@@ -258,6 +258,11 @@ class Ledger:
         Manual serial readiness calls after batch authorization consume the same
         aggregate cap. A second authorization cannot reset a registered pilot.
         """
+        from harness.amazon_quick_accounting import checked_budget
+        try:
+            checked_budget(self.db, additional=1)
+        except ValueError as exc:
+            raise _fail(str(exc)) from None
         row = self.db.execute("""SELECT a.id,a.calls,a.cap,a.halted FROM quick_batch_authorizations a
             JOIN quick_batch_authorization_pilots p ON p.authorization=a.id WHERE p.pilot=?""",
             (self.target.pilot_id,)).fetchone()

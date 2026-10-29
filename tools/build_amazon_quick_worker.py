@@ -14,6 +14,7 @@ import subprocess
 FILES = (
     "requirements-runtime.txt", "requirements-amazon-quick.txt", "release_identity.py", "release/backbond-scanner-release.json",
     "harness/__init__.py", "harness/runner.py", "harness/amazon_quick.py", "harness/amazon_quick_batch.py",
+    "harness/amazon_quick_accounting.py",
     "evals/__init__.py", "evals/internal_agent_knowledge.py", "evals/full_scan_q_kb_grounding.py",
     "evals/full_scan_m_claim_extractor.py", "scanners/__init__.py",
     "scanners/evaluator_budget.py", "scanners/starter_judge.py",
@@ -28,7 +29,7 @@ FILES = (
     "evals/quick_assessment_v1/harmbench.LICENSE", "evals/quick_assessment_v1/jailbreakbench.LICENSE", "evals/quick_assessment_v1/xstest.LICENSE",
     "tools/quick_assessment.py", "tools/quick_concurrency_spike.py", "tools/quick_configuration_copy.py",
     "tools/quick_qualification_probe.py",
-    "tools/quick_operator_review.py",
+    "tools/quick_operator_review.py", "tools/quick_source_checks.py",
     "deploy/amazon-quick/Dockerfile", "deploy/amazon-quick/run-worker.sh",
     "deploy/amazon-quick/verify-fixtures.py",
 )
