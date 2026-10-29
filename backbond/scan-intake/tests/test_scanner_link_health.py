@@ -30,3 +30,20 @@ def test_link_failure_is_sanitized(app_env, monkeypatch, error, category):
     result = app.scanner_link_health()
     assert result.status_code == 503
     assert category.encode() in result.body and b'secret' not in result.body
+
+@pytest.mark.parametrize('status,category', [(401, 'authentication_error'),
+    (403, 'authentication_error'), (422, 'upstream_client_error'), (500, 'upstream_server_error')])
+def test_check_upstream_http_failure(app_env, monkeypatch, status, category):
+    app, *_ = app_env
+    class Client:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def post(self, url, **kw):
+            return httpx.Response(status, request=httpx.Request('POST', url), text='secret')
+    monkeypatch.setattr(app, '_headers', lambda data: {})
+    monkeypatch.setattr(app.httpx, 'Client', Client)
+    with pytest.raises(httpx.HTTPStatusError) as caught:
+        app._scanner_check({})
+    assert app._link_error(caught.value) == category
+    assert 'secret' not in app._link_error(caught.value)

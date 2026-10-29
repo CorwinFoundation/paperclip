@@ -340,6 +340,10 @@ def _headers(data: dict | None = None) -> dict[str, str]:
 
 def _link_error(exc: Exception) -> str:
     # Never include exception text: HTTP errors can contain secrets and targets.
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return ('authentication_error' if status in (401, 403) else
+                'upstream_client_error' if 400 <= status < 500 else 'upstream_server_error')
     if isinstance(exc, httpx.TimeoutException):
         return 'timeout'
     if isinstance(exc, httpx.ConnectError):
@@ -374,7 +378,7 @@ def _scanner_check(data: dict) -> tuple[bool, str | None]:
     with httpx.Client(timeout=timeout) as client:
         response = client.post(f"{SCANNER_URL}/connectivity-check", json=data, headers=_headers(data))
     if response.status_code >= 400:
-        return False, f"HTTP {response.status_code}"
+        response.raise_for_status()
     body = response.json()
     error = body.get("error")
     if not isinstance(error, str) or not (error in {'timeout', 'redirect refused', 'connection failed'} or re.fullmatch(r'HTTP [1-5][0-9]{2}', error)):
