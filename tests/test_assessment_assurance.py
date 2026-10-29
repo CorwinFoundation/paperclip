@@ -274,6 +274,6 @@ def test_normal_worker_reports_every_metric_in_json_html_and_both_frameworks_wit
     assert case in html and all(f"{k}: {v}" in html for k, v in result.diagnostic_measurements.items())
     assert "private-" not in html and "private-" not in json.dumps(report) and "content_base64" not in html
     for framework in report["frameworks"]:
-        assert framework["mapping_version"].endswith("@7" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@1")
+        assert framework["mapping_version"].endswith("@8" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@2")
         assert bool([c for c in framework["controls"] if c["scan_observations"]]) == any(family in c["candidate_test_ids"] for c in framework["controls"])
         assert all(c["requirement_conclusion"] == "not assessed" for c in framework["controls"])

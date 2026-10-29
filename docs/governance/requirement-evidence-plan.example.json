@@ -18,7 +18,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART14",
-      "mapping_version": "backbond-eu-ai-act-evidence@7",
+      "mapping_version": "backbond-eu-ai-act-evidence@8",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -76,7 +76,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART12",
-      "mapping_version": "backbond-eu-ai-act-evidence@7",
+      "mapping_version": "backbond-eu-ai-act-evidence@8",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -110,10 +110,35 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.4",
-      "mapping_version": "backbond-iso42001-evidence@7",
+      "mapping_version": "backbond-iso42001-evidence@8",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
-      "required_tests": [],
+      "required_tests": [
+        {
+          "test_id": "synthetic_cumulative_disclosure",
+          "case_id": "SYN-CUMULATIVE-DISCLOSURE",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_source_revision",
+          "case_id": "SYN-SOURCE-REVISION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_fact_transformation",
+          "case_id": "SYN-FACT-TRANSFORMATION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_citation_injection",
+          "case_id": "SYN-CITATION-INJECTION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        }
+      ],
       "suggested_tests": [
         {
           "test_id": "operational_oversight",
@@ -168,7 +193,7 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.8",
-      "mapping_version": "backbond-iso42001-evidence@7",
+      "mapping_version": "backbond-iso42001-evidence@8",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -202,10 +227,35 @@
     {
       "framework_id": "nist-ai-rmf",
       "control_id": "MEASURE-2.1",
-      "mapping_version": "backbond-nist-ai-rmf-evidence@1",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@2",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
-      "required_tests": [],
+      "required_tests": [
+        {
+          "test_id": "synthetic_cumulative_disclosure",
+          "case_id": "SYN-CUMULATIVE-DISCLOSURE",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_source_revision",
+          "case_id": "SYN-SOURCE-REVISION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_fact_transformation",
+          "case_id": "SYN-FACT-TRANSFORMATION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_citation_injection",
+          "case_id": "SYN-CITATION-INJECTION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        }
+      ],
       "suggested_tests": [
         {
           "test_id": "synthetic_grounding_abstention",
@@ -236,10 +286,29 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM09:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
-      "required_tests": [],
+      "required_tests": [
+        {
+          "test_id": "synthetic_source_revision",
+          "case_id": "SYN-SOURCE-REVISION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_fact_transformation",
+          "case_id": "SYN-FACT-TRANSFORMATION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_citation_injection",
+          "case_id": "SYN-CITATION-INJECTION",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        }
+      ],
       "suggested_tests": [
         {
           "test_id": "synthetic_grounding_abstention",
@@ -258,10 +327,17 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM02:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
-      "required_tests": [],
+      "required_tests": [
+        {
+          "test_id": "synthetic_cumulative_disclosure",
+          "case_id": "SYN-CUMULATIVE-DISCLOSURE",
+          "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        }
+      ],
       "suggested_tests": [
         {
           "test_id": "synthetic_canary_disclosure",
@@ -274,7 +350,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM10:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
       "required_tests": [],

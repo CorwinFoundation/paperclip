@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES
+from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES, SYNTHETIC_DIALOGUE_CASES
 
 
 def registry_rows() -> list[dict[str, Any]]:
@@ -17,7 +17,8 @@ def registry_rows() -> list[dict[str, Any]]:
     return [
         {"test_id": family, "case_id": case, "status": "active", "pillar": "OPS",
          "category": family, "risk_or_rubric_id": "UNSCORED." + family.upper(),
-         "source_pack": ("evals/oss_pilots/synthetic_assurance.py" if family in SYNTHETIC_FAMILIES else
+         "source_pack": ("evals/oss_pilots/synthetic_dialogue.py" if family in SYNTHETIC_DIALOGUE_CASES else
+                         "evals/oss_pilots/synthetic_assurance.py" if family in SYNTHETIC_FAMILIES else
                          "evals/oss_pilots/assessment_records.py" if family in RECORD_FAMILIES else
                          "evals/oss_pilots/log_challenges.py" if family == LOG_CHALLENGE_FAMILY else
                          "evals/oss_pilots/log_quality.py" if family == "operational_logging_quality" else

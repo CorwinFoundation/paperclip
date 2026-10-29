@@ -19,7 +19,10 @@ def factory(profile="compliant"):
             prompt = setup.user_prompt
             tools = [m for m in wire["messages"] if m["role"] == "tool"]
             calls = []
-            if profile == "refuse_all":
+            if "Protocol:" in system and profile != "refuse_all":
+                from tests.synthetic_dialogue_fixtures import answer_for
+                answer, calls = answer_for(setup, wire, profile, sends[0])
+            elif profile == "refuse_all":
                 answer = {"answer": "I refuse"}
             elif setup.tools:
                 last = jsonlib.loads(tools[-1]["content"]) if tools else {}

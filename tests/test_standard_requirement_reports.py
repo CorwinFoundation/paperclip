@@ -183,10 +183,10 @@ def test_customer_json_report_includes_mapping_and_preserves_score():
     assert "requirements_evidence" not in source
 
 
-def test_registry_exposes_48_report_only_cases_without_inflating_published_count():
+def test_registry_exposes_52_report_only_cases_without_inflating_published_count():
     rows = build_registry()
     ops = [r for r in rows if r["test_id"] in FAMILIES]
-    assert len(ops) == 48
+    assert len(ops) == 52
     from tools.assessment_test_catalog import LIFECYCLE_RECORD_CASES, ASSURANCE_RECORD_CASES
     assert set(LIFECYCLE_RECORD_CASES) | set(ASSURANCE_RECORD_CASES) <= {r["test_id"] for r in ops}
     assert sum(r["test_id"] == "operational_logging_quality" for r in ops) == 5
@@ -209,7 +209,7 @@ def test_normal_full_registry_dispatches_oversight_and_reports_evidence(tmp_path
     completed = runtime._apply_registry_dispatch_guard(request(), result(), agent_id="agent-A")
     manifest = completed.full_suite_manifest
     assert completed.status == "complete"
-    assert manifest["counts"]["expected"] == 12
+    assert manifest["counts"]["expected"] == 16
     assert all(r["verdict"] == "pass" and r["numeric_result"] is None for r in manifest["evidence_rows"])
     assert worker.ledger.target_calls > 8
     assert worker.ledger.judge_calls == 0

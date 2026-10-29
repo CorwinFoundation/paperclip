@@ -9,11 +9,11 @@ from zipfile import ZipFile
 import pytest
 
 from evals.oss_pilots.synthetic_assurance import run_case, verify
-from requirement_assessment import import_registered_case, load_registry
+from requirement_assessment import build_requirement_assessment, import_registered_case, load_registry
 from tests.synthetic_assurance_fixtures import factory
 from tests.test_requirement_evidence_import import approved
 from tests.test_standard_requirement_reports import executor, request, result
-from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_FAMILIES, SYNTHETIC_VERSION
+from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_FAMILIES, SYNTHETIC_VERSIONS
 from tools.operational_scan import registry_rows, select_rows
 from tools.requirement_evidence_pack import export_pack
 
@@ -97,7 +97,7 @@ def assessment_plan(body, raw):
         control = next(c for c in framework["controls"] if body["test_id"] in c["candidate_test_ids"])
         plan["controls"].append(dict(framework_id=framework["framework_id"],control_id=control["control_id"],
             mapping_version=framework["mapping_version"],applicability="applicable",justification="Reviewed synthetic task scope.",
-            required_tests=[dict(test_id=body["test_id"],case_id=body["case_id"],probe_set_version=SYNTHETIC_VERSION,trials=1)]))
+            required_tests=[dict(test_id=body["test_id"],case_id=body["case_id"],probe_set_version=SYNTHETIC_VERSIONS[body["case_id"]],trials=1)]))
     return plan, now.isoformat()
 
 
@@ -119,6 +119,11 @@ def test_normal_native_results_import_and_reproduce_four_framework_assessor_expo
         assert all(hashlib.sha256(pack.read(name)).hexdigest()==digest for name,digest in checksums.items())
         assert raw == pack.read("artifacts/"+hashlib.sha256(raw).hexdigest()+".json")
         report = json.loads(pack.read("assessment.json"))
+        replayed = build_requirement_assessment(
+            json.loads(pack.read("bundle.json")), plan=json.loads(pack.read("plan.json")),
+            artifact_reader=lambda ref: pack.read("artifacts/"+str(ref.get("sha256") or ref.get("artifact_sha256")).lower()+".json"), evaluated_at=now,
+        )
+        assert replayed == report  # No original filesystem reader or live target required.
         assert len(report["frameworks"]) == 4
         selected = [c for f in report["frameworks"] for c in f["controls"] if c["evidence_refs"]]
         assert len(selected) == 4
@@ -150,7 +155,7 @@ def test_normal_scan_reports_all_frameworks_and_keeps_private_challenges_out_of_
         full_scan_workers_factory=lambda *_:{"day1_report_only":worker},full_scan_job_store=store)
     completed = runtime._apply_registry_dispatch_guard(request(), result(), agent_id="agent-A")
     manifest = completed.full_suite_manifest
-    assert manifest["counts"] == {"expected":4,"evidence_rows":4,"missing_required":0}
+    assert manifest["counts"] == {"expected":8,"evidence_rows":8,"missing_required":0}
     assert all(r["verdict"]=="pass" and r["diagnostic_measurements"] and r["judge_calls"]==0 for r in manifest["evidence_rows"])
     report = _external_result_envelope(completed, {"are_total":72})
     assert report["are_total"]==72
@@ -159,6 +164,11 @@ def test_normal_scan_reports_all_frameworks_and_keeps_private_challenges_out_of_
     html = render_requirements({"requirements_evidence":mapping})
     public = json.dumps(report)+html
     assert all(case in html for case in SYNTHETIC_CASES.values())
+    for item in mapping["evidence_inventory"]["artifacts"]:
+        assert item["case_version"] == SYNTHETIC_VERSIONS[item["case_id"]]
+        if item["case_version"].endswith("@2"):
+            assert "planned_step_count" in item["diagnostic_measurements"]
+            assert "planned_step_count: " + str(item["diagnostic_measurements"]["planned_step_count"]) in html
     assert "NIST AI RMF 1.0" in html and "OWASP Top 10" in html
     assert "native vector-store" in html and "downstream HTML" in html
     assert all(private not in public for private in ('"nonce"','"exchanges"','"system_prompt"','PRIVATE-','PUBLIC-'))
@@ -170,6 +180,8 @@ def test_full_framework_identifiers_are_versioned_and_do_not_invent_vector_store
     from tools.active_test_registry import build_registry
     registry = load_registry()
     frameworks = {f["framework_id"]:f for f in registry["frameworks"]}
+    assert {fid:f["mapping_version"].rsplit("@",1)[1] for fid,f in frameworks.items()} == {
+        "eu-ai-act":"8","iso-iec-42001":"8","nist-ai-rmf":"2","owasp-llm-top10":"2"}
     assert {k:len(v["controls"]) for k,v in frameworks.items()} == {"eu-ai-act":24,"iso-iec-42001":65,"nist-ai-rmf":72,"owasp-llm-top10":10}
     registered = {row["test_id"] for row in build_registry()}
     for framework in (frameworks["nist-ai-rmf"], frameworks["owasp-llm-top10"]):

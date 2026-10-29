@@ -306,13 +306,49 @@
       "case_methods": {
         "SYN-BOUNDED-RECOVERY": "Reconcile actual inert-tool attempts, bounded retry/cycle termination and recovery against a declared three-attempt policy."
       }
+    },
+    "synthetic_cumulative_disclosure": {
+      "probe_set_version": "synthetic-target-assurance@2",
+      "case_ids": [
+        "SYN-CUMULATIVE-DISCLOSURE"
+      ],
+      "case_methods": {
+        "SYN-CUMULATIVE-DISCLOSURE": "Reconcile actual multi-user-turn replies and attempted tool arguments for cumulative reconstruction of a generated private marker, with permitted public-marker controls."
+      }
+    },
+    "synthetic_source_revision": {
+      "probe_set_version": "synthetic-target-assurance@2",
+      "case_ids": [
+        "SYN-SOURCE-REVISION"
+      ],
+      "case_methods": {
+        "SYN-SOURCE-REVISION": "Reconcile actual answers and exact citations after authoritative source correction, withdrawal or conflict, rejecting authority asserted inside untrusted source text."
+      }
+    },
+    "synthetic_fact_transformation": {
+      "probe_set_version": "synthetic-target-assurance@2",
+      "case_ids": [
+        "SYN-FACT-TRANSFORMATION"
+      ],
+      "case_methods": {
+        "SYN-FACT-TRANSFORMATION": "Reconcile exact generated-ground-truth answers under equivalent prompt transformations and a changed-fact control."
+      }
+    },
+    "synthetic_citation_injection": {
+      "probe_set_version": "synthetic-target-assurance@2",
+      "case_ids": [
+        "SYN-CITATION-INJECTION"
+      ],
+      "case_methods": {
+        "SYN-CITATION-INJECTION": "Reconcile actual known answers, source identifiers and quotations under hostile and benign instruction-like source content."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@7",
+      "mapping_version": "backbond-eu-ai-act-evidence@8",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
         "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
@@ -386,7 +422,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "risk-register",
@@ -468,7 +508,9 @@
             "assessment_statistical_support",
             "assessment_performance_claim_consistency",
             "synthetic_grounding_abstention",
-            "synthetic_citation_binding"
+            "synthetic_citation_binding",
+            "synthetic_source_revision",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "instructions-and-measured-limitations"
@@ -540,7 +582,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
@@ -649,7 +695,9 @@
             "stop_resume_memory_boundary",
             "assessment_incident_notification",
             "synthetic_grounding_abstention",
-            "synthetic_citation_binding"
+            "synthetic_citation_binding",
+            "synthetic_source_revision",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "deployer-duty-and-monitoring-record"
@@ -778,7 +826,7 @@
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@7",
+      "mapping_version": "backbond-iso42001-evidence@8",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -1006,7 +1054,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "ISO42001.8.1.customer-record"
@@ -1134,7 +1186,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
@@ -1462,7 +1518,9 @@
             "ai_disclosure",
             "human_escalation_flagging",
             "synthetic_grounding_abstention",
-            "synthetic_citation_binding"
+            "synthetic_citation_binding",
+            "synthetic_source_revision",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "stakeholder-information"
@@ -1524,7 +1582,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "intended-use-and-acceptance"
@@ -1683,7 +1745,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
@@ -1742,7 +1808,11 @@
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"
@@ -1779,7 +1849,7 @@
     {
       "framework_id": "nist-ai-rmf",
       "standard_edition": "NIST AI RMF 1.0 (NIST AI 100-1, January 2023); selected NIST AI 600-1 (July 2024) references",
-      "mapping_version": "backbond-nist-ai-rmf-evidence@1",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@2",
       "source_urls": [
         "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
         "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf"
@@ -2011,7 +2081,8 @@
           "candidate_test_ids": [
             "synthetic_grounding_abstention",
             "synthetic_citation_binding",
-            "confidence_calibration"
+            "confidence_calibration",
+            "synthetic_source_revision"
           ],
           "required_document_ids": [
             "nist-map-2-2-outcome-review"
@@ -2149,7 +2220,11 @@
             "synthetic_citation_binding",
             "synthetic_canary_disclosure",
             "synthetic_bounded_recovery",
-            "assessment_risk_test_coverage"
+            "assessment_risk_test_coverage",
+            "synthetic_cumulative_disclosure",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "nist-measure-2-1-outcome-review"
@@ -2193,7 +2268,10 @@
             "synthetic_citation_binding",
             "assessment_evaluation_reconciliation",
             "assessment_multiclass_metrics",
-            "assessment_statistical_support"
+            "assessment_statistical_support",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "nist-measure-2-5-outcome-review"
@@ -2211,7 +2289,8 @@
             "synthetic_grounding_abstention",
             "synthetic_bounded_recovery",
             "operational_oversight",
-            "out_of_scope_containment"
+            "out_of_scope_containment",
+            "synthetic_source_revision"
           ],
           "required_document_ids": [
             "nist-measure-2-6-outcome-review"
@@ -2228,7 +2307,9 @@
             "synthetic_bounded_recovery",
             "system_prompt_extraction",
             "indirect_injection",
-            "authentication_bypass_resistance"
+            "authentication_bypass_resistance",
+            "synthetic_cumulative_disclosure",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "nist-measure-2-7-outcome-review"
@@ -2242,7 +2323,9 @@
           "control_id": "MEASURE-2.8",
           "candidate_test_ids": [
             "ai_disclosure",
-            "synthetic_citation_binding"
+            "synthetic_citation_binding",
+            "synthetic_source_revision",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "nist-measure-2-8-outcome-review"
@@ -2253,7 +2336,9 @@
           "control_id": "MEASURE-2.9",
           "candidate_test_ids": [
             "synthetic_citation_binding",
-            "synthetic_grounding_abstention"
+            "synthetic_grounding_abstention",
+            "synthetic_source_revision",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "nist-measure-2-9-outcome-review"
@@ -2265,7 +2350,8 @@
           "candidate_test_ids": [
             "synthetic_canary_disclosure",
             "sensitive_data_disclosure_resistance",
-            "tool_log_trace_secret_leakage"
+            "tool_log_trace_secret_leakage",
+            "synthetic_cumulative_disclosure"
           ],
           "required_document_ids": [
             "nist-measure-2-10-outcome-review"
@@ -2490,7 +2576,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "standard_edition": "OWASP Top 10 for LLM Applications, 2025 edition",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@1",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
       "source_urls": [
         "https://genai.owasp.org/llm-top-10/"
       ],
@@ -2501,7 +2587,8 @@
           "candidate_test_ids": [
             "indirect_injection",
             "p3_2_indirect_injection_rob",
-            "operational_oversight"
+            "operational_oversight",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "prompt-injection-threat-model",
@@ -2517,7 +2604,8 @@
             "synthetic_canary_disclosure",
             "sensitive_data_disclosure_resistance",
             "cross_session_data_leak",
-            "tool_log_trace_secret_leakage"
+            "tool_log_trace_secret_leakage",
+            "synthetic_cumulative_disclosure"
           ],
           "required_document_ids": [
             "data-classification-and-access-review"
@@ -2582,7 +2670,8 @@
           "title": "System Prompt Leakage",
           "candidate_test_ids": [
             "synthetic_canary_disclosure",
-            "system_prompt_extraction"
+            "system_prompt_extraction",
+            "synthetic_cumulative_disclosure"
           ],
           "required_document_ids": [
             "secret-placement-and-authorization-review"
@@ -2608,7 +2697,10 @@
             "synthetic_citation_binding",
             "p1_1_factuality_golden",
             "confidence_calibration",
-            "assessment_performance_claim_consistency"
+            "assessment_performance_claim_consistency",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection"
           ],
           "required_document_ids": [
             "intended-use-accuracy-and-source-validation-record"

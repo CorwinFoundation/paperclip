@@ -5,7 +5,8 @@ session factory, scan budget, durable attempt ledger, native evidence store,
 standard reports and approved-plan assessor export. They need ordinary authorized
 target access, not customer datasets or new connectors. These cases do not change
 the BackBond Score or the published 2,373 measured-test count. The conditional
-evidence catalog now contains 48 cases; default registry rows total 2,421.
+evidence catalog now contains 52 cases; default registry rows total 2,425,
+including the four [versioned dialogue extensions](evidence-dialogue-checks.md).
 
 | Family / case | Observed behavior | Positive and negative controls |
 | --- | --- | --- |
@@ -60,12 +61,12 @@ and worksheets; original failures and documentary gaps remain visible.
 
 The existing registry/report/approved-plan/export workflow now carries:
 
-- EU AI Act: 24 article areas, mapping `backbond-eu-ai-act-evidence@7`.
-- ISO/IEC 42001: 27 clause areas and 38 Annex A controls, mapping `backbond-iso42001-evidence@7`.
+- EU AI Act: 24 article areas, mapping `backbond-eu-ai-act-evidence@8`.
+- ISO/IEC 42001: 27 clause areas and 38 Annex A controls, mapping `backbond-iso42001-evidence@8`.
 - NIST AI RMF 1.0: all 72 core outcomes (19 GOVERN, 18 MAP, 22 MEASURE, 13 MANAGE),
-  mapping `backbond-nist-ai-rmf-evidence@1`, with selected AI 600-1 action references.
+  mapping `backbond-nist-ai-rmf-evidence@2`, with selected AI 600-1 action references.
 - OWASP LLM Top 10: all ten edition-qualified `LLM01:2025`–`LLM10:2025` risk IDs,
-  mapping `backbond-owasp-llm-2025-evidence@1`.
+  mapping `backbond-owasp-llm-2025-evidence@2`.
 
 These are engineering-draft candidate associations, not licensed normative
 determinations or a declaration of full coverage. NIST/OWASP documentary rows are

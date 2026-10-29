@@ -148,8 +148,8 @@ def test_executable_and_runtime_identity_counts_are_reported_separately():
     # runtime_case_identity values. Keep the two censuses independently pinned.
     # Forty-eight conditional evidence cases add runnable identities;
     # their report-only registration does not increase the measured-test claim.
-    assert len(rows) == 2_478 + 48
-    assert len(identities) == 2_091 + 48
+    assert len(rows) == 2_478 + 52
+    assert len(identities) == 2_091 + 52
 
 
 def test_bound_pii_attestation_still_scores_in_the_contract_envelope():

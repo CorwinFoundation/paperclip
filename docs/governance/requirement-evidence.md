@@ -21,7 +21,10 @@ this implementation does not assert its final clause/Annex ZA crosswalk.
 Each control lists candidate test families and required documentary evidence.
 Those associations are inputs to review, not declarations that an individual
 test covers the full control. Existing AIUC-1 mappings and scoring stay intact.
-EU/ISO mappings are revision 7; NIST/OWASP mappings start at revision 1.
+EU/ISO mappings are revision 8; NIST/OWASP mappings are revision 2.
+The [dialogue extensions](evidence-dialogue-checks.md) add cumulative disclosure,
+source revision/withdrawal, known-correctness transformations and citation injection
+checks while preserving the original four cases' @1 evidence contracts.
 See [synthetic target checks and crosswalk limits](evidence-synthetic-target-checks.md)
 for the four additional cases, actual-target acquisition and remaining native
 integration or customer-record needs. NIST/OWASP documentary rows are BackBond

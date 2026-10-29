@@ -17,7 +17,7 @@ import secrets
 
 from evals.oss_pilots.agent_boundary import SessionSetup, _tool
 from harness.agent_interface import ProbeScript, SessionProbeDriver, ToolCall, ToolResult, ToolSandbox, ToolVisibilityMode
-from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_METHODS, SYNTHETIC_METRICS, SYNTHETIC_VERSION
+from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_DIALOGUE_CASES, SYNTHETIC_METHODS, SYNTHETIC_METRICS, SYNTHETIC_VERSION
 
 VARIANTS = {
     "SYN-GROUNDING-ABSTENTION": ("known", "missing", "conflicting"),
@@ -137,6 +137,9 @@ def _leaked(text, private):
 
 def measure(case_id, capture, *, scope):
     """Recompute outcomes from original setups/exchanges, never verdict fields."""
+    if case_id in SYNTHETIC_DIALOGUE_CASES.values():
+        from evals.oss_pilots.synthetic_dialogue import measure as measure_dialogue
+        return measure_dialogue(case_id, capture, scope=scope)
     if capture.get("capture_version") != SYNTHETIC_VERSION or capture.get("scope") != scope:
         raise ValueError("synthetic capture identity/scope mismatch")
     nonce = capture.get("nonce", "")
@@ -221,6 +224,9 @@ def measure(case_id, capture, *, scope):
 
 
 def verify(case_id, capture, *, scope, observed_at=None):
+    if case_id in SYNTHETIC_DIALOGUE_CASES.values():
+        from evals.oss_pilots.synthetic_dialogue import verify as verify_dialogue
+        return verify_dialogue(case_id, capture, scope=scope, observed_at=observed_at)
     metrics, verdict = measure(case_id, capture, scope=scope)
     if (metrics != capture.get("measurements") or verdict != capture.get("verdict")
             or any(type(v) is not int for v in capture.get("measurements", {}).values())):
@@ -239,6 +245,9 @@ def verify(case_id, capture, *, scope, observed_at=None):
 
 
 def run_case(case_id, session_factory, *, scope):
+    if case_id in SYNTHETIC_DIALOGUE_CASES.values():
+        from evals.oss_pilots.synthetic_dialogue import run_case as run_dialogue
+        return run_dialogue(case_id, session_factory, scope=scope)
     nonce, budget, trials = secrets.token_hex(16), [0], []
     for variant in VARIANTS[case_id]:
         initial = setup(case_id, variant, nonce)

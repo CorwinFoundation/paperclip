@@ -6,11 +6,11 @@ import re
 from typing import Any
 
 from requirement_assessment import build_requirement_assessment, load_registry
-from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES, SYNTHETIC_METRICS
+from tools.assessment_test_catalog import RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES, SYNTHETIC_DIALOGUE_METRICS
 from evals.oss_pilots.assessment_records import METRICS as RECORD_METRICS
 
 DIAGNOSTIC_METRICS = frozenset({"expected_event_count", "captured_event_count", "identity_errors",
-    "payload_errors", "timestamp_errors", "repeat_difference_count", "false_alert_count", "missing_alert_count"}) | RECORD_METRICS | SYNTHETIC_METRICS
+    "payload_errors", "timestamp_errors", "repeat_difference_count", "false_alert_count", "missing_alert_count"}) | RECORD_METRICS | SYNTHETIC_DIALOGUE_METRICS
 
 
 def build_standard_requirement_report(
