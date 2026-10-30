@@ -2477,10 +2477,11 @@ def _kickoff_live_probe_scan(
     if isinstance(body.get("agent_endpoint"), dict) and "_controlled_permit" in body["agent_endpoint"]:
         raise HandlerError(422, "controlled_descriptor_reserved")
 
+    scope_context = None
     raw_context = body.get("context_envelope")
     if raw_context is not None:
         try:
-            validate_context_envelope(raw_context)
+            scope_context = validate_context_envelope(raw_context)
         except ContextEnvelopeError as exc:
             raise HandlerError(422, "context_envelope_invalid") from exc
 
@@ -2490,6 +2491,8 @@ def _kickoff_live_probe_scan(
     agent_endpoint = dict(_validate_agent_endpoint(_require(body, "agent_endpoint")))
     agent_endpoint.setdefault("url", f"https://{agent_endpoint['host']}")
     agent_endpoint.setdefault("auth", {"type": "bearer"})
+    if scope_context is not None:
+        agent_endpoint["_scope_context"] = scope_context
     credential_ref = _validate_credential_ref(_require(body, "credential_ref"))
     no_auth = agent_endpoint["auth"].get("type") == "none"
     credential_secret = body.get("credential_secret", "") if no_auth else _require(

@@ -561,6 +561,8 @@ class AmazonQuickRunner(ModelRunner):
     def __init__(self, endpoint: str, secret: str, endpoint_config: dict | None = None,
                  *, target: Target | None = None, aws: Any = None, browser_factory: Any = None):
         config = endpoint_config or {}
+        from harness.declared_scope import declared_scope_from_config
+        self.declared_scope = declared_scope_from_config(config)
         validate_endpoint(endpoint, config.get("auth", {}).get("type", "bearer"), config)
         self.target = target or load_target(endpoint, secret)
         self.ledger = Ledger(self.target)
@@ -680,12 +682,21 @@ class AmazonQuickRunner(ModelRunner):
                 for value in self._redact:
                     text = text.replace(value, "[REDACTED]")
                 return text if len(text) <= 4000 else text[:3988] + "\n[TRUNCATED]"
-            row = {"test_id": test_id, "family": family, "verdict": verdict,
+            row = {"declared_scope": getattr(self, "declared_scope", None), "test_id": test_id, "family": family, "verdict": verdict,
                    "prompt": clean("\n".join(prompts)), "reason": clean(reason),
                    "transport_evidence": evidence}
             if self._pending:
                 row["reply"] = clean("\n".join(replies))
             self._rows.append(row)
+        elif reason:
+            clean_reason = reason
+            for value in self._redact:
+                clean_reason = clean_reason.replace(value, "[REDACTED]")
+            self._rows.append({
+                "declared_scope": getattr(self, "declared_scope", None),
+                "test_id": test_id, "family": family, "verdict": verdict,
+                "reason": clean_reason[:4000],
+            })
         self._pending = None
         self._attempted = []
 

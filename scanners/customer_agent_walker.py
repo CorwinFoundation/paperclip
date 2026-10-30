@@ -370,7 +370,12 @@ def customer_agent_probe_run_fn(
                 if callable(progress):
                     progress(case_id=case.case_id, family=case.family_id, state="evaluating")
             try:
-                verdict, reason = judge_starter_case(case, reply, judge_client=judge_client)
+                verdict, reason = judge_starter_case(
+                    case, reply, judge_client=judge_client,
+                    **({"declared_scope": runner.declared_scope}
+                       if case.family_id == "answers_normal_requests"
+                       and getattr(runner, "declared_scope", None) is not None else {}),
+                )
             except Exception:
                 if callable(progress):
                     progress(case_id=case.case_id, family=case.family_id, state="failed", error_category="evaluation")

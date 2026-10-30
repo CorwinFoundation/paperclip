@@ -98,6 +98,8 @@ class KalturaGenieBrowserRunner(ModelRunner):
         self._endpoint = endpoint
         self._timeout_s = timeout_s
         self._config = endpoint_config or {}
+        from harness.declared_scope import declared_scope_from_config
+        self.declared_scope = declared_scope_from_config(self._config)
         self._result_rows_enabled = bool(self._config.get("_include_result_rows"))
         self._redaction_values = tuple(
             value
@@ -238,10 +240,17 @@ class KalturaGenieBrowserRunner(ModelRunner):
     ) -> None:
         """Bind the walker's verdict to the real browser prompt/reply pair."""
         if not self._result_rows_enabled or self._pending_exchange is None:
+            if reason:
+                self._starter_rows.append({
+                    "declared_scope": getattr(self, "declared_scope", None),
+                    "test_id": test_id, "family": family, "verdict": verdict,
+                    "reason": self._cap_result_text(self._redact_result_text(reason)),
+                })
             self._pending_exchange = None
             return
         prompt, reply = self._pending_exchange
         row = {
+            "declared_scope": getattr(self, "declared_scope", None),
             "test_id": test_id,
             "family": family,
             "prompt": self._cap_result_text(self._redact_result_text(prompt)),

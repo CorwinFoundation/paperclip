@@ -145,6 +145,11 @@ def test_real_scan_path_executes_full_set_persists_and_renders(monkeypatch):
     executed = []
 
     def run(req, _secret):
+        from harness.declared_scope import declared_scope_from_config
+        scope = declared_scope_from_config(req.endpoint_config)
+        assert scope["intended_use"] == _raw()["fields"]["intended_use"]
+        assert scope["constraints"] == _raw()["fields"]["constraints"]
+        assert scope["context_hash"] == validate_context_envelope(_raw())["context_hash"]
         executed.extend(["P1.1", "P2.1", "P3.1"])
         dims = tuple(
             DimResult(dim_id=probe, raw=4.0, spread=0.0, replicates=(4.0,) * 5)

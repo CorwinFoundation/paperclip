@@ -145,6 +145,8 @@ class _CustomerAgentHttpRunner(ModelRunner):
     def __init__(self, agent_endpoint: str, secret: str, endpoint_config: dict[str, Any] | None = None):
         self._agent_endpoint = agent_endpoint
         self._config = endpoint_config or {}
+        from harness.declared_scope import declared_scope_from_config
+        self.declared_scope = declared_scope_from_config(self._config)
         auth = self._config.get("auth") or {"type": "bearer"}
         auth_type = auth.get("type", "bearer")
         self._auth_headers: dict[str, str] = {}
@@ -549,6 +551,7 @@ class _CustomerAgentHttpRunner(ModelRunner):
             if pack_id in {"starter-100@4", "starter-100@5", "starter-voice-50@1"}
             else {}
         )
+        metadata["declared_scope"] = getattr(self, "declared_scope", None)
         if reason:
             from scanners.starter_judge import JUDGE_POLICY_VERSION
 

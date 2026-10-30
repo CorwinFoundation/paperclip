@@ -36,6 +36,7 @@ def test_starter_result_row_redacts_credential_and_system_prompt() -> None:
         "prompt": "test [REDACTED]",
         "reply": "echo [REDACTED] and [REDACTED]",
         "verdict": "passed",
+        "declared_scope": None,
     },)
     assert "credential-secret" not in repr(rows)
     assert "private system prompt" not in repr(rows)
@@ -58,6 +59,7 @@ def test_vapi_factory_preserves_result_row_opt_in() -> None:
         "prompt": "sent prompt",
         "reply": "real target reply",
         "verdict": "passed",
+        "declared_scope": None,
     },)
 
 
