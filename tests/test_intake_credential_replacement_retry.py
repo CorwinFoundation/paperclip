@@ -77,3 +77,33 @@ def test_expected_permit_denial_is_distinct_from_scanner_authentication(status, 
             namespace['_scanner_check'](payload)
         assert namespace['_link_error'](caught.value) == 'authentication_error'
     assert calls == [payload]
+
+
+@pytest.mark.parametrize('packet', ['{}', '{"token": ""}', 'invalid-json'])
+def test_tenant_lane_does_not_read_unused_default_credential(tmp_path, monkeypatch, packet):
+    # Restored production code chooses a mapped tenant before sending. A broken
+    # unused default file must not prevent that same tenant reaching upstream.
+    import os
+    credential = tmp_path / 'default.json'
+    credential.write_text(packet)
+    monkeypatch.setenv('QA_SCANNER_CREDENTIAL_PATH', str(credential))
+    tree = ast.parse(SOURCE.read_text())
+    nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+             and n.name in {'_headers', '_post_connection_check', '_link_error'}]
+    namespace = {'os': os, 'json': __import__('json'), 'Path': Path,
+                 '_tenant_tokens': lambda: {'partner-live': 'tenant-secret'},
+                 'SCANNER_URL': 'https://scanner.invalid', 'logging': logging, 'httpx': httpx}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(SOURCE), 'exec'), namespace)
+    calls = []
+    def post(url, **kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(status_code=200)
+    response = namespace['_post_connection_check'](SimpleNamespace(post=post),
+                                                   {'tenant_id': 'partner-live'})
+    assert response.status_code == 200
+    assert calls[0]['headers'] == {'Authorization': 'Bearer tenant-secret'}
+    # The default lane still fails closed, without a network call.
+    with pytest.raises((KeyError, ValueError)) as caught:
+        namespace['_post_connection_check'](SimpleNamespace(post=post), {'tenant_id': 'partner-other'})
+    assert namespace['_link_error'](caught.value) in {'local_config_error', 'invalid_response_or_config'}
+    assert len(calls) == 1
