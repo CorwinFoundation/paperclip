@@ -69,10 +69,11 @@ def test_absent_conflicting_and_tampered_scope():
     assert declared_scope_from_config({'_scope_context': context}) is None
 
 
+@pytest.mark.parametrize('family', ['answers_normal_requests', 'made_up_facts'])
 @pytest.mark.parametrize('transport', ['http', 'browser', 'quick'])
 @pytest.mark.parametrize('include_rows', [True, False])
 @pytest.mark.parametrize('has_scope', [True, False])
-def test_walker_stores_scope_evidence_on_every_transport_row(monkeypatch, transport, include_rows, has_scope):
+def test_walker_stores_scope_evidence_on_every_transport_row(monkeypatch, transport, include_rows, has_scope, family):
     from unittest.mock import Mock
     from harness.customer_runner import customer_agent_http_runner_factory
     from harness.kaltura_genie_browser import PUBLIC_GENIE_URL
@@ -96,7 +97,7 @@ def test_walker_stores_scope_evidence_on_every_transport_row(monkeypatch, transp
     runner = customer_agent_http_runner_factory(endpoint, secret, endpoint_config=config)
     scope = declared_scope_from_config(config)
     assert runner.declared_scope == scope
-    cases = tuple(SimpleNamespace(prompt=prompt, family_id='answers_normal_requests',
+    cases = tuple(SimpleNamespace(prompt=prompt, family_id=family,
         canary=None, turns=(), case_id=f'ANS-{i}', rubric_point_id='P1.1') for i, prompt in enumerate([
         'Write a poem.', 'Help track my Acme order.', 'Help track my Acme order.']))
     replies = iter(['I only help with Acme orders.', 'I cannot help with any requests.',

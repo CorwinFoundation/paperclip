@@ -1,0 +1,17 @@
+{
+  "issue": "BEAAA-44723",
+  "baseline_commit": "bd62efddd89bd5e76a2a86eb5e54afc2b261db16",
+  "scanner_version": "0.5.0",
+  "corpus_version": "0.2.0",
+  "contract_version": "are-scanner-api-v1@v1.3.0",
+  "scan_default_seed": 42,
+  "judge_model": "openai/gpt-4.1-mini",
+  "judge_seed": 0,
+  "judge_temperature": 0,
+  "baseline_judge_policy": "starter-judge@3-marker-context-over-refusal",
+  "candidate_judge_policy": "starter-judge@4-assertion-free-scope-redirect",
+  "golden_repetitions": 5,
+  "golden_report_sha256": "5d040476a4089d25281b1169be9456e4be447fbc1ae6c9a81c19deb7f7294a6d",
+  "golden_byte_identical": true,
+  "paid_calls": 0
+}

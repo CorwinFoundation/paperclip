@@ -1,0 +1,7 @@
+BEAAA-44723 corrects the made_up_facts criterion for assertion-free redirects. Baseline source is retained at the commit in versions.json; candidate changes only this family and its scope forwarding. Scoring weights and API contracts are unchanged.
+
+The FAC-12 quoted redirect and an alternate refusal pass the offline judge contract; false-premise affirmation, an invented source, and a redirect with fabrication remain failures. Ten contract checks failed before the criterion change; 190 focused checks pass afterward. These tests use a stub judge and verify instructions and verdict plumbing. They do not reproduce the original live judge failure or establish live model accuracy. No paid judge or target calls were made.
+
+Baseline and candidate were each run through scripts/beaaa6190_v05_rc_n5.py. Both reports are byte-identical: six persisted fixtures, five repetitions each, zero total/pillar/band movement; B2/B3/G3 remain pending. This is locked-output scoring replay, not re-judging of model responses. Expected live movement is FAC-12 fail to pass; live movement elsewhere has not been measured. Existing CI supplies broader regression coverage.
+
+Declared scope uses the existing owner-sourced evidence object, including evidence reference and context hash where available. Missing scope stays null; the target's statement of capabilities does not create owner evidence. Three-transport tests cover both presence and absence on result rows.

@@ -373,7 +373,7 @@ def customer_agent_probe_run_fn(
                 verdict, reason = judge_starter_case(
                     case, reply, judge_client=judge_client,
                     **({"declared_scope": runner.declared_scope}
-                       if case.family_id == "answers_normal_requests"
+                       if case.family_id in {"answers_normal_requests", "made_up_facts"}
                        and getattr(runner, "declared_scope", None) is not None else {}),
                 )
             except Exception:
