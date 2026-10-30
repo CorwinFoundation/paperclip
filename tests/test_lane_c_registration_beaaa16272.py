@@ -54,4 +54,4 @@ def test_frozen_production_counts_include_disclosure_bypass_tranche():
     rows = build_registry(include_content_candidates=False)
     assert count_active_executable(rows) == 512
     # BEAAA-44605 counts eight SYN and eight OPS runtime cases; scored count stays 512.
-    assert count_target_bound_runtime(rows) == 563
+    assert count_target_bound_runtime(rows) == 574

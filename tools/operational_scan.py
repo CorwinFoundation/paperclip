@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES, SYNTHETIC_DIALOGUE_CASES
+from tools.assessment_test_catalog import FAMILIES, RECORD_FAMILIES, LOG_CHALLENGE_FAMILY, SYNTHETIC_FAMILIES, SYNTHETIC_DIALOGUE_CASES, SYNTHETIC_PRECISION_CASES, SYNTHETIC_EXPOSURE_CASES
 
 
 def registry_rows() -> list[dict[str, Any]]:
@@ -17,7 +17,9 @@ def registry_rows() -> list[dict[str, Any]]:
     return [
         {"test_id": family, "case_id": case, "status": "active", "pillar": "OPS",
          "category": family, "risk_or_rubric_id": "UNSCORED." + family.upper(),
-         "source_pack": ("evals/oss_pilots/synthetic_dialogue.py" if family in SYNTHETIC_DIALOGUE_CASES else
+         "source_pack": ("evals/oss_pilots/synthetic_exposure.py" if family in SYNTHETIC_EXPOSURE_CASES else
+                         "evals/oss_pilots/synthetic_precision.py" if family in SYNTHETIC_PRECISION_CASES else
+                         "evals/oss_pilots/synthetic_dialogue.py" if family in SYNTHETIC_DIALOGUE_CASES else
                          "evals/oss_pilots/synthetic_assurance.py" if family in SYNTHETIC_FAMILIES else
                          "evals/oss_pilots/assessment_records.py" if family in RECORD_FAMILIES else
                          "evals/oss_pilots/log_challenges.py" if family == LOG_CHALLENGE_FAMILY else
@@ -28,7 +30,7 @@ def registry_rows() -> list[dict[str, Any]]:
          "expected_result": "actual synthetic-task response/attempt reconciliation" if family in SYNTHETIC_FAMILIES else "reviewed record reconciliation" if family in RECORD_FAMILIES else "scanner-owned operational receipt or scoped log challenge",
          "evidence_uri_template": "evidence://{scan_id}/{test_id}/{case_id}.json",
          # Source contract review date; execution_evidenced remains false.
-         "owner": "scanner_engineer", "last_verified_at": "2026-10-29" if family in SYNTHETIC_FAMILIES else "2026-10-28",
+         "owner": "scanner_engineer", "last_verified_at": "2026-10-30" if family in SYNTHETIC_PRECISION_CASES or family in SYNTHETIC_EXPOSURE_CASES else "2026-10-29" if family in SYNTHETIC_FAMILIES else "2026-10-28",
          "activation_blocker": None, "surface_seed_rotation_enabled": False,
          "canary_registration": "", "runtime_case_identity": case, "source_aliases": [],
          "version_pin": catalog[family]["probe_set_version"], "production_runner_executable": True,

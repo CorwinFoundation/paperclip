@@ -25,7 +25,7 @@ SCOPE = {"tenant_id":"tenant-A", "scan_id":"scan-A", "agent_id":"agent-A"}
 def test_actual_http_exchanges_drive_three_scenarios_and_utility_controls(case, profile, verdict):
     capture = run_case(case, factory(profile), scope=SCOPE)
     assert capture["verdict"] == verdict
-    assert capture["measurements"]["scenario_count"] == 3
+    assert capture["measurements"]["scenario_count"] == len(capture["trials"])
     assert 0 < capture["request_count"] <= 12
     assert verify(case, capture, scope=SCOPE) == verdict
     assert all(trial["exchanges"] for trial in capture["trials"])
@@ -94,7 +94,9 @@ def assessment_plan(body, raw):
         observed_at=now.isoformat(), capture_scope=dict(SCOPE))
     plan["controls"] = []
     for framework in load_registry()["frameworks"]:
-        control = next(c for c in framework["controls"] if body["test_id"] in c["candidate_test_ids"])
+        control = next((c for c in framework["controls"] if body["test_id"] in c["candidate_test_ids"]), None)
+        if control is None:
+            continue
         plan["controls"].append(dict(framework_id=framework["framework_id"],control_id=control["control_id"],
             mapping_version=framework["mapping_version"],applicability="applicable",justification="Reviewed synthetic task scope.",
             required_tests=[dict(test_id=body["test_id"],case_id=body["case_id"],probe_set_version=SYNTHETIC_VERSIONS[body["case_id"]],trials=1)]))
@@ -124,9 +126,9 @@ def test_normal_native_results_import_and_reproduce_four_framework_assessor_expo
             artifact_reader=lambda ref: pack.read("artifacts/"+str(ref.get("sha256") or ref.get("artifact_sha256")).lower()+".json"), evaluated_at=now,
         )
         assert replayed == report  # No original filesystem reader or live target required.
-        assert len(report["frameworks"]) == 4
+        assert len(report["frameworks"]) == 6
         selected = [c for f in report["frameworks"] for c in f["controls"] if c["evidence_refs"]]
-        assert len(selected) == 4
+        assert len(selected) == len(plan["controls"])
         assert all(c["technical_status"] == ("passed" if profile == "compliant" else "failed") for c in selected)
         assert all(c["requirement_conclusion"] == "not assessed" and not c["evidence_complete_for_plan"] for c in selected)
         assert all(c["missing_documents"] for c in selected)
@@ -155,18 +157,18 @@ def test_normal_scan_reports_all_frameworks_and_keeps_private_challenges_out_of_
         full_scan_workers_factory=lambda *_:{"day1_report_only":worker},full_scan_job_store=store)
     completed = runtime._apply_registry_dispatch_guard(request(), result(), agent_id="agent-A")
     manifest = completed.full_suite_manifest
-    assert manifest["counts"] == {"expected":8,"evidence_rows":8,"missing_required":0}
+    assert manifest["counts"] == {"expected":19,"evidence_rows":19,"missing_required":0}
     assert all(r["verdict"]=="pass" and r["diagnostic_measurements"] and r["judge_calls"]==0 for r in manifest["evidence_rows"])
     report = _external_result_envelope(completed, {"are_total":72})
     assert report["are_total"]==72
     mapping = report["requirements_evidence"]
-    assert len(mapping["frameworks"])==4
+    assert len(mapping["frameworks"])==6
     html = render_requirements({"requirements_evidence":mapping})
     public = json.dumps(report)+html
     assert all(case in html for case in SYNTHETIC_CASES.values())
     for item in mapping["evidence_inventory"]["artifacts"]:
         assert item["case_version"] == SYNTHETIC_VERSIONS[item["case_id"]]
-        if item["case_version"].endswith("@2"):
+        if item["case_version"].endswith(("@2", "@3")):
             assert "planned_step_count" in item["diagnostic_measurements"]
             assert "planned_step_count: " + str(item["diagnostic_measurements"]["planned_step_count"]) in html
     assert "NIST AI RMF 1.0" in html and "OWASP Top 10" in html
@@ -181,8 +183,9 @@ def test_full_framework_identifiers_are_versioned_and_do_not_invent_vector_store
     registry = load_registry()
     frameworks = {f["framework_id"]:f for f in registry["frameworks"]}
     assert {fid:f["mapping_version"].rsplit("@",1)[1] for fid,f in frameworks.items()} == {
-        "eu-ai-act":"8","iso-iec-42001":"8","nist-ai-rmf":"2","owasp-llm-top10":"2"}
-    assert {k:len(v["controls"]) for k,v in frameworks.items()} == {"eu-ai-act":24,"iso-iec-42001":65,"nist-ai-rmf":72,"owasp-llm-top10":10}
+        "eu-ai-act":"10","iso-iec-42001":"10","nist-ai-rmf":"4","owasp-llm-top10":"4",
+        "owasp-llm-top10-2026":"1","owasp-agentic-top10-2026":"1"}
+    assert {k:len(v["controls"]) for k,v in frameworks.items()} == {"eu-ai-act":24,"iso-iec-42001":65,"nist-ai-rmf":72,"owasp-llm-top10":10,"owasp-llm-top10-2026":10,"owasp-agentic-top10-2026":10}
     registered = {row["test_id"] for row in build_registry()}
     for framework in (frameworks["nist-ai-rmf"], frameworks["owasp-llm-top10"]):
         assert {family for c in framework["controls"] for family in c["candidate_test_ids"]} <= registered

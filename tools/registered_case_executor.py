@@ -655,7 +655,8 @@ class RegisteredCaseExecutor:
         if test_id in SYNTHETIC_FAMILIES:
             from evals.oss_pilots.synthetic_assurance import run_case as run_synthetic_case
             capture = run_synthetic_case(case_id, self.operational_session_factory,
-                scope={"tenant_id": self.tenant_id, "scan_id": registry_row["scan_id"], "agent_id": registry_row["agent_id"]})
+                scope={"tenant_id": self.tenant_id, "scan_id": registry_row["scan_id"], "agent_id": registry_row["agent_id"]},
+                seed=str(registry_row["scan_seed"]) if registry_row.get("scan_seed") is not None else None)
         elif test_id == "operational_oversight":
             if self.operational_session_factory is None:
                 capture = {"verdict": "inconclusive", "reason": "target_tool_session_not_configured"}

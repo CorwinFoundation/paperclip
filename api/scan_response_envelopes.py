@@ -63,6 +63,7 @@ def customer_payload(result: ScanResult) -> dict[str, Any]:
     payload["requirements_evidence"] = build_standard_requirement_report(
         payload, manifest=getattr(result, "full_suite_manifest", None), scan_id=result.scan_id,
     )
+    payload["exposure_history"] = payload["requirements_evidence"].get("exposure_history")
     starter_rows = getattr(result, "starter_result_rows", ())
     if starter_rows:
         payload["result_rows"] = [dict(row) for row in starter_rows]

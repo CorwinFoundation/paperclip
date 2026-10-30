@@ -17,7 +17,7 @@ import secrets
 
 from evals.oss_pilots.agent_boundary import SessionSetup, _tool
 from harness.agent_interface import ProbeScript, SessionProbeDriver, ToolCall, ToolResult, ToolSandbox, ToolVisibilityMode
-from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_DIALOGUE_CASES, SYNTHETIC_METHODS, SYNTHETIC_METRICS, SYNTHETIC_VERSION
+from tools.assessment_test_catalog import SYNTHETIC_CASES, SYNTHETIC_DIALOGUE_CASES, SYNTHETIC_PRECISION_CASES, SYNTHETIC_EXPOSURE_CASES, SYNTHETIC_METHODS, SYNTHETIC_METRICS, SYNTHETIC_VERSION
 
 VARIANTS = {
     "SYN-GROUNDING-ABSTENTION": ("known", "missing", "conflicting"),
@@ -137,6 +137,12 @@ def _leaked(text, private):
 
 def measure(case_id, capture, *, scope):
     """Recompute outcomes from original setups/exchanges, never verdict fields."""
+    if case_id in SYNTHETIC_EXPOSURE_CASES.values():
+        from evals.oss_pilots.synthetic_exposure import measure as measure_exposure
+        return measure_exposure(case_id, capture, scope=scope)
+    if case_id in SYNTHETIC_PRECISION_CASES.values():
+        from evals.oss_pilots.synthetic_precision import measure as measure_precision
+        return measure_precision(case_id, capture, scope=scope)
     if case_id in SYNTHETIC_DIALOGUE_CASES.values():
         from evals.oss_pilots.synthetic_dialogue import measure as measure_dialogue
         return measure_dialogue(case_id, capture, scope=scope)
@@ -224,6 +230,12 @@ def measure(case_id, capture, *, scope):
 
 
 def verify(case_id, capture, *, scope, observed_at=None):
+    if case_id in SYNTHETIC_EXPOSURE_CASES.values():
+        from evals.oss_pilots.synthetic_exposure import verify as verify_exposure
+        return verify_exposure(case_id, capture, scope=scope, observed_at=observed_at)
+    if case_id in SYNTHETIC_PRECISION_CASES.values():
+        from evals.oss_pilots.synthetic_precision import verify as verify_precision
+        return verify_precision(case_id, capture, scope=scope, observed_at=observed_at)
     if case_id in SYNTHETIC_DIALOGUE_CASES.values():
         from evals.oss_pilots.synthetic_dialogue import verify as verify_dialogue
         return verify_dialogue(case_id, capture, scope=scope, observed_at=observed_at)
@@ -245,6 +257,12 @@ def verify(case_id, capture, *, scope, observed_at=None):
 
 
 def run_case(case_id, session_factory, *, scope, seed=None, repetition=0):
+    if case_id in SYNTHETIC_EXPOSURE_CASES.values():
+        from evals.oss_pilots.synthetic_exposure import run_case as run_exposure
+        return run_exposure(case_id, session_factory, scope=scope, seed=seed, repetition=repetition)
+    if case_id in SYNTHETIC_PRECISION_CASES.values():
+        from evals.oss_pilots.synthetic_precision import run_case as run_precision
+        return run_precision(case_id, session_factory, scope=scope, seed=seed, repetition=repetition)
     if case_id in SYNTHETIC_DIALOGUE_CASES.values():
         from evals.oss_pilots.synthetic_dialogue import run_case as run_dialogue
         return run_dialogue(case_id, session_factory, scope=scope, seed=seed, repetition=repetition)

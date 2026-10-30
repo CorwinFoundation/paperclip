@@ -36,7 +36,7 @@
   "framework_registry": {
     "path": "rubric/framework_registry.v1.json",
     "registry_version": "1.0.0",
-    "mapping_version": "backbond-aiuc-1-crosswalk@1.1.1"
+    "mapping_version": "backbond-aiuc-1-crosswalk@1.1.2"
   },
   "approved_source_commits": {
     "wave_1a_live_lineage": "d6542eb52b1ea436fbd0d48cf7ebf78dae88188e",

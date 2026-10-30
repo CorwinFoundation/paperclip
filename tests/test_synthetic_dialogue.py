@@ -14,7 +14,7 @@ from tests.test_standard_requirement_reports import executor
 from tests.test_synthetic_assurance import SCOPE
 from tools.assessment_test_catalog import (
     SYNTHETIC_DIALOGUE_CASES, SYNTHETIC_DIALOGUE_VERSION, SYNTHETIC_LEGACY_CASES,
-    SYNTHETIC_METRICS, SYNTHETIC_VERSION, SYNTHETIC_VERSIONS,
+    SYNTHETIC_METRICS, SYNTHETIC_VERSION, SYNTHETIC_VERSIONS, SYNTHETIC_PRECISION_CASES,
 )
 from tools.operational_scan import registry_rows
 from tools.registered_case_executor import ScanBudget
@@ -132,7 +132,7 @@ def test_original_v1_contract_and_measurements_stay_available(case):
     assert verify(case,deepcopy(capture),scope=SCOPE)=="passed"
 
 
-@pytest.mark.parametrize("family,case",SYNTHETIC_DIALOGUE_CASES.items())
+@pytest.mark.parametrize("family,case",{**SYNTHETIC_DIALOGUE_CASES, **SYNTHETIC_PRECISION_CASES}.items())
 def test_production_http_factory_preserves_user_history_auth_and_actual_send_budget(tmp_path,monkeypatch,family,case):
     calls,options,sessions = [],[],{}
     def handle(wire):
@@ -164,9 +164,10 @@ def test_production_http_factory_preserves_user_history_auth_and_actual_send_bud
     row=next(r for r in registry_rows() if r["test_id"]==family)
     outcome=worker(row,SimpleNamespace(job_id="job-A",scan_id="scan-A",agent_id="agent-A",seed=42))
     assert outcome.verdict=="pass" and outcome.numeric_result is None and outcome.judge_calls==0
-    assert outcome.target_calls==worker.ledger.target_calls==len(calls)==(3 if case=="SYN-CITATION-INJECTION" else 9)
+    expected_sends = {"SYN-CITATION-INJECTION":3,"SYN-SOURCE-CORROBORATION":3,"SYN-PARTIAL-COMPLETION":6}.get(case,9)
+    assert outcome.target_calls==worker.ledger.target_calls==len(calls)==expected_sends
     assert all(o["timeout"]==30 and o["follow_redirects"] is False for o in options)
     body=json.loads(next(tmp_path.rglob(case+".json")).read_bytes())
-    assert body["version_pin"]==body["capture"]["capture_version"]==SYNTHETIC_VERSIONS[case]==SYNTHETIC_DIALOGUE_VERSION
-    if case!="SYN-CITATION-INJECTION":
+    assert body["version_pin"]==body["capture"]["capture_version"]==SYNTHETIC_VERSIONS[case]
+    if case not in {"SYN-CITATION-INJECTION","SYN-SOURCE-CORROBORATION"}:
         assert any(len(m)>2 for m in calls)  # The actual configured transport carries prior turns.

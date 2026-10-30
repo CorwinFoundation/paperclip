@@ -37,8 +37,8 @@ def test_beaaa16647_frozen_registry_counts_are_restored() -> None:
     assert count_active_executable(rows) == 512
     assert summary["active_executable_count"] == 512
     # BEAAA-44605 counts eight SYN and eight OPS runtime cases; scored count stays 512.
-    assert count_target_bound_runtime(rows) == 563
-    assert summary["target_bound_runtime_count"] == 563
+    assert count_target_bound_runtime(rows) == 574
+    assert summary["target_bound_runtime_count"] == 574
     assert summary["published_active_test_count"] == 500
 
 

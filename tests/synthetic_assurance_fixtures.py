@@ -19,7 +19,10 @@ def factory(profile="compliant"):
             prompt = setup.user_prompt
             tools = [m for m in wire["messages"] if m["role"] == "tool"]
             calls = []
-            if "Protocol:" in system and profile != "refuse_all":
+            if prompt.startswith("EXPOSURE_TASK: ") and profile != "refuse_all":
+                from tests.synthetic_exposure_fixtures import answer_for
+                answer, calls = answer_for(setup, wire, profile, sends[0])
+            elif "Protocol:" in system and profile != "refuse_all":
                 from tests.synthetic_dialogue_fixtures import answer_for
                 answer, calls = answer_for(setup, wire, profile, sends[0])
             elif profile == "refuse_all":
@@ -55,6 +58,12 @@ def factory(profile="compliant"):
                 if profile == "leak_then_error":
                     calls = [{"id":"unsafe", "type":"function", "function":{"name":"forbidden", "arguments":"{}"}}]
             message = {"role":"assistant", "content":jsonlib.dumps(answer) if answer is not None else ""}
+            if prompt.startswith("EXPOSURE_TASK: "):
+                message["annotations"] = [{"text": "Generated qualification annotation."}]
+                if profile == "auxiliary_leak":
+                    message["reasoning_content"] = re.search(r"PRIVATE-[0-9a-f]{64}", system).group()
+                elif profile == "no_auxiliary":
+                    message.pop("annotations")
             if calls:
                 message["tool_calls"] = calls
             return SimpleNamespace(status_code=200, json=lambda: {"choices":[{"message":message}]})

@@ -18,7 +18,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART14",
-      "mapping_version": "backbond-eu-ai-act-evidence@8",
+      "mapping_version": "backbond-eu-ai-act-evidence@9",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -76,7 +76,7 @@
     {
       "framework_id": "eu-ai-act",
       "control_id": "ART12",
-      "mapping_version": "backbond-eu-ai-act-evidence@8",
+      "mapping_version": "backbond-eu-ai-act-evidence@9",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -110,7 +110,7 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.4",
-      "mapping_version": "backbond-iso42001-evidence@8",
+      "mapping_version": "backbond-iso42001-evidence@9",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [
@@ -136,6 +136,24 @@
           "test_id": "synthetic_citation_injection",
           "case_id": "SYN-CITATION-INJECTION",
           "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_partial_completion",
+          "case_id": "SYN-PARTIAL-COMPLETION",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_numeric_consistency",
+          "case_id": "SYN-NUMERIC-CONSISTENCY",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_source_corroboration",
+          "case_id": "SYN-SOURCE-CORROBORATION",
+          "probe_set_version": "synthetic-target-assurance@3",
           "trials": 1
         }
       ],
@@ -193,7 +211,7 @@
     {
       "framework_id": "iso-iec-42001",
       "control_id": "A.6.2.8",
-      "mapping_version": "backbond-iso42001-evidence@8",
+      "mapping_version": "backbond-iso42001-evidence@9",
       "applicability": "unresolved",
       "justification": "Illustrative only. Operator must review target scope and applicability.",
       "required_tests": [],
@@ -227,7 +245,7 @@
     {
       "framework_id": "nist-ai-rmf",
       "control_id": "MEASURE-2.1",
-      "mapping_version": "backbond-nist-ai-rmf-evidence@2",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@3",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
       "required_tests": [
@@ -253,6 +271,24 @@
           "test_id": "synthetic_citation_injection",
           "case_id": "SYN-CITATION-INJECTION",
           "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_partial_completion",
+          "case_id": "SYN-PARTIAL-COMPLETION",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_numeric_consistency",
+          "case_id": "SYN-NUMERIC-CONSISTENCY",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_source_corroboration",
+          "case_id": "SYN-SOURCE-CORROBORATION",
+          "probe_set_version": "synthetic-target-assurance@3",
           "trials": 1
         }
       ],
@@ -286,7 +322,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM09:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@3",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
       "required_tests": [
@@ -306,6 +342,24 @@
           "test_id": "synthetic_citation_injection",
           "case_id": "SYN-CITATION-INJECTION",
           "probe_set_version": "synthetic-target-assurance@2",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_partial_completion",
+          "case_id": "SYN-PARTIAL-COMPLETION",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_numeric_consistency",
+          "case_id": "SYN-NUMERIC-CONSISTENCY",
+          "probe_set_version": "synthetic-target-assurance@3",
+          "trials": 1
+        },
+        {
+          "test_id": "synthetic_source_corroboration",
+          "case_id": "SYN-SOURCE-CORROBORATION",
+          "probe_set_version": "synthetic-target-assurance@3",
           "trials": 1
         }
       ],
@@ -327,7 +381,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM02:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@3",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
       "required_tests": [
@@ -350,7 +404,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "control_id": "LLM10:2025",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@3",
       "applicability": "unresolved",
       "justification": "Illustrative synthetic-task scope; operator review and current approval required.",
       "required_tests": [],

@@ -37,6 +37,7 @@ from typing import Any
 # the v1.0.x baseline — anything in `_CUSTOMER_STRIP_TOPLEVEL` is internal
 # (Underwriter / Auditor only) and is dropped before the customer sees it.
 _CUSTOMER_STRIP_TOPLEVEL: frozenset[str] = frozenset({
+    "_exposure_history_prior",
     "seed",
     "model_versions",
     "snapshot_hash",

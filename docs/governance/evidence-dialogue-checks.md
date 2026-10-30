@@ -1,5 +1,8 @@
 # Generated-source and multi-turn evidence checks
 
+The subsequent three @3 extensions are documented in
+[Exact numerical, completion and corroboration evidence](evidence-precision-checks.md).
+
 Four conditional cases extend the existing actual-target synthetic checks. They
 reuse the scoped HTTP/SAI session factory, scripted user turns, inert tool sandbox,
 capture wrapper, global scan budgets, durable target-attempt ledger and private

@@ -69,8 +69,8 @@ def test_all_candidates_are_registered_without_duplicate_family_case_ids() -> No
     # do not change the 2,000 content-candidate rows asserted below.
     # E018 adds twelve direct disclosure-bypass rows outside the unchanged
     # 2,000-row content-candidate inventory.
-    # The 52 conditional evidence rows also remain report-only.
-    assert len(rows) == 2_521 + 52
+    # The 55 conditional evidence rows also remain report-only.
+    assert len(rows) == 2_521 + 63
     bypass_ids = {f"AD-BYP-{i:02d}" for i in range(1, 13)}
     bypass_rows = [
         row for row in rows
@@ -122,8 +122,8 @@ def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
     assert count_active_executable(rows) == 2_373
-    assert count_target_bound_runtime(rows) == 2_414
-    assert distinct_case_counts(rows)["total"] == 2_388
+    assert count_target_bound_runtime(rows) == 2_425
+    assert distinct_case_counts(rows)["total"] == 2_399
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [

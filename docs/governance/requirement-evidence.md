@@ -255,6 +255,9 @@ restores or all production event sources; those remain explicit future checks.
 
 ## Validation and routing
 
+The generated @3 numerical, receipt and source-origin cases are documented in
+[Exact numerical, completion and corroboration evidence](evidence-precision-checks.md).
+
 The additional nine @3 record and diagnostic cases, input contracts and remaining
 customer/integration dependencies are documented in
 [Additional assessment evidence checks](evidence-record-checks.md).

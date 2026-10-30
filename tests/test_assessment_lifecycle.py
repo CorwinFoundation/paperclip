@@ -301,6 +301,6 @@ def test_normal_worker_standard_json_html_and_every_public_measurement(tmp_path,
     assert all(f"{key}: {value}" in html for key, value in result.diagnostic_measurements.items())
     assert "private-" not in json.dumps(report) and "private-" not in html and "content_base64" not in html
     for framework in report["frameworks"]:
-        assert framework["mapping_version"].endswith("@8" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@2")
+        assert framework["mapping_version"].endswith("@10" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@1" if framework["framework_id"] in {"owasp-llm-top10-2026","owasp-agentic-top10-2026"} else "@4")
         assert bool([c for c in framework["controls"] if c["scan_observations"]]) == any(family in c["candidate_test_ids"] for c in framework["controls"])
         assert all(c["requirement_conclusion"] == "not assessed" for c in framework["controls"])

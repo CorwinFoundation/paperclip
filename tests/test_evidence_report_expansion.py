@@ -81,7 +81,7 @@ def test_existing_resilience_and_oversight_families_are_visible_in_both_framewor
         control = next(c for c in framework["controls"] if c["control_id"] == cid)
         assert set(o["test_id"] for o in control["scan_observations"]) >= set(families)
         assert control["technical_status"] == "not evaluated" and control["requirement_conclusion"] == "not assessed"
-        assert framework["mapping_version"].endswith("@8" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@2")
+        assert framework["mapping_version"].endswith("@10" if framework["framework_id"] in {"eu-ai-act","iso-iec-42001"} else "@1" if framework["framework_id"] in {"owasp-llm-top10-2026","owasp-agentic-top10-2026"} else "@4")
         assert "hallucination" not in control["unobserved_test_ids"]
         assert "hallucination" in control["unresolved_mapping_concepts"]
 

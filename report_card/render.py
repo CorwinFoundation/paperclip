@@ -789,6 +789,17 @@ def render(
     )
     from report_card.requirements import render_requirements
     requirements_html = render_requirements(score_response)
+    from report_card.exposures import render_exposure_history
+    from standard_requirement_report import build_standard_requirement_report
+    history_report = score_response.get("requirements_evidence") or build_standard_requirement_report(score_response)
+    if prior_score_response is not None:
+        from exposure_history import build_exposure_history
+        previous = prior_score_response.get("exposure_history") or prior_score_response.get("requirements_evidence", {}).get("exposure_history")
+        history = build_exposure_history(history_report, prior=previous,
+            context=score_response.get("exposure_comparison_context"), subject_key=score_response.get("exposure_subject_key"))
+    else:
+        history = score_response.get("exposure_history") or history_report.get("exposure_history")
+    exposure_history_html = render_exposure_history(history)
     sensitivity_html = (
         render_sensitivity_block(_display_sr)
         if include_sensitivity and not coverage_aware_partial
@@ -909,7 +920,7 @@ def render(
         f"\n"
         f'    <div class="section-title">Dimension Detail</div>\n'
         f"{pillar_sections_html}"
-        f"{requirements_html}"
+        f"{exposure_history_html}{requirements_html}"
         f'    <div class="audit-trail">\n'
         f'      <div class="audit-title">Audit Trail</div>\n'
         f'      <div class="audit-grid">\n'

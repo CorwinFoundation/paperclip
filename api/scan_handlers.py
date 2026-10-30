@@ -1148,9 +1148,26 @@ class ScanRuntime:
                         if isinstance(ref, dict) and ref.get("disposition") != "report-only":
                             ref["artifact_uri"] = forensic_bundle_uri
                 from standard_requirement_report import build_standard_requirement_report
+                from exposure_history import fingerprint
+                comparison_config = scan_request.endpoint_config or {}
+                score_envelope.setdefault("run_timestamp", run_timestamp)
+                score_envelope["exposure_subject_key"] = fingerprint([scan_request.tenant_id, agent_id])
+                score_envelope["exposure_comparison_context"] = {
+                    "configuration_fingerprint": fingerprint({k: comparison_config.get(k) for k in
+                        ("transport", "model", "system_prompt", "request_template", "response_path")}),
+                }
+                if isinstance(comparison_config.get("model"), str) and comparison_config["model"].strip():
+                    score_envelope["exposure_comparison_context"]["target_fingerprint"] = fingerprint(
+                        [agent_id, scan_request.agent_endpoint, comparison_config["model"]])
+                prior_history_rows = [r for r in self._scan_log.list_for_agent(agent_id, tenant_id=scan_request.tenant_id)
+                    if r.get("scan_id") != scan_request.scan_id and r["run_timestamp"] < run_timestamp]
+                if prior_history_rows:
+                    prior_score = prior_history_rows[-1].get("score_json") or {}
+                    score_envelope["_exposure_history_prior"] = prior_score.get("exposure_history") or prior_score.get("requirements_evidence", {}).get("exposure_history")
                 score_envelope["requirements_evidence"] = build_standard_requirement_report(
                     score_envelope, manifest=result.full_suite_manifest, scan_id=scan_request.scan_id,
                 )
+                score_envelope["exposure_history"] = score_envelope["requirements_evidence"]["exposure_history"]
                 # BEAAA-11726 item 4 — compute probe_set_hash from the
                 # dim_ids that ran and persist it write-once with the row.
                 _psh = (
@@ -2211,6 +2228,7 @@ def _external_result_envelope(
     envelope["requirements_evidence"] = cached_mapping or build_standard_requirement_report(
         score_json, manifest=manifest, scan_id=result.scan_id,
     )
+    envelope["exposure_history"] = envelope["requirements_evidence"].get("exposure_history")
     # BEAAA-38253 — opted-in starter rows ride the persisted-score envelope
     # too. Rows exist only when the request set include_result_rows, so a
     # default request stays summary-only.

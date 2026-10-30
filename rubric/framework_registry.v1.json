@@ -4,7 +4,7 @@
     {
       "framework_id": "aiuc-1-mapped-technical-assessment",
       "display_name": "AIUC-1-mapped technical assessment",
-      "mapping_version": "backbond-aiuc-1-crosswalk@1.1.1",
+      "mapping_version": "backbond-aiuc-1-crosswalk@1.1.2",
       "controls": [
         {
           "control_id": "AIUC-1.A",
@@ -37,7 +37,9 @@
             "cross_customer_data_exposure",
             "sensitive_data_disclosure_resistance",
             "tool_log_trace_secret_leakage",
-            "file_temporary_link_leakage"
+            "file_temporary_link_leakage",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_privacy_differencing"
           ]
         },
         {
@@ -45,7 +47,15 @@
           "display_name": "Third-party testing for security risk",
           "rubric_point_prefixes": [],
           "test_ids": [
-            "delegated_authority_confused_deputy"
+            "delegated_authority_confused_deputy",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ]
         },
         {
@@ -70,7 +80,10 @@
             "hallucination",
             "tool_call_hallucination",
             "tool_misuse_scope_escape",
-            "mcp_tool_integrity"
+            "mcp_tool_integrity",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_workflow_budget"
           ]
         },
         {
@@ -81,7 +94,9 @@
             "ai_disclosure",
             "human_escalation_flagging",
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "synthetic_approval_action_binding",
+            "synthetic_delegation_containment"
           ]
         },
         {
@@ -90,7 +105,10 @@
           "rubric_point_prefixes": [],
           "test_ids": [
             "consequential_action_confirmation",
-            "revocation_execution_time_authorization"
+            "revocation_execution_time_authorization",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_tool_definition_change"
           ]
         },
         {

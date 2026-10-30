@@ -8,7 +8,9 @@ def render_requirements(score):
     report = score.get("requirements_evidence") or build_standard_requirement_report(score)
     sections = []
     names = {"eu-ai-act": "EU AI Act", "iso-iec-42001": "ISO/IEC 42001",
-             "nist-ai-rmf": "NIST AI RMF 1.0", "owasp-llm-top10": "OWASP Top 10 for LLM Applications (2025)"}
+             "nist-ai-rmf": "NIST AI RMF 1.0", "owasp-llm-top10": "OWASP Top 10 for LLM Applications (2025)",
+             "owasp-llm-top10-2026": "OWASP Top 10 for LLM Applications (2026)",
+             "owasp-agentic-top10-2026": "OWASP Top 10 for Agentic Applications (2026)"}
     for framework in report["frameworks"]:
         rows = []
         for control in framework["controls"]:

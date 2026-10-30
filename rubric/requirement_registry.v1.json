@@ -1,6 +1,6 @@
 {
   "schema": "requirement-evidence-registry/v1",
-  "baseline_date": "2026-10-29",
+  "baseline_date": "2026-10-30",
   "mapping_status": "engineering draft; licensed normative validation required",
   "test_catalog": {
     "operational_oversight": {
@@ -342,13 +342,112 @@
       "case_methods": {
         "SYN-CITATION-INJECTION": "Reconcile actual known answers, source identifiers and quotations under hostile and benign instruction-like source content."
       }
+    },
+    "synthetic_partial_completion": {
+      "probe_set_version": "synthetic-target-assurance@3",
+      "case_ids": [
+        "SYN-PARTIAL-COMPLETION"
+      ],
+      "case_methods": {
+        "SYN-PARTIAL-COMPLETION": "Reconcile actual per-action completion claims with delivered inert-tool acknowledgements, failures and unknown outcomes, including an all-success control."
+      }
+    },
+    "synthetic_numeric_consistency": {
+      "probe_set_version": "synthetic-target-assurance@3",
+      "case_ids": [
+        "SYN-NUMERIC-CONSISTENCY"
+      ],
+      "case_methods": {
+        "SYN-NUMERIC-CONSISTENCY": "Recompute exact generated totals, unit conversions and declared rounding from actual replies, with equivalent-input and changed-input controls."
+      }
+    },
+    "synthetic_source_corroboration": {
+      "probe_set_version": "synthetic-target-assurance@3",
+      "case_ids": [
+        "SYN-SOURCE-CORROBORATION"
+      ],
+      "case_methods": {
+        "SYN-SOURCE-CORROBORATION": "Reconcile actual answers and exact citations against declared synthetic source origins, rejecting duplicate-origin corroboration and conflicting evidence."
+      }
+    },
+    "synthetic_workflow_revocation": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-WORKFLOW-REVOCATION"
+      ],
+      "case_methods": {
+        "SYN-WORKFLOW-REVOCATION": "Reconcile actual action attempts before and after trusted grant revocation, narrowing and fresh reapproval in one workflow."
+      }
+    },
+    "synthetic_approval_action_binding": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-APPROVAL-ACTION-BINDING"
+      ],
+      "case_methods": {
+        "SYN-APPROVAL-ACTION-BINDING": "Bind actual structured approval previews and attempted action arguments to the exact approved recipient, object and amount."
+      }
+    },
+    "synthetic_memory_lifecycle": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-MEMORY-LIFECYCLE"
+      ],
+      "case_methods": {
+        "SYN-MEMORY-LIFECYCLE": "Reconcile actual memory writes, subsequent reads and actions after untrusted poisoning and trusted correction in synthetic memory."
+      }
+    },
+    "synthetic_delegation_containment": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-DELEGATION-CONTAINMENT"
+      ],
+      "case_methods": {
+        "SYN-DELEGATION-CONTAINMENT": "Reject forged peer authority, mismatched task receipts and unknown completion before downstream actions, with an authorized control."
+      }
+    },
+    "synthetic_tool_definition_change": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-TOOL-DEFINITION-CHANGE"
+      ],
+      "case_methods": {
+        "SYN-TOOL-DEFINITION-CHANGE": "Bind actual tool use to the approved catalog fingerprint and destination after a visible definition change, with reapproval controls."
+      }
+    },
+    "synthetic_auxiliary_disclosure": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-AUXILIARY-DISCLOSURE"
+      ],
+      "case_methods": {
+        "SYN-AUXILIARY-DISCLOSURE": "Check actual endpoint-exposed auxiliary message fields and tool arguments for generated private-marker disclosure; absent auxiliary fields remain unobserved."
+      }
+    },
+    "synthetic_workflow_budget": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-WORKFLOW-BUDGET"
+      ],
+      "case_methods": {
+        "SYN-WORKFLOW-BUDGET": "Reconcile actual branched and cyclic inert-tool attempts against one workflow-wide action cap and trusted STOP, preserving useful bounded work."
+      }
+    },
+    "synthetic_privacy_differencing": {
+      "probe_set_version": "synthetic-target-exposure@1",
+      "case_ids": [
+        "SYN-PRIVACY-DIFFERENCING"
+      ],
+      "case_methods": {
+        "SYN-PRIVACY-DIFFERENCING": "Reconcile actual field minimization and overlapping aggregate releases against an explicit generated privacy policy and permitted aggregate controls."
+      }
     }
   },
   "frameworks": [
     {
       "framework_id": "eu-ai-act",
       "standard_edition": "Regulation (EU) 2024/1689; Commission consolidated explorer baseline 2026-07-27",
-      "mapping_version": "backbond-eu-ai-act-evidence@8",
+      "mapping_version": "backbond-eu-ai-act-evidence@10",
       "source_urls": [
         "https://ai-act-service-desk.ec.europa.eu/en/ai-act",
         "https://digital-strategy.ec.europa.eu/en/policies/ai-act-standardisation",
@@ -426,7 +525,18 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "risk-register",
@@ -531,7 +641,10 @@
             "authorization_revocation_race",
             "human_override_takeover_relinquishment",
             "long_running_cancellation_race",
-            "stop_resume_memory_boundary"
+            "stop_resume_memory_boundary",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_workflow_budget"
           ],
           "required_document_ids": [
             "human-oversight-configuration-and-roles"
@@ -586,7 +699,18 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "accuracy-robustness-cybersecurity-plan"
@@ -799,7 +923,15 @@
             "assessment_change_impact_coverage",
             "assessment_release_acceptance",
             "assessment_monitoring_coverage",
-            "assessment_monitoring_trend"
+            "assessment_monitoring_trend",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "post-market-monitoring-plan-and-review"
@@ -826,7 +958,7 @@
     {
       "framework_id": "iso-iec-42001",
       "standard_edition": "ISO/IEC 42001:2023",
-      "mapping_version": "backbond-iso42001-evidence@8",
+      "mapping_version": "backbond-iso42001-evidence@10",
       "source_urls": [
         "https://webstore.iec.ch/en/publication/90574"
       ],
@@ -919,7 +1051,15 @@
             "resource_budget_enforcement",
             "assessment_risk_traceability",
             "assessment_risk_test_coverage",
-            "assessment_mitigation_result_binding"
+            "assessment_mitigation_result_binding",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "ISO42001.6.1.2.customer-record"
@@ -1058,7 +1198,18 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "ISO42001.8.1.customer-record"
@@ -1089,7 +1240,15 @@
             "resource_budget_enforcement",
             "assessment_risk_traceability",
             "assessment_risk_test_coverage",
-            "assessment_mitigation_result_binding"
+            "assessment_mitigation_result_binding",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "ISO42001.8.2.customer-record"
@@ -1129,7 +1288,15 @@
             "resource_budget_enforcement",
             "assessment_risk_traceability",
             "assessment_risk_test_coverage",
-            "assessment_mitigation_result_binding"
+            "assessment_mitigation_result_binding",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "ISO42001.8.3.customer-record"
@@ -1190,7 +1357,18 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "ISO42001.9.1.customer-record"
@@ -1749,7 +1927,10 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration"
           ],
           "required_document_ids": [
             "validation-plan-and-criteria"
@@ -1812,7 +1993,10 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration"
           ],
           "required_document_ids": [
             "monitoring-and-change-plan"
@@ -1849,7 +2033,7 @@
     {
       "framework_id": "nist-ai-rmf",
       "standard_edition": "NIST AI RMF 1.0 (NIST AI 100-1, January 2023); selected NIST AI 600-1 (July 2024) references",
-      "mapping_version": "backbond-nist-ai-rmf-evidence@2",
+      "mapping_version": "backbond-nist-ai-rmf-evidence@4",
       "source_urls": [
         "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
         "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf"
@@ -2224,7 +2408,10 @@
             "synthetic_cumulative_disclosure",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration"
           ],
           "required_document_ids": [
             "nist-measure-2-1-outcome-review"
@@ -2271,7 +2458,10 @@
             "assessment_statistical_support",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration"
           ],
           "required_document_ids": [
             "nist-measure-2-5-outcome-review"
@@ -2309,7 +2499,15 @@
             "indirect_injection",
             "authentication_bypass_resistance",
             "synthetic_cumulative_disclosure",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "nist-measure-2-7-outcome-review"
@@ -2338,7 +2536,10 @@
             "synthetic_citation_binding",
             "synthetic_grounding_abstention",
             "synthetic_source_revision",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration"
           ],
           "required_document_ids": [
             "nist-measure-2-9-outcome-review"
@@ -2351,7 +2552,9 @@
             "synthetic_canary_disclosure",
             "sensitive_data_disclosure_resistance",
             "tool_log_trace_secret_leakage",
-            "synthetic_cumulative_disclosure"
+            "synthetic_cumulative_disclosure",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "nist-measure-2-10-outcome-review"
@@ -2389,7 +2592,15 @@
           "control_id": "MEASURE-3.1",
           "candidate_test_ids": [
             "assessment_monitoring_coverage",
-            "assessment_monitoring_trend"
+            "assessment_monitoring_trend",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "nist-measure-3-1-outcome-review"
@@ -2540,7 +2751,15 @@
           "control_id": "MANAGE-4.1",
           "candidate_test_ids": [
             "assessment_monitoring_coverage",
-            "assessment_incident_notification"
+            "assessment_incident_notification",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_workflow_budget",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "nist-manage-4-1-outcome-review"
@@ -2576,7 +2795,7 @@
     {
       "framework_id": "owasp-llm-top10",
       "standard_edition": "OWASP Top 10 for LLM Applications, 2025 edition",
-      "mapping_version": "backbond-owasp-llm-2025-evidence@2",
+      "mapping_version": "backbond-owasp-llm-2025-evidence@4",
       "source_urls": [
         "https://genai.owasp.org/llm-top-10/"
       ],
@@ -2588,7 +2807,10 @@
             "indirect_injection",
             "p3_2_indirect_injection_rob",
             "operational_oversight",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change"
           ],
           "required_document_ids": [
             "prompt-injection-threat-model",
@@ -2605,7 +2827,9 @@
             "sensitive_data_disclosure_resistance",
             "cross_session_data_leak",
             "tool_log_trace_secret_leakage",
-            "synthetic_cumulative_disclosure"
+            "synthetic_cumulative_disclosure",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_privacy_differencing"
           ],
           "required_document_ids": [
             "data-classification-and-access-review"
@@ -2617,7 +2841,8 @@
           "control_id": "LLM03:2025",
           "title": "Supply Chain",
           "candidate_test_ids": [
-            "assessment_supplier_assurance"
+            "assessment_supplier_assurance",
+            "synthetic_tool_definition_change"
           ],
           "required_document_ids": [
             "model-and-dependency-inventory",
@@ -2657,7 +2882,12 @@
           "candidate_test_ids": [
             "operational_oversight",
             "consequential_action_confirmation",
-            "delegated_authority_confused_deputy"
+            "delegated_authority_confused_deputy",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_workflow_budget"
           ],
           "required_document_ids": [
             "native-tool-permissions-and-approval-review"
@@ -2671,7 +2901,8 @@
           "candidate_test_ids": [
             "synthetic_canary_disclosure",
             "system_prompt_extraction",
-            "synthetic_cumulative_disclosure"
+            "synthetic_cumulative_disclosure",
+            "synthetic_auxiliary_disclosure"
           ],
           "required_document_ids": [
             "secret-placement-and-authorization-review"
@@ -2700,7 +2931,11 @@
             "assessment_performance_claim_consistency",
             "synthetic_source_revision",
             "synthetic_fact_transformation",
-            "synthetic_citation_injection"
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_delegation_containment"
           ],
           "required_document_ids": [
             "intended-use-accuracy-and-source-validation-record"
@@ -2712,7 +2947,8 @@
           "control_id": "LLM10:2025",
           "title": "Unbounded Consumption",
           "candidate_test_ids": [
-            "synthetic_bounded_recovery"
+            "synthetic_bounded_recovery",
+            "synthetic_workflow_budget"
           ],
           "required_document_ids": [
             "native-quotas-rate-limits-and-resource-review"
@@ -2723,6 +2959,303 @@
       ],
       "document_requirement_basis": "BackBond assessment checklist; not a universal document list prescribed by the source framework.",
       "mapping_status": "engineering draft; candidate supporting evidence only; not certification or conformity"
+    },
+    {
+      "framework_id": "owasp-llm-top10-2026",
+      "standard_edition": "OWASP Top 10 for LLM Applications, 2026 edition",
+      "mapping_version": "backbond-owasp-llm-2026-evidence@1",
+      "source_urls": [
+        "https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/",
+        "https://genai.owasp.org/download/56857/?tmstv=1785822482"
+      ],
+      "controls": [
+        {
+          "control_id": "LLM01:2026",
+          "title": "Prompt Injection",
+          "candidate_test_ids": [
+            "indirect_injection",
+            "p3_2_indirect_injection_rob",
+            "operational_oversight",
+            "synthetic_citation_injection",
+            "synthetic_memory_lifecycle",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change"
+          ],
+          "required_document_ids": [
+            "prompt-injection-threat-model",
+            "native-instruction-boundary-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM02:2026",
+          "title": "Sensitive Information Disclosure",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "sensitive_data_disclosure_resistance",
+            "cross_session_data_leak",
+            "tool_log_trace_secret_leakage",
+            "synthetic_cumulative_disclosure",
+            "synthetic_auxiliary_disclosure",
+            "synthetic_privacy_differencing"
+          ],
+          "required_document_ids": [
+            "data-classification-and-access-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM03:2026",
+          "title": "Excessive Agency",
+          "candidate_test_ids": [
+            "operational_oversight",
+            "consequential_action_confirmation",
+            "delegated_authority_confused_deputy",
+            "synthetic_workflow_revocation",
+            "synthetic_approval_action_binding",
+            "synthetic_delegation_containment",
+            "synthetic_tool_definition_change",
+            "synthetic_workflow_budget"
+          ],
+          "required_document_ids": [
+            "native-tool-permissions-and-approval-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM04:2026",
+          "title": "Supply Chain",
+          "candidate_test_ids": [
+            "assessment_supplier_assurance",
+            "synthetic_tool_definition_change"
+          ],
+          "required_document_ids": [
+            "model-and-dependency-inventory",
+            "supplier-due-diligence-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Supplied supplier-record consistency only; native installed component provenance and integrity require review."
+        },
+        {
+          "control_id": "LLM05:2026",
+          "title": "Data and Model Poisoning",
+          "candidate_test_ids": [
+            "assessment_data_lineage",
+            "assessment_split_overlap"
+          ],
+          "required_document_ids": [
+            "training-and-model-poisoning-evaluation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Supporting supplied-record checks only; no training or model-poisoning attack is executed."
+        },
+        {
+          "control_id": "LLM06:2026",
+          "title": "Unbounded Consumption",
+          "candidate_test_ids": [
+            "synthetic_bounded_recovery",
+            "synthetic_workflow_budget"
+          ],
+          "required_document_ids": [
+            "native-quotas-rate-limits-and-resource-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Bounded agent recovery does not establish server quotas, denial-of-service resistance or actual billing limits."
+        },
+        {
+          "control_id": "LLM07:2026",
+          "title": "Misinformation",
+          "candidate_test_ids": [
+            "synthetic_grounding_abstention",
+            "synthetic_citation_binding",
+            "p1_1_factuality_golden",
+            "confidence_calibration",
+            "assessment_performance_claim_consistency",
+            "synthetic_source_revision",
+            "synthetic_fact_transformation",
+            "synthetic_citation_injection",
+            "synthetic_partial_completion",
+            "synthetic_numeric_consistency",
+            "synthetic_source_corroboration",
+            "synthetic_delegation_containment"
+          ],
+          "required_document_ids": [
+            "intended-use-accuracy-and-source-validation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM08:2026",
+          "title": "Hidden Context Exposure",
+          "candidate_test_ids": [
+            "synthetic_canary_disclosure",
+            "system_prompt_extraction",
+            "synthetic_cumulative_disclosure",
+            "synthetic_auxiliary_disclosure"
+          ],
+          "required_document_ids": [
+            "secret-placement-and-authorization-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Candidate supporting observations only; production applicability and full risk mitigation require review."
+        },
+        {
+          "control_id": "LLM09:2026",
+          "title": "Vector and Embedding Weaknesses",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "native-vector-store-isolation-and-retrieval-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "No native vector-store access or isolation test is available through these synthetic sessions."
+        },
+        {
+          "control_id": "LLM10:2026",
+          "title": "Improper Output Handling",
+          "candidate_test_ids": [
+            "p3_6_output_attack"
+          ],
+          "required_document_ids": [
+            "downstream-consumer-validation-record"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Unsafe output-generation checks do not verify a native downstream HTML, SQL or shell consumer."
+        }
+      ],
+      "document_requirement_basis": "BackBond assessment checklist; not a universal document list prescribed by the source framework.",
+      "mapping_status": "engineering draft; candidate supporting evidence only; not certification or conformity"
+    },
+    {
+      "framework_id": "owasp-agentic-top10-2026",
+      "standard_edition": "OWASP Top 10 for Agentic Applications, 2026 edition",
+      "mapping_version": "backbond-owasp-agentic-2026-evidence@1",
+      "source_urls": [
+        "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/"
+      ],
+      "controls": [
+        {
+          "control_id": "ASI01:2026",
+          "title": "Agent Goal Hijack",
+          "candidate_test_ids": [
+            "synthetic_memory_lifecycle"
+          ],
+          "required_document_ids": [
+            "owasp-asi01-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI02:2026",
+          "title": "Tool Misuse & Exploitation",
+          "candidate_test_ids": [
+            "synthetic_workflow_budget"
+          ],
+          "required_document_ids": [
+            "owasp-asi02-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI03:2026",
+          "title": "Identity & Privilege Abuse",
+          "candidate_test_ids": [
+            "synthetic_workflow_revocation",
+            "synthetic_delegation_containment"
+          ],
+          "required_document_ids": [
+            "owasp-asi03-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI04:2026",
+          "title": "Agentic Supply Chain Vulnerabilities",
+          "candidate_test_ids": [
+            "synthetic_tool_definition_change"
+          ],
+          "required_document_ids": [
+            "owasp-asi04-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI05:2026",
+          "title": "Unexpected Code Execution",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "owasp-asi05-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI06:2026",
+          "title": "Memory & Context Poisoning",
+          "candidate_test_ids": [
+            "synthetic_memory_lifecycle"
+          ],
+          "required_document_ids": [
+            "owasp-asi06-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI07:2026",
+          "title": "Insecure Inter-Agent Communication",
+          "candidate_test_ids": [
+            "synthetic_delegation_containment"
+          ],
+          "required_document_ids": [
+            "owasp-asi07-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI08:2026",
+          "title": "Cascading Failures",
+          "candidate_test_ids": [
+            "synthetic_delegation_containment",
+            "synthetic_workflow_budget"
+          ],
+          "required_document_ids": [
+            "owasp-asi08-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI09:2026",
+          "title": "Human-Agent Trust Exploitation",
+          "candidate_test_ids": [
+            "synthetic_approval_action_binding"
+          ],
+          "required_document_ids": [
+            "owasp-asi09-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        },
+        {
+          "control_id": "ASI10:2026",
+          "title": "Rogue Agents",
+          "candidate_test_ids": [],
+          "required_document_ids": [
+            "owasp-asi10-native-architecture-and-control-review"
+          ],
+          "legacy_candidate_test_ids": [],
+          "observation_limitations": "Generated task observations only. Native authority, inter-agent authentication, persistence, tools and effects require their own observed evidence."
+        }
+      ]
     }
   ],
   "limitations": [

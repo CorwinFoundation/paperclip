@@ -63,7 +63,7 @@ class ActiveTestRegistryTests(unittest.TestCase):
         # runtime-identity evidence gate.
         # BEAAA-44605 adds eight SYN and eight OPS methods to runtime
         # coverage only; published/scored claims above stay unchanged.
-        self.assertEqual(count_target_bound_runtime(self.rows), 2414)
+        self.assertEqual(count_target_bound_runtime(self.rows), 2425)
         promoted = [row for row in self.rows if row.get("canonical_runtime_case")]
         aliases = [row for row in self.rows if row.get("alias_of_runtime_case_identity")]
         # The C10 zero-weight train turns 40 previously non-canonical content

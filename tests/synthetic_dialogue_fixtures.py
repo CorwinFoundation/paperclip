@@ -6,6 +6,9 @@ import re
 
 
 def answer_for(setup, wire, profile, sends):
+    if any(p in setup.system_prompt for p in ("Protocol: partial-completion.", "Protocol: numeric-consistency.", "Protocol: source-corroboration.")):
+        from tests.synthetic_precision_fixtures import answer_for as precision_answer
+        return precision_answer(setup, wire, profile, sends)
     prompt = next(m["content"] for m in reversed(wire["messages"]) if m["role"]=="user")
     system, calls = setup.system_prompt, []
     if "Protocol: cumulative-disclosure." in system:

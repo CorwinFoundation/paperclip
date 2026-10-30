@@ -37,6 +37,7 @@ def export_pack(*, plan, bundle, artifact_directory, output, evaluated_at=None):
     if assessment["scope_status"] != "matched":
         raise ValueError("a currently approved, matching scope is required")
     artifacts, roles, controls, documents = {}, {}, [], []
+    history_sources = []
 
     def include(ref, role):
         raw = _artifact(ref, reader)  # recheck bytes after reconciliation
@@ -54,6 +55,7 @@ def export_pack(*, plan, bundle, artifact_directory, output, evaluated_at=None):
             include(ref, "scoped_observation")
             if "source_registered_case" in ref:
                 include(ref["source_registered_case"], "original_registered_case")
+                history_sources.append((json.loads(_artifact(ref["source_registered_case"], reader)), ref))
 
     for framework in assessment["frameworks"]:
         for c in framework["controls"]:
@@ -107,6 +109,14 @@ def export_pack(*, plan, bundle, artifact_directory, output, evaluated_at=None):
     members = {"plan.json": _json(plan), "bundle.json": _json(bundle), "assessment.json": _json(assessment),
                "index.json": _json(index), "controls.csv": _csv(list(controls[0]), controls),
                "documents.csv": _csv(["framework_id", "control_id", "document_id", "applicability", "status"], documents)}
+    from exposure_history import history_from_registered_sources
+    history = history_from_registered_sources(history_sources, approved_scope=plan["scope"])
+    members["exposure-history.json"] = _json(history)
+    members["exposure-history.csv"] = _csv(
+        ["exposure_id", "test_id", "case_id", "state", "first_seen", "last_seen", "comparison_status"],
+        [{k: entry.get(k) for k in ("exposure_id", "test_id", "case_id", "state", "first_seen", "last_seen", "comparison_status")}
+         for subject in history["subjects"] for entry in subject["entries"]],
+    )
     members.update({f"artifacts/{digest}.json": raw for digest, raw in artifacts.items()})
     members["CHECKSUMS.json"] = _json({name: hashlib.sha256(raw).hexdigest() for name, raw in sorted(members.items())})
     output = Path(output)

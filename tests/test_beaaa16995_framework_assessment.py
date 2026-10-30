@@ -108,7 +108,7 @@ def test_october_crosswalk_maps_families_without_changing_score(seed):
     assert result['backbond_score']['subscores'] == before['subscores']
     assert result['backbond_score']['band'] == before['band']
     assessment = result['aiuc_1_mapped_technical_assessment']
-    assert assessment['mapping_version'] == 'backbond-aiuc-1-crosswalk@1.1.1'
+    assert assessment['mapping_version'] == 'backbond-aiuc-1-crosswalk@1.1.2'
     controls = {row['control_id']: row for row in assessment['controls']}
     assert not {'C011', 'C012', 'D002', 'E007', 'E014'} & controls.keys()
     for family, ids in families.items():

@@ -557,7 +557,9 @@ def test_runner_executes_exact_budget_zero_judges_and_redacts_secret(tmp_path, m
     assert hashlib.sha256(canonical_manifest).hexdigest() == (
         # PR #1326's isolated VM job 123491609856 observed this after the
         # unchanged 180 target / 0 judge, family, redaction and zero-weight assertions.
-        "17c61edb3ad2c9b570e6504a405b1ad6266e0d0c3d675db5385964faf19d08a9"
+        # Scan-seed reuse refreshes the evaluator pin; the 180-call, zero-judge
+        # budget and all zero-weight invariants above remain unchanged.
+        "835ad71302df4db7d30c7f6a191bdae31759ff5962c82d12af7d7df453afac44"
     )
 
 

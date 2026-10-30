@@ -7,9 +7,9 @@ def test_seed_reproduces_identities_and_content_without_new_cases():
     first = list(generate_scenarios(seed="alpha", volume=2))
     assert first == list(generate_scenarios(seed="alpha", volume=2))
     changed = list(generate_scenarios(seed="beta", volume=2))
-    assert len(first) == 48
-    assert len({r["scenario_id"] for r in first}) == 48
-    assert len({r["case_id"] for r in first}) == 8
+    assert len(first) == 114
+    assert len({r["scenario_id"] for r in first}) == 114
+    assert len({r["case_id"] for r in first}) == 19
     assert {r["case_id"] for r in first} == {r["case_id"] for r in changed}
     assert all(a["scenario_id"] != b["scenario_id"] and a["nonce"] != b["nonce"]
                for a, b in zip(first, changed))
@@ -62,9 +62,9 @@ def test_report_only_depth_counts_methods_not_generated_scenarios_or_quarantine(
     from tools.operational_scan import registry_rows
     rows = registry_rows()
     result = report_only_depth_counts(rows)
-    assert result["unique_executable_case_count"] == 16
+    assert result["unique_executable_case_count"] == 27
     assert result["by_family"]["operational_oversight"] == 8
-    assert sum(v for k, v in result["by_family"].items() if k.startswith("synthetic_")) == 8
+    assert sum(v for k, v in result["by_family"].items() if k.startswith("synthetic_")) == 19
     assert result["scored_case_count"] == result["live_observation_count"] == 0
     assert result["requirement_conclusion"] == "not assessed"
     # Real quarantine sizes are separate versions, never executable methods.
@@ -83,9 +83,9 @@ def test_runtime_inventory_promotes_sixteen_methods_without_scoring_changes():
     before = [dict(r, report_only_depth_countable=False) for r in rows]
     assert distinct_case_counts(before)["total"] == 0
     after = distinct_case_counts(rows)
-    assert after["total"] == 16
+    assert after["total"] == 27
     assert after["by_family"]["operational_oversight"] == 8
-    assert sum(v for k, v in after["by_family"].items() if k.startswith("synthetic_")) == 8
+    assert sum(v for k, v in after["by_family"].items() if k.startswith("synthetic_")) == 19
     assert count_active_executable(before) == count_active_executable(rows) == 0
-    assert distinct_case_counts(rows + rows)["total"] == 16
+    assert distinct_case_counts(rows + rows)["total"] == 27
     assert distinct_case_counts([dict(r, status="quarantined") for r in rows])["total"] == 0

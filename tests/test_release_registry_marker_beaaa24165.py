@@ -199,7 +199,7 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # from the generated rows with unchanged 2373/2373/2372 measured counts.
     # BEAAA-44605 counts eight SYN and eight OPS report-only runtime cases.
     # Published executable count remains 2373; distinct runtime count is 2388.
-    "a06b5e41a1dbe6fe3e8c251ff2811eaa1b368b1ff25d98a6e36d83b66570a3f4"
+    "9792eb1f3bb665eab2b659b6d7e2588f2217a13e4e28097330bf73c4b30b4f89"
 )
 
 
@@ -211,7 +211,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # registration. The new rows remain reported-not-scored.
     assert marker["published_executable_count"] == 2_373
     assert marker["generated_executable_count"] == 2_373
-    assert marker["distinct_runtime_count"] == 2_388
+    assert marker["distinct_runtime_count"] == 2_399
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()
@@ -229,7 +229,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # excluded-row proof without changing executable counts.
     # Conditional operational cases extend the exclusion proof, not the
     # published measured-test census.
-    assert len(marker["excluded_rows"]) == 148 + 52
+    assert len(marker["excluded_rows"]) == 148 + 63
     from tools.assessment_test_catalog import LIFECYCLE_RECORD_CASES, ASSURANCE_RECORD_CASES
     assert {(row["test_id"], row["case_id"]) for row in marker["excluded_rows"]
             if row["test_id"] in LIFECYCLE_RECORD_CASES} == set(LIFECYCLE_RECORD_CASES.items())

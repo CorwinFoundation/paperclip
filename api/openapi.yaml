@@ -827,8 +827,10 @@ components:
         requirements_evidence:
           type: object
           description: |
-            Default EU AI Act and ISO/IEC 42001 engineering-draft evidence
+            Default EU AI Act, ISO/IEC 42001, NIST AI RMF and OWASP evidence
             crosswalk, independent of the AIUC dual-envelope feature flag.
+            OWASP LLM 2025, LLM 2026 and Agentic 2026 mappings retain separate
+            versioned identities. These mappings are engineering drafts.
             Contains versioned framework controls, reported scan observations,
             unobserved candidate test families and documents requiring review.
             Reported verdicts are metadata, not byte-verified evidence or
@@ -839,7 +841,69 @@ components:
             report_mode: { type: string }
             scan_id: { type: string }
             frameworks: { type: array, items: { type: object } }
+            exposure_history:
+              $ref: '#/components/schemas/AgentExposureHistory'
             limitations: { type: array, items: { type: string } }
+        exposure_history:
+          $ref: '#/components/schemas/AgentExposureHistory'
+    AgentExposureHistory:
+      type: object
+      nullable: true
+      description: |
+        Case-level history of reported scan observations, scoped to the same
+        tenant and agent. A cleared exposure was not reproduced on an explicitly
+        completed comparable retest. Missing, skipped or incomplete observations
+        never clear an earlier exposure. Source bytes and native effects are not
+        verified by this projection; assessor packs derive their own history from
+        accepted original captures. Null is permitted for legacy cached reports.
+      properties:
+        schema: { type: string, enum: [agent-exposure-history/v1] }
+        scan_id: { type: string, nullable: true }
+        prior_scan_id: { type: string, nullable: true }
+        evaluated_at: { type: string, format: date-time, nullable: true }
+        subject_key: { type: string, nullable: true }
+        comparison_context:
+          type: object
+          description: Fingerprints of observed or supplied target settings; hidden deployment changes remain unobserved.
+          additionalProperties: { type: string }
+        summary:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        entries:
+          type: array
+          description: Cases with an observed failure in the available history; passing coverage remains in the evidence inventory.
+          items:
+            type: object
+            properties:
+              case_key: { type: string }
+              test_id: { type: string }
+              case_id: { type: string }
+              case_version: { type: string, nullable: true }
+              candidate_exposure_id: { type: string, nullable: true }
+              exposure_id: { type: string, nullable: true }
+              classification_basis: { type: string }
+              state:
+                type: string
+                enum: [newly_observed, persistent, cleared_on_comparable_retest, reopened, unobserved, not_comparable, no_exposure_observed]
+              exposure_open: { type: boolean }
+              first_seen: { type: string, format: date-time, nullable: true }
+              last_seen: { type: string, format: date-time, nullable: true }
+              last_observed_at: { type: string, format: date-time, nullable: true }
+              comparison_status: { type: string }
+              evidence: { type: array, items: { type: object } }
+              events:
+                type: array
+                maxItems: 20
+                items:
+                  type: object
+                  properties:
+                    scan_id: { type: string, nullable: true }
+                    observed_at: { type: string, format: date-time, nullable: true }
+                    state: { type: string }
+                    observed_exposure_id: { type: string, nullable: true }
+                    evidence: { type: array, items: { type: object } }
+        integrity_status: { type: string }
+        limitations: { type: array, items: { type: string } }
     ScanResult:
       type: object
       description: |
