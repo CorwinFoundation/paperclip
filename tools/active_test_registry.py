@@ -1897,6 +1897,8 @@ def _is_runtime_runnable(row: dict[str, Any]) -> bool:
     if (
         _is_non_countable_reported_not_scored(row)
         and key not in BEAAA_21704_RETAINED_RUNTIME_CASES
+        and not (row.get("report_only_depth_countable") is True
+                 and row.get("production_runner_executable") is True)
     ):
         return False
     return (
@@ -1955,6 +1957,34 @@ def runtime_case_identity(row: dict[str, Any]) -> str:
             return f"{test_id}:{case_id}"
         return text_case_identity(spec)
     return f"{test_id}:{case_id}"
+
+
+def report_only_depth_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Count authorized SYN/OPS methods, independently of scored claims.
+
+    Repetitions and generated scenario identities never enter this denominator.
+    Quarantined/retired rows and arbitrary BYO aliases cannot add coverage.
+    """
+    from tools.assessment_test_catalog import SYNTHETIC_CASES
+    from tools.operational_scan import registry_rows
+
+    authorized = {(r["test_id"], r["case_id"]) for r in registry_rows()
+                  if r["test_id"] in SYNTHETIC_CASES or r["test_id"] == "operational_oversight"}
+    by_family: dict[str, set[str]] = {}
+    for row in rows:
+        key = (row.get("test_id"), row.get("case_id"))
+        if (key not in authorized or row.get("report_only_depth_countable") is not True
+                or row.get("status") != "active"
+                or row.get("production_runner_executable") is not True
+                or row.get("target_bound") is not True):
+            continue
+        by_family.setdefault(str(key[0]), set()).add(str(key[1]))
+    return {"unique_executable_case_count": sum(map(len, by_family.values())),
+            "by_family": {k: len(v) for k, v in sorted(by_family.items())},
+            "scored_case_count": 0, "score_contribution": 0,
+            "requirement_conclusion": "not assessed",
+            "live_observation_count": 0,
+            "live_observation_basis": "inventory only; no target acquisition"}
 
 
 def distinct_case_counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -2045,6 +2075,7 @@ def summarize(rows: list[dict[str, Any]], published_count: int) -> dict[str, Any
         "canonical_scored_row_count": canonical_scored_rows,
         "target_bound_runtime_count": target_bound_runtime,
         "distinct_runtime_case_count": distinct["total"],
+        "report_only_method_depth": report_only_depth_counts(rows),
         "distinct_runtime_by_family": distinct["by_family"],
         "cross_family_collapsed_count": distinct["cross_family_collapsed"],
         "distinct_coverage_collapses": distinct_case_collapses(rows),

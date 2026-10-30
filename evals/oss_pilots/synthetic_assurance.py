@@ -244,11 +244,13 @@ def verify(case_id, capture, *, scope, observed_at=None):
     return verdict
 
 
-def run_case(case_id, session_factory, *, scope):
+def run_case(case_id, session_factory, *, scope, seed=None, repetition=0):
     if case_id in SYNTHETIC_DIALOGUE_CASES.values():
         from evals.oss_pilots.synthetic_dialogue import run_case as run_dialogue
-        return run_dialogue(case_id, session_factory, scope=scope)
-    nonce, budget, trials = secrets.token_hex(16), [0], []
+        return run_dialogue(case_id, session_factory, scope=scope, seed=seed, repetition=repetition)
+    from tools.synthetic_scenarios import scenario_nonce
+    nonce = secrets.token_hex(16) if seed is None else scenario_nonce(seed, case_id, repetition)
+    budget, trials = [0], []
     for variant in VARIANTS[case_id]:
         initial = setup(case_id, variant, nonce)
         trial = {"variant": variant, "setup_sha256": _digest(asdict(initial)), "exchanges": [], "ledger": [], "observer_error": False}

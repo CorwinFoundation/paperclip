@@ -109,7 +109,8 @@ def test_default_registry_loader_matches_standard_production_count():
     from tools.assessment_test_catalog import FAMILIES
     assert len(rows) == 2_373 + 52
     assert sum(row.get("test_id") in FAMILIES for row in rows) == 52
-    assert distinct_case_counts(rows)["total"] == 2_372
+    # BEAAA-44605 counts sixteen existing report-only SYN/OPS methods.
+    assert distinct_case_counts(rows)["total"] == 2_388
     assert (
         sum(row.get("content_candidate_inventory") is True for row in rows)
         == 2_000

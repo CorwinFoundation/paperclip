@@ -233,8 +233,10 @@ def verify(case_id, capture, *, scope, observed_at=None):
     return verdict
 
 
-def run_case(case_id, session_factory, *, scope):
-    nonce, budget, trials = secrets.token_hex(16), [0], []
+def run_case(case_id, session_factory, *, scope, seed=None, repetition=0):
+    from tools.synthetic_scenarios import scenario_nonce
+    nonce = secrets.token_hex(16) if seed is None else scenario_nonce(seed, case_id, repetition)
+    budget, trials = [0], []
     for variant in VARIANTS[case_id]:
         initial, turns, _ = scenario(case_id,variant,nonce)
         trial = {"variant":variant,"setup_sha256":_digest(asdict(initial)),"script_sha256":_digest(turns),

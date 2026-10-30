@@ -58,14 +58,15 @@ class DistinctCaseCountTests(unittest.TestCase):
         # BEAAA-24273 added 60 independently evidenced, non-text rows to the
         # no-content-candidate view. E018 adds twelve distinct disclosure cases;
         # the collision set is unchanged.
-        self.assertEqual(runnable, 547)
+        self.assertEqual(runnable, 563)
         # The current target-bound registry rows still execute — they are
         # simply not all distinct.
-        self.assertEqual(counts["declared_total"], 547)
+        self.assertEqual(counts["declared_total"], 563)
         self.assertLess(counts["total"], runnable)  # <-- reproduces the collapse
-        # The twelve E018 additions move distinct coverage from 499 to 511,
+        # E018 adds twelve distinct cases; BEAAA-44605 adds sixteen SYN/OPS
+        # report-only methods, moving distinct coverage from 511 to 527,
         # preserving all 36 duplicate rows in the prior registry view.
-        self.assertEqual(counts["total"], 511)
+        self.assertEqual(counts["total"], 527)
         self.assertEqual(counts["declared_total"] - counts["total"], 36)
         self.assertEqual(counts["declared_by_family"]["ai_disclosure"], 24)
         self.assertEqual(counts["by_family"]["ai_disclosure"], 24)

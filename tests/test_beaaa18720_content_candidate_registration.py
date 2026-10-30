@@ -122,8 +122,8 @@ def test_registered_count_and_distinct_runtime_count_reconcile() -> None:
     rows = build_registry()
 
     assert count_active_executable(rows) == 2_373
-    assert count_target_bound_runtime(rows) == 2_398
-    assert distinct_case_counts(rows)["total"] == 2_372
+    assert count_target_bound_runtime(rows) == 2_414
+    assert distinct_case_counts(rows)["total"] == 2_388
     # A stale published marker above the current executable inventory remains
     # rejected after the BEAAA-30128 binding.
     assert validate_registry(rows, published_count=2_400, strict=True) == [

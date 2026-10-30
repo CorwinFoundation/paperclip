@@ -197,7 +197,9 @@ EXPECTED_NORMALIZED_REGISTRY_SHA256 = (
     # 2373/2373/2372 measured/runtime counts and generated-byte checks passed.
     # Four dialogue extensions add only conditional, zero-score rows. Derived
     # from the generated rows with unchanged 2373/2373/2372 measured counts.
-    "7f3b40ed1b64e9500117219ca736196d2e3f6f9bc68fe3f96b8e05cdea7b3286"
+    # BEAAA-44605 counts eight SYN and eight OPS report-only runtime cases.
+    # Published executable count remains 2373; distinct runtime count is 2388.
+    "a06b5e41a1dbe6fe3e8c251ff2811eaa1b368b1ff25d98a6e36d83b66570a3f4"
 )
 
 
@@ -209,7 +211,7 @@ def test_marker_derives_counts_and_hash_from_same_generated_registry() -> None:
     # registration. The new rows remain reported-not-scored.
     assert marker["published_executable_count"] == 2_373
     assert marker["generated_executable_count"] == 2_373
-    assert marker["distinct_runtime_count"] == 2_372
+    assert marker["distinct_runtime_count"] == 2_388
     assert marker["normalized_registry_sha256"] == hashlib.sha256(
         _normalized_registry_bytes(rows)
     ).hexdigest()

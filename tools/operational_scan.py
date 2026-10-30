@@ -34,6 +34,7 @@ def registry_rows() -> list[dict[str, Any]]:
          "version_pin": catalog[family]["probe_set_version"], "production_runner_executable": True,
          "target_bound": True, "execution_evidenced": False,
          "execution_evidence_status": "per_scan_capture_required",
+         "report_only_depth_countable": family in SYNTHETIC_FAMILIES or family == "operational_oversight",
          "case_class": "operational_report_only", "scoring_active": False,
          "reporting_status": "reported_not_scored", "disposition": "report-only",
          "score_contribution": False, "weight": 0.0, "k_replicates": 1,
