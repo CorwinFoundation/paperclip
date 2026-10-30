@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 from pathlib import Path
 import pytest
@@ -7,13 +8,29 @@ SPEC = importlib.util.spec_from_file_location("incident", ROOT / "backbond/scan-
 incident = importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(incident)
 
 
-def test_patch_is_idempotent_and_preserves_current_tenant_pack_and_report_code():
+@pytest.mark.parametrize("pack_id", ["starter-100@4", "starter-100@5", "starter-100@999"])
+def test_patch_is_idempotent_and_preserves_current_tenant_pack_and_report_code(pack_id):
     app = (ROOT / "backbond/scan-intake/server/app.py").read_text()
     service = (ROOT / "backbond/scan-intake/server/qa_service.py").read_text()
+    # This incident patch must preserve whichever release is currently selected.
+    # Exercise both prior/current packs and a future value without pinning the
+    # live service to the release that happened to exist during the incident.
+    tree = ast.parse(service)
+    assignment = next(
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "DEFAULT_STARTER_PACK_ID"
+                for target in node.targets)
+    )
+    lines = service.splitlines(keepends=True)
+    lines[assignment.lineno - 1:assignment.end_lineno] = [
+        f'DEFAULT_STARTER_PACK_ID = "{pack_id}"\n'
+    ]
+    service = "".join(lines)
     patched_app, patched_service = incident.patch_sources(app, service)
     assert patched_app == app and patched_service == service
     assert "terminal_failure" in patched_app
-    assert '"starter-100@4"' in patched_service
+    assert f'DEFAULT_STARTER_PACK_ID = "{pack_id}"' in patched_service
     assert "report_recipient_hint" in patched_service
     assert "tenant_id" in patched_service
 

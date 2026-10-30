@@ -1,0 +1,2 @@
+# Optional operator environment only. Not part of the score/runtime closure.
+skillspector @ git+https://github.com/NVIDIA/SkillSpector.git@54921c8c7c23008c8af2328d5ab492a904b6ece4
