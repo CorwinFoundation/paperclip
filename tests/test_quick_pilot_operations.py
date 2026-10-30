@@ -224,6 +224,7 @@ def test_packaged_import_closure_and_grading_report_pipeline(tmp_path):
                             cwd=context, env=env, capture_output=True, text=True, timeout=45)
     assert result.returncode == 0, result.stdout + result.stderr
     assert '"packaged_fixture_pipeline_verified"' in result.stdout
+    assert '"packaged_quick_constructor_verified"' in result.stdout
 
 
 def test_report_preserves_fixture_boundary_and_rejects_changed_summary(tmp_path):

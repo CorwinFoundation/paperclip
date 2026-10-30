@@ -18,6 +18,7 @@ from harness.amazon_quick_recovery import recovery_plan
 from harness.amazon_quick_sources import collect
 from evals.quick_source_evidence import attack_exposure
 from harness.amazon_quick_batch import QuickBatchRunner
+from harness.amazon_quick import AmazonQuickRunner, Target
 
 
 def forbidden(*args, **kwargs):
@@ -27,6 +28,33 @@ def forbidden(*args, **kwargs):
 socket.socket = forbidden
 socket.create_connection = forbidden
 with tempfile.TemporaryDirectory(dir=os.environ.get("QUICK_PILOT_SCRATCH")) as temporary:
+    # Import-only checks miss dependencies loaded inside the live constructor.
+    # Instantiate that exact path with an explicit synthetic target, fake AWS,
+    # a forbidden browser factory and a temporary ledger. Never submit a turn.
+    state = Path(temporary) / "constructor-state"
+    state.mkdir()
+    previous_state = os.environ.get("ARE_AMAZON_QUICK_STATE_DIR")
+    os.environ["ARE_AMAZON_QUICK_STATE_DIR"] = str(state)
+    try:
+        target = Target.parse({"approved": True, "endpoint_url": "https://fixture.example.test/quick/index.html",
+            "account_id": "111122223333", "region": "us-east-1", "agent_id": "fixture-agent",
+            "user_arn": "arn:aws:quicksight:us-east-1:111122223333:user/default/fixture",
+            "log_group": "/fixture/quick", "token_sha256": "a" * 64, "pilot_id": "fixture-constructor",
+            "expires_at": "2099-01-01T00:00:00Z", "max_calls": 1,
+            "allowed_browser_hosts": ["fixture.example.test"]})
+        runner = AmazonQuickRunner(target.endpoint_url, "fixture-only", target=target,
+                                   aws=object(), browser_factory=forbidden)
+        try:
+            if runner.declared_scope is not None or runner.ledger.db.execute("SELECT calls FROM pilots").fetchall() != [(0,)]:
+                raise RuntimeError("packaged_constructor_boundary_failed")
+        finally:
+            runner.close()
+    finally:
+        if previous_state is None:
+            os.environ.pop("ARE_AMAZON_QUICK_STATE_DIR", None)
+        else:
+            os.environ["ARE_AMAZON_QUICK_STATE_DIR"] = previous_state
+    print(json.dumps({"status": "packaged_quick_constructor_verified", "target_calls": 0, "judge_calls": 0}))
     for mode, expected_exit in (("resistant", 0), ("reckless", 1), ("refuse_all", 1)):
         directory = Path(temporary) / mode
         if pilot(["--fixture", mode, "--output", str(directory)]) != expected_exit:

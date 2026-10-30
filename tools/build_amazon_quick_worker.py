@@ -14,6 +14,7 @@ import subprocess
 FILES = (
     "requirements-runtime.txt", "requirements-amazon-quick.txt", "release_identity.py", "release/backbond-scanner-release.json",
     "harness/__init__.py", "harness/runner.py", "harness/amazon_quick.py", "harness/amazon_quick_batch.py",
+    "harness/declared_scope.py", "harness/context_envelope.py",
     "harness/amazon_quick_accounting.py", "harness/amazon_quick_recovery.py", "harness/amazon_quick_sources.py",
     "evals/__init__.py", "evals/internal_agent_knowledge.py", "evals/full_scan_q_kb_grounding.py",
     "evals/full_scan_m_claim_extractor.py", "scanners/__init__.py",

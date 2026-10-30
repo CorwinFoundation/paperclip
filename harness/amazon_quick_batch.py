@@ -41,6 +41,77 @@ _BROWSER_NETWORK_ERRORS = frozenset({
 })
 
 
+_RUNTIME_STAGES = frozenset({
+    "registration", "reservation", "browser_context_enter", "embedding_url",
+    "sdk_open", "ready", "prepare", "send_intent", "send", "capture",
+    "sources", "browser_context_exit",
+})
+_RUNTIME_ERROR_TYPES = frozenset({
+    "CancelledError", "TimeoutError", "RunnerError", "Error", "TargetClosedError",
+    "ValueError", "TypeError", "KeyError", "AttributeError", "AssertionError",
+    "RuntimeError", "OSError",
+})
+_AWS_FAILURE_LABELS = frozenset(
+    "aws_" + phase + "_" + category
+    for phase in ("embed", "chat_logs")
+    for category in ("throttled", "service_error", "access_denied",
+                     "credentials_expired", "command_failed", "timeout")
+)
+
+
+class _RuntimeDiagnostic:
+    """Remember the first failure before context cleanup can replace it.
+
+    Only fixed labels leave this object. Exception messages, URLs, arguments,
+    arbitrary class names and tracebacks never enter a saved diagnostic.
+    """
+
+    def __init__(self):
+        self.stage = "registration"
+        self.attempt = None
+        self.chat = None
+        self.first = None
+
+    def remember(self, exc):
+        if self.first is not None:
+            return
+        kind = type(exc).__name__
+        kind = "sqlite_error" if isinstance(exc, sqlite3.Error) else (
+            kind if kind in _RUNTIME_ERROR_TYPES else "other")
+        code = getattr(self.chat, "startup_error_code", None)
+        code = code if isinstance(code, str) and code in _BROWSER_NETWORK_ERRORS else "other"
+        # RunnerError already carries fixed internal labels. Compare to the
+        # literal allowlist; never export an unrecognized argument or message.
+        if isinstance(exc, RunnerError) and len(exc.args) == 1:
+            argument = exc.args[0]
+            if isinstance(argument, str) and argument in {
+                    "amazon quick: " + label for label in _AWS_FAILURE_LABELS}:
+                code = argument[len("amazon quick: "):]
+        self.first = {
+            "schema": "backbond-quick-runtime-failure/v1",
+            "stage": self.stage if self.stage in _RUNTIME_STAGES else "other",
+            "exception_type": kind, "error_code": code,
+            "initialization_attempt": self.attempt if self.attempt in (1, 2) else None,
+        }
+
+    @asynccontextmanager
+    async def context(self, manager):
+        self.stage = "browser_context_enter"
+        try:
+            async with manager as chat:
+                self.chat = chat
+                try:
+                    yield chat
+                except (Exception, asyncio.CancelledError) as exc:
+                    self.remember(exc)
+                    raise
+                finally:
+                    self.stage = "browser_context_exit"
+        except (Exception, asyncio.CancelledError) as exc:
+            self.remember(exc)
+            raise
+
+
 @dataclass(frozen=True)
 class BatchCase:
     case_id: str
@@ -707,22 +778,28 @@ class QuickBatchRunner:
                 raise _fail("operator_target_changed")
 
     @asynccontextmanager
-    async def _initialized_chat(self, case, ledger, owner, deadline, events):
+    async def _initialized_chat(self, case, ledger, owner, deadline, events, diagnostic):
         """Retry at most one SDK mount before yielding a ready chat."""
         reserved = False
         for attempt in (1, 2):
+            diagnostic.attempt = attempt
+            diagnostic.stage = "registration"
             self.check_registration(case.role)
             if time.monotonic() >= deadline:
                 raise _fail("case_deadline_exceeded")
-            async with self.browser.context(self.targets[case.role], deadline) as chat:
+            async with diagnostic.context(self.browser.context(self.targets[case.role], deadline)) as chat:
                 async with self.submit_gate:
+                    diagnostic.stage = "registration"
                     self.check_registration(case.role)
                     if not reserved:
+                        diagnostic.stage = "reservation"
                         ledger.reserve_turn(owner, 0, case.turns[0], int(time.time() * 1000),
                                             time.time() + max(0, deadline - time.monotonic()))
                         reserved = True
+                    diagnostic.stage = "embedding_url"
                     embed_url = await self.aws[case.role].embed_url()
                 try:
+                    diagnostic.stage = "sdk_open"
                     await chat.open(embed_url)
                 except RunnerError as exc:
                     if str(exc) != "amazon quick: browser_harness_unavailable":
@@ -749,6 +826,7 @@ class QuickBatchRunner:
                 events.append({"attempt": attempt, "outcome": "ready"})
                 # Exceptions thrown after yield include uncertain sends. They
                 # propagate directly; only chat.open above is eligible for retry.
+                diagnostic.stage = "ready"
                 yield chat
                 return
 
@@ -758,6 +836,7 @@ class QuickBatchRunner:
                       "turns": [], "reason": "not_submitted", "initialization": []}
             ledger, target = self.ledgers[case.role], self.targets[case.role]
             owner, items, locks = secrets.token_hex(16), [], []
+            diagnostic = _RuntimeDiagnostic()
             committed_send_intents=0
             acquired = False
             startup_lock = self.startup_locks.setdefault(ledger.identity, asyncio.Lock())
@@ -779,12 +858,13 @@ class QuickBatchRunner:
                 self.check_registration(case.role)
                 # Queueing consumes the overall batch deadline, but does not
                 # consume a conversation lease or its answer deadline.
+                diagnostic.stage = "reservation"
                 ledger.acquire(owner,case,capture_binding=self.capture_binding)
                 acquired = True
                 case_deadline = min(deadline, time.monotonic() + target.timeout_seconds)
                 if time.monotonic() >= case_deadline:
                     raise _fail("case_deadline_exceeded")
-                async with self._initialized_chat(case, ledger, owner, case_deadline, result["initialization"]) as chat:
+                async with self._initialized_chat(case, ledger, owner, case_deadline, result["initialization"], diagnostic) as chat:
                     self.startup_slots.release()
                     startup_slot = False
                     startup_lock.release()
@@ -794,14 +874,18 @@ class QuickBatchRunner:
                             timeout=max(0, case_deadline-time.monotonic()))
                         self.initialized_together = self.ready_barrier.parties
                     for index, prompt in enumerate(case.turns):
+                        diagnostic.stage = "capture"
                         if index and prompt in case.turns[:index]:
                             await asyncio.gather(*(item.future for item in items))
+                        diagnostic.stage = "prepare"
                         await chat.prepare()
                         async with self.submit_gate:
+                            diagnostic.stage = "registration"
                             self.check_registration(case.role)
                             if time.monotonic() >= case_deadline:
                                 raise _fail("case_deadline_exceeded")
                             start_ms = int(time.time() * 1000)
+                            diagnostic.stage = "reservation"
                             if index:
                                 ledger.reserve_turn(owner, index, prompt, start_ms,
                                                     time.time() + max(0, case_deadline - time.monotonic()))
@@ -811,13 +895,16 @@ class QuickBatchRunner:
                                                       (start_ms, owner))
                             item = self.sweeps[case.role].add(owner, index, prompt, start_ms, case_deadline)
                             items.append(item)
+                            diagnostic.stage = "send_intent"
                             ledger.mark_send_intent(owner,index)
                             committed_send_intents+=1
                             try:
+                                diagnostic.stage = "send"
                                 await chat.send(prompt)
                             except BaseException:
                                 self.sweeps[case.role].fail(item, "prompt_submission_unknown_no_retry")
                                 raise
+                        diagnostic.stage = "capture"
                         capture = asyncio.create_task(chat.capture())
                         try:
                             done, _ = await asyncio.wait((capture, item.future), return_when=asyncio.FIRST_COMPLETED)
@@ -844,6 +931,7 @@ class QuickBatchRunner:
                         # the visible response. Missing evidence never causes
                         # another prompt or turns a container citation into a file.
                         if getattr(chat,'source_capture_spec',None) is not None:
+                            diagnostic.stage = "sources"
                             native=await item.future
                             item.source_observation=await chat.sources(native)
                             ledger.record_sources(owner,index,item.source_observation)
@@ -857,6 +945,8 @@ class QuickBatchRunner:
                     if any(not turn["reply"].strip() for turn in result["turns"]):
                         result["reason"] = "correlated_provider_empty_text"
             except (Exception, asyncio.CancelledError) as exc:
+                diagnostic.remember(exc)
+                result["runtime_failure"] = diagnostic.first
                 self.stop.set()
                 if self.ready_barrier is not None:
                     await self.ready_barrier.abort()
