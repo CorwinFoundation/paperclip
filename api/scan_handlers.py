@@ -190,10 +190,6 @@ _STARTER_PACK_TEST_COUNTS = {
 
 
 def _effective_starter_pack_id(pack_id: str) -> str:
-    if pack_id in _STARTER_PACK_IDS and pack_id != STARTER_VOICE_PACK_ID and os.environ.get(
-        "BACKBOND_STARTER_PACK_LEGACY_V1", ""
-    ).strip() != "1":
-        return STARTER_PACK_V4_ID
     return pack_id
 
 
@@ -2502,8 +2498,6 @@ def _kickoff_live_probe_scan(
     if not isinstance(credential_secret, str) or (not credential_secret and not no_auth):
         raise HandlerError(422, "credential_secret_invalid")
     pack_id = body.get("pack_id")
-    if controlled_context is None and pack_id == STARTER_PACK_V5_ID:
-        raise HandlerError(422, 'pack_id_invalid')
     if pack_id is not None and pack_id not in {
         *_STARTER_PACK_IDS,
         "full-scan-conv-en@1.0",

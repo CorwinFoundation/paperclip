@@ -80,10 +80,9 @@ def test_pack_id_selectable_from_allowed_ids():
     assert '"starter-100@5"' in src, "starter-100@5 not in app.py STARTER_PACK_IDS"
 
 
-def test_default_pack_id_is_not_v5():
-    src = _read_app_py_text()
-    # DEFAULT_STARTER_PACK_ID must not point to @5
-    import re
-    m = re.search(r'DEFAULT_STARTER_PACK_ID\s*=\s*"([^"]+)"', src)
-    assert m is not None, "DEFAULT_STARTER_PACK_ID not found in app.py"
-    assert m.group(1) != "starter-100@5"
+def test_default_pack_id_is_v5():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parents[1] / "backbond/scan-intake/server"))
+    from qa_service import DEFAULT_STARTER_PACK_ID
+    assert DEFAULT_STARTER_PACK_ID == "starter-100@5"

@@ -141,7 +141,7 @@ def test_payload_shape_is_exactly_the_operations_starter_contract_from_the_evide
         'bac_request_id': sid, 'bac_case_id': 'case-1', 'bac_scan_id': sid,
         'first_scan': True, 'evidence_sha256': digest, 'evidence_refs': ['intake:' + sid],
         'provenance': {'source': 'backbond-scan-intake', 'input_schema': 'starter_report_input@1',
-                       'input_sha256': frozen['input_sha256'], 'pack_version': 'starter-100@4'},
+                       'input_sha256': frozen['input_sha256'], 'pack_version': 'starter-100@5'},
         # One could_not_run: coverage is NOT complete, whatever the terminal outcome says.
         'scope_complete': False,
         'result': {'outcome': 'complete', 'verdict_counts': {'pass': 1, 'fail': 1, 'could_not_run': 1},

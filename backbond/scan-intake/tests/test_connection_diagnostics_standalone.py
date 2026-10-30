@@ -73,7 +73,7 @@ env = {
     'HTTPException': HTTPException, 'JSONResponse': JSONResponse,
 }
 tree = ast.parse((server / 'app.py').read_text(encoding='utf-8'))
-for name in ('_scanner_check', 'connection_check'):
+for name in ('_post_connection_check', '_scanner_check', 'connection_check'):
     fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     fn.decorator_list, fn.returns = [], None
     for arg in fn.args.args:

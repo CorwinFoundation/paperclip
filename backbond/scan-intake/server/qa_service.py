@@ -22,6 +22,9 @@ from report_extensions import ensure_schema, extend
 from quota_policy import quota_counted_sql
 
 
+DEFAULT_STARTER_PACK_ID = "starter-100@5"
+
+
 LIMIT_MESSAGE = ("You've used your {limit} free scans. For a full scan of your "
                  "organization's agent, contact info@backbond.ai.")
 
@@ -204,7 +207,7 @@ class IntakeStore:
               (id,code,partner,email,agent_label,endpoint_host,transport,pack_version,created_at,status,source_intake_id)
               VALUES(?,?,?,?,?,?,?,?,?, 'reserved',?)""",
               (scan_id, code, row["partner"], email, agent_label, host, transport,
-               pack_version or "starter-100@4", created, source_intake_id))
+               pack_version or DEFAULT_STARTER_PACK_ID, created, source_intake_id))
             self.record_provenance(scan_id, provenance or {})
             # Only a digest of the status token is stored; the caller holds the token.
             status_token = secrets.token_urlsafe(24)
@@ -615,7 +618,7 @@ def scanner_payload(data: dict, *, callback_url: str, callback_secret_ref: str) 
             "credential_secret": 'qa-no-auth' if auth['type'] == 'none' else auth.get('value') or '',
             "scanner_version": os.environ.get('QA_SCANNER_VERSION', 'partner-qa-v1'),
             "scan_mode": "live_probe", "scan_tier": "smoke",
-            "pack_id": data.get("pack_id") or "starter-100@4", "include_result_rows": True,
+            "pack_id": data.get("pack_id") or DEFAULT_STARTER_PACK_ID, "include_result_rows": True,
             **({"expected_total": data["expected_total"]} if "expected_total" in data else {}),
             "seed": int(os.environ.get('QA_SCANNER_CORPUS_SEED', '42')),
             "webhook": {"url": callback_url, "secret_ref": callback_secret_ref}}

@@ -32,7 +32,7 @@ from report_release import ReportRelease, RevisionTampered
 from report_mail_access import ReportMailAccess
 from report_mail_routes import router as report_mail_router
 
-from qa_service import (Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
+from qa_service import (DEFAULT_STARTER_PACK_ID, Code, ConnectionProofs, IntakeError, IntakeStore, RateGate,
                         report_failure, safe_provenance, scanner_payload, translate_callback, translate_tests, verify_webhook)
 
 DB_PATH = os.environ.get("QA_DB_PATH", "/var/lib/backbond-qa/qa.sqlite")
@@ -41,7 +41,6 @@ PUBLIC_API = os.environ.get("QA_PUBLIC_API", "https://api.backbond.ai")
 WEBHOOK_SECRET = os.environ.get("QA_WEBHOOK_SECRET", "")
 PUBLIC_CODE = "PUBLIC"
 PUBLIC_PARTNER = "public"
-DEFAULT_STARTER_PACK_ID = "starter-100@4"
 STARTER_PACK_IDS = frozenset({
     "starter-100@1", "starter-100@2", "starter-100@3", "starter-100@4",
     "starter-100@5",
@@ -768,7 +767,7 @@ def start_scan(body: Annotated[ScanRequest, Depends(_scan_request)], request: Re
         reservation = store.reserve(code=clean["code"], email=str(clean["email"]),
             agent_label=clean["agent_label"], endpoint_url=clean["endpoint_url"],
             transport=clean["transport"], terms_version=body.terms_version or "unversioned-legacy",
-            improvement_consent=body.consent_improvement, pack_version=body.pack_id,
+            improvement_consent=body.consent_improvement, pack_version=body.pack_id or DEFAULT_STARTER_PACK_ID,
             provenance={'seed': int(os.environ.get('QA_SCANNER_CORPUS_SEED', '42')),
                         'model_versions': {'target_requested': clean['model']} if clean.get('model') else {}})
     except IntakeError as exc:
@@ -805,11 +804,11 @@ def start_scan(body: Annotated[ScanRequest, Depends(_scan_request)], request: Re
                 intake_ref = bac.retry_identity(scan_ref, clean)
                 bac.acknowledge(intake_ref, customer_ref='intake:' + intake_ref,
                                 agent_ref='intake:' + intake_ref,
-                                scope_ref=body.pack_id,
+                                scope_ref=body.pack_id or DEFAULT_STARTER_PACK_ID,
                                 code_ref='intake:' + intake_ref)
                 status = queue.submit(scan_ref, payload)
             else:
-                findings.accept(scan_ref, body.pack_id)
+                findings.accept(scan_ref, body.pack_id or DEFAULT_STARTER_PACK_ID)
                 status = queue.submit(scan_ref, payload)
         except BACUnconfirmed:
             try:

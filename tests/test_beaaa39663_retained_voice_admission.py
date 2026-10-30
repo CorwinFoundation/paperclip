@@ -19,7 +19,7 @@ def test_payload_defaults_public_pack_but_helper_selects_voice_total():
             "transport": admit.TRANSPORT, "auth": {"type": "none"}, "partner": "kaltura"}
     public = scanner_payload(base, callback_url="https://api.test/cb", callback_secret_ref="ref")
     voice = scanner_payload(dict(base, pack_id=admit.PACK, expected_total=60), callback_url="https://api.test/cb", callback_secret_ref="ref")
-    assert public["pack_id"] == "starter-100@4"
+    assert public["pack_id"] == "starter-100@5"
     assert voice["pack_id"] == "starter-voice-50@1"
     assert voice["expected_total"] == 60
 

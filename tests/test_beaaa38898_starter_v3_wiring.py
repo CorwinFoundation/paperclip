@@ -62,9 +62,9 @@ def _submit(monkeypatch, pack_id):
 @pytest.mark.parametrize(
     "sent, runs",
     [
-        (STARTER_PACK_ID, STARTER_PACK_V4_ID),
-        (STARTER_PACK_V3_ID, STARTER_PACK_V4_ID),
-        (STARTER_PACK_V2_ID, STARTER_PACK_V4_ID),
+        (STARTER_PACK_ID, STARTER_PACK_ID),
+        (STARTER_PACK_V3_ID, STARTER_PACK_V3_ID),
+        (STARTER_PACK_V2_ID, STARTER_PACK_V2_ID),
     ],
 )
 def test_intake_pack_selection(monkeypatch, sent, runs):

@@ -44,7 +44,7 @@ def test_connection_and_scan_models_leave_installed_default_untouched():
         {**BASE, "partner": "partner"}, callback_url="https://callback.test",
         callback_secret_ref="test-ref",
     )
-    assert payload["pack_id"] == "starter-100@4"
+    assert payload["pack_id"] == "starter-100@5"
 
 
 def test_invalid_pack_is_rejected_by_both_intake_endpoints():
@@ -129,3 +129,38 @@ def scanner_payload(data):
     assert 'pack_version or "starter-100@3"' in service_updated
     assert (backup / "app.py").stat().st_mode & 0o777 == 0o600
     assert patcher.patch_pair(server / "app.py", server / "qa_service.py", backup) is False
+
+
+@pytest.mark.parametrize('selected', [None, 'starter-100@1', 'starter-100@2', 'starter-100@3', 'starter-100@4', 'starter-100@5', 'starter-voice-50@1'])
+def test_installed_new_scan_manifest_and_scanner_request_identity(selected, tmp_path, monkeypatch):
+    """Exercise installed intake and real Scanner entry without model/network calls."""
+    from api.scan_handlers import ScanRuntime, scan_handler
+    from scanners.live_probe_orchestrator import ScanResult
+    monkeypatch.setenv('ARE_SCAN_TIER', 'on')
+    monkeypatch.delenv('BACKBOND_STARTER_PACK_LEGACY_V1', raising=False)
+    expected = selected or 'starter-100@5'
+    body = app.ScanRequest(**BASE, pack_id=selected, consent_owner=True, consent_terms=True)
+    payload = qa_service.scanner_payload(
+        {**body.model_dump(), 'partner': 'partner'},
+        callback_url='https://callback.test', callback_secret_ref='test-ref')
+    captured = {}
+    def run(request, secret):
+        captured['request'] = request
+        return ScanResult(scan_id=request.scan_id, status='complete',
+                          scanner_version=request.scanner_version, corpus_version=request.corpus_version,
+                          rows_emitted=50 if 'voice' in expected else 100, k_replicates=request.k_replicates,
+                          starter_result_rows=tuple(
+                              {'test_id': f'offline-{i}', 'pack_id': expected,
+                               'family': 'answers_normal_requests', 'prompt': 'Offline request',
+                               'reply': 'Offline reply', 'verdict': 'passed'}
+                              for i in range(50 if 'voice' in expected else 100)))
+    status, manifest = scan_handler(payload, tenant_header=payload['tenant_id'],
+                                   runtime=ScanRuntime(run_scan_fn=run), scan_id_factory=lambda: 'new-starter')
+    assert status == 202
+    assert manifest['pack_id'] == captured['request'].pack_id == expected
+    store = qa_service.IntakeStore(str(tmp_path / 'new.sqlite'))
+    store.put_code(qa_service.Code('PARTNER', 'partner', 'Partner', 'standard', 5, 2, '2099-01-01'))
+    reservation = store.reserve(code='PARTNER', email=BASE['email'], agent_label=BASE['agent_label'],
+                                endpoint_url=BASE['endpoint_url'], transport='rest', pack_version=selected)
+    assert store.scan(reservation['scan_id'])['pack_version'] == expected
+    (tmp_path / 'new-scan-manifest.json').write_text(__import__('json').dumps(manifest, default=str))
