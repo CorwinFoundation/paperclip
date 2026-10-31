@@ -21,6 +21,7 @@ def test_pdf_and_provider_identity():
         request = post.call_args.kwargs
         assert request['headers']['Idempotency-Key'] == ARGS['idempotency_key']
         assert request['json']['from'] == 'BackBond <reports@backbond.ai>'
+        assert request['json']['reply_to'] == 'info@backbond.ai'
         assert request['json']['cc'] == ['copy@example.com']
         assert base64.b64decode(request['json']['attachments'][0]['content']) == b'%PDF-1.7\nbytes'
 
@@ -62,3 +63,5 @@ def test_text_only_verification_mail_remains_supported():
         post.return_value = httpx.Response(200, json={'id': 'message-code'})
         send_mail(CONFIG, **ARGS)
         assert 'html' not in post.call_args.kwargs['json']
+        assert post.call_args.kwargs['json']['from'] == 'BackBond <reports@backbond.ai>'
+        assert post.call_args.kwargs['json']['reply_to'] == 'info@backbond.ai'

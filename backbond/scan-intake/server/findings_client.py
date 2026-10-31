@@ -10,6 +10,8 @@ import threading
 import time
 from urllib.parse import urlsplit
 
+from report_mail_transport import SENDER, REPLY_TO
+
 from findings_workflow import canonical, checked_request, digest, WorkflowError
 from native_reports import NativeReports, RECIPIENT
 
@@ -186,7 +188,7 @@ class FindingsReports:
             self.update(ident, state='held', error='provider_idempotency_window_expired')
             return
         key = 'findings-report:' + digest((ident + '|' + artifacts['pdf']['sha256'] + '|' + artifacts['html']['sha256']).encode())
-        body = {'from': 'BackBond <reports@backbond.ai>', 'to': [value['recipient']],
+        body = {'from': SENDER, 'reply_to': REPLY_TO, 'to': [value['recipient']],
                 'subject': 'Your BackBond Findings Report',
                 'text': 'Your Findings Report is attached as PDF and HTML. It was prepared from your completed scan and independently reviewed.\n\nQuestions: info@backbond.ai',
                 'attachments': attachments}

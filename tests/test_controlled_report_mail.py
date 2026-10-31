@@ -35,6 +35,8 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(box.send(self.path, self.transport, self.config)['state'], 'provider_accepted')
         self.assertIsNone(box.receipt()['inbox_evidence'])
         self.assertEqual(self.calls[0][0]['to'], ['info@backbond.ai'])
+        self.assertEqual(self.calls[0][0]['from'], 'BackBond <reports@backbond.ai>')
+        self.assertEqual(self.calls[0][0]['reply_to'], 'info@backbond.ai')
         self.assertEqual([mail.base64.b64decode(a['content']) for a in self.calls[0][0]['attachments']], [b'%PDF-accepted', b'<html>accepted</html>'])
         mail.Outbox(self.db).send(self.path, self.transport, self.config)
         self.assertEqual(len(self.calls), 1)
