@@ -10,7 +10,7 @@ import re
 
 import httpx
 
-SENDER = 'BackBond <info@backbond.ai>'
+SENDER = 'BackBond <reports@backbond.ai>'
 
 
 def send_mail(config: dict, *, recipients: list[str], subject: str, text: str,

@@ -186,7 +186,7 @@ class FindingsReports:
             self.update(ident, state='held', error='provider_idempotency_window_expired')
             return
         key = 'findings-report:' + digest((ident + '|' + artifacts['pdf']['sha256'] + '|' + artifacts['html']['sha256']).encode())
-        body = {'from': 'BackBond <info@backbond.ai>', 'to': [value['recipient']],
+        body = {'from': 'BackBond <reports@backbond.ai>', 'to': [value['recipient']],
                 'subject': 'Your BackBond Findings Report',
                 'text': 'Your Findings Report is attached as PDF and HTML. It was prepared from your completed scan and independently reviewed.\n\nQuestions: info@backbond.ai',
                 'attachments': attachments}

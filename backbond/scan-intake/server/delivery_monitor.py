@@ -64,6 +64,35 @@ def delivery_alert(observation, now):
                 completed_at=observation['completed_at'])
 
 
+def placement_alert(observation, now, mailbox=None, *, message_id=None):
+    """Provider acceptance alone leaves recipient placement unverified.
+
+    Mailbox evidence must correlate to this provider message and scan, carry an
+    explicit INBOX label, and be observed after scan completion. No raw headers
+    or message content enter the alert payload. Observer integration is separate.
+    """
+    if not observation or not observation['provider_accepted']:
+        return None
+    if now - observation['completed_at'] < DEADLINE:
+        return None
+    evidence = mailbox or {}
+    labels = evidence.get('labels')
+    observed = evidence.get('observed_at')
+    verified = (bool(message_id) and evidence.get('message_id') == message_id
+                and evidence.get('scan_id') == observation['scan_id']
+                and evidence.get('recipient') == RECIPIENT
+                and isinstance(labels, list) and 'INBOX' in labels
+                and 'SPAM' not in labels and 'SENT' not in labels
+                and isinstance(observed, (int, float)) and not isinstance(observed, bool)
+                and observation['completed_at'] <= observed <= now)
+    if verified:
+        return None
+    return dict(key='placement:' + observation['scan_id'], kind='placement_failure',
+                priority='critical', scan_id=observation['scan_id'],
+                stage='mailbox', recipient=RECIPIENT,
+                completed_at=observation['completed_at'])
+
+
 def review_alert(observation):
     if not observation or not observation['review_hold'] or observation['delivered']:
         return None
@@ -165,6 +194,8 @@ def collect_alerts(store, reports, alerts, *, now, since):
                                      'FROM findings_report_outbox WHERE scan_id=?', (scan['id'],)).fetchone()
         value = delivery_observation(scan, row)
         alerts.enqueue(delivery_alert(value, now))
+        # Until a mailbox observer is connected, accepted mail remains unverified.
+        alerts.enqueue(placement_alert(value, now, message_id=dict(row or {}).get('message_id')))
         alerts.enqueue(review_alert(value))
         count += 1
     return count
