@@ -57,3 +57,26 @@ python3 -m pytest -q backbond/scan-intake/tests/test_alert_adapters.py \
 
 No paid hosted CI fallback is part of this configuration. Heavy checks remain
 on the dedicated `backbond-ci` runner under BEAAA-40719.
+
+## Protected configuration diagnosis
+
+Run this read-only, repeatable command on AriClaw from the implementation
+workspace (absolute path shown for the BEAAA-45026 checkout):
+
+```sh
+sudo python3 /mnt/paperclipdata/dot-paperclip/instances/default/workspaces/88e68019-1cb6-4c4f-83e1-9fd340fb6821/beaaa-45026-scanner/scripts/deploy/diagnose-delivery-monitor-config.py
+```
+
+The diagnostic parses the deployed code without importing it, reads the active
+service process environment, and inspects unit assignments and referenced
+EnvironmentFile sources. Output contains names, presence/nonempty flags, an
+explicit monitor-enabled flag and exception classes only. It never prints
+configuration values or subprocess output. Unit source flags are diagnostic;
+the running process environment is authoritative for the active process.
+
+A missing match in an earlier regex inspection does not establish missing
+configuration. If the process environment is inaccessible, the diagnosis
+remains unresolved. Both empty and absent required variables block alert
+acceptance; optional assignee and alternate push variable names may be absent.
+Actual ticket IDs, UTC timestamps and push receipts must be demonstrated
+separately after configuration is established.
