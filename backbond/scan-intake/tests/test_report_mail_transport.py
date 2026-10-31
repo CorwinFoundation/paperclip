@@ -20,7 +20,7 @@ def test_pdf_and_provider_identity():
         assert send_mail(CONFIG, **ARGS, cc=['copy@example.com'], pdf=b'%PDF-1.7\nbytes') == 'message-123'
         request = post.call_args.kwargs
         assert request['headers']['Idempotency-Key'] == ARGS['idempotency_key']
-        assert request['json']['from'] == 'BackBond <info@backbond.ai>'
+        assert request['json']['from'] == 'BackBond <reports@backbond.ai>'
         assert request['json']['cc'] == ['copy@example.com']
         assert base64.b64decode(request['json']['attachments'][0]['content']) == b'%PDF-1.7\nbytes'
 

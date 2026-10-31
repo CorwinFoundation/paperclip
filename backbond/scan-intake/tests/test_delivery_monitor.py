@@ -200,3 +200,31 @@ def test_worker_monitor_flushes_incident_and_push_once(tmp_path, monkeypatch):
     assert row['ticket'] == 'paperclip-issue:BEAAA-fixture'
     assert row['push'] == 'founder-push:push-fixture'
     assert json.loads(row['payload'])['stage'] == 'workflow_write_back'
+
+@pytest.mark.parametrize('labels', [None, [], ['Info'], ['SPAM'], ['SENT'], ['INBOX', 'SPAM']])
+def test_placement_requires_actual_inbox(labels):
+    from delivery_monitor import placement_alert
+    value = observation(dict(state='sent', message_id='provider-id'))
+    now = value['completed_at'] + 14400
+    evidence = dict(scan_id='fixture-scan', message_id='provider-id',
+                    recipient='info@backbond.ai', labels=labels, observed_at=now)
+    assert placement_alert(value, now, evidence, message_id='provider-id')['stage'] == 'mailbox'
+    evidence['labels'] = ['INBOX', 'Info']
+    assert placement_alert(value, now, evidence, message_id='provider-id') is None
+    evidence['message_id'] = 'another-message'
+    assert placement_alert(value, now, evidence, message_id='provider-id')
+
+
+def test_missing_placement_uses_ticket_and_push(tmp_path):
+    from delivery_monitor import placement_alert
+    from alert_adapters import sanitize_alert
+    value = observation(dict(state='sent', message_id='provider-id'))
+    alert = placement_alert(value, value['completed_at'] + 14400)
+    assert sanitize_alert(alert)['kind'] == 'placement_failure'
+    box = AlertOutbox(str(tmp_path / 'placement.sqlite'))
+    ticket, push = Mock(return_value='fixture-ticket'), Mock(return_value='fixture-push')
+    for _ in range(2):
+        box.enqueue(alert)
+        box.flush(ticket, push, now=0)
+    ticket.assert_called_once()
+    push.assert_called_once()

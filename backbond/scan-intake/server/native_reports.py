@@ -62,7 +62,7 @@ class NativeReports:
                                     (workflow_id, token, frozen, RECIPIENT, time.time()))
                 else:
                     token = row['token']
-                body = {'from': 'BackBond <info@backbond.ai>', 'to': [RECIPIENT],
+                body = {'from': 'BackBond <reports@backbond.ai>', 'to': [RECIPIENT],
                         'subject': 'Your BackBond Findings Report',
                         'text': 'Your approved BackBond Findings Report is ready.\n\n'
                                 + 'https://backbond.ai/scan/r/' + token

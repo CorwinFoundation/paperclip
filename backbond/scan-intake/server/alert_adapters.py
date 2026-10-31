@@ -15,8 +15,8 @@ from urllib.parse import quote, urlsplit
 
 _IDENT = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 _KEY = re.compile(r"[a-f0-9]{64}\Z")
-_SAFE_STAGE = {"review", "workflow_write_back", "credential", "provider", "sent"}
-_SAFE_KINDS = {"delivery_breach", "review_decision", "credential_expiry"}
+_SAFE_STAGE = {"review", "workflow_write_back", "credential", "provider", "sent", "mailbox"}
+_SAFE_KINDS = {"delivery_breach", "review_decision", "credential_expiry", "placement_failure"}
 
 
 class AlertAdapterError(RuntimeError):
