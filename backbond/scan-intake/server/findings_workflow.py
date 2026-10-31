@@ -31,6 +31,23 @@ WRITER_SCHEMA = 'findings_writer_handoff@1'
 REVIEW_SCHEMA = 'findings_reviewer_verdict@1'
 
 
+# Ari's explicit one-workflow post-ESCALATE correction, BEAAA-44912,
+# board comment 3f8c4701-a42a-4177-bda8-d6fe224e4ca7 (2026-10-31).
+AUTHORIZED_CORRECTION = {
+    'workflow_id': '2ba8f2d69549b741a6e6007f644cc873',
+    'round': 4,
+    'evidence_sha256': '08c0dd42671412d3093b6b8efb3a0b8230a73f51702ffcf98de44f7a3b6e2770',
+    'artifacts': {
+        'pdf': {'attachment_id': '34520969-2981-45ca-ac7d-0f327bd2c27e', 'sha256': 'fca7672d485f86f31304a2f4d676c039ac77187a44bb80f5302cbe40620d4bd2'},
+        'html': {'attachment_id': '1e55ea9e-68e9-432a-bb4b-a558446b85bd', 'sha256': '5196cf92fb1dd592cd076e2f5921ce2d11c72b87d517135fbf9fd4c2206839b2'},
+    },
+}
+
+
+def authorized_correction(value):
+    return all(value.get(k) == v for k, v in AUTHORIZED_CORRECTION.items())
+
+
 class WorkflowError(ValueError):
     pass
 
@@ -600,7 +617,9 @@ class FindingsWorkflow:
             self.update(row['id'], writer_id=writer['id'])
             return
         rounds = [v.get('round') for v in handoffs]
-        if any(type(n) is not int or n not in (1, 2) for n in rounds):
+        correction = any(authorized_correction(v) for v in handoffs)
+        allowed_rounds = (1, 2, 3, 4) if correction else (1, 2)
+        if any(type(n) is not int or n not in allowed_rounds for n in rounds):
             raise WorkflowError('invalid_review_round')
         latest = max(rounds)
         handoffs = [v for v in handoffs if v['round'] == latest]
@@ -649,7 +668,7 @@ class FindingsWorkflow:
                 # them through evaluate(), never clear the hold or synthesize a verdict.
                 rows = db.execute("SELECT * FROM findings_workflows WHERE "
                     "(state NOT IN ('approved','sent','needs_attention') OR "
-                    "(state='needs_attention' AND error IN ('review_escalate','conflicting_reviewer_verdicts'))) "
+                    "(state='needs_attention' AND error IN ('review_escalate','conflicting_reviewer_verdicts','invalid_review_round'))) "
                     "AND (? OR next_at<=?) ORDER BY next_at,id LIMIT ?", (force, now, limit)).fetchall()
             for row in rows:
                 self.update(row['id'], next_at=now + 15)

@@ -475,3 +475,43 @@ def test_reconciliation_keeps_unresolved_escalation_held(tmp_path):
     assert flow.status('scan1')['state'] == 'needs_attention'
     assert flow.status('scan1')['artifacts'] is None
     assert flow.status('scan1')['error'] == 'review_escalate'
+
+
+@pytest.mark.parametrize('mismatch', [None, 'workflow_id', 'round', 'evidence_sha256', 'artifacts'])
+def test_founder_correction_requires_every_exact_binding(mismatch):
+    from findings_workflow import AUTHORIZED_CORRECTION, authorized_correction
+    value = deepcopy(AUTHORIZED_CORRECTION)
+    if mismatch:
+        value[mismatch] = 'different'
+    assert authorized_correction(value) is (mismatch is None)
+
+
+@pytest.mark.parametrize('authorized', [True, False])
+def test_round_four_recovery_keeps_native_review_and_artifact_checks(tmp_path, monkeypatch, authorized):
+    import findings_workflow
+    native, flow, value = setup(tmp_path)
+    publish(native, flow, value, round=4)
+    handoff = json.loads(native.comments['writer'][0]['body'])
+    if authorized:
+        monkeypatch.setattr(findings_workflow, 'AUTHORIZED_CORRECTION', {
+            k: deepcopy(handoff[k]) for k in ('workflow_id', 'round', 'evidence_sha256', 'artifacts')})
+    flow.update('scan1', state='needs_attention', error='invalid_review_round')
+    # Round 3 is retained as audit history, never treated as the operative verdict.
+    historical = dict(handoff, round=3)
+    native.comments['writer'].append(dict(authorAgentId=WRITER, body=canonical(historical)))
+    flow.tick(now=20)
+    assert flow.status('scan1')['state'] == ('approved' if authorized else 'needs_attention')
+    if not authorized:
+        assert flow.status('scan1')['error'] == 'invalid_review_round'
+
+
+def test_authorized_round_four_still_requires_independent_matching_review(tmp_path, monkeypatch):
+    import findings_workflow
+    native, flow, value = setup(tmp_path)
+    publish(native, flow, value, round=4, author=WRITER)
+    handoff = json.loads(native.comments['writer'][0]['body'])
+    monkeypatch.setattr(findings_workflow, 'AUTHORIZED_CORRECTION', {
+        k: deepcopy(handoff[k]) for k in ('workflow_id', 'round', 'evidence_sha256', 'artifacts')})
+    flow.update('scan1', state='needs_attention', error='invalid_review_round')
+    flow.tick(now=20)
+    assert flow.status('scan1')['state'] == 'needs_attention'
