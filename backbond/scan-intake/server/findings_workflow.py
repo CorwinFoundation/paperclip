@@ -645,7 +645,12 @@ class FindingsWorkflow:
         now = time.time() if now is None else now
         with self.lock:
             with self.db() as db:
-                rows = db.execute("SELECT * FROM findings_workflows WHERE state NOT IN ('approved','sent','needs_attention') AND (? OR next_at<=?) ORDER BY next_at,id LIMIT ?", (force, now, limit)).fetchall()
+                # Held review records can acquire a valid later native handoff. Re-read
+                # them through evaluate(), never clear the hold or synthesize a verdict.
+                rows = db.execute("SELECT * FROM findings_workflows WHERE "
+                    "(state NOT IN ('approved','sent','needs_attention') OR "
+                    "(state='needs_attention' AND error IN ('review_escalate','conflicting_reviewer_verdicts'))) "
+                    "AND (? OR next_at<=?) ORDER BY next_at,id LIMIT ?", (force, now, limit)).fetchall()
             for row in rows:
                 self.update(row['id'], next_at=now + 15)
                 try:

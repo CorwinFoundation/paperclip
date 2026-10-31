@@ -429,3 +429,49 @@ def test_final_content_escalation_is_held_without_repeating_capture_recovery(tmp
     row=reports.db.execute('SELECT state,error FROM findings_report_outbox').fetchone()
     assert dict(row)=={'state':'held','error':'review_escalate'}
     assert reports.lifecycle('scan1')['report_status']=='changes_requested'
+
+
+def test_held_escalation_observes_later_independent_round_and_delivers_once(tmp_path):
+    native, flow, value = setup(tmp_path)
+    publish(native, flow, value, verdict='ESCALATE')
+    flow.tick(now=20)
+    assert flow.status('scan1')['error'] == 'review_escalate'
+    old = deepcopy(native.comments['reviewer'][0])
+    publish(native, flow, value, round=2)
+    native.comments['reviewer'].append(old)
+    calls = len(native.calls)
+    flow.tick(now=100)
+    assert flow.status('scan1')['state'] == 'approved'
+    assert all(method == 'GET' for method, _ in native.calls[calls:])
+    client = FindingsReports(str(tmp_path / 'intake.sqlite'))
+    client.enqueue(value)
+    http = MailHTTP(flow)
+    kwargs = dict(base_url='https://bac.example', token='existing', http=http,
+                  mail_credentials=lambda: dict(provider='resend', api_key='protected'))
+    for now in (100, 120, 140):
+        client.tick(now=now, **kwargs)
+    assert len(http.sends) == 1
+    assert flow.status('scan1')['state'] == 'sent'
+
+
+def test_held_conflict_observes_existing_same_reviewer_fix_resolution(tmp_path):
+    native, flow, value = setup(tmp_path)
+    publish(native, flow, value)
+    ship, fix = resolved_handoff_review(native)
+    native.comments['reviewer'] = [fix]
+    flow.update('scan1', state='needs_attention', error='conflicting_reviewer_verdicts')
+    native.comments['reviewer'].insert(0, ship)
+    flow.tick(now=100)
+    assert flow.status('scan1')['state'] == 'approved'
+
+
+def test_reconciliation_keeps_unresolved_escalation_held(tmp_path):
+    native, flow, value = setup(tmp_path)
+    publish(native, flow, value, verdict='ESCALATE')
+    flow.tick(now=20)
+    calls = len(native.calls)
+    flow.tick(now=100)
+    assert len(native.calls) > calls
+    assert flow.status('scan1')['state'] == 'needs_attention'
+    assert flow.status('scan1')['artifacts'] is None
+    assert flow.status('scan1')['error'] == 'review_escalate'
