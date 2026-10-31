@@ -64,7 +64,7 @@ Run this read-only, repeatable command on AriClaw from the implementation
 workspace (absolute path shown for the BEAAA-45026 checkout):
 
 ```sh
-sudo python3 /mnt/paperclipdata/dot-paperclip/instances/default/workspaces/88e68019-1cb6-4c4f-83e1-9fd340fb6821/beaaa-45026-scanner/scripts/deploy/diagnose-delivery-monitor-config.py
+sudo -n /usr/local/sbin/backbond-diagnose-delivery-monitor-config
 ```
 
 The diagnostic parses the deployed code without importing it, reads the active
@@ -80,3 +80,13 @@ remains unresolved. Both empty and absent required variables block alert
 acceptance; optional assignee and alternate push variable names may be absent.
 Actual ticket IDs, UTC timestamps and push receipts must be demonstrated
 separately after configuration is established.
+
+## Founder recipient configuration
+
+The tracked updater installs `backbond/scan-intake/founder-report-recipient.env`
+as `/etc/backbond/founder-report-recipient.env` with
+`QA_REPORT_MAIL_FOUNDERS=katzzzari@gmail.com`. The final systemd drop-in
+`zzz-founder-report-recipient.conf` loads it after existing environment files.
+Native report publication, access codes and the delivery watchdog share this
+single founder policy. Requester routing remains disabled. Existing publications
+retain their frozen recipient and require a new publication after a policy change.

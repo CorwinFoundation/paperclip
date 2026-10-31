@@ -11,7 +11,7 @@ import math
 import re
 import sqlite3
 
-RECIPIENT = 'info@backbond.ai'
+from report_recipient_policy import RECIPIENT
 DEADLINE = 4 * 3600
 
 

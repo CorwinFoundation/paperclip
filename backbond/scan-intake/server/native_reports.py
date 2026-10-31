@@ -14,7 +14,7 @@ from report_mail_transport import SENDER, REPLY_TO
 
 from findings_workflow import WorkflowError, canonical, digest
 
-RECIPIENT = 'info@backbond.ai'
+from report_recipient_policy import RECIPIENT
 TOKEN = re.compile(r'[a-f0-9]{32}\Z')
 
 
@@ -65,10 +65,10 @@ class NativeReports:
                 else:
                     token = row['token']
                 body = {'from': SENDER, 'reply_to': REPLY_TO, 'to': [RECIPIENT],
-                        'subject': 'Your BackBond Findings Report',
+                        'subject': 'BackBond Findings Report - ' + token,
                         'text': 'Your approved BackBond Findings Report is ready.\n\n'
                                 + 'https://backbond.ai/scan/r/' + token
-                                + '\n\nOpen the link and verify access with the code emailed to info@backbond.ai.'
+                                + '\n\nOpen the link and verify access with the code emailed to ' + RECIPIENT + '.'
                                 + '\n\nQuestions: info@backbond.ai'}
                 self.db.execute('INSERT OR IGNORE INTO native_report_notifications(token,payload) VALUES(?,?)',
                                 (token, canonical(body)))

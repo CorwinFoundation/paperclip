@@ -578,7 +578,8 @@ def _send_report_code(to: str, code: str) -> None:
         raise RuntimeError("Report mail is not configured")
     value = json.loads(path.read_text())
     from report_mail_transport import send_mail
-    send_mail(value, recipients=[to], subject='Your BackBond report verification code',
+    from uuid import uuid4
+    send_mail(value, recipients=[to], subject='BackBond report verification code - ' + uuid4().hex,
               text=f'Your verification code is {code}. It expires in 10 minutes.')
 
 

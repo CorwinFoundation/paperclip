@@ -108,7 +108,7 @@ def test_internal_note_stays_in_outbox_only(tmp_path, payload):
     transport = Mock(return_value='message')
     assert box.deliver(ident, {}, transport=transport)['state'] == 'accepted'
     mail = transport.call_args.kwargs
-    assert mail['subject'] == 'Your BackBond 100 Scan report — Target'
+    assert mail['subject'] == 'BackBond Findings Report - Target - 2026-10-23 - ' + ident
     assert mail['text'] == ('Your BackBond 100 Scan report is ready.\n\n'
                             'https://backbond.ai/report/opaque')
     assert payload['note'] not in mail['text']
@@ -130,3 +130,18 @@ def test_html_reuses_intake_layout_and_escapes_link(tmp_path, payload):
     assert html.count('<a ') == 1
     assert '&amp;x=&quot;quoted&quot;' in html
     assert 'BEAAA-' not in html and 'BAC-' not in html
+
+
+def test_distinct_sends_have_distinct_subjects_and_retries_are_stable(tmp_path, payload):
+    box = ReportMailOutbox(str(tmp_path / 'subjects.db'))
+    first = submit(box, payload)
+    transport = Mock(side_effect=RuntimeError('unknown'))
+    box.deliver(first, {}, now=100, transport=transport)
+    box.deliver(first, {}, now=300, transport=transport)
+    first_subject = transport.call_args.kwargs['subject']
+    assert transport.call_args_list[0] == transport.call_args_list[1]
+    payload['note'] = 'separately authorized send'
+    second = submit(box, payload)
+    box.deliver(second, {}, now=500, transport=transport)
+    assert first_subject != transport.call_args.kwargs['subject']
+    assert 'Target - 2026-10-23' in first_subject

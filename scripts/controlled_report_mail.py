@@ -64,7 +64,7 @@ def prepare(manifest_path, config_path=DEFAULT_CONFIG):
     binding.update(recipient=RECIPIENT, hashes=hashes)
     encoded = json.dumps(binding, sort_keys=True, separators=(',', ':'))
     return binding, encoded, {'from': SENDER, 'reply_to': REPLY_TO, 'to': [RECIPIENT],
-        'subject': 'BackBond controlled Findings Report',
+        'subject': 'BackBond Findings Report - ' + digest(encoded.encode()),
         'text': 'Reviewed Findings Report PDF and HTML attached.', 'attachments': attachments}
 
 

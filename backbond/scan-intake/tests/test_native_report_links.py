@@ -163,3 +163,37 @@ def test_verification_code_provider_payload(tmp_path, monkeypatch):
         assert payload['reply_to'] == 'info@backbond.ai'
         assert payload['to'] == ['info@backbond.ai']
         assert '123456' in payload['text']
+        app._send_report_code('info@backbond.ai', '654321')
+        assert post.call_args.kwargs['json']['subject'] != payload['subject']
+
+
+def test_publications_have_unique_frozen_subjects(tmp_path):
+    reports = NativeReports(str(tmp_path / 'subjects.sqlite'))
+    first = approved()
+    token = reports.publish(first['workflow_id'], first)
+    assert reports.publish(first['workflow_id'], first) == token
+    second = approved()
+    second['workflow_id'] = 'approved2'
+    other = reports.publish(second['workflow_id'], second)
+    rows = reports.db.execute('SELECT payload FROM native_report_notifications').fetchall()
+    subjects = [json.loads(row['payload'])['subject'] for row in rows]
+    assert set(subjects) == {'BackBond Findings Report - ' + token,
+                             'BackBond Findings Report - ' + other}
+
+
+def test_configured_founder_routes_report_and_code_together(tmp_path, monkeypatch):
+    import native_reports
+    from report_recipient_policy import founder_recipient
+    monkeypatch.setenv('QA_REPORT_MAIL_FOUNDERS', 'katzzzari@gmail.com')
+    monkeypatch.setattr(native_reports, 'RECIPIENT', founder_recipient())
+    reports = NativeReports(str(tmp_path / 'founder.sqlite'))
+    token = reports.publish('approved1', approved())
+    payload = json.loads(reports.db.execute('SELECT payload FROM native_report_notifications').fetchone()[0])
+    assert payload['to'] == ['katzzzari@gmail.com']
+    recipient, _ = reports.issue_code(token, 'browser')
+    assert recipient == 'katzzzari@gmail.com'
+    assert reports.publication(token)['recipient'] == recipient
+    for invalid in ['', 'a@example.com,b@example.com', 'a@example.com\nBcc: x@example.com']:
+        monkeypatch.setenv('QA_REPORT_MAIL_FOUNDERS', invalid)
+        with pytest.raises(ValueError, match='exactly_one'):
+            founder_recipient()

@@ -141,7 +141,8 @@ class ReportMailOutbox:
                 '</section></main></body></html>')
         try:
             message = transport(config, recipients=value['to'], cc=value['cc'],
-                subject='Your BackBond 100 Scan report — ' + payload['target_name'],
+                subject=('BackBond Findings Report - ' + payload['target_name'][:120]
+                         + ' - ' + payload['run_date'] + ' - ' + ident),
                 text=text, html=html, pdf=base64.b64decode(payload['pdf_base64'], validate=True),
                 idempotency_key=ident)
         except Exception:

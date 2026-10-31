@@ -74,6 +74,21 @@ if [ ! -f "$WORKDIR_OVERRIDE" ] || [ "$(cat "$WORKDIR_OVERRIDE")" != "$WORKDIR_C
   systemctl daemon-reload
   changed=1
 fi
+# Founder ruling, 2026-10-31: persistent routing for reports and access codes.
+# Install after the existing grant EnvironmentFile; never copy or rewrite secrets.
+RECIPIENT_ENV=/etc/backbond/founder-report-recipient.env
+RECIPIENT_OVERRIDE="$UNIT_OVERRIDE_DIR/zzz-founder-report-recipient.conf"
+if ! cmp -s "$HERE/founder-report-recipient.env" "$RECIPIENT_ENV"; then
+  install -o root -g root -m 0644 "$HERE/founder-report-recipient.env" "$RECIPIENT_ENV"
+  changed=1
+fi
+RECIPIENT_CONTENT="$(printf '[Service]\nEnvironmentFile=%s\n' "$RECIPIENT_ENV")"
+if [ ! -f "$RECIPIENT_OVERRIDE" ] || [ "$(cat "$RECIPIENT_OVERRIDE")" != "$RECIPIENT_CONTENT" ]; then
+  printf '%s\n' "$RECIPIENT_CONTENT" > "$RECIPIENT_OVERRIDE"
+  chmod 0644 "$RECIPIENT_OVERRIDE"
+  systemctl daemon-reload
+  changed=1
+fi
 if [ "$changed" = 1 ]; then
   systemctl restart "$SERVICE"
   echo "backup: $BACKUP (diffs of the replaced live files are there)"
