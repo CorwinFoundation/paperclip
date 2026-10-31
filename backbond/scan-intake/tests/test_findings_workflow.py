@@ -260,6 +260,8 @@ def test_full_approved_flow_delivers_exact_bytes_once_across_restart(tmp_path):
     client.tick(now=100,**kwargs)
     assert len(http.sends)==1
     body=http.sends[0][1]; assert body['to']==['info@backbond.ai']
+    assert body['from'] == 'BackBond <reports@backbond.ai>'
+    assert body['reply_to'] == 'info@backbond.ai'
     assert 'attachments' not in body
     token = client.native.token_for('scan1')
     assert 'https://backbond.ai/scan/r/' + token in body['text']

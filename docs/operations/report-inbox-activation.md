@@ -46,3 +46,15 @@ NativeReports.publish (persisted report-link notification). Reply-To is
 info@backbond.ai. Existing frozen notification payloads retain their exact bytes
 for provider idempotency; a resend must use a fresh notification, not mutate an
 uncertain send. Runtime configuration cannot override the sender constants.
+
+Expanded all-mail audit, 2026-10-31: the fourth provider path is the standalone
+operator script `scripts/controlled_report_mail.py`; its fixed sender is now
+reports@backbond.ai and Reply-To is info@backbond.ai. Its recipient allowlist is
+unchanged. This standalone script retains constants locally to avoid coupling
+its installation to the intake application's httpx dependency. Regression tests
+cover controlled attachment delivery, native report notifications, the findings
+workflow, and the actual verification-code helper's provider payload. Config
+sender/reply overrides are ignored by the shared transport. Repository searches
+for Resend endpoints and SMTP found these four provider paths; deployment/config
+info@backbond.ai values remain recipient settings. Previously frozen outbox
+payloads are immutable and need a new notification for the new sender policy.

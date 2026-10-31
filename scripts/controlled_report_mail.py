@@ -14,7 +14,8 @@ import urllib.request
 import urllib.error
 
 RECIPIENT = 'info@backbond.ai'
-SENDER = 'BackBond <info@backbond.ai>'
+SENDER = 'BackBond <reports@backbond.ai>'
+REPLY_TO = 'info@backbond.ai'
 DEFAULT_CONFIG = Path('/etc/backbond-scan-intake/controlled-report-mail.json')
 DEFAULT_OUTBOX = Path('/var/lib/backbond-scan-intake/controlled-report-mail/mail.sqlite')
 
@@ -62,7 +63,7 @@ def prepare(manifest_path, config_path=DEFAULT_CONFIG):
                 'reviewer_acceptance_ref', 'qa_acceptance_ref')}
     binding.update(recipient=RECIPIENT, hashes=hashes)
     encoded = json.dumps(binding, sort_keys=True, separators=(',', ':'))
-    return binding, encoded, {'from': SENDER, 'to': [RECIPIENT],
+    return binding, encoded, {'from': SENDER, 'reply_to': REPLY_TO, 'to': [RECIPIENT],
         'subject': 'BackBond controlled Findings Report',
         'text': 'Reviewed Findings Report PDF and HTML attached.', 'attachments': attachments}
 

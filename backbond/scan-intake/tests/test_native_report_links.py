@@ -36,6 +36,8 @@ def test_native_ship_through_mail_authentication_and_exact_artifacts(tmp_path, m
                   mail_credentials=lambda: {'provider': 'resend', 'api_key': 'test-only'})
     outbox.tick(now=100, **kwargs)
     assert transport.sends[0][1]['to'] == ['info@backbond.ai']
+    assert transport.sends[0][1]['from'] == 'BackBond <reports@backbond.ai>'
+    assert transport.sends[0][1]['reply_to'] == 'info@backbond.ai'
     token = outbox.native.token_for('scan1')
     assert 'https://backbond.ai/scan/r/' + token in transport.sends[0][1]['text']
     assert 'attachments' not in transport.sends[0][1]
@@ -140,3 +142,24 @@ def test_legacy_uncertain_attachment_send_retains_its_key_and_recipient(tmp_path
     assert key.startswith('findings-report:')
     assert body['to'] == ['owner@example.com'] and len(body['attachments']) == 2
     assert outbox.native.token_for('scan1') is None
+
+
+def test_verification_code_provider_payload(tmp_path, monkeypatch):
+    from unittest.mock import patch
+    import httpx
+    monkeypatch.setenv('QA_DB_PATH', str(tmp_path / 'code-app.sqlite'))
+    app = importlib.import_module('app')
+    credentials = tmp_path / 'mail.json'
+    credentials.write_text(json.dumps({'provider': 'resend', 'api_key': 'test-only',
+                                     'from': 'BackBond <info@backbond.ai>',
+                                     'reply_to': 'wrong@example.com'}))
+    monkeypatch.setattr(app, '_mail_credentials_path', lambda: credentials)
+    with patch('report_mail_transport.httpx.Client') as client:
+        post = client.return_value.__enter__.return_value.post
+        post.return_value = httpx.Response(200, json={'id': 'code-message'})
+        app._send_report_code('info@backbond.ai', '123456')
+        payload = post.call_args.kwargs['json']
+        assert payload['from'] == 'BackBond <reports@backbond.ai>'
+        assert payload['reply_to'] == 'info@backbond.ai'
+        assert payload['to'] == ['info@backbond.ai']
+        assert '123456' in payload['text']
