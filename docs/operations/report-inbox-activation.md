@@ -25,11 +25,13 @@ Access/action owners:
   matching persisted results. Demonstrate an injected placement failure and real
   incident/push receipts. Local fake adapters do not constitute these receipts.
 
-Reported incident cause: Ari reported the Syllable message delivered at 18:21Z
-but the Gmail Info filter archived it outside Inbox, also hiding it from Outlook
-Inbox views. This is reported history, not new verification. A sender change
-must not be assumed to bypass that filter. Mailbox owner must inspect its actual
-rules during activation; any adjustment must preserve the named recipient.
+Founder update at 19:26Z supersedes the filter-only explanation: the 18:21Z
+message was reported visible only in Sent with both From and To info@backbond.ai.
+Immediate first priority is resending the existing Syllable
+BB-82423f2b83ec5849372a round-4 SHIP pair unchanged from the verified reports sender.
+No new review is required. Actual recipient INBOX evidence remains the success test.
+Provider message ID, send/delivery times, sanitized authentication alignment,
+matching results-link check and Founder-visible confirmation belong on BEAAA-45024.
 
 The monitor emits a separate deduplicated critical placement incident after the
 four-hour completion deadline for accepted messages lacking verified Inbox
