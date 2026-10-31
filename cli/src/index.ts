@@ -6,6 +6,7 @@ import { configure } from "./commands/configure.js";
 import { addAllowedHostname } from "./commands/allowed-hostname.js";
 import { heartbeatRun } from "./commands/heartbeat-run.js";
 import { runCommand } from "./commands/run.js";
+import { provisionOperator } from "./commands/auth-provision-operator.js";
 import { bootstrapCeoInvite } from "./commands/auth-bootstrap-ceo.js";
 import { dbBackupCommand } from "./commands/db-backup.js";
 import { registerEnvLabCommands } from "./commands/env-lab.js";
@@ -189,6 +190,15 @@ registerEnvLabCommands(program);
 registerPluginCommands(program);
 
 const auth = program.command("auth").description("Authentication and bootstrap utilities");
+
+auth.command("provision-operator")
+  .description("Create a dedicated local operator identity and private board credential")
+  .requiredOption("-c, --config <path>", "Explicit instance configuration")
+  .requiredOption("--company-id <id>", "Company receiving the operator membership")
+  .requiredOption("--name <name>", "Operator identity and key name")
+  .requiredOption("--output <path>", "New absolute credential file path (0600)")
+  .action(provisionOperator);
+
 
 auth
   .command("bootstrap-ceo")
