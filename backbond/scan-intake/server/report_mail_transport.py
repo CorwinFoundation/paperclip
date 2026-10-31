@@ -11,6 +11,7 @@ import re
 import httpx
 
 SENDER = 'BackBond <reports@backbond.ai>'
+REPLY_TO = 'info@backbond.ai'
 
 
 def send_mail(config: dict, *, recipients: list[str], subject: str, text: str,
@@ -28,7 +29,7 @@ def send_mail(config: dict, *, recipients: list[str], subject: str, text: str,
         raise ValueError('Invalid report subject')
     if idempotency_key is not None and not re.fullmatch(r'[A-Za-z0-9_-]{16,128}', idempotency_key):
         raise ValueError('Invalid mail idempotency key')
-    payload = {'from': SENDER, 'to': recipients, 'subject': subject, 'text': text}
+    payload = {'from': SENDER, 'reply_to': REPLY_TO, 'to': recipients, 'subject': subject, 'text': text}
     if html is not None:
         payload['html'] = html
     if cc:

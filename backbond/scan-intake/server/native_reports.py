@@ -10,6 +10,8 @@ import sqlite3
 import threading
 import time
 
+from report_mail_transport import SENDER, REPLY_TO
+
 from findings_workflow import WorkflowError, canonical, digest
 
 RECIPIENT = 'info@backbond.ai'
@@ -62,7 +64,7 @@ class NativeReports:
                                     (workflow_id, token, frozen, RECIPIENT, time.time()))
                 else:
                     token = row['token']
-                body = {'from': 'BackBond <reports@backbond.ai>', 'to': [RECIPIENT],
+                body = {'from': SENDER, 'reply_to': REPLY_TO, 'to': [RECIPIENT],
                         'subject': 'Your BackBond Findings Report',
                         'text': 'Your approved BackBond Findings Report is ready.\n\n'
                                 + 'https://backbond.ai/scan/r/' + token

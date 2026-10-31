@@ -38,3 +38,11 @@ four-hour completion deadline for accepted messages lacking verified Inbox
 observation. Current worker integration has no mailbox observer and therefore
 fails closed as unverified. Observer wiring, provider authentication checks,
 link checking, deployment and live alert/push demonstrations remain unfinished.
+
+19:43Z sender audit: all three intake provider builders use shared SENDER and
+REPLY_TO constants from report_mail_transport: send_mail (report outbox and
+report-access codes), FindingsReports._deliver (legacy attachment retry), and
+NativeReports.publish (persisted report-link notification). Reply-To is
+info@backbond.ai. Existing frozen notification payloads retain their exact bytes
+for provider idempotency; a resend must use a fresh notification, not mutate an
+uncertain send. Runtime configuration cannot override the sender constants.
