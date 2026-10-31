@@ -107,3 +107,65 @@ def test_tenant_lane_does_not_read_unused_default_credential(tmp_path, monkeypat
         namespace['_post_connection_check'](SimpleNamespace(post=post), {'tenant_id': 'partner-other'})
     assert namespace['_link_error'](caught.value) in {'local_config_error', 'invalid_response_or_config'}
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("broken_import", [False, True])
+def test_systemd_only_deployment_processes_success_without_harness(tmp_path, broken_import):
+    """Match Founder's 30 Oct reproduction: local module, 11 sealed mappings."""
+    import json
+    import shutil
+    import subprocess
+    import sys
+    local_module = SOURCE.parent / 'connection_diagnostics.py'
+    shutil.copyfile(local_module, tmp_path / local_module.name)
+    mappings = {'synthetic-' + str(i): 'inert-' + str(i) for i in range(11)}
+    (tmp_path / 'qa-scanner-tokens.json').write_text(json.dumps(mappings))
+    script = r'''
+import ast, builtins, json, logging, os, re, sys
+from pathlib import Path
+from types import SimpleNamespace
+root, source = Path(sys.argv[1]), Path(sys.argv[2])
+sys.path.insert(0, str(root))
+original_import = builtins.__import__
+def deployed_import(name, *args, **kwargs):
+    if name == 'harness' or name.startswith('harness.'):
+        raise ModuleNotFoundError("No module named 'harness'")
+    return original_import(name, *args, **kwargs)
+builtins.__import__ = deployed_import
+for key in ('QA_SCANNER_TOKEN', 'QA_SCANNER_TOKENS_JSON', 'QA_SCANNER_CREDENTIAL_PATH'):
+    os.environ.pop(key, None)
+os.environ['CREDENTIALS_DIRECTORY'] = str(root)
+def deployed_path(value):
+    return root / 'absent-dynamic.json' if str(value) == '/var/lib/backbond-qa/partner-code-tenants.json' else Path(value)
+class Client:
+    def __init__(self, **kwargs): pass
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def post(self, url, *, json, headers):
+        assert headers == {'Authorization': 'Bearer ' + mappings[json['tenant_id']]}
+        return SimpleNamespace(status_code=200, json=lambda: {'success': True})
+mappings = json.loads((root / 'qa-scanner-tokens.json').read_text())
+names = {'_tenant_tokens', '_headers', '_post_connection_check', '_scanner_check'}
+nodes = [n for n in ast.parse(source.read_text()).body if isinstance(n, ast.FunctionDef) and n.name in names]
+namespace = dict(os=os, json=json, Path=deployed_path, logging=logging, re=re,
+                 httpx=SimpleNamespace(Client=Client), SCANNER_URL='https://scanner.invalid')
+exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), 'exec'), namespace)
+for tenant in mappings:
+    assert namespace['_scanner_check']({'tenant_id': tenant})[0] is True
+print('11 systemd-only mappings processed upstream success')
+'''
+    source = SOURCE
+    if broken_import:
+        source = tmp_path / 'app-broken.py'
+        source.write_text(SOURCE.read_text().replace(
+            'from connection_diagnostics import safe_excerpt',
+            'from harness.connection_diagnostics import safe_excerpt'))
+    result = subprocess.run([sys.executable, '-I', '-c', script, str(tmp_path), str(source)],
+                            text=True, capture_output=True, timeout=20)
+    if broken_import:
+        assert result.returncode != 0
+        assert "ModuleNotFoundError: No module named 'harness'" in result.stderr
+        assert 'from harness.connection_diagnostics import safe_excerpt' in result.stderr
+        return
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == '11 systemd-only mappings processed upstream success'
