@@ -168,3 +168,21 @@ def collect_alerts(store, reports, alerts, *, now, since):
         alerts.enqueue(review_alert(value))
         count += 1
     return count
+
+
+def monitor_tick(store, reports, *, http, now):
+    """Opt-in worker integration with explicit cutoff and separate durable DB."""
+    import os
+    from alert_adapters import FounderPushAdapter, PaperclipIncidentAdapter
+    if os.environ.get('QA_DELIVERY_MONITOR') != '1':
+        return 0
+    since = os.environ.get('QA_DELIVERY_MONITOR_SINCE', '')
+    path = os.environ.get('QA_DELIVERY_ALERT_DB_PATH', '')
+    if not since or not path:
+        raise ValueError('explicit_monitor_cutoff_and_database_required')
+    epoch(since)
+    alerts = AlertOutbox(path)
+    count = collect_alerts(store, reports, alerts, now=now, since=since)
+    alerts.flush(PaperclipIncidentAdapter.from_env(post=http.post, get=http.get),
+                 FounderPushAdapter.from_env(post=http.post), now=now)
+    return count

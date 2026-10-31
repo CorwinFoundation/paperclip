@@ -123,3 +123,80 @@ def test_collect_includes_capture_gaps_without_mutating_scan(tmp_path):
     assert len(rows) == 1
     assert json.loads(rows[0][0])['scan_id'] == 'missing'
     assert before == list(db.iterdump())
+
+
+def test_worker_monitor_is_disabled_by_default(monkeypatch):
+    from delivery_monitor import monitor_tick
+    monkeypatch.delenv('QA_DELIVERY_MONITOR', raising=False)
+    assert monitor_tick(None, None, http=None, now=0) == 0
+
+
+def test_worker_monitor_requires_explicit_cutoff_and_storage(monkeypatch):
+    import pytest
+    from delivery_monitor import monitor_tick
+    monkeypatch.setenv('QA_DELIVERY_MONITOR', '1')
+    monkeypatch.delenv('QA_DELIVERY_MONITOR_SINCE', raising=False)
+    monkeypatch.delenv('QA_DELIVERY_ALERT_DB_PATH', raising=False)
+    with pytest.raises(ValueError, match='explicit_monitor'):
+        monitor_tick(None, None, http=None, now=0)
+
+
+def test_worker_monitor_flushes_incident_and_push_once(tmp_path, monkeypatch):
+    import sqlite3
+    import threading
+    from types import SimpleNamespace
+    from findings_client import FindingsReports
+    from delivery_monitor import epoch, monitor_tick
+
+    class Response:
+        def __init__(self, status_code, body):
+            self.status_code = status_code
+            self._body = body
+            self.headers = {}
+
+        def json(self):
+            return self._body
+
+    class Http:
+        def __init__(self):
+            self.posts = []
+            self.gets = []
+
+        def get(self, url, **kwargs):
+            self.gets.append((url, kwargs))
+            return Response(200, [])
+
+        def post(self, url, **kwargs):
+            self.posts.append((url, kwargs))
+            if url.endswith('/issues'):
+                return Response(201, {'id': 'BEAAA-fixture', 'companyId': 'fixture-company'})
+            return Response(202, {'id': 'push-fixture'})
+
+    db = sqlite3.connect(':memory:')
+    db.row_factory = sqlite3.Row
+    db.execute('CREATE TABLE scans(id,status,outcome,finished_at)')
+    db.execute('INSERT INTO scans VALUES (?,?,?,?)',
+               ('fixture-complete', 'finished', 'complete', '2026-10-31T00:00:00Z'))
+    store = SimpleNamespace(db=db, _lock=threading.RLock())
+    reports = FindingsReports(str(tmp_path / 'reports.sqlite'))
+    http = Http()
+    monkeypatch.setenv('QA_DELIVERY_MONITOR', '1')
+    monkeypatch.setenv('QA_DELIVERY_MONITOR_SINCE', '2026-10-31T00:00:00Z')
+    monkeypatch.setenv('QA_DELIVERY_ALERT_DB_PATH', str(tmp_path / 'alerts.sqlite'))
+    monkeypatch.setenv('PAPERCLIP_API_URL', 'http://127.0.0.1:3100')
+    monkeypatch.setenv('PAPERCLIP_COMPANY_ID', 'fixture-company')
+    monkeypatch.setenv('PAPERCLIP_API_KEY', 'fixture-paperclip-token')
+    monkeypatch.setenv('QA_FOUNDER_PUSH_URL', 'http://127.0.0.1:8787/push')
+    monkeypatch.setenv('QA_FOUNDER_PUSH_TOKEN', 'fixture-push-token')
+
+    assert monitor_tick(store, reports, http=http, now=epoch('2026-10-31T04:00:00Z')) == 1
+    assert monitor_tick(store, reports, http=http, now=epoch('2026-10-31T04:01:00Z')) == 1
+    assert [url for url, _ in http.posts] == [
+        'http://127.0.0.1:3100/api/companies/fixture-company/issues',
+        'http://127.0.0.1:8787/push',
+    ]
+    with AlertOutbox(str(tmp_path / 'alerts.sqlite')).connect() as conn:
+        row = dict(conn.execute('SELECT * FROM delivery_alerts').fetchone())
+    assert row['ticket'] == 'paperclip-issue:BEAAA-fixture'
+    assert row['push'] == 'founder-push:push-fixture'
+    assert json.loads(row['payload'])['stage'] == 'workflow_write_back'

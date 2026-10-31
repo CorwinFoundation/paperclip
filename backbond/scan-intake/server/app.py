@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, model_validator
 from bac_intake import BACIntake, BACUnconfirmed
 from findings_intake import FindingsIntake
+from delivery_monitor import monitor_tick
 from findings_client import FindingsReports
 from operations_client import OperationsClient, OperationsOutbox
 from controlled_admission import AdmissionClosed
@@ -94,6 +95,10 @@ def worker_tick():
             selection=_findings_selection_row,
             since=os.environ.get('QA_FINDINGS_REPORTS_SINCE', ''),
             replay=tuple(filter(None, os.environ.get('QA_FINDINGS_REPLAY_SCAN_IDS', '').split(','))))
+        try:
+            monitor_tick(store, findings_reports, http=httpx, now=time.time())
+        except Exception:
+            logging.getLogger(__name__).warning('delivery_monitor_tick_failed')
         findings_reports.tick(base_url=os.environ.get('QA_BAC_URL', ''), token=os.environ.get('QA_BAC_TOKEN', ''),
             http=httpx, mail_credentials=_findings_mail_credentials, recover_selection=_findings_selection)
         queue.expire_pending()
