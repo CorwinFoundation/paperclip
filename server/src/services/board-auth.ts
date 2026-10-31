@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
@@ -10,6 +10,7 @@ import {
   instanceUserRoles,
 } from "@paperclipai/db";
 import { conflict, forbidden, notFound } from "../errors.js";
+import { logActivity } from "./activity-log.js";
 
 export const BOARD_API_KEY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const CLI_AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
@@ -186,6 +187,45 @@ export function boardAuthService(db: Db) {
       revokedAt: created.revokedAt,
       expiresAt: created.expiresAt,
     };
+  }
+
+  /** Local operator provisioning only. Never expose this through an HTTP route.
+   * Creates a fresh machine identity; existing human identities are never reused.
+   * persistCredential must durably write the secret before the transaction commits.
+   */
+  async function provisionOperatorBoardApiKey(input: {
+    name: string;
+    companyId: string;
+    persistCredential: (credential: { keyId: string; token: string; userId: string }) => Promise<void>;
+  }) {
+    if (!input.name.trim()) throw new Error("Operator name is required");
+    return db.transaction(async (tx) => {
+      const company = await tx.select({ id: companies.id }).from(companies)
+        .where(eq(companies.id, input.companyId)).then((rows) => rows[0]);
+      if (!company) throw notFound("Company not found");
+      const userId = `operator_${randomUUID()}`;
+      const now = new Date();
+      await tx.insert(authUsers).values({
+        id: userId, name: input.name.trim(), email: `${userId}@operators.invalid`,
+        emailVerified: false, createdAt: now, updatedAt: now,
+      });
+      await tx.insert(instanceUserRoles).values({ userId, role: "instance_admin" });
+      await tx.insert(companyMemberships).values({
+        companyId: input.companyId, principalType: "user", principalId: userId,
+        status: "active", membershipRole: "owner",
+      });
+      const key = await boardAuthService(tx as unknown as Db).createNamedBoardApiKey({
+        userId, name: input.name.trim(),
+      });
+      await logActivity(tx as unknown as Db, {
+        companyId: input.companyId, actorType: "system", actorId: "local_operator",
+        action: "board_api_key.created", entityType: "user", entityId: userId,
+        details: { boardApiKeyId: key.id, name: key.name,
+          expiresAt: key.expiresAt?.toISOString() ?? null, source: "operator_provisioning" },
+      });
+      await input.persistCredential({ keyId: key.id, token: key.token, userId });
+      return { keyId: key.id, userId, expiresAt: key.expiresAt };
+    });
   }
 
   async function listBoardApiKeys(
@@ -422,6 +462,7 @@ export function boardAuthService(db: Db) {
     touchBoardApiKey,
     revokeBoardApiKey,
     createNamedBoardApiKey,
+    provisionOperatorBoardApiKey,
     listBoardApiKeys,
     getBoardApiKeyForUser,
     createCliAuthChallenge,
