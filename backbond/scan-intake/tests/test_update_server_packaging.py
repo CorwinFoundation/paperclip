@@ -17,6 +17,7 @@ def test_extracted_image_update_is_complete_and_idempotent(tmp_path):
     script = script.replace('/usr/local/bin/backbond-report-mail', str(tmp_path / 'client'))
     script = script.replace('/usr/local/sbin/backbond-admit-retained-voice', str(tmp_path / 'admit'))
     script = script.replace('/etc/systemd/system/$SERVICE.d', str(tmp_path / 'unit.d'))
+    script = script.replace('/etc/backbond/founder-report-recipient.env', str(tmp_path / 'recipient.env'))
     script = script.replace('-o root -g root ', '')
     (staged / 'update-server.sh').write_text(script)
     bin_dir = tmp_path / 'bin'
@@ -32,7 +33,11 @@ def test_extracted_image_update_is_complete_and_idempotent(tmp_path):
         assert (dest / module.name).read_bytes() == module.read_bytes()
     assert log.read_text().splitlines().count('restart backbond-scan-intake.service') == 1
     assert (tmp_path / 'unit.d/zz-tracked-runtime.conf').read_text() == f'[Service]\nWorkingDirectory={dest}\n'
-    assert log.read_text().splitlines().count('daemon-reload') == 1
+    assert (tmp_path / 'recipient.env').read_bytes() == (staged / 'founder-report-recipient.env').read_bytes()
+    assert (tmp_path / 'unit.d/zzz-founder-report-recipient.conf').read_text() == (
+        f'[Service]\nEnvironmentFile={tmp_path / "recipient.env"}\n'
+    )
+    assert log.read_text().splitlines().count('daemon-reload') == 2
 
 
 def test_missing_service_without_configuration_fails_before_install(tmp_path):
