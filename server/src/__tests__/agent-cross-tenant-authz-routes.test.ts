@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.unmock("http");
 vi.unmock("node:http");
@@ -252,6 +252,9 @@ async function requestApp(
           if (error) reject(error);
           else resolve();
         });
+        // A completed request may retain a keep-alive socket. Close it before
+        // the test deadline so timed-out cases cannot race the next mock reset.
+        server.closeAllConnections();
       });
     }
   }
@@ -317,6 +320,10 @@ function resetMockDefaults() {
 }
 
 describe.sequential("agent cross-tenant route authorization", () => {
+  // Load the route graph before tests reset mocks. A cold import can exceed a
+  // test deadline and leave that test running against the next test's mocks.
+  beforeAll(async () => { await loadRouteModules(); }, 30_000);
+
   beforeEach(() => {
     resetMockDefaults();
   });
@@ -393,6 +400,20 @@ describe.sequential("agent cross-tenant route authorization", () => {
     expect(res.body.error).toContain("Key not found");
     expect(mockAgentService.getKeyById).toHaveBeenCalledWith(keyId);
     expect(mockAgentService.revokeKey).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { type: "agent", agentId, companyId, source: "agent_key" },
+    { type: "board", userId: "outsider", companyIds: [], source: "session", isInstanceAdmin: false },
+  ])("denies fixed workflow credential issuance by unauthorized actor %j", async actor => {
+    const app = await createApp(actor);
+    const res = await requestApp(app, baseUrl => request(baseUrl)
+      .post(`/api/agents/${agentId}/keys`).send({ name: "fixed", scope: {
+        kind: "fixed_workflow_read_only", companyId, parentIssueId: keyId,
+        workflowId: "0b845d09083c12076c3877efbf7a50ba",
+      } }));
+    expect(res.status).toBe(403);
+    expect(mockAgentService.createApiKey).not.toHaveBeenCalled();
   });
 
   it("requires board access before clearing an agent error", async () => {

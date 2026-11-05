@@ -4,7 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { agentApiKeys, agents, authUsers, companies, companyMemberships, instanceUserRoles } from "@paperclipai/db";
 import { verifyLocalAgentJwt } from "../agent-auth-jwt.js";
-import { normalizeAgentApiKeyScope, type DeploymentMode } from "@paperclipai/shared";
+import { agentApiKeyScopeSchema, type DeploymentMode } from "@paperclipai/shared";
 import type { BetterAuthSessionResult } from "../auth/better-auth.js";
 import { logger } from "./logger.js";
 import { boardAuthService } from "../services/board-auth.js";
@@ -187,12 +187,19 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
       return;
     }
 
+    // Legacy keys have no scope. Malformed scoped keys must never become standard keys.
+    const scope = agentApiKeyScopeSchema.safeParse(key.scopeConfig ?? { kind: "standard" });
+    if (!scope.success || agentRecord.companyId !== key.companyId) {
+      _res.status(403).json({ error: "Invalid API key scope" });
+      return;
+    }
+
     req.actor = {
       type: "agent",
       agentId: key.agentId,
       companyId: key.companyId,
       keyId: key.id,
-      keyScope: normalizeAgentApiKeyScope(key.scopeConfig),
+      keyScope: scope.data,
       runId: runIdHeader || undefined,
       source: "agent_key",
     };

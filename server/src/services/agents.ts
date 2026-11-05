@@ -18,6 +18,7 @@ import {
 } from "@paperclipai/db";
 import {
   AGENT_DEFAULT_MAX_CONCURRENT_RUNS,
+  agentApiKeyScopeSchema,
   getAgentWorkEligibility,
   isUuidLike,
   normalizeAgentApiKeyScope,
@@ -766,6 +767,17 @@ export function agentService(db: Db) {
       }
       if (existing.status === "terminated") {
         throw conflict("Cannot create keys for terminated agents");
+      }
+
+      scope = agentApiKeyScopeSchema.parse(scope);
+      if (scope.kind === "fixed_workflow_read_only") {
+        if (scope.companyId !== existing.companyId) {
+          throw unprocessable("Fixed workflow scope must match the agent company");
+        }
+        const [parent] = await db.select({ id: issues.id }).from(issues).where(and(
+          eq(issues.id, scope.parentIssueId), eq(issues.companyId, existing.companyId),
+        ));
+        if (!parent) throw unprocessable("Fixed workflow parent must exist in the agent company");
       }
 
       const token = createToken();
