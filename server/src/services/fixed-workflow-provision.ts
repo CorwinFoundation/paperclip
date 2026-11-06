@@ -1,5 +1,6 @@
 import { constants, lstatSync, openSync, closeSync, fstatSync, readFileSync, writeFileSync, fsyncSync } from "node:fs";
 import { dirname, parse } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { agentApiKeyScopeSchema } from "@paperclipai/shared";
 import type { agentService } from "./agents.js";
@@ -59,7 +60,7 @@ export async function provisionFixedWorkflow(services: ProvisionServices,
     const key = await services.agents.getKeyById(receipt.keyId);
     if (JSON.stringify(receipt.binding) !== JSON.stringify(binding) || keys.length !== 1 || keys[0].id !== receipt.keyId ||
       !key || key.agentId !== binding.agentId || key.companyId !== binding.companyId || key.revokedAt ||
-      JSON.stringify(key.scope) !== JSON.stringify(scope) || !await services.agents.verifyApiKeyToken(key.id, receipt.token)) {
+      !isDeepStrictEqual(key.scope, scope) || !await services.agents.verifyApiKeyToken(key.id, receipt.token)) {
       throw Error("Existing credential does not match native key");
     }
     return "existing";

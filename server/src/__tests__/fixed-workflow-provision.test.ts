@@ -39,6 +39,27 @@ describe("protected diagnostic provisioning", () => {
     expect(await provisionFixedWorkflow(services, paths, process.getuid!())).toBe("existing");
     expect(services.agents.createApiKey).toHaveBeenCalledTimes(1);
   });
+  it("reuses a receipt when JSONB returns scope keys in a different order", async () => {
+    const { paths, services, native } = setup();
+    await provisionFixedWorkflow(services, paths, process.getuid!());
+    const scope = native().scope;
+    native().scope = { workflowId: scope.workflowId, parentIssueId: scope.parentIssueId,
+      companyId: scope.companyId, kind: scope.kind };
+    expect(await provisionFixedWorkflow(services, paths, process.getuid!())).toBe("existing");
+    expect(services.agents.createApiKey).toHaveBeenCalledTimes(1);
+    expect(services.record).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { kind: "standard" }, { companyId: keyId }, { parentIssueId: keyId },
+    { workflowId: "f".repeat(32) }, { unexpected: true },
+  ])("rejects changed native scope %j without issuing another key", async patch => {
+    const { paths, services, native } = setup();
+    await provisionFixedWorkflow(services, paths, process.getuid!());
+    native().scope = { ...native().scope, ...patch };
+    await expect(provisionFixedWorkflow(services, paths, process.getuid!()))
+      .rejects.toThrow("Existing credential does not match native key");
+    expect(services.agents.createApiKey).toHaveBeenCalledTimes(1);
+  });
   it.each([{ workflowId: "f".repeat(32) }, { scope: { kind: "standard" } }, { keyType: "task_bridge" }, { companyId: "invalid" }])("rejects expanded bindings %j", async patch => {
     const { paths, services } = setup(); writeFileSync(paths.binding, JSON.stringify({ ...binding, ...patch }));
     await expect(provisionFixedWorkflow(services, paths, process.getuid!())).rejects.toThrow(); expect(services.agents.createApiKey).not.toHaveBeenCalled();
