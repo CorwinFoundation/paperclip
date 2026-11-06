@@ -889,3 +889,61 @@ Supported providers:
 
 - `local_disk` (default; local single-user installs)
 - `s3` (S3-compatible object storage)
+
+### Provision a local Operations operator
+
+An authorized local instance administrator can create a dedicated machine identity
+and a named board API key without a dashboard session:
+
+```sh
+pnpm paperclipai auth provision-operator \
+  --config /absolute/path/to/instance/config.json \
+  --company-id <company-id> --name 'Operations operator' \
+  --output /private/directory/operations-board-key.json
+```
+
+Use the target instance's authenticated configuration and running database. This
+command does not start a server, apply migrations, or change authentication mode.
+It creates a fresh `operator_` identity with instance administrator privileges and
+an owner membership in the named company. The credential has board authority;
+company membership does not restrict its instance administrator authority.
+Existing human identities and administrator assignments are preserved.
+
+The output directory must already exist and should be private to the operator.
+The absolute output path must be new: existing files and symlinks are refused.
+The token is written only to that file with mode `0600`; console output contains
+only identity/key metadata. Identity, membership, key hash, and activity record
+are created in one transaction. A credential-write failure rolls back the
+transaction; a transaction failure removes the reserved output file. A process
+crash may leave an empty file or an unusable credential: verify the key before
+use and choose a new output path for any retry.
+
+Named board keys use the existing key expiry and revocation lifecycle. Keep the
+file out of logs, issue attachments, repositories, and shared storage. Revoke the
+key through the existing board key management API when retiring the operator.
+
+Verify or revoke without putting the token in shell arguments (run as the file's
+owner). Replace `base` and `credential` with the intended local instance and file:
+
+```sh
+python3 - <<'PYTHON'
+import json
+import urllib.request
+base = "http://127.0.0.1:3100"
+credential = "/private/directory/operations-board-key.json"
+with open(credential) as f:
+    key = json.load(f)
+# Use GET to verify. Change to DELETE to retire this key.
+method = "GET"
+route = "/api/board-api-keys"
+if method == "DELETE":
+    route += "/" + key["keyId"]
+request = urllib.request.Request(base + route, method=method,
+    headers={"Authorization": "Bearer " + key["token"]})
+with urllib.request.urlopen(request) as response:
+    print(json.dumps({"status": response.status, "keyId": key["keyId"]}))
+PYTHON
+```
+
+After revocation, verification must return HTTP 401. Revoking a key leaves the
+dedicated identity in place and does not change other administrators.

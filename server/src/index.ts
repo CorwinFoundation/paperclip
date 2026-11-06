@@ -1126,3 +1126,5 @@ if (isMainModule(import.meta.url)) {
     process.exit(1);
   });
 }
+
+export { boardAuthService } from "./services/board-auth.js";
