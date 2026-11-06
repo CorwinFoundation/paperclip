@@ -137,7 +137,15 @@ export const standardAgentKeyScopeSchema = z.object({
   kind: z.literal("standard"),
 }).strict();
 
+export const fixedWorkflowReadOnlyScopeSchema = z.object({
+  kind: z.literal("fixed_workflow_read_only"),
+  companyId: z.string().uuid(),
+  workflowId: z.string().regex(/^[a-f0-9]{32}$/),
+  parentIssueId: z.string().uuid(),
+}).strict();
+
 export const agentApiKeyScopeSchema = z.union([
+  fixedWorkflowReadOnlyScopeSchema,
   standardAgentKeyScopeSchema,
   taskBridgeAgentKeyScopeSchema,
 ]);
