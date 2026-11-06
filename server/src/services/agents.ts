@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, desc, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   agents,
@@ -801,6 +801,14 @@ export function agentService(db: Db) {
         token,
         createdAt: created.createdAt,
       };
+    },
+
+    verifyApiKeyToken: async (keyId: string, token: string) => {
+      const [key] = await db.select({ id: agentApiKeys.id }).from(agentApiKeys).where(and(
+        eq(agentApiKeys.id, keyId), eq(agentApiKeys.keyHash, hashToken(token)),
+        isNull(agentApiKeys.revokedAt),
+      ));
+      return Boolean(key);
     },
 
     listKeys: (id: string) =>
