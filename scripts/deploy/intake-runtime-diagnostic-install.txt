@@ -1,0 +1,90 @@
+owner: Paperclip Platform Maintainer
+artifact_type: other
+status: review
+updated_at: 2026-11-01
+source_refs: [BEAAA-45154, CTO comment f8d0a16b-afd7-4a3c-a584-0326efe36a86]
+claim_or_decision: Source-only candidate inventory reader and executable installer for exact-byte review.
+verification: 15 focused Python tests; no privileged installation or runtime validation.
+approvals: [CTO exact-byte review pending; CEO installer and scope confirmation pending on BEAAA-44676]
+
+BEAAA-45154 revised diagnostic candidate
+
+Boundary: opening /proc/1693480/environ previously returned Permission denied.
+Existing scoped helpers do not establish running intake source provenance,
+selected request credential identity, or Scanner acceptance. This revision
+changes source only. No installation, grant, service, credential or deployment
+mutation is authorized by this artifact.
+
+Reader scope:
+- Fixed systemd service backbond-scan-intake.service, process environment in
+  memory only; no raw environment, customer identifiers, tokens or fingerprints.
+- Proposed exact file allowlist (requires approval of these locations):
+  /run/credentials/backbond-scan-intake.service/qa-scanner-tokens.json
+  /run/credentials/backbond-scan-intake.service/default.json
+  /var/lib/backbond-qa/partner-code-tenants.json
+- Every directory must be root-owned and not group/world writable. Credential
+  files must be root-owned, regular, single-link, private (no group/other bits),
+  at most 1 MiB. Descriptor-relative no-follow opens prevent symlink traversal.
+  Unapproved/unreadable/unsafe inputs yield absent candidate data, never proof
+  that a credential is absent from the actual runtime.
+- All revision environment keys, including intake-specific keys, are unverified
+  metadata. source.revision=null, source.verification=unknown. No inference
+  from SCANNER_SOURCE_REVISION, IMAGE_REVISION or GIT_COMMIT to intake source.
+- Anonymous inventory is not selected Founder credential diagnosis.
+  request_lane_selection=not_observed; scanner_acceptance=not_inspected.
+
+Separate private verification scope still required:
+The existing intake-recovery helper can report retained request state and
+selection presence, but does not bind an anonymous candidate to the effective
+request credential. The Scanner-observe helper returns classified journal and
+candidate evidence, not credential-store acceptance. Neither performs this
+correlation. Additional scope is a fixed read-only private correlation helper
+that reads only the already retained Founder request's effective selector and
+only that selected Scanner protected-store credential record, compares the
+bearer in memory, and emits selection_match boolean, local status/expiry
+relation, and Scanner acceptance classification. No token, digest, identifier,
+raw request or environment is emitted or retained. CTO/CEO must confirm the
+exact retained selector/store locations and authorize that distinct read scope
+before implementation or execution. This candidate does not grant it.
+
+Installation artifact and custody (after explicit scoped authorization only):
+The named privileged installer must independently acquire the exact reviewed
+commit/bundle, compare the reader AND installer hashes in SHA256SUMS against
+the CTO-reviewed attachment, and stage both files under
+/root/intake-diagnostic-reviewed, root:root, directory 0700, files 0600.
+Every ancestor must be root-controlled without symlinks or writable group/other
+bits. An agent workspace or writable staging directory is never executed as
+root. Existing destination parent directories must already be root-controlled.
+
+Exact install invocation by that confirmed installer:
+/usr/bin/python3 -I /root/intake-diagnostic-reviewed/install-intake-diagnostics.py install
+
+The installer embeds the reviewed reader hash, validates staging and every
+destination, and refuses any existing differing file or mode. It validates the
+fixed no-argument sudoers entry with visudo -cf before installation and the
+aggregate with visudo -c before and after. It writes only the reader, isolated
+Python wrapper, and that one sudoers fragment. Re-running exact bytes is
+idempotent. A validation failure removes only files created by that invocation.
+A process/host interruption is recoverable by repeating install or rollback.
+No prior files are overwritten. There is no service restart or outbound call.
+
+Exact rollback invocation from the same retained root-controlled staging:
+/usr/bin/python3 -I /root/intake-diagnostic-reviewed/install-intake-diagnostics.py rollback
+
+Rollback checks all existing target bytes/modes before removing only this
+candidate's grant, wrapper and reader. It validates sudoers before/after.
+It refuses removal of changed files. Existing diagnostic grants and runtime
+state are untouched. Keep staged reviewed bytes until review/installation ends.
+
+After authorized install, technical owner can invoke only:
+sudo -n /usr/local/sbin/backbond-diagnose-intake-runtime
+The wrapper rejects arguments and runs /usr/bin/python3 -I with a fixed reader.
+
+CTO reviews exact bytes; CEO confirms narrow installation authorization and a
+named installer on BEAAA-44676. Ari's prior custodian designation is not new
+installation authorization. No Founder terminal-work request is made.
+#1328 (54308fddd0) and #1343 (567c6f165f) are source references only; correction
+production-state verification and exact deployment clearance stay unresolved.
+CHECK-only/apply and activation holds remain.
+
+Verification: python3 -m pytest -q tests/test_intake_runtime_diagnostic.py
