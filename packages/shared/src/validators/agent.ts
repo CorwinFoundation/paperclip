@@ -144,7 +144,14 @@ export const fixedWorkflowReadOnlyScopeSchema = z.object({
   parentIssueId: z.string().uuid(),
 }).strict();
 
+export const exactIssueRelayScopeSchema = z.object({
+  kind: z.literal("exact_issue_relay"),
+  companyId: z.string().uuid(),
+  issueIds: z.array(z.string().uuid()).min(1).max(50),
+}).strict();
+
 export const agentApiKeyScopeSchema = z.union([
+  exactIssueRelayScopeSchema,
   fixedWorkflowReadOnlyScopeSchema,
   standardAgentKeyScopeSchema,
   taskBridgeAgentKeyScopeSchema,

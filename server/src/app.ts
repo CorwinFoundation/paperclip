@@ -6,6 +6,7 @@ import type { Db } from "@paperclipai/db";
 import type { DeploymentExposure, DeploymentMode } from "@paperclipai/shared";
 import type { StorageService } from "./storage/types.js";
 import { httpLogger, errorHandler } from "./middleware/index.js";
+import { exactIssueRelay } from "./middleware/exact-issue-relay.js";
 import { fixedWorkflowReadOnly } from "./middleware/fixed-workflow-read-only.js";
 import { actorMiddleware } from "./middleware/auth.js";
 import { boardMutationGuard } from "./middleware/board-mutation-guard.js";
@@ -200,6 +201,7 @@ export async function createApp(
       resolveSession: opts.resolveSession,
     }),
   );
+  app.use(exactIssueRelay(db));
   app.use(fixedWorkflowReadOnly(db));
   app.use("/api/auth", authRoutes(db));
   if (opts.betterAuthHandler) {
