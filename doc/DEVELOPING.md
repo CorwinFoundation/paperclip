@@ -793,3 +793,14 @@ For the protected fixed-review helper, provision the issued token directly into
 the root-owned systemd credential file after verifying the deployed capability.
 Keep the token out of shell arguments, logs, and issue comments. Source tests alone
 do not establish deployment or installation.
+
+## Exact issue relay credentials
+
+The board-only agent key endpoint accepts `scope` with kind `exact_issue_relay`,
+`companyId`, and one to fifty UUID `issueIds`. Issuance validates that every issue
+exists in the agent company. The terminal handler permits only GET of those issue
+UUIDs and their comments, and POST of a strict `{ body }` comment payload. Query
+parameters, other methods, legacy routes, and all other API paths are denied.
+Comments are attributed to the credential actor and logged without reopening work
+or invoking the normal comment route's wake behavior. Existing key revocation
+applies. Provision a production token only after deployed route verification.

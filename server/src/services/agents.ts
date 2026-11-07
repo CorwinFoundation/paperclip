@@ -770,6 +770,17 @@ export function agentService(db: Db) {
       }
 
       scope = agentApiKeyScopeSchema.parse(scope);
+      if (scope.kind === "exact_issue_relay") {
+        if (scope.companyId !== existing.companyId) {
+          throw unprocessable("Exact issue relay scope must match the agent company");
+        }
+        const boundIssues = await db.select({ id: issues.id }).from(issues).where(and(
+          inArray(issues.id, scope.issueIds), eq(issues.companyId, existing.companyId),
+        ));
+        if (boundIssues.length !== new Set(scope.issueIds).size) {
+          throw unprocessable("Every relay issue must exist in the agent company");
+        }
+      }
       if (scope.kind === "fixed_workflow_read_only") {
         if (scope.companyId !== existing.companyId) {
           throw unprocessable("Fixed workflow scope must match the agent company");
