@@ -15,6 +15,7 @@ if (!support.supported) console.warn(`Relay database tests unavailable: ${suppor
   let temporary: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
   let db: ReturnType<typeof createDb>;
   let app: express.Express;
+  let boardApp: express.Express;
   let token: string;
   let keyId: string;
   const companyId = randomUUID(), otherCompany = randomUUID(), agentId = randomUUID();
@@ -34,12 +35,24 @@ if (!support.supported) console.warn(`Relay database tests unavailable: ${suppor
       { id: foreignIssue, companyId: otherCompany, title: "Foreign" },
     ]);
     await db.insert(issueComments).values({ companyId, issueId, body: "Deleted", deletedAt: new Date() });
-    const key = await agentService(db).createApiKey(agentId, "relay", scope);
+    const [{ agentRoutes }, { errorHandler }] = await Promise.all([
+      import("../routes/agents.js"), import("../middleware/error-handler.js"),
+    ]);
+    boardApp = express();
+    boardApp.use(express.json());
+    boardApp.use(actorMiddleware(db, { deploymentMode: "local_trusted" }));
+    boardApp.use("/api", agentRoutes(db));
+    boardApp.use(errorHandler);
+    const issued = await request(boardApp).post(`/api/agents/${agentId}/keys`).send({ name: "relay", scope });
+    expect(issued.status).toBe(201);
+    const key = issued.body;
     token = key.token; keyId = key.id;
     app = express();
     app.use(express.json());
     app.use(actorMiddleware(db, { deploymentMode: "authenticated" }));
     app.use(exactIssueRelay(db));
+    app.use("/api", agentRoutes(db));
+    app.use(errorHandler);
     app.use((req, res) => res.status(req.actor.type === "none" ? 401 : 418).end());
   }, 60_000);
   afterAll(async () => { await temporary?.cleanup(); });
@@ -69,8 +82,18 @@ if (!support.supported) console.warn(`Relay database tests unavailable: ${suppor
     expect(after.updatedAt.getTime()).toBeGreaterThanOrEqual(before.updatedAt.getTime());
     expect((await db.select().from(agents).where(eq(agents.id, agentId)))[0].status).toBe("paused");
   });
-  it("honors supported service revocation on the next authenticated request", async () => {
-    expect(await agentService(db).revokeKey(agentId, keyId)).toBeTruthy();
+  it("denies issuance and revocation through the scoped credential", async () => {
+    expect((await request(app).post(`/api/agents/${agentId}/keys`).auth(token, { type: "bearer" }).send({ name: "escape" })).status).toBe(403);
+    expect((await request(app).delete(`/api/agents/${agentId}/keys/${keyId}`).auth(token, { type: "bearer" })).status).toBe(403);
+  });
+  it("rejects malformed scopes at the HTTP issuance boundary", async () => {
+    for (const invalid of [{ ...scope, issueIds: [] }, { ...scope, issueIds: ["invalid"] }, { ...scope, kind: "unknown" }]) {
+      expect((await request(boardApp).post(`/api/agents/${agentId}/keys`).send({ name: "invalid", scope: invalid })).status).toBe(400);
+    }
+    expect(await db.select().from(agentApiKeys).where(eq(agentApiKeys.agentId, agentId))).toHaveLength(1);
+  });
+  it("honors HTTP revocation on the next authenticated request", async () => {
+    expect((await request(boardApp).delete(`/api/agents/${agentId}/keys/${keyId}`)).status).toBe(200);
     expect((await get(`/api/issues/${issueId}`)).status).toBe(401);
   });
 });
