@@ -22,7 +22,9 @@ export async function provisionOperator(opts: {
   let db: ReturnType<typeof createDb> | undefined;
   let result: { keyId: string; userId: string; expiresAt: Date | null };
   try {
-    const { boardAuthService } = await import("@paperclipai/server");
+    // Bundle the narrow administration service into the CLI. The server root is
+    // external and workspace exports resolve it to TypeScript source at runtime.
+    const { boardAuthService } = await import("../../../server/src/services/board-auth.js");
     db = createDb(dbUrl);
     result = await boardAuthService(db).provisionOperatorBoardApiKey({
       companyId: opts.companyId, name: opts.name, persistCredential: output.write,

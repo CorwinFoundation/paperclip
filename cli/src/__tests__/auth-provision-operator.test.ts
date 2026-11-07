@@ -7,7 +7,7 @@ vi.mock("../config/env.js", () => ({ loadPaperclipEnvFile: vi.fn() }));
 vi.mock("../config/store.js", () => ({ readConfig: mocks.readConfig, resolveConfigPath: (p: string) => p }));
 vi.mock("../commands/operator-credential-file.js", () => ({ reserveOperatorCredentialFile: mocks.reserve }));
 vi.mock("@paperclipai/db", () => ({ createDb: mocks.createDb }));
-vi.mock("@paperclipai/server", () => ({ boardAuthService: () => ({ provisionOperatorBoardApiKey: mocks.provision }) }));
+vi.mock("../../../server/src/services/board-auth.js", () => ({ boardAuthService: () => ({ provisionOperatorBoardApiKey: mocks.provision }) }));
 import { provisionOperator } from "../commands/auth-provision-operator.js";
 const opts = { config: "/instance/config.json", companyId: "company", name: "Operations", output: "/private/key.json" };
 beforeEach(() => {
