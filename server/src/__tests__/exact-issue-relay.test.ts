@@ -1,7 +1,15 @@
 import express from "express";
+import { createHash } from "node:crypto";
+import { agentApiKeys, agents } from "@paperclipai/db";
+import { agentApiKeyScopeSchema } from "../../../packages/shared/src/validators/agent.js";
+import { actorMiddleware } from "../middleware/auth.js";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getById: vi.fn(), listComments: vi.fn(), addComment: vi.fn(), log: vi.fn() }));
+// The retained worktree currently borrows server/node_modules. Resolve the
+// credential contract from this candidate, rather than the donor checkout.
+vi.mock("@paperclipai/shared", async () => import("../../../packages/shared/src/index.js"));
+vi.mock("../services/board-auth.js", () => ({ boardAuthService: () => ({ findBoardApiKeyByToken: vi.fn().mockResolvedValue(null) }) }));
 vi.mock("../services/issues.js", () => ({ issueService: () => mocks }));
 vi.mock("../services/activity-log.js", () => ({ logActivity: mocks.log }));
 import { exactIssueRelay } from "../middleware/exact-issue-relay.js";
@@ -59,5 +67,64 @@ describe("exact issue relay terminal routes", () => {
     const app = setup(); mocks.getById.mockResolvedValue({ id: issueId, companyId: commentId });
     expect((await request(app).get(path)).status).toBe(403);
     expect((await request(app).post(path).send({ status: "todo" })).status).toBe(403);
+  });
+});
+
+
+describe("exact issue relay credential authentication", () => {
+  const scope = { kind: "exact_issue_relay", companyId, issueIds: [issueId] };
+
+  it.each([
+    { ...scope, issueIds: [] },
+    { ...scope, issueIds: ["BAC-250"] },
+    { ...scope, issueIds: Array(51).fill(issueId) },
+    { ...scope, companyId: undefined },
+    { ...scope, allowMutations: true },
+  ])("rejects malformed scope %j", malformed => {
+    expect(agentApiKeyScopeSchema.safeParse(malformed).success).toBe(false);
+  });
+
+  function authenticatedApp(scopeConfig: unknown = scope, revoked = false) {
+    const token = "test-only-relay-token";
+    const key = { id: commentId, agentId: commentId, companyId,
+      scopeConfig, keyHash: createHash("sha256").update(token).digest("hex") };
+    const db = {
+      select: vi.fn(() => ({ from: (table: unknown) => ({ where: () => Promise.resolve(
+        table === agentApiKeys ? (revoked ? [] : [key]) :
+        table === agents ? [{ id: commentId, companyId, status: "paused" }] : [],
+      ) }) })),
+      update: vi.fn(() => ({ set: () => ({ where: () => Promise.resolve() }) })),
+    };
+    const app = express();
+    app.use(express.json());
+    app.use(actorMiddleware(db as any, { deploymentMode: "authenticated" }));
+    app.use(exactIssueRelay(db as any));
+    app.use((req, res) => res.status(req.actor.type === "none" ? 401 : 418).end());
+    return { app, token };
+  }
+
+  it("authenticates a stored scoped key before applying terminal routes", async () => {
+    setup();
+    const { app, token } = authenticatedApp();
+    expect((await request(app).get(path).auth(token, { type: "bearer" })).status).toBe(200);
+    expect((await request(app).get("/api/agents/me").auth(token, { type: "bearer" })).status).toBe(403);
+    expect((await request(app).get("/api/tasks/" + issueId).auth(token, { type: "bearer" })).status).toBe(403);
+    expect((await request(app).post(path + "/comments").auth(token, { type: "bearer" })
+      .send({ body: "relay", resume: true })).status).toBe(403);
+    expect(mocks.addComment).not.toHaveBeenCalled();
+  });
+
+  it("rejects revoked credentials before issue access", async () => {
+    setup();
+    const { app, token } = authenticatedApp(scope, true);
+    expect((await request(app).get(path).auth(token, { type: "bearer" })).status).toBe(401);
+    expect(mocks.getById).not.toHaveBeenCalled();
+  });
+
+  it("does not downgrade malformed stored scopes to standard keys", async () => {
+    setup();
+    const { app, token } = authenticatedApp({ ...scope, issueIds: [] });
+    expect((await request(app).get(path).auth(token, { type: "bearer" })).status).toBe(403);
+    expect(mocks.getById).not.toHaveBeenCalled();
   });
 });
