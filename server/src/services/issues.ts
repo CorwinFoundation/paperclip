@@ -3485,6 +3485,41 @@ export function issueService(db: Db) {
       maxCommentCreatedAtMs + ISSUE_COMMENT_RUN_LOG_DERIVATION_END_SLACK_MS,
     ).toISOString();
 
+    // Collect candidate run ids through two separately indexed lookups. A single
+    // `contextSnapshot OR EXISTS(activity_log)` predicate defeats both indexes and
+    // scans every company run, which timed out GET /issues/:id/comments on
+    // long-lived issues (BEAAA-46752).
+    const [contextRunRows, activityRunRows] = await Promise.all([
+      db
+        .select({ runId: heartbeatRuns.id })
+        .from(heartbeatRuns)
+        .where(
+          and(
+            eq(heartbeatRuns.companyId, companyId),
+            sql`${heartbeatRuns.contextSnapshot} ->> 'issueId' = ${issueId}`,
+          ),
+        ),
+      db
+        .selectDistinct({ runId: activityLog.runId })
+        .from(activityLog)
+        .where(
+          and(
+            eq(activityLog.entityType, "issue"),
+            eq(activityLog.entityId, issueId),
+            eq(activityLog.companyId, companyId),
+            sql`${activityLog.runId} is not null`,
+          ),
+        ),
+    ]);
+    const candidateRunIds = [
+      ...new Set(
+        [...contextRunRows, ...activityRunRows]
+          .map((row) => row.runId)
+          .filter((runId): runId is string => typeof runId === "string" && runId.length > 0),
+      ),
+    ];
+    if (candidateRunIds.length === 0) return comments;
+
     const runs = await db
       .select({
         runId: heartbeatRuns.id,
@@ -3500,17 +3535,7 @@ export function issueService(db: Db) {
       .where(
         and(
           eq(heartbeatRuns.companyId, companyId),
-          or(
-            sql`${heartbeatRuns.contextSnapshot} ->> 'issueId' = ${issueId}`,
-            sql`exists (
-              select 1
-              from ${activityLog}
-              where ${activityLog.companyId} = ${companyId}
-                and ${activityLog.entityType} = 'issue'
-                and ${activityLog.entityId} = ${issueId}
-                and ${activityLog.runId} = ${heartbeatRuns.id}
-            )`,
-          ),
+          inArray(heartbeatRuns.id, candidateRunIds),
           sql`coalesce(${heartbeatRuns.finishedAt}, ${heartbeatRuns.createdAt}) >= ${minCommentCreatedAt}::timestamptz`,
           sql`coalesce(${heartbeatRuns.startedAt}, ${heartbeatRuns.createdAt}) <= ${maxCommentCreatedAt}::timestamptz`,
         ),
