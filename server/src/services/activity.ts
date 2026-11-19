@@ -377,6 +377,27 @@ export function activityService(db: Db) {
 
     runsForIssue: async (companyId: string, issueId: string) => {
       scheduleRunLivenessBackfill(companyId, issueId);
+      // Materialize the run ids referenced by this issue's activity log up front.
+      // Folding these into the heartbeat_runs filter as a correlated EXISTS forced
+      // a full company-wide scan (OR + hashed subplan can't drive a bitmap index);
+      // an explicit id list lets the planner BitmapOr the issue + pkey indexes.
+      const activityRunRows = await db
+        .select({ runId: activityLog.runId })
+        .from(activityLog)
+        .where(
+          and(
+            eq(activityLog.companyId, companyId),
+            eq(activityLog.entityType, "issue"),
+            eq(activityLog.entityId, issueId),
+          ),
+        );
+      const activityRunIds = Array.from(
+        new Set(
+          activityRunRows
+            .map((row) => row.runId)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+        ),
+      );
       const runs = await db
         .select({
           runId: heartbeatRuns.id,
@@ -413,17 +434,12 @@ export function activityService(db: Db) {
         .where(
           and(
             eq(heartbeatRuns.companyId, companyId),
-            or(
-              sql`${heartbeatRuns.contextSnapshot} ->> 'issueId' = ${issueId}`,
-              sql`exists (
-                select 1
-                from ${activityLog}
-                where ${activityLog.companyId} = ${companyId}
-                  and ${activityLog.entityType} = 'issue'
-                  and ${activityLog.entityId} = ${issueId}
-                  and ${activityLog.runId} = ${heartbeatRuns.id}
-              )`,
-            ),
+            activityRunIds.length > 0
+              ? or(
+                  sql`${heartbeatRuns.contextSnapshot} ->> 'issueId' = ${issueId}`,
+                  inArray(heartbeatRuns.id, activityRunIds),
+                )
+              : sql`${heartbeatRuns.contextSnapshot} ->> 'issueId' = ${issueId}`,
           ),
         )
         .orderBy(desc(heartbeatRuns.createdAt));

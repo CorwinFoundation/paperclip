@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +16,45 @@ function nonEmpty(value: string | undefined): string | null {
 
 export async function pathExists(candidate: string): Promise<boolean> {
   return fs.access(candidate).then(() => true).catch(() => false);
+}
+
+const THREAD_STORE_RE = /^\s*experimental_thread_store\s*=/m;
+
+// Codex CLI >= 0.160 added an on-disk SQLite per-thread "live writer" store under
+// $CODEX_HOME. When two codex runs touch the same thread in the SAME home
+// concurrently, the second HANGS on the writer lock ("thread-store conflict:
+// thread <id> already has an active writer") instead of failing fast. Managed
+// codex-homes are shared per-company, so high-volume or overlapping runs collide
+// there (observed wedging Platform Maintainer on 0.163). Pinning the store to
+// in_memory disables the on-disk store -> no lock, no hang. The only cost is
+// cross-process thread *resume*, a no-op for this fleet (sessions are reset by
+// the token-bloat guard and the adapter already falls back to a fresh session).
+// 0.144.4 ignores the key, so it is safe ahead of a CLI upgrade. The key is a
+// TOML top-level assignment and must precede any [table] section, so it is
+// prepended. Idempotent: skipped if already present (e.g. per-agent homes that
+// carry the key) and re-applied each run after seedManagedCodexHome re-copies
+// config.toml from the shared source.
+async function ensureManagedThreadStoreInMemory(
+  targetHome: string,
+  onLog: AdapterExecutionContext["onLog"],
+): Promise<void> {
+  const configPath = path.join(targetHome, "config.toml");
+  let existing = "";
+  try {
+    existing = await fs.readFile(configPath, "utf8");
+  } catch {
+    existing = "";
+  }
+  if (THREAD_STORE_RE.test(existing)) return;
+  const id =
+    "paperclip-managed-" +
+    createHash("sha256").update(path.resolve(targetHome)).digest("hex").slice(0, 16);
+  const line = `experimental_thread_store = { type = "in_memory", id = "${id}" }\n`;
+  await fs.writeFile(configPath, existing ? `${line}${existing}` : line, { mode: 0o600 });
+  await onLog(
+    "stdout",
+    `[paperclip] Pinned Codex thread store to in_memory in "${configPath}" (prevents 0.160.x+ shared-home writer-lock hangs).\n`,
+  );
 }
 
 function hasUsableAuthPayload(authPayload: unknown): boolean {
@@ -243,6 +283,10 @@ export async function seedManagedCodexHome(
       `[paperclip] Using ${isWorktreeMode(env) ? "worktree-isolated" : "Paperclip-managed"} Codex home "${targetHome}" (seeded from "${sourceHome}").\n`,
     );
   }
+
+  // Managed homes are shared per-company; keep the Codex thread store in-memory
+  // so concurrent/overlapping runs cannot hang on the 0.160.x+ SQLite writer lock.
+  await ensureManagedThreadStoreInMemory(targetHome, onLog);
 
   if (apiKey) {
     await writeApiKeyAuthJson(targetHome, apiKey);
