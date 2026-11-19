@@ -202,24 +202,35 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           JOIN issue_tree ON (${childIssues.parentId})::text = issue_tree.id
           WHERE ${childIssues.companyId} = ${companyId}
             AND ${childIssues.hiddenAt} IS NULL
+        ),
+        matched_runs AS (
+          -- Runs tagged directly with an issue in the tree.
+          SELECT ${heartbeatRuns.id} AS id,
+                 ${heartbeatRuns.startedAt} AS started_at,
+                 ${heartbeatRuns.finishedAt} AS finished_at
+          FROM ${heartbeatRuns}
+          WHERE ${heartbeatRuns.companyId} = ${companyId}
+            AND ${heartbeatRuns.startedAt} IS NOT NULL
+            AND ${heartbeatRuns.contextSnapshot} ->> 'issueId' IN (SELECT id FROM issue_tree)
+          UNION
+          -- Runs linked to a tree issue via the activity log. Split out as a
+          -- UNION (instead of an OR + correlated EXISTS) so each arm uses an
+          -- index; the OR form forced a full company-wide heartbeat_runs scan.
+          SELECT ${heartbeatRuns.id} AS id,
+                 ${heartbeatRuns.startedAt} AS started_at,
+                 ${heartbeatRuns.finishedAt} AS finished_at
+          FROM ${heartbeatRuns}
+          JOIN ${activityLog} ON ${activityLog.runId} = ${heartbeatRuns.id}
+          JOIN issue_tree ON ${activityLog.entityId} = issue_tree.id
+          WHERE ${heartbeatRuns.companyId} = ${companyId}
+            AND ${heartbeatRuns.startedAt} IS NOT NULL
+            AND ${activityLog.companyId} = ${companyId}
+            AND ${activityLog.entityType} = 'issue'
         )
         SELECT
-          count(distinct ${heartbeatRuns.id})::int AS "runCount",
-          coalesce(sum(extract(epoch from (coalesce(${heartbeatRuns.finishedAt}, now()) - ${heartbeatRuns.startedAt})) * 1000), 0)::double precision AS "runtimeMs"
-        FROM ${heartbeatRuns}
-        WHERE ${heartbeatRuns.companyId} = ${companyId}
-          AND ${heartbeatRuns.startedAt} IS NOT NULL
-          AND (
-            ${heartbeatRuns.contextSnapshot} ->> 'issueId' IN (SELECT id FROM issue_tree)
-            OR EXISTS (
-              SELECT 1
-              FROM ${activityLog}
-              JOIN issue_tree ON ${activityLog.entityId} = issue_tree.id
-              WHERE ${activityLog.companyId} = ${companyId}
-                AND ${activityLog.entityType} = 'issue'
-                AND ${activityLog.runId} = ${heartbeatRuns.id}
-            )
-          )
+          count(distinct id)::int AS "runCount",
+          coalesce(sum(extract(epoch from (coalesce(finished_at, now()) - started_at)) * 1000), 0)::double precision AS "runtimeMs"
+        FROM matched_runs
       `;
 
       // Run cost-event aggregation and run-duration aggregation in parallel.
